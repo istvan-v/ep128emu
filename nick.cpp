@@ -181,6 +181,8 @@ namespace Ep128 {
 #endif
 #if defined(__GNUC__) && (__GNUC__ >= 3) && defined(__i386__) && !defined(__ICC)
 #  define REGPARM __attribute__ ((__regparm__ (3)))
+#else
+#  define REGPARM
 #endif
 
   REGPARM void NickRenderer_Blank::doRender(uint8_t *buf)
