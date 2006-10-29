@@ -1,7 +1,7 @@
 # vim: syntax=python
 
 compilerFlags = Split('''
-    -Wall -W -ansi -pedantic -Wno-long-long -Wshadow -g -gstabs+ -O
+    -Wall -W -ansi -pedantic -Wno-long-long -Wshadow -g -gstabs+ -O0
 ''')
 
 ep128libEnvironment = Environment()
