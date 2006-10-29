@@ -19,6 +19,7 @@
 
 #include "ep128.hpp"
 #include "dave.hpp"
+#include <cmath>
 
 // calculate parity of 'n'
 // returns 0 if parity is even, and 1 if parity is odd
@@ -899,6 +900,239 @@ namespace Ep128 {
   }
 
   void Dave::clearInterruptRequest()
+  {
+  }
+
+  // --------------------------------------------------------------------------
+
+  inline float DaveConverter::DCBlockFilter::process(float inputSignal)
+  {
+    // y[n] = x[n] - x[n - 1] + (c * y[n - 1])
+    float   outputSignal = (inputSignal - this->xnm1) + (this->c * this->ynm1);
+    // avoid denormals
+#if defined(__i386__) || defined(__x86_64__)
+    unsigned char e = ((unsigned char *) &outputSignal)[3] & 0x7F;
+    if (e < 0x08 || e >= 0x78)
+      outputSignal = 0.0f;
+#else
+    outputSignal = (outputSignal < -1.0e-20f || outputSignal > 1.0e-20f ?
+                    outputSignal : 0.0f);
+#endif
+    this->xnm1 = inputSignal;
+    this->ynm1 = outputSignal;
+    return outputSignal;
+  }
+
+  void DaveConverter::DCBlockFilter::setCutoffFrequency(float frq)
+  {
+    float   tpfdsr = (2.0f * 3.14159265f * frq / sampleRate);
+    c = 1.0f - (tpfdsr > 0.0003f ?
+                (tpfdsr < 0.125f ? tpfdsr : 0.125f) : 0.0003f);
+  }
+
+  DaveConverter::DCBlockFilter::DCBlockFilter(float sampleRate_,
+                                              float cutoffFreq)
+  {
+    sampleRate = sampleRate_;
+    c = 1.0f;
+    xnm1 = 0.0f;
+    ynm1 = 0.0f;
+    setCutoffFrequency(cutoffFreq);
+  }
+
+  inline void DaveConverter::sendOutputSignal(float left, float right)
+  {
+    // scale, clip, and convert to 16 bit integer format
+    float   outL = left * ampScale;
+    float   outR = right * ampScale;
+    if (outL < 0.0f)
+      outL = (outL > -32767.0f ? outL - 0.5f : -32767.5f);
+    else
+      outL = (outL < 32767.0f ? outL + 0.5f : 32767.5f);
+    if (outR < 0.0f)
+      outR = (outR > -32767.0f ? outR - 0.5f : -32767.5f);
+    else
+      outR = (outR < 32767.0f ? outR + 0.5f : 32767.5f);
+    this->audioOutput(int16_t(outL), int16_t(outR));
+  }
+
+  DaveConverter::DaveConverter(float inputSampleRate_, float outputSampleRate_,
+                               float dcBlockFreq1, float dcBlockFreq2,
+                               float ampScale_)
+    : inputSampleRate(inputSampleRate_),
+      outputSampleRate(outputSampleRate_),
+      dcBlock1L(outputSampleRate_, dcBlockFreq1),
+      dcBlock1R(outputSampleRate_, dcBlockFreq1),
+      dcBlock2L(outputSampleRate_, dcBlockFreq2),
+      dcBlock2R(outputSampleRate_, dcBlockFreq2)
+  {
+    setOutputVolume(ampScale_);
+  }
+
+  DaveConverter::~DaveConverter()
+  {
+  }
+
+  void DaveConverter::setDCBlockFilters(float frq1, float frq2)
+  {
+    dcBlock1L.setCutoffFrequency(frq1);
+    dcBlock1R.setCutoffFrequency(frq1);
+    dcBlock2L.setCutoffFrequency(frq2);
+    dcBlock2R.setCutoffFrequency(frq2);
+  }
+
+  void DaveConverter::setOutputVolume(float ampScale_)
+  {
+    if (ampScale_ > 0.01f && ampScale_ < 1.0f)
+      ampScale = 150.0f * ampScale_;
+    else if (ampScale_ > 0.99f)
+      ampScale = 150.0f;
+    else
+      ampScale = 1.5f;
+  }
+
+  void DaveConverterLowQuality::sendInputSignal(uint32_t audioInput)
+  {
+    float   left = float(int(audioInput & 0xFFFF));
+    float   right = float(int(audioInput >> 16));
+    phs += 1.0f;
+    if (phs < nxtPhs) {
+      outLeft += (prvInputL + left);
+      outRight += (prvInputR + right);
+    }
+    else {
+      float   phsFrac = nxtPhs - (phs - 1.0f);
+      float   left2 = prvInputL + ((left - prvInputL) * phsFrac);
+      float   right2 = prvInputR + ((right - prvInputR) * phsFrac);
+      outLeft += ((prvInputL + left2) * phsFrac);
+      outRight += ((prvInputR + right2) * phsFrac);
+      outLeft /= (downsampleRatio * 2.0f);
+      outRight /= (downsampleRatio * 2.0f);
+      sendOutputSignal(dcBlock2L.process(dcBlock1L.process(outLeft)),
+                       dcBlock2R.process(dcBlock1R.process(outRight)));
+      outLeft = (left2 + left) * (1.0f - phsFrac);
+      outRight = (right2 + right) * (1.0f - phsFrac);
+      nxtPhs = (nxtPhs + downsampleRatio) - phs;
+      phs = 0.0f;
+    }
+    prvInputL = left;
+    prvInputR = right;
+  }
+
+  DaveConverterLowQuality::DaveConverterLowQuality(float inputSampleRate_,
+                                                   float outputSampleRate_,
+                                                   float dcBlockFreq1,
+                                                   float dcBlockFreq2,
+                                                   float ampScale_)
+    : DaveConverter(inputSampleRate_, outputSampleRate_,
+                    dcBlockFreq1, dcBlockFreq2, ampScale_)
+  {
+    prvInputL = 0.0f;
+    prvInputR = 0.0f;
+    phs = 0.0f;
+    downsampleRatio = inputSampleRate_ / outputSampleRate_;
+    nxtPhs = downsampleRatio;
+    outLeft = 0.0f;
+    outRight = 0.0f;
+  }
+
+  DaveConverterLowQuality::~DaveConverterLowQuality()
+  {
+  }
+
+  inline void DaveConverterHighQuality::ResampleWindow::processSample(
+      float inL, float inR, float *outBufL, float *outBufR,
+      int outBufSize, float bufPos)
+  {
+    int      writePos = int(bufPos);
+    float    posFrac = bufPos - writePos;
+    float    winPos = 1.0f - (posFrac * float(windowSize / 12));
+    int      winPosInt = int(winPos);
+    float    winPosFrac = winPos - winPosInt;
+    writePos -= 5;
+    while (writePos < 0)
+      writePos += outBufSize;
+    for (int i = 0; i < 12; i++) {
+      float   w = windowTable[winPosInt]
+                  + ((windowTable[winPosInt + 1] - windowTable[winPosInt])
+                     * winPosFrac);
+      outBufL[writePos] += inL * w;
+      outBufR[writePos] += inR * w;
+      if (++writePos >= outBufSize)
+        writePos = 0;
+      winPosInt += (windowSize / 12);
+    }
+  }
+
+  DaveConverterHighQuality::ResampleWindow::ResampleWindow()
+  {
+    double  pi = std::atan(1.0) * 4.0;
+    double  phs = -(pi * 6.0);
+    double  phsInc = 12.0 * pi / windowSize;
+    for (int i = 0; i <= windowSize; i++) {
+      if (i == (windowSize / 2))
+        windowTable[i] = 1.0f;
+      else
+        windowTable[i] = float((std::cos(phs / 6.0) * 0.5 + 0.5)  // von Hann
+                               * (std::sin(phs) / phs));
+      phs += phsInc;
+    }
+  }
+
+  DaveConverterHighQuality::ResampleWindow  DaveConverterHighQuality::window;
+
+  void DaveConverterHighQuality::sendInputSignal(uint32_t audioInput)
+  {
+    float   left = float(int(audioInput & 0xFFFF));
+    float   right = float(int(audioInput >> 16));
+    if (!sampleCnt) {
+      prvInputL = left;
+      prvInputR = right;
+      sampleCnt++;
+      return;
+    }
+    sampleCnt = 0;
+    left += prvInputL;
+    right += prvInputR;
+    window.processSample(left, right, bufL, bufR, bufSize, bufPos);
+    bufPos += resampleRatio;
+    if (bufPos >= nxtPos) {
+      if (bufPos >= float(bufSize))
+        bufPos -= float(bufSize);
+      nxtPos = float(int(bufPos) + 1);
+      int     readPos = int(bufPos) - 6;
+      while (readPos < 0)
+        readPos += bufSize;
+      left = bufL[readPos] * (0.5f * resampleRatio);
+      bufL[readPos] = 0.0f;
+      right = bufR[readPos] * (0.5f * resampleRatio);
+      bufR[readPos] = 0.0f;
+      sendOutputSignal(dcBlock2L.process(dcBlock1L.process(left)),
+                       dcBlock2R.process(dcBlock1R.process(right)));
+    }
+  }
+
+  DaveConverterHighQuality::DaveConverterHighQuality(float inputSampleRate_,
+                                                     float outputSampleRate_,
+                                                     float dcBlockFreq1,
+                                                     float dcBlockFreq2,
+                                                     float ampScale_)
+    : DaveConverter(inputSampleRate_, outputSampleRate_,
+                    dcBlockFreq1, dcBlockFreq2, ampScale_)
+  {
+    prvInputL = 0.0f;
+    prvInputR = 0.0f;
+    sampleCnt = 0;
+    for (int i = 0; i < bufSize; i++) {
+      bufL[i] = 0.0f;
+      bufR[i] = 0.0f;
+    }
+    bufPos = 0.0f;
+    nxtPos = 1.0f;
+    resampleRatio = outputSampleRate_ / (inputSampleRate_ * 0.5f);
+  }
+
+  DaveConverterHighQuality::~DaveConverterHighQuality()
   {
   }
 

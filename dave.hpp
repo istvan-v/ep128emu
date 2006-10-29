@@ -181,6 +181,86 @@ namespace Ep128 {
     void reset();
   };
 
+  // --------------------------------------------------------------------------
+
+  class DaveConverter {
+   protected:
+    class DCBlockFilter {
+     private:
+      float   sampleRate;
+      float   c, xnm1, ynm1;
+     public:
+      inline float process(float inputSignal);
+      void setCutoffFrequency(float frq);
+      DCBlockFilter(float sampleRate_, float cutoffFreq = 10.0f);
+    };
+    float   inputSampleRate;
+    float   outputSampleRate;
+    DCBlockFilter dcBlock1L;
+    DCBlockFilter dcBlock1R;
+    DCBlockFilter dcBlock2L;
+    DCBlockFilter dcBlock2R;
+    float   ampScale;
+   public:
+    DaveConverter(float inputSampleRate_, float outputSampleRate_,
+                  float dcBlockFreq1 = 10.0f, float dcBlockFreq2 = 10.0f,
+                  float ampScale_ = 0.7071f);
+    virtual ~DaveConverter();
+    virtual void sendInputSignal(uint32_t audioInput) = 0;
+    void setDCBlockFilters(float frq1, float frq2);
+    void setOutputVolume(float ampScale_);
+   protected:
+    virtual void audioOutput(int16_t left, int16_t right) = 0;
+    inline void sendOutputSignal(float left, float right);
+  };
+
+  class DaveConverterLowQuality : public DaveConverter {
+   private:
+    float   prvInputL, prvInputR;
+    float   phs, nxtPhs;
+    float   downsampleRatio;
+    float   outLeft, outRight;
+   public:
+    virtual void sendInputSignal(uint32_t audioInput);
+    DaveConverterLowQuality(float inputSampleRate_,
+                            float outputSampleRate_,
+                            float dcBlockFreq1 = 10.0f,
+                            float dcBlockFreq2 = 10.0f,
+                            float ampScale_ = 0.7071f);
+    virtual ~DaveConverterLowQuality();
+  };
+
+  class DaveConverterHighQuality : public DaveConverter {
+   private:
+    class ResampleWindow {
+     private:
+      static const int windowSize = 12 * 128;
+      float   windowTable[12 * 128 + 1];
+     public:
+      ResampleWindow();
+      inline void processSample(float inL, float inR,
+                                float *outBufL, float *outBufR,
+                                int outBufSize, float bufPos);
+    };
+    static ResampleWindow window;
+    float   prvInputL, prvInputR;
+    int     sampleCnt;
+    static const int bufSize = 16;
+    float   bufL[16];
+    float   bufR[16];
+    float   bufPos, nxtPos;
+    float   resampleRatio;
+    // ----------------
+   public:
+    virtual void sendInputSignal(uint32_t audioInput);
+    DaveConverterHighQuality(float inputSampleRate_,
+                             float outputSampleRate_,
+                             float dcBlockFreq1 = 10.0f,
+                             float dcBlockFreq2 = 10.0f,
+                             float ampScale_ = 0.7071f);
+    virtual ~DaveConverterHighQuality();
+  };
+
 }       // namespace Ep128
 
 #endif  // EP128EMU_DAVE_HPP
