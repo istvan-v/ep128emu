@@ -1,7 +1,7 @@
 # vim: syntax=python
 
 compilerFlags = Split('''
-    -Wall -W -ansi -pedantic -Wno-long-long -Wshadow -g -gstabs+ -O0
+    -Wall -W -ansi -pedantic -Wno-long-long -Wshadow -g -O0
 ''')
 
 ep128libEnvironment = Environment()
@@ -21,6 +21,7 @@ z80libEnvironment.Append(CPPPATH = ['.', './z80'])
 ep128lib = ep128libEnvironment.StaticLibrary('ep128', Split('''
     bplist.cpp
     dave.cpp
+    fileio.cpp
     ioports.cpp
     memory.cpp
     nick.cpp

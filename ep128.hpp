@@ -43,5 +43,7 @@ typedef unsigned __int64    uint64_t;
 #  endif
 #endif
 
+#include "fileio.hpp"
+
 #endif  // EP128EMU_EP128_HPP
 
