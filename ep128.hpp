@@ -43,6 +43,42 @@ typedef unsigned __int64    uint64_t;
 #  endif
 #endif
 
+namespace Ep128 {
+
+  class Exception : public std::exception {
+   private:
+    const char  *msg;
+   public:
+    Exception() throw()
+      : std::exception()
+    {
+      msg = (char *) 0;
+    }
+    Exception(const char *msg_) throw()
+      : std::exception()
+    {
+      msg = msg_;
+    }
+    Exception(const Exception& e) throw()
+      : std::exception()
+    {
+      msg = e.msg;
+    }
+    virtual ~Exception() throw()
+    {
+    }
+    void operator=(const Exception& e) throw()
+    {
+      msg = e.msg;
+    }
+    virtual const char * what() const throw()
+    {
+      return (msg == (char *) 0 ? "unknown error" : msg);
+    }
+  };
+
+}       // namespace Ep128
+
 #include "fileio.hpp"
 
 #endif  // EP128EMU_EP128_HPP

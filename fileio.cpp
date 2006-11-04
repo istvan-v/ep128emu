@@ -174,7 +174,7 @@ namespace Ep128 {
   unsigned char File::Buffer::readByte()
   {
     if (curPos >= dataSize)
-      throw std::exception();
+      throw Exception("unexpected end of data chunk");
     unsigned char c = buf[curPos++] & 0xFF;
     return c;
   }
@@ -219,7 +219,7 @@ namespace Ep128 {
         break;
     }
     if (i >= dataSize)
-      throw std::exception();
+      throw Exception("unexpected end of data chunk while reading string");
     j = curPos;
     curPos = i + 1;
     return std::string(reinterpret_cast<char *>(&buf[j]));
@@ -296,7 +296,7 @@ namespace Ep128 {
       }
     }
     else if (n <= -2147483648.0) {
-      i = -2147483648;
+      i = (-2147483647 - 1);
     }
     else if (n >= 2147483648.0) {
       i = 2147483647;
@@ -391,7 +391,7 @@ namespace Ep128 {
           for (int i = 0; i < 16; i++) {
             c = std::fgetc(f);
             if (c == EOF || (unsigned char) (c & 0xFF) != ep128EmuFile_Magic[i])
-              throw std::exception();
+              throw Exception("invalid file header");
           }
           while ((c = std::fgetc(f)) != EOF)
             buf.writeByte((unsigned char) (c & 0xFF));
@@ -414,7 +414,7 @@ namespace Ep128 {
       err = true;
     if (err) {
       buf.clear();
-      throw std::exception();
+      throw Exception("error opening or reading file");
     }
   }
 
@@ -425,7 +425,7 @@ namespace Ep128 {
   void File::addChunk(ChunkType type, const Buffer& buf_)
   {
     if (type == EP128EMU_CHUNKTYPE_END_OF_FILE)
-      throw std::exception();
+      throw Exception("internal error: invalid chunk type");
     size_t  startPos = buf.getPosition();
     buf.setPosition(startPos + buf_.getDataSize() + 12);
     buf.setPosition(startPos);
@@ -438,19 +438,19 @@ namespace Ep128 {
   void File::processAllChunks()
   {
     if (buf.getDataSize() < 12)
-      throw std::exception();
+      throw Exception("file is too short (no data)");
     buf.setPosition(0);
     while (buf.getPosition() < (buf.getDataSize() - 12)) {
       size_t  startPos = buf.getPosition();
       int     type = int(buf.readInt32());
       size_t  len = buf.readUInt32();
       if (len > (buf.getDataSize() - (startPos + 12)))
-        throw std::exception();
+        throw Exception("unexpected end of file");
       buf.setPosition(startPos + len + 8);
       if (buf.readUInt32() != hash_32(buf.getData() + startPos, len + 8))
-        throw std::exception();
+        throw Exception("CRC error in file data");
       if (ChunkType(type) == EP128EMU_CHUNKTYPE_END_OF_FILE)
-        throw std::exception();
+        throw Exception("unexpected 'end of file' chunk");
       if (chunkTypeDB.find(type) != chunkTypeDB.end()) {
         Buffer  tmpBuf(buf.getData() + (startPos + 8), len);
         tmpBuf.setPosition(0);
@@ -458,14 +458,14 @@ namespace Ep128 {
       }
     }
     if (buf.getPosition() != (buf.getDataSize() - 12))
-      throw std::exception();
+      throw Exception("file is truncated (missing 'end of file' chunk)");
     if (ChunkType(buf.readUInt32()) != EP128EMU_CHUNKTYPE_END_OF_FILE)
-      throw std::exception();
+      throw Exception("file is truncated (missing 'end of file' chunk)");
     if (buf.readUInt32() != 0)
-      throw std::exception();
+      throw Exception("invalid length for 'end of file' chunk (must be zero)");
     if (buf.readUInt32()
         != hash_32(buf.getData() + (buf.getDataSize() - 12), 8))
-      throw std::exception();
+      throw Exception("CRC error in file data");
   }
 
   void File::writeFile(const char *fileName, bool useHomeDirectory)
@@ -503,7 +503,7 @@ namespace Ep128 {
       err = true;
     buf.clear();
     if (err)
-      throw std::exception();
+      throw Exception("error opening or writing file");
   }
 
   // --------------------------------------------------------------------------
@@ -515,7 +515,7 @@ namespace Ep128 {
   void registerChunkType(ChunkTypeHandler *p)
   {
     if (!p)
-      throw std::exception();
+      throw Exception("internal error: NULL chunk type handler");
 
     int     type = int(p->getChunkType());
 

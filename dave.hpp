@@ -148,6 +148,7 @@ namespace Ep128 {
     inline void triggerIntSnd();
     inline void triggerInt1Hz();
     int * findPolycntForToneChannel(int n);
+    uint32_t runOneCycle_();
    public:
     Dave();
     virtual ~Dave();
@@ -163,7 +164,13 @@ namespace Ep128 {
     // Return value is audio output in left_channel + (right_channel << 16)
     // format, where the range for a single channel is 0 to 315 (sum of 4
     // sound generators and tape feedback, 0 to 63 each).
-    uint32_t runOneCycle();
+    inline uint32_t runOneCycle()
+    {
+      if (--clockCnt > 0)
+        return audioOutput;
+      clockCnt = clockDiv;
+      return runOneCycle_();
+    }
     // Write to a DAVE register.
     void writePort(uint16_t addr, uint8_t value);
     // Read from a DAVE register.

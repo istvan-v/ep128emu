@@ -153,12 +153,8 @@ namespace Ep128 {
 
   // run DAVE emulation, and also trigger any sound or timer interrupts
 
-  uint32_t Dave::runOneCycle()
+  uint32_t Dave::runOneCycle_()
   {
-    if (--clockCnt > 0)
-      return audioOutput;
-    clockCnt = clockDiv;
-
     unsigned int  lval, rval;
 
     // update polynomial counters
@@ -1046,13 +1042,13 @@ namespace Ep128 {
   {
     int      writePos = int(bufPos);
     float    posFrac = bufPos - writePos;
-    float    winPos = 1.0f - (posFrac * float(windowSize / 12));
+    float    winPos = (1.0f - posFrac) * float(windowSize / 12);
     int      winPosInt = int(winPos);
     float    winPosFrac = winPos - winPosInt;
     writePos -= 5;
     while (writePos < 0)
       writePos += outBufSize;
-    for (int i = 0; i < 12; i++) {
+    do {
       float   w = windowTable[winPosInt]
                   + ((windowTable[winPosInt + 1] - windowTable[winPosInt])
                      * winPosFrac);
@@ -1061,7 +1057,7 @@ namespace Ep128 {
       if (++writePos >= outBufSize)
         writePos = 0;
       winPosInt += (windowSize / 12);
-    }
+    } while (winPosInt < windowSize);
   }
 
   DaveConverterHighQuality::ResampleWindow::ResampleWindow()

@@ -79,7 +79,7 @@ namespace Ep128 {
           break;
       }
       if (j != 2 && j != 4)
-        throw std::exception();
+        throw Exception("syntax error in breakpoint list");
       if (j == 2 && j < curToken.length() && curToken[j] == ':') {
         j++;
         haveSegment = true;
@@ -97,7 +97,7 @@ namespace Ep128 {
             break;
         }
         if (j != 7 || n >= 0x4000)
-          throw std::exception();
+          throw Exception("syntax error in breakpoint list");
       }
       else if (j == 2)
         isIO = true;
@@ -120,12 +120,12 @@ namespace Ep128 {
         }
         if (isIO) {
           if (len != 2)
-            throw std::exception();
+            throw Exception("syntax error in breakpoint list");
         }
         else if (len != 4 || (haveSegment && n >= 0x4000))
-          throw std::exception();
+          throw Exception("syntax error in breakpoint list");
         if (n < addr)
-          throw std::exception();
+          throw Exception("syntax error in breakpoint list");
         lastAddr = n;
       }
       for ( ; j < curToken.length(); j++) {
@@ -138,13 +138,13 @@ namespace Ep128 {
           break;
         case 'p':
           if (++j >= curToken.length())
-            throw std::exception();
+            throw Exception("syntax error in breakpoint list");
           if (curToken[j] < '0' || curToken[j] > '3')
-            throw std::exception();
+            throw Exception("syntax error in breakpoint list");
           priority = int(curToken[j] - '0');
           break;
         default:
-          throw std::exception();
+          throw Exception("syntax error in breakpoint list");
         }
       }
       if (!isRead && !isWrite) {
