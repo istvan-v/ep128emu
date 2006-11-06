@@ -21,6 +21,7 @@ z80libEnvironment.Append(CPPPATH = ['.', './z80'])
 
 ep128lib = ep128libEnvironment.StaticLibrary('ep128', Split('''
     bplist.cpp
+    cfg_db.cpp
     dave.cpp
     fileio.cpp
     ioports.cpp
