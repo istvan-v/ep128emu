@@ -186,6 +186,12 @@ namespace Ep128 {
     void setKeyboardState(int keyCode, int state);
     // Reset DAVE.
     void reset();
+    // save snapshot
+    void saveState(File::Buffer&);
+    void saveState(File&);
+    // load snapshot
+    void loadState(File::Buffer&);
+    void registerChunkType(File&);
   };
 
   // --------------------------------------------------------------------------

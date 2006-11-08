@@ -113,9 +113,13 @@ namespace Ep128 {
       return ((const BreakPointList *) this)->lst_.at(ndx);
     }
     std::string getBreakPointList();
+    void saveState(File::Buffer&);
+    void saveState(File&);
+    void loadState(File::Buffer&);
+    void registerChunkType(File&);
   };
 
-}
+}       // namespace Ep128
 
 #endif  // EP128EMU_BPLIST_HPP
 

@@ -275,5 +275,100 @@ namespace Ep128 {
     return bplst;
   }
 
-}
+  // --------------------------------------------------------------------------
+
+  class ChunkType_MemorySnapshot : public File::ChunkTypeHandler {
+   private:
+    Memory& ref;
+   public:
+    ChunkType_MemorySnapshot(Memory& ref_)
+      : File::ChunkTypeHandler(),
+        ref(ref_)
+    {
+    }
+    virtual ~ChunkType_MemorySnapshot()
+    {
+    }
+    virtual File::ChunkType getChunkType() const
+    {
+      return File::EP128EMU_CHUNKTYPE_MEMORY_STATE;
+    }
+    virtual void processChunk(File::Buffer& buf)
+    {
+      ref.loadState(buf);
+    }
+  };
+
+  void Memory::saveState(File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    buf.writeUInt32(0x01000000);        // version number
+    buf.writeByte(pageTable[0]);
+    buf.writeByte(pageTable[1]);
+    buf.writeByte(pageTable[2]);
+    buf.writeByte(pageTable[3]);
+    if (segmentTable != (uint8_t**) 0 && segmentROMTable != (bool*) 0) {
+      for (size_t i = 0; i < 256; i++) {
+        if (segmentTable[i] != (uint8_t*) 0) {
+          buf.writeByte(uint8_t(i));
+          buf.writeBoolean(segmentROMTable[i]);
+          for (size_t j = 0; j < 16384; j++)
+            buf.writeByte(segmentTable[i][j]);
+        }
+      }
+    }
+  }
+
+  void Memory::saveState(File& f)
+  {
+    File::Buffer  buf;
+    this->saveState(buf);
+    f.addChunk(File::EP128EMU_CHUNKTYPE_MEMORY_STATE, buf);
+  }
+
+  void Memory::loadState(File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    // check version number
+    unsigned int  version = buf.readUInt32();
+    if (version != 0x01000000) {
+      buf.setPosition(buf.getDataSize());
+      throw Exception("incompatible memory snapshot format");
+    }
+    // reset memory
+    deleteAllSegments();
+    pageTable[0] = 0x00;
+    pageTable[1] = 0x00;
+    pageTable[2] = 0x00;
+    pageTable[3] = 0x00;
+    // now load saved state
+    pageTable[0] = buf.readByte();
+    pageTable[1] = buf.readByte();
+    pageTable[2] = buf.readByte();
+    pageTable[3] = buf.readByte();
+    while (buf.getPosition() < buf.getDataSize()) {
+      uint8_t segment = buf.readByte();
+      // allocate space
+      loadSegment(segment, false, (uint8_t*) 0, 0);
+      // set ROM flag and load data
+      segmentROMTable[segment] = buf.readBoolean();
+      for (size_t i = 0; i < 16384; i++)
+        segmentTable[segment][i] = buf.readByte();
+    }
+  }
+
+  void Memory::registerChunkType(File& f)
+  {
+    ChunkType_MemorySnapshot  *p;
+    p = new ChunkType_MemorySnapshot(*this);
+    try {
+      f.registerChunkType(p);
+    }
+    catch (...) {
+      delete p;
+      throw;
+    }
+  }
+
+}       // namespace Ep128
 

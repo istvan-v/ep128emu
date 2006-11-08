@@ -446,6 +446,30 @@ namespace Ep128Emu {
     }
   }
 
+  // --------------------------------------------------------------------------
+
+  class ChunkType_ConfigDB : public Ep128::File::ChunkTypeHandler {
+   private:
+    ConfigurationDB&  ref;
+   public:
+    ChunkType_ConfigDB(ConfigurationDB& ref_)
+      : Ep128::File::ChunkTypeHandler(),
+        ref(ref_)
+    {
+    }
+    virtual ~ChunkType_ConfigDB()
+    {
+    }
+    virtual Ep128::File::ChunkType getChunkType() const
+    {
+      return Ep128::File::EP128EMU_CHUNKTYPE_CONFIG_DB;
+    }
+    virtual void processChunk(Ep128::File::Buffer& buf)
+    {
+      ref.loadState(buf);
+    }
+  };
+
   void ConfigurationDB::saveState(Ep128::File::Buffer& buf)
   {
     std::map<std::string, ConfigurationVariable *>::iterator  i;
@@ -479,6 +503,13 @@ namespace Ep128Emu {
         buf.writeString(std::string(cv));
       }
     }
+  }
+
+  void ConfigurationDB::saveState(Ep128::File& f)
+  {
+    Ep128::File::Buffer buf;
+    this->saveState(buf);
+    f.addChunk(Ep128::File::EP128EMU_CHUNKTYPE_CONFIG_DB, buf);
   }
 
   void ConfigurationDB::loadState(Ep128::File::Buffer& buf)
@@ -546,6 +577,19 @@ namespace Ep128Emu {
         }
         break;
       }
+    }
+  }
+
+  void ConfigurationDB::registerChunkType(Ep128::File& f)
+  {
+    ChunkType_ConfigDB  *p;
+    p = new ChunkType_ConfigDB(*this);
+    try {
+      f.registerChunkType(p);
+    }
+    catch (...) {
+      delete p;
+      throw;
     }
   }
 

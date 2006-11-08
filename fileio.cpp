@@ -46,8 +46,6 @@ static const unsigned char ep128EmuFile_Magic[16] = {
   0x01, 0x33, 0xDE, 0x07, 0xD2, 0x34, 0xF2, 0x22
 };
 
-static std::map< int, Ep128::ChunkTypeHandler * >   chunkTypeDB;
-
 static uint32_t hash_32(const unsigned char *buf, size_t nBytes)
 {
   size_t        n = nBytes >> 2;
@@ -420,6 +418,11 @@ namespace Ep128 {
 
   File::~File()
   {
+    std::map< int, ChunkTypeHandler * >::iterator   i;
+
+    for (i = chunkTypeDB.begin(); i != chunkTypeDB.end(); i++)
+      delete (*i).second;
+    chunkTypeDB.clear();
   }
 
   void File::addChunk(ChunkType type, const Buffer& buf_)
@@ -508,11 +511,11 @@ namespace Ep128 {
 
   // --------------------------------------------------------------------------
 
-  ChunkTypeHandler::~ChunkTypeHandler()
+  File::ChunkTypeHandler::~ChunkTypeHandler()
   {
   }
 
-  void registerChunkType(ChunkTypeHandler *p)
+  void File::registerChunkType(ChunkTypeHandler *p)
   {
     if (!p)
       throw Exception("internal error: NULL chunk type handler");
@@ -524,15 +527,6 @@ namespace Ep128 {
       chunkTypeDB.erase(type);
     }
     chunkTypeDB[type] = p;
-  }
-
-  void unregisterAllChunkTypes()
-  {
-    std::map< int, ChunkTypeHandler * >::iterator   i;
-
-    for (i = chunkTypeDB.begin(); i != chunkTypeDB.end(); i++)
-      delete (*i).second;
-    chunkTypeDB.clear();
   }
 
 }       // namespace Ep128

@@ -258,5 +258,90 @@ namespace Ep128 {
     return lst.str();
   }
 
-}
+  // --------------------------------------------------------------------------
+
+  class ChunkType_BPList : public File::ChunkTypeHandler {
+   private:
+    BreakPointList& ref;
+   public:
+    ChunkType_BPList(BreakPointList& ref_)
+      : File::ChunkTypeHandler(),
+        ref(ref_)
+    {
+    }
+    virtual ~ChunkType_BPList()
+    {
+    }
+    virtual File::ChunkType getChunkType() const
+    {
+      return File::EP128EMU_CHUNKTYPE_BREAKPOINTS;
+    }
+    virtual void processChunk(File::Buffer& buf)
+    {
+      ref.loadState(buf);
+    }
+  };
+
+  void BreakPointList::saveState(File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    buf.writeUInt32(0x01000000);        // version number
+    for (size_t i = 0; i < lst_.size(); i++) {
+      buf.writeBoolean(lst_[i].isIO());
+      buf.writeBoolean(lst_[i].haveSegment());
+      buf.writeBoolean(lst_[i].isRead());
+      buf.writeBoolean(lst_[i].isWrite());
+      buf.writeByte(lst_[i].segment());
+      buf.writeUInt32(lst_[i].addr());
+      buf.writeByte(uint8_t(lst_[i].priority()));
+    }
+  }
+
+  void BreakPointList::saveState(File& f)
+  {
+    File::Buffer  buf;
+    this->saveState(buf);
+    f.addChunk(File::EP128EMU_CHUNKTYPE_BREAKPOINTS, buf);
+  }
+
+  void BreakPointList::loadState(File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    // check version number
+    unsigned int  version = buf.readUInt32();
+    if (version != 0x01000000) {
+      buf.setPosition(buf.getDataSize());
+      throw Exception("incompatible breakpoint list format");
+    }
+    // reset breakpoint list
+    lst_.clear();
+    // load saved state
+    while (buf.getPosition() < buf.getDataSize()) {
+      bool      isIO = buf.readBoolean();
+      bool      haveSegment = buf.readBoolean();
+      bool      isRead = buf.readBoolean();
+      bool      isWrite = buf.readBoolean();
+      uint8_t   segment = buf.readByte();
+      uint16_t  addr = uint16_t(buf.readUInt32());
+      int       priority = buf.readByte();
+      BreakPoint  bp(isIO, haveSegment, isRead, isWrite,
+                     segment, addr, priority);
+      lst_.push_back(bp);
+    }
+  }
+
+  void BreakPointList::registerChunkType(File& f)
+  {
+    ChunkType_BPList  *p;
+    p = new ChunkType_BPList(*this);
+    try {
+      f.registerChunkType(p);
+    }
+    catch (...) {
+      delete p;
+      throw;
+    }
+  }
+
+}       // namespace Ep128
 

@@ -58,6 +58,10 @@ namespace Ep128 {
     inline void setPage(uint8_t page, uint8_t segment);
     inline uint8_t getPage(uint8_t page);
     BreakPointList getBreakPointList();
+    void saveState(File::Buffer&);
+    void saveState(File&);
+    void loadState(File::Buffer&);
+    void registerChunkType(File&);
   };
 
   // --------------------------------------------------------------------------

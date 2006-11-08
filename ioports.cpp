@@ -203,5 +203,79 @@ namespace Ep128 {
     return bplst;
   }
 
-}
+  // --------------------------------------------------------------------------
+
+  class ChunkType_IOSnapshot : public File::ChunkTypeHandler {
+   private:
+    IOPorts&  ref;
+   public:
+    ChunkType_IOSnapshot(IOPorts& ref_)
+      : File::ChunkTypeHandler(),
+        ref(ref_)
+    {
+    }
+    virtual ~ChunkType_IOSnapshot()
+    {
+    }
+    virtual File::ChunkType getChunkType() const
+    {
+      return File::EP128EMU_CHUNKTYPE_IO_STATE;
+    }
+    virtual void processChunk(File::Buffer& buf)
+    {
+      ref.loadState(buf);
+    }
+  };
+
+  void IOPorts::saveState(File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    buf.writeUInt32(0x01000000);        // version number
+    for (size_t i = 0; i < 256; i++)
+      buf.writeByte(portValues[i]);
+  }
+
+  void IOPorts::saveState(File& f)
+  {
+    File::Buffer  buf;
+    this->saveState(buf);
+    f.addChunk(File::EP128EMU_CHUNKTYPE_IO_STATE, buf);
+  }
+
+  void IOPorts::loadState(File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    // check version number
+    unsigned int  version = buf.readUInt32();
+    if (version != 0x01000000) {
+      buf.setPosition(buf.getDataSize());
+      throw Exception("incompatible I/O port snapshot format");
+    }
+    // load saved state
+    uint8_t tmp[256];
+    for (size_t i = 0; i < 256; i++)
+      tmp[i] = buf.readByte();
+    if (buf.getPosition() != buf.getDataSize())
+      throw Exception("trailing garbage at end of I/O port snapshot data");
+    for (size_t i = 0; i < 256; i++) {
+      WriteCallback&  cb = writeCallbacks[i];
+      portValues[i] = tmp[i];
+      cb.func(cb.userData_, cb.addr_, tmp[i]);
+    }
+  }
+
+  void IOPorts::registerChunkType(File& f)
+  {
+    ChunkType_IOSnapshot  *p;
+    p = new ChunkType_IOSnapshot(*this);
+    try {
+      f.registerChunkType(p);
+    }
+    catch (...) {
+      delete p;
+      throw;
+    }
+  }
+
+}       // namespace Ep128
 

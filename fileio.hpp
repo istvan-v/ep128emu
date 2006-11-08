@@ -21,12 +21,9 @@
 #define EP128EMU_FILEIO_HPP
 
 #include "ep128.hpp"
+#include <map>
 
 namespace Ep128 {
-
-  typedef enum {
-    EP128EMU_CHUNKTYPE_END_OF_FILE =    0x00000000
-  } ChunkType;
 
   class File {
    public:
@@ -66,29 +63,39 @@ namespace Ep128 {
       Buffer(const unsigned char *buf_, size_t nBytes);
       ~Buffer();
     };
+    // ----------------
+    typedef enum {
+      EP128EMU_CHUNKTYPE_END_OF_FILE =    0x00000000,
+      EP128EMU_CHUNKTYPE_Z80_STATE =      0x45508001,
+      EP128EMU_CHUNKTYPE_MEMORY_STATE =   0x45508002,
+      EP128EMU_CHUNKTYPE_IO_STATE =       0x45508003,
+      EP128EMU_CHUNKTYPE_DAVE_STATE =     0x45508004,
+      EP128EMU_CHUNKTYPE_NICK_STATE =     0x45508005,
+      EP128EMU_CHUNKTYPE_BREAKPOINTS =    0x45508006,
+      EP128EMU_CHUNKTYPE_CONFIG_DB =      0x45508007
+    } ChunkType;
+    // ----------------
+    class ChunkTypeHandler {
+     public:
+      ChunkTypeHandler()
+      {
+      }
+      virtual ~ChunkTypeHandler();
+      virtual ChunkType getChunkType() const = 0;
+      virtual void processChunk(Buffer& buf) = 0;
+    };
    private:
     Buffer  buf;
+    std::map< int, ChunkTypeHandler * > chunkTypeDB;
    public:
     void addChunk(ChunkType type, const Buffer& buf_);
     void processAllChunks();
     void writeFile(const char *fileName, bool useHomeDirectory = false);
+    void registerChunkType(ChunkTypeHandler *);
     File();
     File(const char *fileName, bool useHomeDirectory = false);
     ~File();
   };
-
-  class ChunkTypeHandler {
-   public:
-    ChunkTypeHandler()
-    {
-    }
-    virtual ~ChunkTypeHandler();
-    virtual ChunkType getChunkType() const = 0;
-    virtual void processChunk(File::Buffer& buf) = 0;
-  };
-
-  void registerChunkType(ChunkTypeHandler *);
-  void unregisterAllChunkTypes();
 
 }       // namespace Ep128
 

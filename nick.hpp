@@ -206,6 +206,10 @@ class x : public NickRenderer {                 \
                                   float& r, float& g, float& b);
     void writePort(uint16_t portNum, uint8_t value);
     void runOneSlot();
+    void saveState(File::Buffer&);
+    void saveState(File&);
+    void loadState(File::Buffer&);
+    void registerChunkType(File&);
   };
 
 }

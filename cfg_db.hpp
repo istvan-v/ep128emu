@@ -66,7 +66,9 @@ namespace Ep128Emu {
     void createKey(const std::string& name, double& ref);
     void createKey(const std::string& name, std::string& ref);
     void saveState(Ep128::File::Buffer& buf);
+    void saveState(Ep128::File& f);
     void loadState(Ep128::File::Buffer& buf);
+    void registerChunkType(Ep128::File& f);
   };
 
 }       // namespace Ep128Emu

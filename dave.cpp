@@ -473,7 +473,7 @@ namespace Ep128 {
       }
       // wrap the phase of variable length polynomial counter to table length
       polycntVL_phase = polycntVL_phase % (polycntVL_maxphase + 1);
-      // bit 4: exchange 7-bit and variable length polynomial counters if set
+      // bit 4: swap 7-bit and variable length polynomial counters if set
       if ((int) value & 0x10) {
         noise_polycnt_is_7bit = 1;
         chn3_input_polycnt = &polycnt7_state;
@@ -866,6 +866,393 @@ namespace Ep128 {
       keyboardState[row] |= mask;
     else
       keyboardState[row] &= (~mask);
+  }
+
+  // --------------------------------------------------------------------------
+
+  class ChunkType_DaveSnapshot : public File::ChunkTypeHandler {
+   private:
+    Dave&   ref;
+   public:
+    ChunkType_DaveSnapshot(Dave& ref_)
+      : File::ChunkTypeHandler(),
+        ref(ref_)
+    {
+    }
+    virtual ~ChunkType_DaveSnapshot()
+    {
+    }
+    virtual File::ChunkType getChunkType() const
+    {
+      return File::EP128EMU_CHUNKTYPE_DAVE_STATE;
+    }
+    virtual void processChunk(File::Buffer& buf)
+    {
+      ref.loadState(buf);
+    }
+  };
+
+  void Dave::saveState(File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    buf.writeUInt32(0x01000000);        // version number
+    buf.writeByte(uint8_t(clockDiv));
+    buf.writeByte(uint8_t(clockCnt));
+    if (polycntVL_table == t.polycnt9_table)
+      buf.writeByte(9);
+    else if (polycntVL_table == t.polycnt11_table)
+      buf.writeByte(11);
+    else if (polycntVL_table == t.polycnt15_table)
+      buf.writeByte(15);
+    else
+      buf.writeByte(17);
+    buf.writeUInt32(uint32_t(polycnt4_phase));
+    buf.writeUInt32(uint32_t(polycnt5_phase));
+    buf.writeUInt32(uint32_t(polycnt7_phase));
+    buf.writeUInt32(uint32_t(polycntVL_phase));
+    buf.writeUInt32(uint32_t(polycntVL_maxphase));
+    buf.writeByte(uint8_t(polycnt4_state));
+    buf.writeByte(uint8_t(polycnt5_state));
+    buf.writeByte(uint8_t(polycnt7_state));
+    buf.writeByte(uint8_t(polycntVL_state));
+    buf.writeUInt32(uint32_t(clk_62500_phase));
+    buf.writeUInt32(uint32_t(clk_1000_phase));
+    buf.writeUInt32(uint32_t(clk_50_phase));
+    buf.writeUInt32(uint32_t(clk_1_phase));
+    buf.writeByte(uint8_t(clk_62500_state));
+    buf.writeByte(uint8_t(chn0_state));
+    buf.writeByte(uint8_t(chn0_prv));
+    buf.writeByte(uint8_t(chn0_state1));
+    buf.writeUInt32(uint32_t(chn0_phase));
+    buf.writeUInt32(uint32_t(chn0_frqcode));
+    if (chn0_input_polycnt == &polycnt4_state)
+      buf.writeByte(4);
+    else if (chn0_input_polycnt == &polycnt5_state)
+      buf.writeByte(5);
+    else if (chn0_input_polycnt == &polycnt7_state)
+      buf.writeByte(7);
+    else if (chn0_input_polycnt == &polycntVL_state)
+      buf.writeByte(17);
+    else
+      buf.writeByte(0);
+    buf.writeBoolean(bool(chn0_hp_1));
+    buf.writeBoolean(bool(chn0_rm_2));
+    buf.writeBoolean(bool(chn0_run));
+    buf.writeByte(uint8_t(chn0_left));
+    buf.writeByte(uint8_t(chn0_right));
+    buf.writeByte(uint8_t(chn1_state));
+    buf.writeByte(uint8_t(chn1_prv));
+    buf.writeByte(uint8_t(chn1_state1));
+    buf.writeUInt32(uint32_t(chn1_phase));
+    buf.writeUInt32(uint32_t(chn1_frqcode));
+    if (chn1_input_polycnt == &polycnt4_state)
+      buf.writeByte(4);
+    else if (chn1_input_polycnt == &polycnt5_state)
+      buf.writeByte(5);
+    else if (chn1_input_polycnt == &polycnt7_state)
+      buf.writeByte(7);
+    else if (chn1_input_polycnt == &polycntVL_state)
+      buf.writeByte(17);
+    else
+      buf.writeByte(0);
+    buf.writeBoolean(bool(chn1_hp_2));
+    buf.writeBoolean(bool(chn1_rm_3));
+    buf.writeBoolean(bool(chn1_run));
+    buf.writeByte(uint8_t(chn1_left));
+    buf.writeByte(uint8_t(chn1_right));
+    buf.writeByte(uint8_t(chn2_state));
+    buf.writeByte(uint8_t(chn2_prv));
+    buf.writeByte(uint8_t(chn2_state1));
+    buf.writeUInt32(uint32_t(chn2_phase));
+    buf.writeUInt32(uint32_t(chn2_frqcode));
+    if (chn2_input_polycnt == &polycnt4_state)
+      buf.writeByte(4);
+    else if (chn2_input_polycnt == &polycnt5_state)
+      buf.writeByte(5);
+    else if (chn2_input_polycnt == &polycnt7_state)
+      buf.writeByte(7);
+    else if (chn2_input_polycnt == &polycntVL_state)
+      buf.writeByte(17);
+    else
+      buf.writeByte(0);
+    buf.writeBoolean(bool(chn2_hp_3));
+    buf.writeBoolean(bool(chn2_rm_0));
+    buf.writeBoolean(bool(chn2_run));
+    buf.writeByte(uint8_t(chn2_left));
+    buf.writeByte(uint8_t(chn2_right));
+    buf.writeByte(uint8_t(chn3_state));
+    buf.writeByte(uint8_t(chn3_prv));
+    buf.writeByte(uint8_t(chn3_state1));
+    buf.writeByte(uint8_t(chn3_state2));
+    if (chn3_clk_source == &chn0_state)
+      buf.writeByte(0);
+    else if (chn3_clk_source == &chn1_state)
+      buf.writeByte(1);
+    else if (chn3_clk_source == &chn2_state)
+      buf.writeByte(2);
+    else
+      buf.writeByte(3);
+    buf.writeByte(uint8_t(chn3_clk_source_prv));
+    buf.writeBoolean(bool(noise_polycnt_is_7bit));
+    if (chn3_input_polycnt == &polycnt7_state)
+      buf.writeByte(7);
+    else
+      buf.writeByte(17);
+    buf.writeBoolean(bool(chn3_lp_2));
+    buf.writeBoolean(bool(chn3_hp_0));
+    buf.writeBoolean(bool(chn3_rm_1));
+    buf.writeByte(uint8_t(chn3_left));
+    buf.writeByte(uint8_t(chn3_right));
+    buf.writeBoolean(bool(dac_mode_left));
+    buf.writeBoolean(bool(dac_mode_right));
+    if (int_snd_phase == &chn0_phase)
+      buf.writeByte(0);
+    else if (int_snd_phase == &chn1_phase)
+      buf.writeByte(1);
+    else if (int_snd_phase == &clk_50_phase)
+      buf.writeByte(2);
+    else
+      buf.writeByte(3);
+    buf.writeBoolean(bool(enable_int_snd));
+    buf.writeBoolean(bool(enable_int_1hz));
+    buf.writeBoolean(bool(enable_int_1));
+    buf.writeBoolean(bool(enable_int_2));
+    buf.writeByte(uint8_t(int_snd_state));
+    buf.writeByte(uint8_t(int_1hz_state));
+    buf.writeByte(uint8_t(int_1_state));
+    buf.writeByte(uint8_t(int_2_state));
+    buf.writeBoolean(bool(int_snd_active));
+    buf.writeBoolean(bool(int_1hz_active));
+    buf.writeBoolean(bool(int_1_active));
+    buf.writeBoolean(bool(int_2_active));
+    buf.writeUInt32(audioOutput);
+    buf.writeByte(page0Segment);
+    buf.writeByte(page1Segment);
+    buf.writeByte(page2Segment);
+    buf.writeByte(page3Segment);
+    buf.writeBoolean(bool(tape_feedback));
+    buf.writeByte(uint8_t(tape_input));
+    buf.writeByte(uint8_t(tape_input_level));
+    buf.writeByte(uint8_t(keyboardRow));
+    for (size_t i = 0; i < 16; i++)
+      buf.writeByte(keyboardState[i]);
+  }
+
+  void Dave::saveState(File& f)
+  {
+    File::Buffer  buf;
+    this->saveState(buf);
+    f.addChunk(File::EP128EMU_CHUNKTYPE_DAVE_STATE, buf);
+  }
+
+  void Dave::loadState(File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    // check version number
+    unsigned int  version = buf.readUInt32();
+    if (version != 0x01000000) {
+      buf.setPosition(buf.getDataSize());
+      throw Exception("incompatible Dave snapshot format");
+    }
+    // reset DAVE
+    this->reset();
+    // load saved state
+    clockDiv = (buf.readByte() & 1) | 2;
+    clockCnt = buf.readByte() & 3;
+    {
+      uint32_t  len = 131071;
+      switch (buf.readByte()) {
+      case 9:
+        polycntVL_table = t.polycnt9_table;
+        len = 511;
+        break;
+      case 11:
+        polycntVL_table = t.polycnt11_table;
+        len = 2047;
+        break;
+      case 15:
+        polycntVL_table = t.polycnt15_table;
+        len = 32767;
+        break;
+      default:
+        polycntVL_table = t.polycnt17_table;
+      }
+      polycnt4_phase = int(buf.readUInt32() % 15U);
+      polycnt5_phase = int(buf.readUInt32() % 31U);
+      polycnt7_phase = int(buf.readUInt32() % 127U);
+      polycntVL_phase = int(buf.readUInt32() % len);
+      polycntVL_maxphase = int(len - 1);
+      if (buf.readUInt32() != (len - 1))
+        throw Exception("inconsistent Dave snapshot data");
+    }
+    polycnt4_state = (buf.readByte() == 0 ? 0 : 1);
+    polycnt5_state = (buf.readByte() == 0 ? 0 : 1);
+    polycnt7_state = (buf.readByte() == 0 ? 0 : 1);
+    polycntVL_state = (buf.readByte() == 0 ? 0 : 1);
+    clk_62500_phase = int(buf.readUInt32() % uint32_t(clk_62500_frq + 1));
+    clk_1000_phase = int(buf.readUInt32() % uint32_t(clk_1000_frq + 1));
+    clk_50_phase = int(buf.readUInt32() % uint32_t(clk_50_frq + 1));
+    clk_1_phase = int(buf.readUInt32() % uint32_t(clk_1_frq + 1));
+    clk_62500_state = (buf.readByte() == 0 ? 0 : 1);
+    chn0_state = (buf.readByte() == 0 ? 0 : 1);
+    chn0_prv = (buf.readByte() == 0 ? 0 : 1);
+    chn0_state1 = (buf.readByte() == 0 ? 0 : 1);
+    chn0_phase = int(buf.readUInt32() & 0x0FFF);
+    chn0_frqcode = int(buf.readUInt32() & 0x0FFF);
+    switch (buf.readByte()) {
+    case 0:
+      chn0_input_polycnt = (int *) 0;
+      break;
+    case 4:
+      chn0_input_polycnt = &polycnt4_state;
+      break;
+    case 5:
+      chn0_input_polycnt = &polycnt5_state;
+      break;
+    case 7:
+      chn0_input_polycnt = &polycnt7_state;
+      break;
+    default:
+      chn0_input_polycnt = &polycntVL_state;
+    }
+    chn0_hp_1 = (buf.readBoolean() ? 1 : 0);
+    chn0_rm_2 = (buf.readBoolean() ? 1 : 0);
+    chn0_run = (buf.readBoolean() ? 1 : 0);
+    chn0_left = buf.readByte() & 0x3F;
+    chn0_right = buf.readByte() & 0x3F;
+    chn1_state = (buf.readByte() == 0 ? 0 : 1);
+    chn1_prv = (buf.readByte() == 0 ? 0 : 1);
+    chn1_state1 = (buf.readByte() == 0 ? 0 : 1);
+    chn1_phase = int(buf.readUInt32() & 0x0FFF);
+    chn1_frqcode = int(buf.readUInt32() & 0x0FFF);
+    switch (buf.readByte()) {
+    case 0:
+      chn1_input_polycnt = (int *) 0;
+      break;
+    case 4:
+      chn1_input_polycnt = &polycnt4_state;
+      break;
+    case 5:
+      chn1_input_polycnt = &polycnt5_state;
+      break;
+    case 7:
+      chn1_input_polycnt = &polycnt7_state;
+      break;
+    default:
+      chn1_input_polycnt = &polycntVL_state;
+    }
+    chn1_hp_2 = (buf.readBoolean() ? 1 : 0);
+    chn1_rm_3 = (buf.readBoolean() ? 1 : 0);
+    chn1_run = (buf.readBoolean() ? 1 : 0);
+    chn1_left = buf.readByte() & 0x3F;
+    chn1_right = buf.readByte() & 0x3F;
+    chn2_state = (buf.readByte() == 0 ? 0 : 1);
+    chn2_prv = (buf.readByte() == 0 ? 0 : 1);
+    chn2_state1 = (buf.readByte() == 0 ? 0 : 1);
+    chn2_phase = int(buf.readUInt32() & 0x0FFF);
+    chn2_frqcode = int(buf.readUInt32() & 0x0FFF);
+    switch (buf.readByte()) {
+    case 0:
+      chn2_input_polycnt = (int *) 0;
+      break;
+    case 4:
+      chn2_input_polycnt = &polycnt4_state;
+      break;
+    case 5:
+      chn2_input_polycnt = &polycnt5_state;
+      break;
+    case 7:
+      chn2_input_polycnt = &polycnt7_state;
+      break;
+    default:
+      chn2_input_polycnt = &polycntVL_state;
+    }
+    chn2_hp_3 = (buf.readBoolean() ? 1 : 0);
+    chn2_rm_0 = (buf.readBoolean() ? 1 : 0);
+    chn2_run = (buf.readBoolean() ? 1 : 0);
+    chn2_left = buf.readByte() & 0x3F;
+    chn2_right = buf.readByte() & 0x3F;
+    chn3_state = (buf.readByte() == 0 ? 0 : 1);
+    chn3_prv = (buf.readByte() == 0 ? 0 : 1);
+    chn3_state1 = (buf.readByte() == 0 ? 0 : 1);
+    chn3_state2 = (buf.readByte() == 0 ? 0 : 1);
+    switch (buf.readByte()) {
+    case 0:
+      chn3_clk_source = &chn0_state;
+      break;
+    case 1:
+      chn3_clk_source = &chn1_state;
+      break;
+    case 2:
+      chn3_clk_source = &chn2_state;
+      break;
+    default:
+      chn3_clk_source = &clk_62500_state;
+    }
+    chn3_clk_source_prv = (buf.readByte() == 0 ? 0 : 1);
+    noise_polycnt_is_7bit = (buf.readBoolean() ? 1 : 0);
+    if (buf.readByte() == 7)
+      chn3_input_polycnt = &polycnt7_state;
+    else
+      chn3_input_polycnt = &polycntVL_state;
+    chn3_lp_2 = (buf.readBoolean() ? 1 : 0);
+    chn3_hp_0 = (buf.readBoolean() ? 1 : 0);
+    chn3_rm_1 = (buf.readBoolean() ? 1 : 0);
+    chn3_left = buf.readByte() & 0x3F;
+    chn3_right = buf.readByte() & 0x3F;
+    dac_mode_left = (buf.readBoolean() ? 1 : 0);
+    dac_mode_right = (buf.readBoolean() ? 1 : 0);
+    switch (buf.readByte()) {
+    case 0:
+      int_snd_phase = &chn0_phase;
+      break;
+    case 1:
+      int_snd_phase = &chn1_phase;
+      break;
+    case 2:
+      int_snd_phase = &clk_50_phase;
+      break;
+    default:
+      int_snd_phase = &clk_1000_phase;
+    }
+    enable_int_snd = (buf.readBoolean() ? 1 : 0);
+    enable_int_1hz = (buf.readBoolean() ? 1 : 0);
+    enable_int_1 = (buf.readBoolean() ? 1 : 0);
+    enable_int_2 = (buf.readBoolean() ? 1 : 0);
+    int_snd_state = (buf.readByte() == 0 ? 0 : 1);
+    int_1hz_state = (buf.readByte() == 0 ? 0 : 1);
+    int_1_state = (buf.readByte() == 0 ? 0 : 1);
+    int_2_state = (buf.readByte() == 0 ? 0 : 1);
+    int_snd_active = (buf.readBoolean() ? 1 : 0);
+    int_1hz_active = (buf.readBoolean() ? 1 : 0);
+    int_1_active = (buf.readBoolean() ? 1 : 0);
+    int_2_active = (buf.readBoolean() ? 1 : 0);
+    audioOutput = buf.readUInt32() & 0x01FF01FF;
+    page0Segment = buf.readByte();
+    page1Segment = buf.readByte();
+    page2Segment = buf.readByte();
+    page3Segment = buf.readByte();
+    tape_feedback = (buf.readBoolean() ? 1 : 0);
+    tape_input = (buf.readByte() == 0 ? 0 : 1);
+    tape_input_level = (buf.readByte() == 0 ? 0 : 1);
+    keyboardRow = buf.readByte() & 0x0F;
+    for (size_t i = 0; i < 16; i++)
+      keyboardState[i] = buf.readByte();
+    if (buf.getPosition() != buf.getDataSize())
+      throw Exception("trailing garbage at end of Dave snapshot data");
+  }
+
+  void Dave::registerChunkType(File& f)
+  {
+    ChunkType_DaveSnapshot  *p;
+    p = new ChunkType_DaveSnapshot(*this);
+    try {
+      f.registerChunkType(p);
+    }
+    catch (...) {
+      delete p;
+      throw;
+    }
   }
 
   // --------------------------------------------------------------------------

@@ -779,7 +779,7 @@ namespace Ep128 {
       if (lptClockEnabled) {
         if (--linesRemaining == 0) {
           if (!lpb.reloadFlag)
-            lptCurrentAddr = (lptCurrentAddr + 0x0010) & 0xFFFF;
+            lptCurrentAddr = (lptCurrentAddr + 0x0010) & 0xFFF0;
           else
             lptCurrentAddr = lptBaseAddr;
         }
@@ -899,5 +899,145 @@ namespace Ep128 {
     (void) newState;
   }
 
-}
+  // --------------------------------------------------------------------------
+
+  class ChunkType_NickSnapshot : public File::ChunkTypeHandler {
+   private:
+    Nick&   ref;
+   public:
+    ChunkType_NickSnapshot(Nick& ref_)
+      : File::ChunkTypeHandler(),
+        ref(ref_)
+    {
+    }
+    virtual ~ChunkType_NickSnapshot()
+    {
+    }
+    virtual File::ChunkType getChunkType() const
+    {
+      return File::EP128EMU_CHUNKTYPE_NICK_STATE;
+    }
+    virtual void processChunk(File::Buffer& buf)
+    {
+      ref.loadState(buf);
+    }
+  };
+
+  void Nick::saveState(File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    buf.writeUInt32(0x01000000);        // version number
+    buf.writeUInt32(uint32_t(lpb.nLines));
+    buf.writeBoolean(lpb.interruptFlag);
+    buf.writeBoolean(lpb.vresMode);
+    buf.writeBoolean(lpb.reloadFlag);
+    buf.writeByte(lpb.colorMode);
+    buf.writeByte(lpb.videoMode);
+    buf.writeBoolean(lpb.altInd0);
+    buf.writeBoolean(lpb.altInd1);
+    buf.writeBoolean(lpb.lsbAlt);
+    buf.writeBoolean(lpb.msbAlt);
+    buf.writeByte(lpb.leftMargin);
+    buf.writeByte(lpb.rightMargin);
+    buf.writeUInt32(lpb.ld1Base);
+    buf.writeUInt32(lpb.ld2Base);
+    for (size_t i = 0; i < 16; i++)
+      buf.writeByte(lpb.palette[i]);
+    buf.writeUInt32(lpb.ld1Addr);
+    buf.writeUInt32(lpb.ld2Addr);
+    buf.writeUInt32(lptBaseAddr);
+    buf.writeUInt32(lptCurrentAddr);
+    buf.writeUInt32(uint32_t(linesRemaining));
+    if (currentRenderer)
+      buf.writeBoolean(true);
+    else
+      buf.writeBoolean(false);
+    buf.writeByte(currentSlot);
+    buf.writeByte(borderColor);
+    buf.writeBoolean(lptClockEnabled);
+  }
+
+  void Nick::saveState(File& f)
+  {
+    File::Buffer  buf;
+    this->saveState(buf);
+    f.addChunk(File::EP128EMU_CHUNKTYPE_NICK_STATE, buf);
+  }
+
+  void Nick::loadState(File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    // check version number
+    unsigned int  version = buf.readUInt32();
+    if (version != 0x01000000) {
+      buf.setPosition(buf.getDataSize());
+      throw Exception("incompatible Nick snapshot format");
+    }
+    try {
+      // load saved state
+      lpb.nLines = int(((buf.readUInt32() - 1) & 0xFF) + 1);
+      lpb.interruptFlag = buf.readBoolean();
+      lpb.vresMode = buf.readBoolean();
+      lpb.reloadFlag = buf.readBoolean();
+      lpb.colorMode = buf.readByte() & 3;
+      lpb.videoMode = buf.readByte() & 7;
+      lpb.altInd0 = buf.readBoolean();
+      lpb.altInd1 = buf.readBoolean();
+      lpb.lsbAlt = buf.readBoolean();
+      lpb.msbAlt = buf.readBoolean();
+      lpb.leftMargin = buf.readByte() & 0x3F;
+      lpb.rightMargin = buf.readByte() & 0x3F;
+      lpb.ld1Base = uint16_t(buf.readUInt32()) & 0xFFFF;
+      lpb.ld2Base = uint16_t(buf.readUInt32()) & 0xFFFF;
+      switch (lpb.videoMode) {
+      case 3:                   // CH256
+        lpb.ld2Base &= 0xFF00;
+        break;
+      case 4:                   // CH128
+        lpb.ld2Base &= 0xFF80;
+        break;
+      case 5:                   // CH64
+        lpb.ld2Base &= 0xFFC0;
+        break;
+      }
+      for (size_t i = 0; i < 16; i++)
+        lpb.palette[i] = buf.readByte();
+      lpb.ld1Addr = uint16_t(buf.readUInt32()) & 0xFFFF;
+      lpb.ld2Addr = uint16_t(buf.readUInt32()) & 0xFFFF;
+      lptBaseAddr = uint16_t(buf.readUInt32()) & 0xFFF0;
+      lptCurrentAddr = uint16_t(buf.readUInt32()) & 0xFFF0;
+      linesRemaining = int(buf.readUInt32() % 257U);
+      currentRenderer = (NickRenderer *) 0;
+      if (buf.readBoolean())
+        currentRenderer = &(renderers.getRenderer(lpb));
+      currentSlot = uint8_t(buf.readByte() % 57U);
+      borderColor = buf.readByte();
+      lptClockEnabled = buf.readBoolean();
+      if (buf.getPosition() != buf.getDataSize())
+        throw Exception("trailing garbage at end of Nick snapshot data");
+    }
+    catch (...) {
+      // reset NICK
+      writePort(0, 0);
+      writePort(1, 0);
+      writePort(2, 0);
+      writePort(3, 0);
+      throw;
+    }
+  }
+
+  void Nick::registerChunkType(File& f)
+  {
+    ChunkType_NickSnapshot  *p;
+    p = new ChunkType_NickSnapshot(*this);
+    try {
+      f.registerChunkType(p);
+    }
+    catch (...) {
+      delete p;
+      throw;
+    }
+  }
+
+}       // namespace Ep128
 

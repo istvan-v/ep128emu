@@ -60,6 +60,10 @@ namespace Ep128 {
                           void (*func)(void *p, uint16_t addr, uint8_t value),
                           void *userData, uint16_t baseAddr);
     BreakPointList getBreakPointList();
+    void saveState(File::Buffer&);
+    void saveState(File&);
+    void loadState(File::Buffer&);
+    void registerChunkType(File&);
   };
 
   // --------------------------------------------------------------------------
