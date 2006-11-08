@@ -1305,12 +1305,12 @@
 #define DI()                                                            \
 {                                                                       \
         R.IFF1 = R.IFF2 = 0;                                            \
-        R.Flags &=~Z80_CHECK_INTERRUPT_FLAG;                            \
+        R.Flags &= ~Z80_CHECK_INTERRUPT_FLAG;                           \
 }
 
 #define EI()                                                            \
 {                                                                       \
         R.IFF1 = R.IFF2 = 1;                                            \
-        R.Flags &=~Z80_CHECK_INTERRUPT_FLAG;                            \
+        R.Flags &= ~Z80_CHECK_INTERRUPT_FLAG;                           \
 }
 

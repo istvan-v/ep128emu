@@ -21,6 +21,7 @@
 
 #include "z80.hpp"
 #include "z80macros.hpp"
+#include <cstring>
 
 namespace Ep128 {
 
@@ -178,6 +179,7 @@ namespace Ep128 {
 
   Z80::Z80()
   {
+    std::memset(&R, 0, sizeof(Z80_REGISTERS));
     reset();
   }
 
@@ -397,5 +399,145 @@ namespace Ep128 {
   {
   }
 
-}
+  // --------------------------------------------------------------------------
+
+  class ChunkType_Z80_Snapshot : public File::ChunkTypeHandler {
+   private:
+    Z80&    ref;
+   public:
+    ChunkType_Z80_Snapshot(Z80& ref_)
+      : File::ChunkTypeHandler(),
+        ref(ref_)
+    {
+    }
+    virtual ~ChunkType_Z80_Snapshot()
+    {
+    }
+    virtual File::ChunkType getChunkType() const
+    {
+      return File::EP128EMU_CHUNKTYPE_Z80_STATE;
+    }
+    virtual void processChunk(File::Buffer& buf)
+    {
+      ref.loadState(buf);
+    }
+  };
+
+  void Z80::saveState(File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    buf.writeUInt32(0x01000000);        // version number
+    buf.writeByte(R.PC.B.h);            // PC high
+    buf.writeByte(R.PC.B.l);            // PC low
+    buf.writeByte(R.AF.B.h);            // A
+    buf.writeByte(R.AF.B.l);            // F
+    buf.writeByte(R.BC.B.h);            // B
+    buf.writeByte(R.BC.B.l);            // C
+    buf.writeByte(R.DE.B.h);            // D
+    buf.writeByte(R.DE.B.l);            // E
+    buf.writeByte(R.HL.B.h);            // H
+    buf.writeByte(R.HL.B.l);            // L
+    buf.writeByte(R.SP.B.h);            // SP high
+    buf.writeByte(R.SP.B.l);            // SP low
+    buf.writeByte(R.IX.B.h);            // IX high
+    buf.writeByte(R.IX.B.l);            // IX low
+    buf.writeByte(R.IY.B.h);            // IY high
+    buf.writeByte(R.IY.B.l);            // IY low
+    buf.writeByte(R.altAF.B.h);         // A'
+    buf.writeByte(R.altAF.B.l);         // F'
+    buf.writeByte(R.altBC.B.h);         // B'
+    buf.writeByte(R.altBC.B.l);         // C'
+    buf.writeByte(R.altDE.B.h);         // D'
+    buf.writeByte(R.altDE.B.l);         // E'
+    buf.writeByte(R.altHL.B.h);         // H'
+    buf.writeByte(R.altHL.B.l);         // L'
+    buf.writeByte(R.I);                 // I
+    buf.writeByte(R.R);                 // R
+    buf.writeUInt32(R.IndexPlusOffset);
+    buf.writeByte(R.IFF1);
+    buf.writeByte(R.IFF2);
+    buf.writeByte(R.RBit7);
+    buf.writeByte(R.IM);
+    buf.writeByte(R.TempByte);
+    buf.writeByte(R.InterruptVectorBase);
+    buf.writeUInt32(uint32_t(R.Flags));
+  }
+
+  void Z80::saveState(File& f)
+  {
+    File::Buffer  buf;
+    this->saveState(buf);
+    f.addChunk(File::EP128EMU_CHUNKTYPE_Z80_STATE, buf);
+  }
+
+  void Z80::loadState(File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    // check version number
+    unsigned int  version = buf.readUInt32();
+    if (version != 0x01000000) {
+      buf.setPosition(buf.getDataSize());
+      throw Exception("incompatible Z80 snapshot format");
+    }
+    try {
+      std::memset(&R, 0, sizeof(Z80_REGISTERS));
+      // load saved state
+      R.PC.B.h = buf.readByte();        // PC high
+      R.PC.B.l = buf.readByte();        // PC low
+      R.AF.B.h = buf.readByte();        // A
+      R.AF.B.l = buf.readByte();        // F
+      R.BC.B.h = buf.readByte();        // B
+      R.BC.B.l = buf.readByte();        // C
+      R.DE.B.h = buf.readByte();        // D
+      R.DE.B.l = buf.readByte();        // E
+      R.HL.B.h = buf.readByte();        // H
+      R.HL.B.l = buf.readByte();        // L
+      R.SP.B.h = buf.readByte();        // SP high
+      R.SP.B.l = buf.readByte();        // SP low
+      R.IX.B.h = buf.readByte();        // IX high
+      R.IX.B.l = buf.readByte();        // IX low
+      R.IY.B.h = buf.readByte();        // IY high
+      R.IY.B.l = buf.readByte();        // IY low
+      R.altAF.B.h = buf.readByte();     // A'
+      R.altAF.B.l = buf.readByte();     // F'
+      R.altBC.B.h = buf.readByte();     // B'
+      R.altBC.B.l = buf.readByte();     // C'
+      R.altDE.B.h = buf.readByte();     // D'
+      R.altDE.B.l = buf.readByte();     // E'
+      R.altHL.B.h = buf.readByte();     // H'
+      R.altHL.B.l = buf.readByte();     // L'
+      R.I = buf.readByte();             // I
+      R.R = buf.readByte();             // R
+      R.IndexPlusOffset = uint16_t(buf.readUInt32()) & 0xFFFF;
+      R.IFF1 = buf.readByte();
+      R.IFF2 = buf.readByte();
+      R.RBit7 = buf.readByte();
+      R.IM = buf.readByte();
+      R.TempByte = buf.readByte();
+      R.InterruptVectorBase = buf.readByte();
+      R.Flags = buf.readUInt32() & Z80_FLAGS_MASK;
+      if (buf.getPosition() != buf.getDataSize())
+        throw Exception("trailing garbage at end of Z80 snapshot data");
+    }
+    catch (...) {
+      // reset Z80
+      this->reset();
+      throw;
+    }
+  }
+
+  void Z80::registerChunkType(File& f)
+  {
+    ChunkType_Z80_Snapshot  *p;
+    p = new ChunkType_Z80_Snapshot(*this);
+    try {
+      f.registerChunkType(p);
+    }
+    catch (...) {
+      delete p;
+      throw;
+    }
+  }
+
+}       // namespace Ep128
 

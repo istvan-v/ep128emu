@@ -22,6 +22,7 @@
 #ifndef __Z80_HEADER_INCLUDED__
 #define __Z80_HEADER_INCLUDED__
 
+#include "ep128.hpp"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -41,19 +42,11 @@
 #define Z80_SUBTRACT_FLAG                       0x002
 #define Z80_CARRY_FLAG                          0x001
 
-#define X86_SIGN_FLAG                           0x080
-#define X86_ZERO_FLAG                           0x040
-#define X86_UNUSED_FLAG3                        0x020
-#define X86_AUXILIARY_FLAG                      0x010
-#define X86_UNUSED_FLAG2                        0x008
-#define X86_PARITY_FLAG                         0x004
-#define X86_UNUSED_FLAG1                        0x002
-#define X86_CARRY_FLAG                          0x001
-
 #define Z80_CHECK_INTERRUPT_FLAG                0x0001
 #define Z80_EXECUTE_INTERRUPT_HANDLER_FLAG      0x0002
 #define Z80_EXECUTING_HALT_FLAG                 0x0004
 #define Z80_INTERRUPT_FLAG                      0x0008
+#define Z80_FLAGS_MASK                          0x000F
 
 namespace Ep128 {
 
@@ -110,8 +103,8 @@ namespace Ep128 {
     Z80_LONG L;
 
     struct {
-      Z80_WORD l;
       Z80_WORD h;
+      Z80_WORD l;
     } W;
 
     struct {
@@ -140,8 +133,6 @@ namespace Ep128 {
     Z80_REGISTER_PAIR altBC;
     Z80_REGISTER_PAIR altAF;
 
-    Z80_WORD TempWordResult;
-    Z80_LONG TempLongResult;
     /* interrupt vector register. High byte of address */
     Z80_BYTE I;
 
@@ -158,8 +149,6 @@ namespace Ep128 {
     /* interrupt mode 0,1,2 */
     Z80_BYTE IM;
     Z80_BYTE TempByte;
-    Z80_BYTE TempWord;
-    Z80_REGISTER_PAIR TempRegister;
     Z80_BYTE InterruptVectorBase;
     unsigned long Flags;
   };
@@ -256,6 +245,12 @@ namespace Ep128 {
     void setVectorBase(int);
     void executeInstruction();
     void test();
+    // save snapshot
+    void saveState(File::Buffer&);
+    void saveState(File&);
+    // load snapshot
+    void loadState(File::Buffer&);
+    void registerChunkType(File&);
    protected:
     virtual void ackInterruptFunction();
     // read a byte from memory
