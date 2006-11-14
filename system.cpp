@@ -21,7 +21,9 @@
 #include "system.hpp"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#  define WIN32_LEAN_AND_MEAN   1
 #  include <windows.h>
+#  include <process.h>
 #else
 #  include <sys/time.h>
 #  include <unistd.h>
@@ -74,10 +76,13 @@ namespace Ep128Emu {
 #endif
   }
 
-  void ThreadLock::operator=(const ThreadLock& oldInstance)
+  ThreadLock& ThreadLock::operator=(const ThreadLock& oldInstance)
   {
-    st = oldInstance.st;
-    st->refCnt++;
+    if (this != &oldInstance) {
+      st = oldInstance.st;
+      st->refCnt++;
+    }
+    return (*this);
   }
 
   void ThreadLock::wait()
@@ -98,7 +103,8 @@ namespace Ep128Emu {
     bool    retval = true;
 
 #if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
-    WaitForSingleObject(st->evt, DWORD(t));
+    retval = !(WaitForSingleObject(st->evt, DWORD(t)));
+    return retval;
 #else
     pthread_mutex_lock(&(st->m));
     if (!st->s) {
@@ -134,6 +140,129 @@ namespace Ep128Emu {
     st->s = 1;
     pthread_cond_signal(&(st->c));
     pthread_mutex_unlock(&(st->m));
+#endif
+  }
+
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+  __stdcall unsigned int Thread::threadRoutine_(void *userData)
+  {
+    Thread  *p = reinterpret_cast<Thread *>(userData);
+    p->threadLock_.wait();
+    p->run();
+    return 0U;
+  }
+#else
+  void * Thread::threadRoutine_(void *userData)
+  {
+    Thread  *p = reinterpret_cast<Thread *>(userData);
+    p->threadLock_.wait();
+    p->run();
+    return (void *) 0;
+  }
+#endif
+
+  Thread::Thread()
+    : threadLock_(false),
+      isJoined_(false)
+  {
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+    thread_ = (HANDLE) _beginthreadex(NULL, 0U,
+                                      &Thread::threadRoutine_, this, 0U, NULL);
+    if (!thread_)
+      throw std::bad_alloc();
+#else
+    if (pthread_create(&thread_, (pthread_attr_t *) 0,
+                       &Thread::threadRoutine_, this) != 0)
+      throw std::bad_alloc();
+#endif
+  }
+
+  Thread::~Thread()
+  {
+    this->join();
+  }
+
+  void Thread::join()
+  {
+    if (!isJoined_) {
+      this->start();
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+      WaitForSingleObject(thread_, INFINITE);
+      CloseHandle(thread_);
+#else
+      void  *dummy;
+      pthread_join(thread_, &dummy);
+#endif
+      isJoined_ = true;
+    }
+  }
+
+  Mutex::Mutex()
+  {
+    m = new Mutex_;
+    m->refCnt_ = 1L;
+    try {
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+      InitializeCriticalSection(&(m->mutex_));
+#else
+      pthread_mutexattr_t   attr;
+      if (pthread_mutexattr_init(&attr) != 0)
+        throw std::bad_alloc();
+      pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+      int   err = pthread_mutex_init(&(m->mutex_), &attr);
+      pthread_mutexattr_destroy(&attr);
+      if (err)
+        throw std::bad_alloc();
+#endif
+    }
+    catch (...) {
+      delete m;
+      throw;
+    }
+  }
+
+  Mutex::Mutex(const Mutex& m_)
+  {
+    m = m_.m;
+    m->refCnt_++;
+  }
+
+  Mutex::~Mutex()
+  {
+    if (--(m->refCnt_) <= 0) {
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+      DeleteCriticalSection(&(m->mutex_));
+#else
+      pthread_mutex_destroy(&(m->mutex_));
+#endif
+      delete m;
+    }
+  }
+
+  Mutex& Mutex::operator=(const Mutex& m_)
+  {
+    if (this != &m_) {
+      m = m_.m;
+      m->refCnt_++;
+    }
+    return (*this);
+  }
+
+  void Mutex::lock()
+  {
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+    EnterCriticalSection(&(m->mutex_));
+#else
+    pthread_mutex_lock(&(m->mutex_));
+#endif
+  }
+
+  void Mutex::unlock()
+  {
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+    LeaveCriticalSection(&(m->mutex_));
+#else
+    pthread_mutex_unlock(&(m->mutex_));
 #endif
   }
 

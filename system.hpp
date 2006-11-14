@@ -23,6 +23,7 @@
 #include "ep128.hpp"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#  define WIN32_LEAN_AND_MEAN   1
 #  include <windows.h>
 #else
 #  include <pthread.h>
@@ -47,13 +48,72 @@ namespace Ep128Emu {
     ThreadLock(bool isSignaled = false);
     ThreadLock(const ThreadLock&);
     ~ThreadLock();
-    void operator=(const ThreadLock&);
+    ThreadLock& operator=(const ThreadLock&);
     void wait();
     // wait with a timeout of 't' (in milliseconds)
     // returns 'true' if the lock was signaled before the timeout,
     // and 'false' otherwise
     bool wait(size_t t);
     void notify();
+  };
+
+  class Thread {
+   private:
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+    HANDLE    thread_;
+    static __stdcall unsigned int threadRoutine_(void *userData);
+#else
+    pthread_t thread_;
+    static void * threadRoutine_(void *userData);
+#endif
+    ThreadLock  threadLock_;
+    bool    isJoined_;
+   protected:
+    // thread routine (should be implemented by classes derived from Thread)
+    virtual void run() = 0;
+    // wait until start() is called by another thread
+    inline void wait()
+    {
+      threadLock_.wait();
+    }
+    // wait until start() is called by another thread (return value = true),
+    // or the timeout of 't' milliseconds is elapsed (return value = false)
+    inline bool wait(size_t t)
+    {
+      return threadLock_.wait(t);
+    }
+   public:
+    Thread();
+    virtual ~Thread();
+    // signal the child thread, allowing it to execute run() after the thread
+    // object is created, or to return from wait()
+    inline void start()
+    {
+      threadLock_.notify();
+    }
+    // wait until the child thread finishes (implies calling start() first,
+    // and the destructor calls join())
+    void join();
+  };
+
+  class Mutex {
+   private:
+    struct Mutex_ {
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+      CRITICAL_SECTION  mutex_;
+#else
+      pthread_mutex_t   mutex_;
+#endif
+      long    refCnt_;
+    };
+    Mutex_  *m;
+   public:
+    Mutex();
+    Mutex(const Mutex& m_);
+    ~Mutex();
+    Mutex& operator=(const Mutex& m_);
+    void lock();
+    void unlock();
   };
 
 }       // namespace Ep128Emu
