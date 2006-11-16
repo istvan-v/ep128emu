@@ -28,14 +28,6 @@ namespace Ep128 {
   NickRenderer::NickTables::NickTables()
   {
     for (size_t i = 0; i < 256; i++) {
-      twoColors[(i << 3) + 0] = uint8_t(i >> 7) & 1;
-      twoColors[(i << 3) + 1] = uint8_t(i >> 6) & 1;
-      twoColors[(i << 3) + 2] = uint8_t(i >> 5) & 1;
-      twoColors[(i << 3) + 3] = uint8_t(i >> 4) & 1;
-      twoColors[(i << 3) + 4] = uint8_t(i >> 3) & 1;
-      twoColors[(i << 3) + 5] = uint8_t(i >> 2) & 1;
-      twoColors[(i << 3) + 6] = uint8_t(i >> 1) & 1;
-      twoColors[(i << 3) + 7] = uint8_t(i)      & 1;
       fourColors[(i << 2) + 0] = (uint8_t(i >> 2) & 2) | (uint8_t(i >> 7) & 1);
       fourColors[(i << 2) + 1] = (uint8_t(i >> 1) & 2) | (uint8_t(i >> 6) & 1);
       fourColors[(i << 2) + 2] = (uint8_t(i)      & 2) | (uint8_t(i >> 5) & 1);
@@ -51,122 +43,130 @@ namespace Ep128 {
 
   // --------------------------------------------------------------------------
 
-  inline void NickRenderer::renderByte2ColorsL(uint8_t *buf, uint8_t b1,
+  inline void NickRenderer::renderByte2ColorsL(uint8_t*& buf_, uint8_t b1,
                                                uint8_t paletteOffset)
   {
-    const uint8_t *pixels = &(t.twoColors[size_t(b1) << 3]);
-    uint8_t   c[2];
-
-    c[0] = lpb.palette[0 | paletteOffset];
-    c[1] = lpb.palette[1 | paletteOffset];
-    buf[1]  = buf[0]  = c[pixels[0]];
-    buf[3]  = buf[2]  = c[pixels[1]];
-    buf[5]  = buf[4]  = c[pixels[2]];
-    buf[7]  = buf[6]  = c[pixels[3]];
-    buf[9]  = buf[8]  = c[pixels[4]];
-    buf[11] = buf[10] = c[pixels[5]];
-    buf[13] = buf[12] = c[pixels[6]];
-    buf[15] = buf[14] = c[pixels[7]];
+    uint8_t   *buf = buf_;
+    buf[0] = 0x03;
+    buf[1] = lpb.palette[0 | paletteOffset];
+    buf[2] = lpb.palette[1 | paletteOffset];
+    buf[3] = b1;
+    buf_ = buf + 4;
   }
 
-  inline void NickRenderer::renderByte4ColorsL(uint8_t *buf, uint8_t b1,
+  inline void NickRenderer::renderByte4ColorsL(uint8_t*& buf_, uint8_t b1,
                                                uint8_t paletteOffset)
   {
     const uint8_t *pixels = &(t.fourColors[size_t(b1) << 2]);
     uint8_t   c[4];
-
     c[0] = lpb.palette[0 | paletteOffset];
     c[1] = lpb.palette[1 | paletteOffset];
     c[2] = lpb.palette[2 | paletteOffset];
     c[3] = lpb.palette[3 | paletteOffset];
-    buf[3]  = buf[2]  = buf[1]  = buf[0]  = c[pixels[0]];
-    buf[7]  = buf[6]  = buf[5]  = buf[4]  = c[pixels[1]];
-    buf[11] = buf[10] = buf[9]  = buf[8]  = c[pixels[2]];
-    buf[15] = buf[14] = buf[13] = buf[12] = c[pixels[3]];
+    uint8_t   *buf = buf_;
+    buf[0] = 0x04;
+    buf[1] = c[pixels[0]];
+    buf[2] = c[pixels[1]];
+    buf[3] = c[pixels[2]];
+    buf[4] = c[pixels[3]];
+    buf_ = buf + 5;
   }
 
-  inline void NickRenderer::renderByte16ColorsL(uint8_t *buf, uint8_t b1)
+  inline void NickRenderer::renderByte16ColorsL(uint8_t*& buf_, uint8_t b1)
   {
     const uint8_t *pixels = &(t.sixteenColors[size_t(b1) << 1]);
-
-    buf[7]  = buf[6]  = buf[5]  = buf[4]  =
-    buf[3]  = buf[2]  = buf[1]  = buf[0]  = lpb.palette[pixels[0]];
-    buf[15] = buf[14] = buf[13] = buf[12] =
-    buf[11] = buf[10] = buf[9]  = buf[8]  = lpb.palette[pixels[1]];
+    uint8_t   *buf = buf_;
+    buf[0] = 0x02;
+    buf[1] = lpb.palette[pixels[0]];
+    buf[2] = lpb.palette[pixels[1]];
+    buf_ = buf + 3;
   }
 
-  inline void NickRenderer::renderByte256ColorsL(uint8_t *buf, uint8_t b1)
+  inline void NickRenderer::renderByte256ColorsL(uint8_t*& buf_, uint8_t b1)
   {
-    buf[15] = buf[14] = buf[13] = buf[12] =
-    buf[11] = buf[10] = buf[9]  = buf[8]  =
-    buf[7]  = buf[6]  = buf[5]  = buf[4]  =
-    buf[3]  = buf[2]  = buf[1]  = buf[0]  = b1;
+    buf_[0] = 0x01;
+    buf_[1] = b1;
+    buf_ += 2;
   }
 
-  inline void NickRenderer::renderByte2Colors(uint8_t *buf, uint8_t b1,
-                                              uint8_t paletteOffset)
+  inline void NickRenderer::renderBytes2Colors(uint8_t*& buf_,
+                                               uint8_t b1, uint8_t b2,
+                                               uint8_t paletteOffset1,
+                                               uint8_t paletteOffset2)
   {
-    const uint8_t *pixels = &(t.twoColors[size_t(b1) << 3]);
-    uint8_t   c[2];
-
-    c[0] = lpb.palette[0 | paletteOffset];
-    c[1] = lpb.palette[1 | paletteOffset];
-    buf[0]  = c[pixels[0]];
-    buf[1]  = c[pixels[1]];
-    buf[2]  = c[pixels[2]];
-    buf[3]  = c[pixels[3]];
-    buf[4]  = c[pixels[4]];
-    buf[5]  = c[pixels[5]];
-    buf[6]  = c[pixels[6]];
-    buf[7]  = c[pixels[7]];
+    uint8_t   *buf = buf_;
+    buf[0] = 0x06;
+    buf[1] = lpb.palette[0 | paletteOffset1];
+    buf[2] = lpb.palette[1 | paletteOffset1];
+    buf[3] = b1;
+    buf[4] = lpb.palette[0 | paletteOffset2];
+    buf[5] = lpb.palette[1 | paletteOffset2];
+    buf[6] = b2;
+    buf_ = buf + 7;
   }
 
-  inline void NickRenderer::renderByte4Colors(uint8_t *buf, uint8_t b1,
-                                              uint8_t paletteOffset)
+  inline void NickRenderer::renderBytes4Colors(uint8_t*& buf_,
+                                               uint8_t b1, uint8_t b2,
+                                               uint8_t paletteOffset1,
+                                               uint8_t paletteOffset2)
   {
+    uint8_t   *buf = buf_;
+    buf[0] = 0x08;
     const uint8_t *pixels = &(t.fourColors[size_t(b1) << 2]);
     uint8_t   c[4];
-
-    c[0] = lpb.palette[0 | paletteOffset];
-    c[1] = lpb.palette[1 | paletteOffset];
-    c[2] = lpb.palette[2 | paletteOffset];
-    c[3] = lpb.palette[3 | paletteOffset];
-    buf[1]  = buf[0]  = c[pixels[0]];
-    buf[3]  = buf[2]  = c[pixels[1]];
-    buf[5]  = buf[4]  = c[pixels[2]];
-    buf[7]  = buf[6]  = c[pixels[3]];
+    c[0] = lpb.palette[0 | paletteOffset1];
+    c[1] = lpb.palette[1 | paletteOffset1];
+    c[2] = lpb.palette[2 | paletteOffset1];
+    c[3] = lpb.palette[3 | paletteOffset1];
+    buf[1] = c[pixels[0]];
+    buf[2] = c[pixels[1]];
+    buf[3] = c[pixels[2]];
+    buf[4] = c[pixels[3]];
+    pixels = &(t.fourColors[size_t(b2) << 2]);
+    c[0] = lpb.palette[0 | paletteOffset2];
+    c[1] = lpb.palette[1 | paletteOffset2];
+    c[2] = lpb.palette[2 | paletteOffset2];
+    c[3] = lpb.palette[3 | paletteOffset2];
+    buf[5] = c[pixels[0]];
+    buf[6] = c[pixels[1]];
+    buf[7] = c[pixels[2]];
+    buf[8] = c[pixels[3]];
+    buf_ = buf + 9;
   }
 
-  inline void NickRenderer::renderByte16Colors(uint8_t *buf, uint8_t b1)
+  inline void NickRenderer::renderBytes16Colors(uint8_t*& buf_,
+                                                uint8_t b1, uint8_t b2)
   {
+    uint8_t   *buf = buf_;
+    buf[0] = 0x04;
     const uint8_t *pixels = &(t.sixteenColors[size_t(b1) << 1]);
-
-    buf[3]  = buf[2]  = buf[1]  = buf[0]  = lpb.palette[pixels[0]];
-    buf[7]  = buf[6]  = buf[5]  = buf[4]  = lpb.palette[pixels[1]];
+    buf[1] = lpb.palette[pixels[0]];
+    buf[2] = lpb.palette[pixels[1]];
+    pixels = &(t.sixteenColors[size_t(b2) << 1]);
+    buf[3] = lpb.palette[pixels[0]];
+    buf[4] = lpb.palette[pixels[1]];
+    buf_ = buf + 5;
   }
 
-  inline void NickRenderer::renderByte256Colors(uint8_t *buf, uint8_t b1)
+  inline void NickRenderer::renderBytes256Colors(uint8_t*& buf_,
+                                                 uint8_t b1, uint8_t b2)
   {
-    buf[7]  = buf[6]  = buf[5]  = buf[4]  =
-    buf[3]  = buf[2]  = buf[1]  = buf[0]  = b1;
+    uint8_t   *buf = buf_;
+    buf[0] = 0x02;
+    buf[1] = b1;
+    buf[2] = b2;
+    buf_ = buf + 3;
   }
 
-  inline void NickRenderer::renderByteAttribute(uint8_t *buf, uint8_t b1,
-                                                uint8_t attr)
+  inline void NickRenderer::renderBytesAttribute(uint8_t*& buf_,
+                                                 uint8_t b1, uint8_t attr)
   {
-    const uint8_t *pixels = &(t.twoColors[size_t(b1) << 3]);
-    uint8_t   c[2];
-
-    c[0] = lpb.palette[attr >> 4];
-    c[1] = lpb.palette[attr & 15];
-    buf[1]  = buf[0]  = c[pixels[0]];
-    buf[3]  = buf[2]  = c[pixels[1]];
-    buf[5]  = buf[4]  = c[pixels[2]];
-    buf[7]  = buf[6]  = c[pixels[3]];
-    buf[9]  = buf[8]  = c[pixels[4]];
-    buf[11] = buf[10] = c[pixels[5]];
-    buf[13] = buf[12] = c[pixels[6]];
-    buf[15] = buf[14] = c[pixels[7]];
+    uint8_t   *buf = buf_;
+    buf[0] = 0x03;
+    buf[1] = lpb.palette[attr >> 4];
+    buf[2] = lpb.palette[attr & 15];
+    buf[3] = b1;
+    buf_ = buf + 4;
   }
 
   inline uint8_t NickRenderer::readVideoMemory(uint16_t addr)
@@ -185,96 +185,102 @@ namespace Ep128 {
 #  define REGPARM
 #endif
 
-  REGPARM void NickRenderer_Blank::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_Blank::doRender(uint8_t*& buf)
   {
-    buf[15] = buf[14] = buf[13] = buf[12] =
-    buf[11] = buf[10] = buf[9]  = buf[8]  =
-    buf[7]  = buf[6]  = buf[5]  = buf[4]  =
-    buf[3]  = buf[2]  = buf[1]  = buf[0]  = 0;
+    renderByte256ColorsL(buf, 0);
   }
 
-  REGPARM void NickRenderer_PIXEL_2::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_PIXEL_2::doRender(uint8_t*& buf)
   {
-    renderByte2Colors(buf, readVideoMemory(lpb.ld1Addr), 0);
+    uint8_t   b1 = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    renderByte2Colors(buf + 8, readVideoMemory(lpb.ld1Addr), 0);
+    uint8_t   b2 = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    renderBytes2Colors(buf, b1, b2, 0, 0);
   }
 
-  REGPARM void NickRenderer_PIXEL_2_LSBALT::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_PIXEL_2_LSBALT::doRender(uint8_t*& buf)
   {
-    uint8_t b = readVideoMemory(lpb.ld1Addr);
-    renderByte2Colors(buf, b & 0xFE, (b & 0x01) << 2);
+    uint8_t   b1 = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    b = readVideoMemory(lpb.ld1Addr);
-    renderByte2Colors(buf + 8, b & 0xFE, (b & 0x01) << 2);
+    uint8_t   b2 = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    renderBytes2Colors(buf,
+                       b1 & 0xFE, b2 & 0xFE,
+                       (b1 & 0x01) << 2, (b2 & 0x01) << 2);
   }
 
-  REGPARM void NickRenderer_PIXEL_2_MSBALT::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_PIXEL_2_MSBALT::doRender(uint8_t*& buf)
   {
-    uint8_t b = readVideoMemory(lpb.ld1Addr);
-    renderByte2Colors(buf, b & 0x7F, (b & 0x80) >> 6);
+    uint8_t   b1 = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    b = readVideoMemory(lpb.ld1Addr);
-    renderByte2Colors(buf + 8, b & 0x7F, (b & 0x80) >> 6);
+    uint8_t   b2 = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    renderBytes2Colors(buf,
+                       b1 & 0x7F, b2 & 0x7F,
+                       (b1 & 0x80) >> 6, (b2 & 0x80) >> 6);
   }
 
-  REGPARM void NickRenderer_PIXEL_2_LSBALT_MSBALT::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_PIXEL_2_LSBALT_MSBALT::doRender(uint8_t*& buf)
   {
-    uint8_t b = readVideoMemory(lpb.ld1Addr);
-    renderByte2Colors(buf, b & 0x7E, ((b & 0x80) >> 6) | ((b & 0x01) << 2));
+    uint8_t   b1 = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    b = readVideoMemory(lpb.ld1Addr);
-    renderByte2Colors(buf + 8, b & 0x7E, ((b & 0x80) >> 6) | ((b & 0x01) << 2));
+    uint8_t   b2 = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    renderBytes2Colors(buf,
+                       b1 & 0x7E, b2 & 0x7E,
+                       ((b1 & 0x80) >> 6) | ((b1 & 0x01) << 2),
+                       ((b2 & 0x80) >> 6) | ((b2 & 0x01) << 2));
   }
 
-  REGPARM void NickRenderer_PIXEL_4::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_PIXEL_4::doRender(uint8_t*& buf)
   {
-    renderByte4Colors(buf, readVideoMemory(lpb.ld1Addr), 0);
+    uint8_t   b1 = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    renderByte4Colors(buf + 8, readVideoMemory(lpb.ld1Addr), 0);
+    uint8_t   b2 = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    renderBytes4Colors(buf, b1, b2, 0, 0);
   }
 
-  REGPARM void NickRenderer_PIXEL_4_LSBALT::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_PIXEL_4_LSBALT::doRender(uint8_t*& buf)
   {
-    uint8_t b = readVideoMemory(lpb.ld1Addr);
-    renderByte4Colors(buf, b & 0xFE, (b & 0x01) << 2);
+    uint8_t   b1 = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    b = readVideoMemory(lpb.ld1Addr);
-    renderByte4Colors(buf + 8, b & 0xFE, (b & 0x01) << 2);
+    uint8_t   b2 = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    renderBytes4Colors(buf,
+                       b1 & 0xFE, b2 & 0xFE,
+                       (b1 & 0x01) << 2, (b2 & 0x01) << 2);
   }
 
-  REGPARM void NickRenderer_PIXEL_16::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_PIXEL_16::doRender(uint8_t*& buf)
   {
-    renderByte16Colors(buf, readVideoMemory(lpb.ld1Addr));
+    uint8_t   b1 = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    renderByte16Colors(buf + 8, readVideoMemory(lpb.ld1Addr));
+    uint8_t   b2 = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    renderBytes16Colors(buf, b1, b2);
   }
 
-  REGPARM void NickRenderer_PIXEL_256::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_PIXEL_256::doRender(uint8_t*& buf)
   {
-    renderByte256Colors(buf, readVideoMemory(lpb.ld1Addr));
+    uint8_t   b1 = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    renderByte256Colors(buf + 8, readVideoMemory(lpb.ld1Addr));
+    uint8_t   b2 = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    renderBytes256Colors(buf, b1, b2);
   }
 
-  REGPARM void NickRenderer_ATTRIBUTE::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_ATTRIBUTE::doRender(uint8_t*& buf)
   {
-    renderByteAttribute(buf,
-                        readVideoMemory(lpb.ld2Addr),
-                        readVideoMemory(lpb.ld1Addr));
+    renderBytesAttribute(buf,
+                         readVideoMemory(lpb.ld2Addr),
+                         readVideoMemory(lpb.ld1Addr));
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     lpb.ld2Addr = (lpb.ld2Addr + 1) & 0xFFFF;
   }
 
-  REGPARM void NickRenderer_CH256_2::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_CH256_2::doRender(uint8_t*& buf)
   {
     uint8_t ch = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -282,7 +288,7 @@ namespace Ep128 {
     renderByte2ColorsL(buf, b, 0);
   }
 
-  REGPARM void NickRenderer_CH256_4::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_CH256_4::doRender(uint8_t*& buf)
   {
     uint8_t ch = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -290,7 +296,7 @@ namespace Ep128 {
     renderByte4ColorsL(buf, b, 0);
   }
 
-  REGPARM void NickRenderer_CH256_16::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_CH256_16::doRender(uint8_t*& buf)
   {
     uint8_t ch = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -298,7 +304,7 @@ namespace Ep128 {
     renderByte16ColorsL(buf, b);
   }
 
-  REGPARM void NickRenderer_CH256_256::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_CH256_256::doRender(uint8_t*& buf)
   {
     uint8_t ch = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -306,7 +312,7 @@ namespace Ep128 {
     renderByte256ColorsL(buf, b);
   }
 
-  REGPARM void NickRenderer_CH128_2::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_CH128_2::doRender(uint8_t*& buf)
   {
     uint8_t ch = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -314,7 +320,7 @@ namespace Ep128 {
     renderByte2ColorsL(buf, b, 0);
   }
 
-  REGPARM void NickRenderer_CH128_2_ALTIND1::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_CH128_2_ALTIND1::doRender(uint8_t*& buf)
   {
     uint8_t ch = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -322,7 +328,7 @@ namespace Ep128 {
     renderByte2ColorsL(buf, b, (ch & 0x80) >> 6);
   }
 
-  REGPARM void NickRenderer_CH128_4::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_CH128_4::doRender(uint8_t*& buf)
   {
     uint8_t ch = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -330,7 +336,7 @@ namespace Ep128 {
     renderByte4ColorsL(buf, b, 0);
   }
 
-  REGPARM void NickRenderer_CH128_16::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_CH128_16::doRender(uint8_t*& buf)
   {
     uint8_t ch = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -338,7 +344,7 @@ namespace Ep128 {
     renderByte16ColorsL(buf, b);
   }
 
-  REGPARM void NickRenderer_CH128_256::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_CH128_256::doRender(uint8_t*& buf)
   {
     uint8_t ch = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -346,7 +352,7 @@ namespace Ep128 {
     renderByte256ColorsL(buf, b);
   }
 
-  REGPARM void NickRenderer_CH64_2::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_CH64_2::doRender(uint8_t*& buf)
   {
     uint8_t ch = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -354,7 +360,7 @@ namespace Ep128 {
     renderByte2ColorsL(buf, b, 0);
   }
 
-  REGPARM void NickRenderer_CH64_2_ALTIND0::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_CH64_2_ALTIND0::doRender(uint8_t*& buf)
   {
     uint8_t ch = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -362,7 +368,7 @@ namespace Ep128 {
     renderByte2ColorsL(buf, b, (ch & 0x40) >> 4);
   }
 
-  REGPARM void NickRenderer_CH64_2_ALTIND1::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_CH64_2_ALTIND1::doRender(uint8_t*& buf)
   {
     uint8_t ch = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -370,7 +376,7 @@ namespace Ep128 {
     renderByte2ColorsL(buf, b, (ch & 0x80) >> 6);
   }
 
-  REGPARM void NickRenderer_CH64_2_ALTIND0_ALTIND1::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_CH64_2_ALTIND0_ALTIND1::doRender(uint8_t*& buf)
   {
     uint8_t ch = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -378,7 +384,7 @@ namespace Ep128 {
     renderByte2ColorsL(buf, b, ((ch & 0x80) >> 6) + ((ch & 0x40) >> 4));
   }
 
-  REGPARM void NickRenderer_CH64_4::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_CH64_4::doRender(uint8_t*& buf)
   {
     uint8_t ch = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -386,7 +392,7 @@ namespace Ep128 {
     renderByte4ColorsL(buf, b, 0);
   }
 
-  REGPARM void NickRenderer_CH64_4_ALTIND0::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_CH64_4_ALTIND0::doRender(uint8_t*& buf)
   {
     uint8_t ch = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -394,7 +400,7 @@ namespace Ep128 {
     renderByte4ColorsL(buf, b, (ch & 0x40) >> 4);
   }
 
-  REGPARM void NickRenderer_CH64_16::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_CH64_16::doRender(uint8_t*& buf)
   {
     uint8_t ch = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -402,7 +408,7 @@ namespace Ep128 {
     renderByte16ColorsL(buf, b);
   }
 
-  REGPARM void NickRenderer_CH64_256::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_CH64_256::doRender(uint8_t*& buf)
   {
     uint8_t ch = readVideoMemory(lpb.ld1Addr);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -410,61 +416,58 @@ namespace Ep128 {
     renderByte256ColorsL(buf, b);
   }
 
-  REGPARM void NickRenderer_INVALID_MODE::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_INVALID_MODE::doRender(uint8_t*& buf)
   {
-    buf[15] = buf[14] = buf[13] = buf[12] =
-    buf[11] = buf[10] = buf[9]  = buf[8]  =
-    buf[7]  = buf[6]  = buf[5]  = buf[4]  =
-    buf[3]  = buf[2]  = buf[1]  = buf[0]  = 0;
+    renderByte256ColorsL(buf, 0);
   }
 
-  REGPARM void NickRenderer_LPIXEL_2::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_LPIXEL_2::doRender(uint8_t*& buf)
   {
     renderByte2ColorsL(buf, readVideoMemory(lpb.ld1Addr), 0);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
   }
 
-  REGPARM void NickRenderer_LPIXEL_2_LSBALT::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_LPIXEL_2_LSBALT::doRender(uint8_t*& buf)
   {
     uint8_t b = readVideoMemory(lpb.ld1Addr);
     renderByte2ColorsL(buf, b & 0xFE, (b & 0x01) << 2);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
   }
 
-  REGPARM void NickRenderer_LPIXEL_2_MSBALT::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_LPIXEL_2_MSBALT::doRender(uint8_t*& buf)
   {
     uint8_t b = readVideoMemory(lpb.ld1Addr);
     renderByte2ColorsL(buf, b & 0x7F, (b & 0x80) >> 6);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
   }
 
-  REGPARM void NickRenderer_LPIXEL_2_LSBALT_MSBALT::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_LPIXEL_2_LSBALT_MSBALT::doRender(uint8_t*& buf)
   {
     uint8_t b = readVideoMemory(lpb.ld1Addr);
     renderByte2ColorsL(buf, b & 0x7E, ((b & 0x80) >> 6) | ((b & 0x01) << 2));
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
   }
 
-  REGPARM void NickRenderer_LPIXEL_4::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_LPIXEL_4::doRender(uint8_t*& buf)
   {
     renderByte4ColorsL(buf, readVideoMemory(lpb.ld1Addr), 0);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
   }
 
-  REGPARM void NickRenderer_LPIXEL_4_LSBALT::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_LPIXEL_4_LSBALT::doRender(uint8_t*& buf)
   {
     uint8_t b = readVideoMemory(lpb.ld1Addr);
     renderByte4ColorsL(buf, b & 0xFE, (b & 0x01) << 2);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
   }
 
-  REGPARM void NickRenderer_LPIXEL_16::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_LPIXEL_16::doRender(uint8_t*& buf)
   {
     renderByte16ColorsL(buf, readVideoMemory(lpb.ld1Addr));
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
   }
 
-  REGPARM void NickRenderer_LPIXEL_256::doRender(uint8_t *buf)
+  REGPARM void NickRenderer_LPIXEL_256::doRender(uint8_t*& buf)
   {
     renderByte256ColorsL(buf, readVideoMemory(lpb.ld1Addr));
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
@@ -745,26 +748,23 @@ namespace Ep128 {
     }
     else if (currentSlot < 54) {
       // display area
-      uint8_t *lineBufPtr = &(lineBuf[size_t(currentSlot - 8) << 4]);
       if (!currentRenderer) {
         if (currentSlot >= lpb.leftMargin) {
           currentRenderer = &(renderers.getRenderer(lpb));
           if (lpb.videoMode == 0)
-            vsyncStateChange(true);
+            vsyncStateChange(true, currentSlot);
         }
       }
       else {
         if (currentSlot >= lpb.rightMargin) {
-          currentRenderer = (NickRenderer*) 0;
+          currentRenderer = (NickRenderer *) 0;
           if (lpb.videoMode == 0)
-            vsyncStateChange(false);
+            vsyncStateChange(false, currentSlot);
         }
       }
       if (!currentRenderer) {
-        for (size_t i = 0; i < 16; i += 4) {
-          lineBufPtr[i + 3] = lineBufPtr[i + 2] =
-          lineBufPtr[i + 1] = lineBufPtr[i + 0] = borderColor;
-        }
+        *(lineBufPtr++) = 0x01;
+        *(lineBufPtr++) = borderColor;
       }
       else {
         currentRenderer->doRender(lineBufPtr);
@@ -772,8 +772,12 @@ namespace Ep128 {
     }
     else if (currentSlot == 54) {
       if (lpb.videoMode != 0)
-        currentRenderer = (NickRenderer*) 0;
-      drawLine(lineBuf);
+        currentRenderer = (NickRenderer *) 0;
+      size_t  nBytes = size_t(lineBufPtr - lineBuf);
+      lineBufPtr = lineBuf;
+      for (size_t i = nBytes; (i & 3) != 0; i++)
+        lineBuf[i] = 0;
+      drawLine(lineBuf, nBytes);
     }
     else if (currentSlot == 56) {
       if (lptClockEnabled) {
@@ -819,12 +823,14 @@ namespace Ep128 {
     borderColor = 0;
     lptClockEnabled = true;
     try {
-      lineBuf = new uint8_t[46 * 16];
-      for (size_t i = 0; i < (46 * 16); i++)
-        lineBuf[i] = 0;
+      uint32_t  *p = new uint32_t[196];     // for 782 bytes (46 * 17)
+      for (size_t i = 0; i < 196; i++)
+        p[i] = 0;
+      lineBuf = reinterpret_cast<uint8_t *>(p);
+      lineBufPtr = lineBuf;
     }
     catch (...) {
-      lineBuf = (uint8_t*) 0;
+      lineBuf = (uint8_t *) 0;
       throw;
     }
   }
@@ -832,8 +838,8 @@ namespace Ep128 {
   Nick::~Nick()
   {
     if (lineBuf) {
-      delete[] lineBuf;
-      lineBuf = (uint8_t*) 0;
+      delete[] reinterpret_cast<uint32_t *>(lineBuf);
+      lineBuf = (uint8_t *) 0;
     }
   }
 
@@ -889,14 +895,16 @@ namespace Ep128 {
     (void) newState;
   }
 
-  void Nick::drawLine(const uint8_t *buf)
+  void Nick::drawLine(const uint8_t *buf, size_t nBytes)
   {
     (void) buf;
+    (void) nBytes;
   }
 
-  void Nick::vsyncStateChange(bool newState)
+  void Nick::vsyncStateChange(bool newState, unsigned int currentSlot_)
   {
     (void) newState;
+    (void) currentSlot_;
   }
 
   // --------------------------------------------------------------------------
@@ -1012,6 +1020,14 @@ namespace Ep128 {
         currentRenderer = &(renderers.getRenderer(lpb));
       currentSlot = uint8_t(buf.readByte() % 57U);
       borderColor = buf.readByte();
+      lineBufPtr = lineBuf;
+      if (currentSlot > 8 && currentSlot <= 54) {
+        size_t  i = currentSlot - 8;
+        do {
+          *(lineBufPtr++) = 0x01;
+          *(lineBufPtr++) = borderColor;
+        } while (--i);
+      }
       lptClockEnabled = buf.readBoolean();
       if (buf.getPosition() != buf.getDataSize())
         throw Exception("trailing garbage at end of Nick snapshot data");
@@ -1022,6 +1038,8 @@ namespace Ep128 {
       writePort(1, 0);
       writePort(2, 0);
       writePort(3, 0);
+      currentSlot = 0;
+      lineBufPtr = lineBuf;
       throw;
     }
   }

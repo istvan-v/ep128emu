@@ -76,7 +76,6 @@ namespace Ep128 {
   class NickRenderer {
    protected:
     struct NickTables {
-      uint8_t twoColors[2048];
       uint8_t fourColors[1024];
       uint8_t sixteenColors[512];
       NickTables();
@@ -84,19 +83,23 @@ namespace Ep128 {
     static NickTables t;
     NickLPB&  lpb;
     Memory&   m;
-    inline void renderByte2ColorsL(uint8_t *buf, uint8_t b1,
+    inline void renderByte2ColorsL(uint8_t*& buf_, uint8_t b1,
                                    uint8_t paletteOffset);
-    inline void renderByte4ColorsL(uint8_t *buf, uint8_t b1,
+    inline void renderByte4ColorsL(uint8_t*& buf_, uint8_t b1,
                                    uint8_t paletteOffset);
-    inline void renderByte16ColorsL(uint8_t *buf, uint8_t b1);
-    inline void renderByte256ColorsL(uint8_t *buf, uint8_t b1);
-    inline void renderByte2Colors(uint8_t *buf, uint8_t b1,
-                                  uint8_t paletteOffset);
-    inline void renderByte4Colors(uint8_t *buf, uint8_t b1,
-                                  uint8_t paletteOffset);
-    inline void renderByte16Colors(uint8_t *buf, uint8_t b1);
-    inline void renderByte256Colors(uint8_t *buf, uint8_t b1);
-    inline void renderByteAttribute(uint8_t *buf, uint8_t b1, uint8_t attr);
+    inline void renderByte16ColorsL(uint8_t*& buf_, uint8_t b1);
+    inline void renderByte256ColorsL(uint8_t*& buf_, uint8_t b1);
+    inline void renderBytes2Colors(uint8_t*& buf_,
+                                   uint8_t b1, uint8_t b2,
+                                   uint8_t paletteOffset1,
+                                   uint8_t paletteOffset2);
+    inline void renderBytes4Colors(uint8_t*& buf_,
+                                   uint8_t b1, uint8_t b2,
+                                   uint8_t paletteOffset1,
+                                   uint8_t paletteOffset2);
+    inline void renderBytes16Colors(uint8_t*& buf_, uint8_t b1, uint8_t b2);
+    inline void renderBytes256Colors(uint8_t*& buf_, uint8_t b1, uint8_t b2);
+    inline void renderBytesAttribute(uint8_t*& buf_, uint8_t b1, uint8_t attr);
     inline uint8_t readVideoMemory(uint16_t addr);
    public:
     NickRenderer(NickLPB& lpb_, Memory& m_)
@@ -106,8 +109,8 @@ namespace Ep128 {
     virtual ~NickRenderer()
     {
     }
-    // render 16 pixels to 'buf'; called 57 times per line
-    virtual REGPARM void doRender(uint8_t *buf) = 0;
+    // render 16 pixels to 'buf'; called 46 times per line
+    virtual REGPARM void doRender(uint8_t*& buf) = 0;
   };
 
 #ifdef DECLARE_RENDERER
@@ -119,7 +122,7 @@ class x : public NickRenderer {                 \
   x(NickLPB& lpb_, Memory& m_)                  \
     : NickRenderer(lpb_, m_) { }                \
   virtual ~x() { }                              \
-  virtual REGPARM void doRender(uint8_t *buf);  \
+  virtual REGPARM void doRender(uint8_t*& buf); \
 }
 
   DECLARE_RENDERER(NickRenderer_Blank);
@@ -187,6 +190,7 @@ class x : public NickRenderer {                 \
     NickRendererTable   renderers;
     uint8_t   currentSlot;      // 0 to 56
     uint8_t   *lineBuf;         // 46 slots = 736 pixels
+    uint8_t   *lineBufPtr;
     uint8_t   borderColor;
     bool      lptClockEnabled;
     // ----------------
@@ -195,10 +199,30 @@ class x : public NickRenderer {                 \
     // called when the IRQ state changes, with a true parameter when the
     // IRQ is active (low)
     virtual void irqStateChange(bool newState);
-    // called after rendering each line; 'buf' contains 736 bytes of pixel data
-    virtual void drawLine(const uint8_t *buf);
-    // called at the beginning and end of VSYNC
-    virtual void vsyncStateChange(bool newState);
+    // drawLine() is called after rendering each line.
+    // 'buf' defines a line of 736 pixels, as 46 groups of 16 pixels each,
+    // in the following format: the first byte defines the number of
+    // additional bytes that encode the 16 pixels to be displayed. The data
+    // length also determines the pixel format, and can have the following
+    // values:
+    //   0x01: one 8-bit color index (pixel width = 16)
+    //   0x02: two 8-bit color indices (pixel width = 8)
+    //   0x03: two 8-bit color indices for background (bit value = 0) and
+    //         foreground (bit value = 1) color, followed by a 8-bit bitmap
+    //         (msb first, pixel width = 2)
+    //   0x04: four 8-bit color indices (pixel width = 4)
+    //   0x06: similar to 0x03, but there are two sets of colors/bitmap
+    //         (c0a, c1a, bitmap_a, c0b, c1b, bitmap_b) and the pixel width
+    //         is 1
+    //   0x08: eight 8-bit color indices (pixel width = 2)
+    //   0x10: sixteen 8-bit color indices (pixel width = 1)
+    // The buffer is aligned to 4 bytes, and contains 'nBytes' (in the range
+    // of 92 to 782) bytes of data.
+    virtual void drawLine(const uint8_t *buf, size_t nBytes);
+    // Called at the beginning (newState = true) and end (newState = false)
+    // of VSYNC. 'currentSlot_' is the position within the current line
+    // (0 to 56).
+    virtual void vsyncStateChange(bool newState, unsigned int currentSlot_);
    public:
     Nick(Memory& m_);
     virtual ~Nick();
