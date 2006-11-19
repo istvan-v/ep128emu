@@ -24,6 +24,7 @@ ep128lib = ep128libEnvironment.StaticLibrary('ep128', Split('''
     cfg_db.cpp
     dave.cpp
     fileio.cpp
+    gldisp.cpp
     ioports.cpp
     memory.cpp
     nick.cpp
