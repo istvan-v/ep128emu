@@ -48,6 +48,12 @@
 #define Z80_INTERRUPT_FLAG                      0x0008
 #define Z80_FLAGS_MASK                          0x000F
 
+#ifndef CPC_LSB_FIRST
+#  if defined(__i386__) || defined(__x86_64__) || defined(_WIN32)
+#    define CPC_LSB_FIRST 1
+#  endif
+#endif
+
 namespace Ep128 {
 
   /* size defines */

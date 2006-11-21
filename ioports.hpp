@@ -48,7 +48,6 @@ namespace Ep128 {
     virtual ~IOPorts();
     void setBreakPoint(uint16_t addr, int priority, bool r, bool w);
     void clearBreakPoints();
-    virtual void breakPointCallback(bool isWrite, uint16_t addr, uint8_t value);
     void setBreakPointPriorityThreshold(int n);
     int getBreakPointPriorityThreshold();
     inline uint8_t read(uint16_t addr);
@@ -64,6 +63,8 @@ namespace Ep128 {
     void saveState(File&);
     void loadState(File::Buffer&);
     void registerChunkType(File&);
+   protected:
+    virtual void breakPointCallback(bool isWrite, uint16_t addr, uint8_t value);
   };
 
   // --------------------------------------------------------------------------

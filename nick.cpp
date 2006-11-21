@@ -713,15 +713,15 @@ namespace Ep128 {
                       | (uint16_t(readVideoMemory(lptCurrentAddr + 7)) << 8);
         switch (lpb.videoMode) {
         case 3:                     // CH256
-          lpb.ld2Base &= 0xFF00;
+          lpb.ld2Base = (lpb.ld2Base << 8) & 0xFF00;
           lpb.ld2Addr = (lpb.ld2Addr + 0x0100) & 0xFFFF;
           break;
         case 4:                     // CH128
-          lpb.ld2Base &= 0xFF80;
+          lpb.ld2Base = (lpb.ld2Base << 7) & 0xFF80;
           lpb.ld2Addr = (lpb.ld2Addr + 0x0080) & 0xFFFF;
           break;
         case 5:                     // CH64
-          lpb.ld2Base &= 0xFFC0;
+          lpb.ld2Base = (lpb.ld2Base << 6) & 0xFFC0;
           lpb.ld2Addr = (lpb.ld2Addr + 0x0040) & 0xFFFF;
           break;
         }
@@ -749,7 +749,7 @@ namespace Ep128 {
     else if (currentSlot < 54) {
       // display area
       if (!currentRenderer) {
-        if (currentSlot >= lpb.leftMargin) {
+        if (currentSlot >= lpb.leftMargin && currentSlot < lpb.rightMargin) {
           currentRenderer = &(renderers.getRenderer(lpb));
           if (lpb.videoMode == 0)
             vsyncStateChange(true, currentSlot);

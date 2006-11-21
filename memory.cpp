@@ -218,22 +218,26 @@ namespace Ep128 {
     }
     if (!segmentTable[segment]) {
       // allocate memory for segment if necessary
-      segmentTable[segment] = new uint8_t[16384];
+      segmentTable[segment] = new uint8_t[0x4000];
     }
     segmentROMTable[segment] = isROM;
-    size_t  i;
-    for (i = 0; i < dataSize; i++) {
-      segmentTable[segment][i & 0x3FFF] = data[i];
-      if ((i & 0x3FFF) == 0x3FFF) {
-        segment = (segment + 1) & 0xFF;
-        if (!segmentTable[segment]) {
-          // allocate memory for segment if necessary
-          segmentTable[segment] = new uint8_t[16384];
+    size_t  i = 0;
+    if (dataSize) {
+      while (true) {
+        segmentTable[segment][i & 0x3FFF] = data[i];
+        if (++i >= dataSize)
+          break;
+        if ((i & 0x3FFF) == 0) {
+          segment = (segment + 1) & 0xFF;
+          if (!segmentTable[segment]) {
+            // allocate memory for segment if necessary
+            segmentTable[segment] = new uint8_t[0x4000];
+          }
+          segmentROMTable[segment] = isROM;
         }
-        segmentROMTable[segment] = isROM;
       }
     }
-    for ( ; i < 16384 || (i & 0x3FFF) != 0; i++)
+    for ( ; i < 0x4000 || (i & 0x3FFF) != 0; i++)
       segmentTable[segment][i & 0x3FFF] = 0xFF;
   }
 

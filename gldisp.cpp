@@ -300,7 +300,7 @@ namespace Ep128Emu {
       dp.indexToRGBFunc(uint8_t(i), r1, g1, b1);
       for (size_t j = 0; j < 256; j++) {
         float   r2, g2, b2;
-        dp.indexToRGBFunc(uint8_t(i), r2, g2, b2);
+        dp.indexToRGBFunc(uint8_t(j), r2, g2, b2);
         double  rx = (r1 + r2) * dp.blendScale1;
         double  gx = (g1 + g2) * dp.blendScale1;
         double  bx = (b1 + b2) * dp.blendScale1;

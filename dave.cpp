@@ -1336,7 +1336,16 @@ namespace Ep128 {
       outR = (outR > -32767.0f ? outR - 0.5f : -32767.5f);
     else
       outR = (outR < 32767.0f ? outR + 0.5f : 32767.5f);
+#if defined(__linux) || defined(__linux__)
+    int16_t outL_i = int16_t(outL);
+    int16_t outR_i = int16_t(outR);
+    // hack to work around clicks in ALSA sound output
+    outL_i = (outL_i != 0 ? outL_i : 1);
+    outR_i = (outR_i != 0 ? outR_i : 1);
+    this->audioOutput(int16_t(outL_i), int16_t(outR_i));
+#else
     this->audioOutput(int16_t(outL), int16_t(outR));
+#endif
   }
 
   DaveConverter::DaveConverter(float inputSampleRate_, float outputSampleRate_,

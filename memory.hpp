@@ -45,7 +45,6 @@ namespace Ep128 {
     void clearBreakPoints(uint8_t segment);
     void clearBreakPoints();
     void clearAllBreakPoints();
-    virtual void breakPointCallback(bool isWrite, uint16_t addr, uint8_t value);
     void setBreakPointPriorityThreshold(int n);
     int getBreakPointPriorityThreshold();
     void loadSegment(uint8_t segment, bool isROM,
@@ -62,6 +61,8 @@ namespace Ep128 {
     void saveState(File&);
     void loadState(File::Buffer&);
     void registerChunkType(File&);
+   protected:
+    virtual void breakPointCallback(bool isWrite, uint16_t addr, uint8_t value);
   };
 
   // --------------------------------------------------------------------------
@@ -69,7 +70,7 @@ namespace Ep128 {
   inline uint8_t Memory::read(uint16_t addr)
   {
     uint16_t  offs = addr & 0x3FFF;
-    uint8_t   segment = (uint8_t) (addr >> 14), value;
+    uint8_t   segment = pageTable[uint8_t(addr >> 14)], value;
 
     if (segmentTable[segment])
       value = segmentTable[segment][offs];
@@ -105,7 +106,7 @@ namespace Ep128 {
   inline void Memory::write(uint16_t addr, uint8_t value)
   {
     uint16_t  offs = addr & 0x3FFF;
-    uint8_t   segment = (uint8_t) (addr >> 14);
+    uint8_t   segment = pageTable[uint8_t(addr >> 14)];
 
     if (haveBreakPoints) {
       uint8_t *tbl = breakPointTable;
