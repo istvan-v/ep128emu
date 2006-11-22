@@ -23,6 +23,7 @@
 #include "ioports.hpp"
 #include "dave.hpp"
 #include "nick.hpp"
+#include "tape.hpp"
 #include "soundio.hpp"
 #include "gldisp.hpp"
 #include "ep128vm.hpp"
@@ -235,14 +236,32 @@ namespace Ep128 {
 
   void Ep128VM::Dave_::setRemote1State(int state)
   {
-    // TODO
-    (void) state;
+    vm.isRemote1On = (state != 0);
+    if (vm.tape)
+      vm.tape->setIsMotorOn(vm.isRemote1On || vm.isRemote2On);
+    if (vm.fastTapeModeEnabled &&
+        vm.tape != (Tape *) 0 &&
+        (vm.isRemote1On || vm.isRemote2On) &&
+        (vm.tapePlaybackOn || vm.tapeRecordOn))
+      vm.writingAudioOutput = false;
+    else
+      vm.writingAudioOutput =
+          (vm.audioOutputEnabled && vm.audioOutput != (DaveConverter *) 0);
   }
 
   void Ep128VM::Dave_::setRemote2State(int state)
   {
-    // TODO
-    (void) state;
+    vm.isRemote2On = (state != 0);
+    if (vm.tape)
+      vm.tape->setIsMotorOn(vm.isRemote1On || vm.isRemote2On);
+    if (vm.fastTapeModeEnabled &&
+        vm.tape != (Tape *) 0 &&
+        (vm.isRemote1On || vm.isRemote2On) &&
+        (vm.tapePlaybackOn || vm.tapeRecordOn))
+      vm.writingAudioOutput = false;
+    else
+      vm.writingAudioOutput =
+          (vm.audioOutputEnabled && vm.audioOutput != (DaveConverter *) 0);
   }
 
   void Ep128VM::Dave_::interruptRequest()
@@ -351,7 +370,17 @@ namespace Ep128 {
       audioOutputVolume(0.7071f),
       audioOutputFilter1Freq(10.0f),
       audioOutputFilter2Freq(10.0f),
-      audioOutputFileName("")
+      audioOutputFileName(""),
+      tapeFileName(""),
+      tape((Tape *) 0),
+      tapeSamplesPerDaveCycle(0),
+      tapeSamplesRemaining(0),
+      isRemote1On(false),
+      isRemote2On(false),
+      tapePlaybackOn(false),
+      tapeRecordOn(false),
+      fastTapeModeEnabled(false),
+      writingAudioOutput(false)
   {
     for (size_t i = 0; i < 4; i++)
       pageTable[i] = 0x00;
@@ -390,6 +419,8 @@ namespace Ep128 {
 
   Ep128VM::~Ep128VM()
   {
+    if (tape)
+      delete tape;
     if (audioOutput)
       delete audioOutput;
   }
@@ -399,37 +430,39 @@ namespace Ep128 {
     nickCyclesRemaining +=
         ((int64_t(microseconds) << 26) * int64_t(nickFrequency)
          / int64_t(15625));     // 10^6 / 2^6
-    if (audioOutputEnabled && audioOutput != (DaveConverter *) 0) {
-      // audio output enabled
-      while (nickCyclesRemaining > 0) {
-        daveCyclesRemaining += daveCyclesPerNickCycle;
-        while (daveCyclesRemaining > 0) {
-          daveCyclesRemaining -= (int64_t(1) << 32);
-          audioOutput->sendInputSignal(dave.runOneCycle());
+    if (fastTapeModeEnabled &&
+        tape != (Tape *) 0 &&
+        (isRemote1On || isRemote2On) &&
+        (tapePlaybackOn || tapeRecordOn))
+      writingAudioOutput = false;
+    else
+      writingAudioOutput =
+          (audioOutputEnabled && audioOutput != (DaveConverter *) 0);
+    while (nickCyclesRemaining > 0) {
+      daveCyclesRemaining += daveCyclesPerNickCycle;
+      while (daveCyclesRemaining > 0) {
+        daveCyclesRemaining -= (int64_t(1) << 32);
+        uint32_t  tmp = dave.runOneCycle();
+        if (writingAudioOutput)
+          audioOutput->sendInputSignal(tmp);
+        if (tape) {
+          tapeSamplesRemaining += tapeSamplesPerDaveCycle;
+          if (tapeSamplesRemaining > 0) {
+            // assume tape sample rate < daveFrequency
+            tapeSamplesRemaining -= (int64_t(1) << 32);
+            tape->setInputSignal(int(tmp & 0x01FF));
+            tape->runOneSample();
+            int   daveTapeInput = (tapeRecordOn ? 0 : tape->getOutputSignal());
+            dave.setTapeInput(daveTapeInput, daveTapeInput);
+          }
         }
-        cpuCyclesRemaining += cpuCyclesPerNickCycle;
-        cpuSyncToNickCnt += cpuCyclesPerNickCycle;
-        while (cpuCyclesRemaining > 0)
-          z80.executeInstruction();
-        nick.runOneSlot();
-        nickCyclesRemaining -= (int64_t(1) << 32);
       }
-    }
-    else {
-      // audio output disabled
-      while (nickCyclesRemaining > 0) {
-        daveCyclesRemaining += daveCyclesPerNickCycle;
-        while (daveCyclesRemaining > 0) {
-          daveCyclesRemaining -= (int64_t(1) << 32);
-          dave.runOneCycle();
-        }
-        cpuCyclesRemaining += cpuCyclesPerNickCycle;
-        cpuSyncToNickCnt += cpuCyclesPerNickCycle;
-        while (cpuCyclesRemaining > 0)
-          z80.executeInstruction();
-        nick.runOneSlot();
-        nickCyclesRemaining -= (int64_t(1) << 32);
-      }
+      cpuCyclesRemaining += cpuCyclesPerNickCycle;
+      cpuSyncToNickCnt += cpuCyclesPerNickCycle;
+      while (cpuCyclesRemaining > 0)
+        z80.executeInstruction();
+      nick.runOneSlot();
+      nickCyclesRemaining -= (int64_t(1) << 32);
     }
   }
 
@@ -437,6 +470,10 @@ namespace Ep128 {
   {
     z80.reset();
     dave.reset();
+    isRemote1On = false;
+    isRemote2On = false;
+    if (tape)
+      tape->setIsMotorOn(false);
     if (isColdReset) {
       for (int i = 0; i < 256; i++) {
         if ((ramBitmap[i >> 3] & (1 << (i & 7))) != 0)
@@ -713,6 +750,99 @@ namespace Ep128 {
   void Ep128VM::setKeyboardState(int keyCode, bool isPressed)
   {
     dave.setKeyboardState(keyCode, (isPressed ? 1 : 0));
+  }
+
+  void Ep128VM::setTapeFileName(const char *fileName)
+  {
+    std::string fname("");
+    if (fileName)
+      fname = fileName;
+    if (tape) {
+      if (fname == tapeFileName) {
+        tape->seek(0.0);
+        return;
+      }
+      delete tape;
+      tape = (Tape *) 0;
+    }
+    if (fname.length() == 0)
+      return;
+    tape = new Tape(fname.c_str());
+    if (tapeRecordOn)
+      tape->record();
+    else if (tapePlaybackOn)
+      tape->play();
+    if (isRemote1On || isRemote2On)
+      tape->setIsMotorOn(true);
+    tapeSamplesPerDaveCycle =
+        (int64_t(tape->getSampleRate()) << 32) / int64_t(daveFrequency);
+    tapeSamplesRemaining = int64_t(0);
+  }
+
+  void Ep128VM::tapePlay()
+  {
+    tapePlaybackOn = true;
+    tapeRecordOn = false;
+    if (tape)
+      tape->play();
+  }
+
+  void Ep128VM::tapeRecord()
+  {
+    tapePlaybackOn = true;
+    tapeRecordOn = true;
+    if (tape)
+      tape->record();
+  }
+
+  void Ep128VM::tapeStop()
+  {
+    tapePlaybackOn = false;
+    tapeRecordOn = false;
+    if (tape)
+      tape->stop();
+  }
+
+  void Ep128VM::tapeSeek(double t)
+  {
+    if (tape)
+      tape->seek(t);
+  }
+
+  double Ep128VM::getTapePosition() const
+  {
+    if (tape)
+      return tape->getPosition();
+    return -1.0;
+  }
+
+  void Ep128VM::tapeSeekToCuePoint(bool isForward, double t)
+  {
+    if (tape)
+      tape->seekToCuePoint(isForward, t);
+  }
+
+  void Ep128VM::tapeAddCuePoint()
+  {
+    if (tape)
+      tape->addCuePoint();
+  }
+
+  void Ep128VM::tapeDeleteNearestCuePoint()
+  {
+    if (tape)
+      tape->deleteNearestCuePoint();
+  }
+
+  void Ep128VM::tapeDeleteAllCuePoints()
+  {
+    if (tape)
+      tape->deleteAllCuePoints();
+  }
+
+  void Ep128VM::setEnableFastTapeMode(bool isEnabled)
+  {
+    fastTapeModeEnabled = isEnabled;
   }
 
   // --------------------------------------------------------------------------

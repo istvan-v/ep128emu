@@ -26,6 +26,7 @@
 #include "ioports.hpp"
 #include "dave.hpp"
 #include "nick.hpp"
+#include "tape.hpp"
 #include "gldisp.hpp"
 
 namespace Ep128 {
@@ -131,6 +132,16 @@ namespace Ep128 {
     float     audioOutputFilter1Freq;
     float     audioOutputFilter2Freq;
     std::string audioOutputFileName;
+    std::string tapeFileName;
+    Tape      *tape;
+    int64_t   tapeSamplesPerDaveCycle;
+    int64_t   tapeSamplesRemaining;
+    bool      isRemote1On;
+    bool      isRemote2On;
+    bool      tapePlaybackOn;
+    bool      tapeRecordOn;
+    bool      fastTapeModeEnabled;
+    bool      writingAudioOutput;
     // ----------------
     void updateTimingParameters();
     inline void updateCPUCycles(int cycles)
@@ -209,6 +220,36 @@ namespace Ep128 {
     virtual void setEnableMemoryTimingEmulation(bool isEnabled);
     // Set state of key 'keyCode' (0 to 127).
     virtual void setKeyboardState(int keyCode, bool isPressed);
+    // Set tape image file name (if the file name is NULL or empty, tape
+    // emulation is disabled).
+    virtual void setTapeFileName(const char *fileName);
+    // start tape playback
+    virtual void tapePlay();
+    // start tape recording; if the tape file is read-only, this is
+    // equivalent to calling tapePlay()
+    virtual void tapeRecord();
+    // stop tape playback and recording
+    virtual void tapeStop();
+    // Set tape position to the specified time (in seconds).
+    virtual void tapeSeek(double t);
+    // Returns the current tape position in seconds, or -1.0 if there is
+    // no tape image file opened.
+    virtual double getTapePosition() const;
+    // Seek forward (if isForward = true) or backward (if isForward = false)
+    // to the nearest cue point, or by 't' seconds if no cue point is found.
+    virtual void tapeSeekToCuePoint(bool isForward = true, double t = 10.0);
+    // Create a new cue point at the current tape position.
+    // Has no effect if the file does not have a cue point table, or it
+    // is read-only.
+    virtual void tapeAddCuePoint();
+    // Delete the cue point nearest to the current tape position.
+    // Has no effect if the file is read-only.
+    virtual void tapeDeleteNearestCuePoint();
+    // Delete all cue points. Has no effect if the file is read-only.
+    virtual void tapeDeleteAllCuePoints();
+    // Set if audio output is turned off on tape I/O, allowing the emulation
+    // to run faster than real time.
+    virtual void setEnableFastTapeMode(bool isEnabled);
    protected:
     virtual void breakPointCallback(bool isIO, bool isWrite,
                                     uint16_t addr, uint8_t value);
