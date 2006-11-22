@@ -30,6 +30,7 @@ ep128lib = ep128libEnvironment.StaticLibrary('ep128', Split('''
     memory.cpp
     nick.cpp
     system.cpp
+    tape.cpp
 '''))
 
 z80lib = z80libEnvironment.StaticLibrary('z80', Split('''

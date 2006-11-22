@@ -390,7 +390,7 @@ namespace Ep128Emu {
       messageQueue = m;
     lastMessage = m;
     messageQueueMutex.unlock();
-    if (typeid(m) == typeid(Message_FrameDone))
+    if (typeid(*m) == typeid(Message_FrameDone))
       Fl::awake();
   }
 
@@ -737,6 +737,9 @@ namespace Ep128Emu {
       }
       else if (typeid(*m) == typeid(Message_FrameDone)) {
         displayFrame();
+        // do not display more than one frame per draw() call
+        deleteMessage(m);
+        break;
       }
       else if (typeid(*m) == typeid(Message_SetParameters)) {
         Message_SetParameters *msg;

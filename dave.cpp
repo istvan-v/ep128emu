@@ -816,7 +816,7 @@ namespace Ep128 {
     page1Segment = 0;
     page2Segment = 0;
     page3Segment = 0;
-    tape_feedback = 0;
+    tape_feedback = 1;
     tape_input = 0;
     tape_input_level = 0;
     keyboardRow = 0;
