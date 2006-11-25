@@ -52,10 +52,12 @@ namespace Ep128 {
     void deleteSegment(uint8_t segment);
     void deleteAllSegments();
     inline uint8_t read(uint16_t addr);
-    inline uint8_t readRaw(uint32_t addr);
+    inline uint8_t readRaw(uint32_t addr) const;
     inline void write(uint16_t addr, uint8_t value);
     inline void setPage(uint8_t page, uint8_t segment);
-    inline uint8_t getPage(uint8_t page);
+    inline uint8_t getPage(uint8_t page) const;
+    inline bool isSegmentROM(uint8_t segment) const;
+    inline bool isSegmentRAM(uint8_t segment) const;
     BreakPointList getBreakPointList();
     void saveState(File::Buffer&);
     void saveState(File&);
@@ -91,7 +93,7 @@ namespace Ep128 {
     return value;
   }
 
-  inline uint8_t Memory::readRaw(uint32_t addr)
+  inline uint8_t Memory::readRaw(uint32_t addr) const
   {
     uint8_t segment, value;
 
@@ -129,12 +131,24 @@ namespace Ep128 {
     pageTable[page & 3] = segment;
   }
 
-  inline uint8_t Memory::getPage(uint8_t page)
+  inline uint8_t Memory::getPage(uint8_t page) const
   {
     return pageTable[page & 3];
   }
 
-}
+  inline bool Memory::isSegmentROM(uint8_t segment) const
+  {
+    return (segmentTable[segment] != (uint8_t *) 0 &&
+            segmentROMTable[segment]);
+  }
+
+  inline bool Memory::isSegmentRAM(uint8_t segment) const
+  {
+    return (segmentTable[segment] != (uint8_t *) 0 &&
+            !segmentROMTable[segment]);
+  }
+
+}       // namespace Ep128
 
 #endif  // EP128EMU_MEMORY_HPP
 

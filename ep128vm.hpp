@@ -105,8 +105,6 @@ namespace Ep128 {
     Nick_     nick;
     DaveConverter   *audioOutput;
     uint8_t   pageTable[4];
-    uint8_t   romBitmap[32];
-    uint8_t   ramBitmap[32];
     size_t    cpuFrequency;             // defaults to 4000000 Hz
     size_t    daveFrequency;            // for now, this is always 500000 Hz
     size_t    nickFrequency;            // defaults to 15625 * 57 = 890625 Hz
@@ -142,6 +140,30 @@ namespace Ep128 {
     bool      tapeRecordOn;
     bool      fastTapeModeEnabled;
     bool      writingAudioOutput;
+    File      *demoFile;
+    // contains demo data, which is the emulator version number as a 32-bit
+    // integer ((MAJOR << 16) + (MINOR << 8) + PATCHLEVEL), followed by a
+    // sequence of events in the following format:
+    //   uint64_t   deltaTime   (in NICK cycles, stored as MSB first dynamic
+    //                          length (1 to 8 bytes) value)
+    //   uint8_t    eventType   (currently allowed values are 0 for end of
+    //                          demo (zero data bytes), 1 for key press, and
+    //                          2 for key release)
+    //   uint8_t    dataLength  number of event data bytes
+    //   ...        eventData   (dataLength bytes)
+    // the event data for event types 1 and 2 is the key code with a length of
+    // one byte:
+    //   uint8_t    keyCode     key code in the range 0 to 127
+    File::Buffer  demoBuffer;
+    // true while recording a demo
+    bool      isRecordingDemo;
+    // true while playing a demo
+    bool      isPlayingDemo;
+    // true after loading a snapshot; if not playing a demo as well, the
+    // keyboard state will be cleared
+    bool      snapshotLoadFlag;
+    // used for counting time between demo events (in NICK cycles)
+    uint64_t  demoTimeCnt;
     // ----------------
     void updateTimingParameters();
     inline void updateCPUCycles(int cycles)
@@ -173,6 +195,8 @@ namespace Ep128 {
                                       uint16_t addr, uint8_t value);
     static void nickPortWriteCallback(void *userData,
                                       uint16_t addr, uint8_t value);
+    void stopDemoPlayback();
+    void stopDemoRecording(bool writeFile_);
    public:
     Ep128VM(Ep128Emu::OpenGLDisplay&);
     virtual ~Ep128VM();
@@ -220,6 +244,7 @@ namespace Ep128 {
     virtual void setEnableMemoryTimingEmulation(bool isEnabled);
     // Set state of key 'keyCode' (0 to 127).
     virtual void setKeyboardState(int keyCode, bool isPressed);
+    // ---------------------------- TAPE EMULATION ----------------------------
     // Set tape image file name (if the file name is NULL or empty, tape
     // emulation is disabled).
     virtual void setTapeFileName(const char *fileName);
@@ -250,6 +275,86 @@ namespace Ep128 {
     // Set if audio output is turned off on tape I/O, allowing the emulation
     // to run faster than real time.
     virtual void setEnableFastTapeMode(bool isEnabled);
+    // ------------------------------ DEBUGGING -------------------------------
+    // Add breakpoints from the specified ASCII format breakpoint list.
+    // The breakpoint list is a sequence of breakpoint definitions, separated
+    // by any whitespace characters (space, tab, or newline). A breakpoint
+    // definition consists of an address or address range in one of the
+    // following formats (each 'n' is a hexadecimal digit):
+    //   nn             a single I/O port address
+    //   nn-nn          all I/O port addresses in the specified range
+    //   nnnn           a single Z80 memory address
+    //   nnnn-nnnn      all Z80 memory addresses in the specified range
+    //   nn:nnnn        a single raw memory address, as segment:offset
+    //   nn:nnnn-nnnn   range of raw memory addresses
+    //                  (segment:first_offset-last_offset)
+    // and these optional modifiers:
+    //   r              the breakpoint is triggered on reads
+    //   w              the breakpoint is triggered on writes
+    //   p0             the breakpoint has a priority of 0
+    //   p1             the breakpoint has a priority of 1
+    //   p2             the breakpoint has a priority of 2
+    //   p3             the breakpoint has a priority of 3
+    // by default, the breakpoint is triggered on both reads and writes if
+    // 'r' or 'w' is not used, and has a priority of 2.
+    // Example: 8000-8003rp1 means break on reading Z80 addresses 0x8000,
+    // 0x8001, 0x8002, and 0x8003, if the breakpoint priority threshold is
+    // less than or equal to 1.
+    // If there are any syntax errors in the list, Ep128::Exception is
+    // thrown, and no breakpoints are added.
+    virtual void setBreakPoints(const std::string& bpList);
+    // Returns currently defined breakpoints in the same format as described
+    // above.
+    virtual std::string getBreakPoints();
+    // Clear all breakpoints.
+    virtual void clearBreakPoints();
+    // Set breakpoint priority threshold (0 to 4); breakpoints with a
+    // priority less than this value will not trigger a break.
+    virtual void setBreakPointPriorityThreshold(int n);
+    // Returns the segment at page 'n' (0 to 3).
+    virtual uint8_t getMemoryPage(int n) const;
+    // Read a byte from memory; bits 14 to 21 of 'addr' define the segment
+    // number, while bits 0 to 13 are the offset (0 to 0x3FFF) within the
+    // segment.
+    virtual uint8_t readMemory(uint32_t addr) const;
+    // Returns read-only reference to a structure containing all Z80
+    // registers; see z80/z80.hpp for more information.
+    virtual const Z80_REGISTERS& getCPURegisters() const;
+    // ------------------------------- FILE I/O -------------------------------
+    // Save snapshot of virtual machine state, including all ROM and RAM
+    // segments, as well as Z80, NICK, and DAVE registers. Note that the clock
+    // frequency and timing settings, tape and disk state, and breakpoint list
+    // are not saved.
+    virtual void saveState(File&);
+    // Save clock frequency and timing settings.
+    virtual void saveMachineConfiguration(File&);
+    // Register all types of file data supported by this class, for use by
+    // File::processAllChunks(). Note that loading snapshot data will clear
+    // all breakpoints.
+    virtual void registerChunkTypes(File&);
+    // Start recording a demo to the file object, which will be used until
+    // the recording is stopped for some reason.
+    // Implies calling saveMachineConfiguration() and saveState() first.
+    virtual void recordDemo(File&);
+    // Stop playing or recording demo.
+    virtual void stopDemo();
+    // Returns true if a demo is currently being recorded. The recording stops
+    // when stopDemo() is called, any tape or disk I/O is attempted, clock
+    // frequency and timing settings are changed, or a snapshot is loaded.
+    // This function will also flush demo data to the associated file object
+    // after recording is stopped for some reason other than calling
+    // stopDemo().
+    virtual bool getIsRecordingDemo();
+    // Returns true if a demo is currently being played. The playback stops
+    // when the end of the demo is reached, stopDemo() is called, any tape or
+    // disk I/O is attempted, clock frequency and timing settings are changed,
+    // or a snapshot is loaded. Note that keyboard events are ignored while
+    // playing a demo.
+    virtual bool getIsPlayingDemo() const;
+    // ----------------
+    virtual void loadState(File::Buffer&);
+    virtual void loadMachineConfiguration(File::Buffer&);
+    virtual void loadDemo(File::Buffer&);
    protected:
     virtual void breakPointCallback(bool isIO, bool isWrite,
                                     uint16_t addr, uint8_t value);

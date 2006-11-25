@@ -31,6 +31,34 @@
 #include <cstdio>
 #include <vector>
 
+static void writeDemoTimeCnt(Ep128::File::Buffer& buf, uint64_t n)
+{
+  uint64_t  mask = uint64_t(0x7F) << 49;
+  uint8_t   rshift = 49;
+  while (rshift != 0 && !(n & mask)) {
+    mask >>= 7;
+    rshift -= 7;
+  }
+  while (rshift != 0) {
+    buf.writeByte(uint8_t((n & mask) >> rshift) | 0x80);
+    mask >>= 7;
+    rshift -= 7;
+  }
+  buf.writeByte(uint8_t(n) & 0x7F);
+}
+
+static uint64_t readDemoTimeCnt(Ep128::File::Buffer& buf)
+{
+  uint64_t  n = 0U;
+  uint8_t   i = 8, c;
+  do {
+    c = buf.readByte();
+    n = (n << 7) | uint64_t(c & 0x7F);
+    i--;
+  } while ((c & 0x80) != 0 && i != 0);
+  return n;
+}
+
 namespace Ep128 {
 
   Ep128VM::Z80_::Z80_(Ep128VM& vm_)
@@ -306,8 +334,46 @@ namespace Ep128 {
 
   // --------------------------------------------------------------------------
 
+  void Ep128VM::stopDemoPlayback()
+  {
+    if (isPlayingDemo) {
+      isPlayingDemo = false;
+      demoTimeCnt = 0U;
+      demoBuffer.clear();
+      // clear keyboard state at end of playback
+      for (int i = 0; i < 128; i++)
+        dave.setKeyboardState(i, 0);
+    }
+  }
+
+  void Ep128VM::stopDemoRecording(bool writeFile_)
+  {
+    isRecordingDemo = false;
+    if (writeFile_ && demoFile != (File *) 0) {
+      try {
+        // put end of demo event
+        writeDemoTimeCnt(demoBuffer, demoTimeCnt);
+        demoTimeCnt = 0U;
+        demoBuffer.writeByte(0x00);
+        demoBuffer.writeByte(0x00);
+        demoFile->addChunk(File::EP128EMU_CHUNKTYPE_DEMO_STREAM, demoBuffer);
+      }
+      catch (...) {
+        demoFile = (File *) 0;
+        demoTimeCnt = 0U;
+        demoBuffer.clear();
+        throw;
+      }
+      demoFile = (File *) 0;
+      demoTimeCnt = 0U;
+      demoBuffer.clear();
+    }
+  }
+
   void Ep128VM::updateTimingParameters()
   {
+    stopDemoPlayback();         // changing configuration implies stopping
+    stopDemoRecording(false);   // any demo playback or recording
     cpuCyclesPerNickCycle =
         (int64_t(cpuFrequency) << 32) / int64_t(nickFrequency);
     videoMemoryLatencyCycles =
@@ -317,8 +383,8 @@ namespace Ep128 {
     videoMemoryLatencyCycles += int64_t(0xFFFFFFFFUL);
     daveCyclesPerNickCycle =
         (int64_t(daveFrequency) << 32) / int64_t(nickFrequency);
-    cpuCyclesRemaining = int64_t(0);
-    cpuSyncToNickCnt = int64_t(0);
+    cpuCyclesRemaining = 0;
+    cpuSyncToNickCnt = 0;
   }
 
   uint8_t Ep128VM::davePortReadCallback(void *userData, uint16_t addr)
@@ -380,14 +446,16 @@ namespace Ep128 {
       tapePlaybackOn(false),
       tapeRecordOn(false),
       fastTapeModeEnabled(false),
-      writingAudioOutput(false)
+      writingAudioOutput(false),
+      demoFile((File *) 0),
+      demoBuffer(),
+      isRecordingDemo(false),
+      isPlayingDemo(false),
+      snapshotLoadFlag(false),
+      demoTimeCnt(0U)
   {
     for (size_t i = 0; i < 4; i++)
       pageTable[i] = 0x00;
-    for (size_t i = 0; i < 32; i++)
-      romBitmap[i] = 0x00;
-    for (size_t i = 0; i < 32; i++)
-      ramBitmap[i] = 0x00;
     updateTimingParameters();
     // register I/O callbacks
     for (uint16_t i = 0xA0; i <= 0xBF; i++) {
@@ -402,7 +470,6 @@ namespace Ep128 {
     memory.loadSegment(0xFD, false, (uint8_t *) 0, 0);
     memory.loadSegment(0xFE, false, (uint8_t *) 0, 0);
     memory.loadSegment(0xFF, false, (uint8_t *) 0, 0);
-    ramBitmap[31] |= 0xF0;
     // hack to get some programs using interrupt mode 2 working
     z80.setVectorBase(0xFF);
     // reset
@@ -438,7 +505,51 @@ namespace Ep128 {
     else
       writingAudioOutput =
           (audioOutputEnabled && audioOutput != (DaveConverter *) 0);
+    if (snapshotLoadFlag) {
+      snapshotLoadFlag = false;
+      // if just loaded a snapshot, and not playing a demo,
+      // clear keyboard state
+      if (!isPlayingDemo) {
+        for (int i = 0; i < 128; i++)
+          dave.setKeyboardState(i, 0);
+      }
+    }
     while (nickCyclesRemaining > 0) {
+      if (isPlayingDemo) {
+        while (!demoTimeCnt) {
+          try {
+            uint8_t evtType = demoBuffer.readByte();
+            uint8_t evtBytes = demoBuffer.readByte();
+            uint8_t evtData = 0;
+            while (evtBytes) {
+              evtData = demoBuffer.readByte();
+              evtBytes--;
+            }
+            switch (evtType) {
+            case 0x00:
+              stopDemoPlayback();
+              break;
+            case 0x01:
+              dave.setKeyboardState(evtData, 1);
+              break;
+            case 0x02:
+              dave.setKeyboardState(evtData, 0);
+              break;
+            }
+            demoTimeCnt = readDemoTimeCnt(demoBuffer);
+          }
+          catch (...) {
+            stopDemoPlayback();
+          }
+          if (!isPlayingDemo) {
+            demoBuffer.clear();
+            demoTimeCnt = 0U;
+            break;
+          }
+        }
+        if (demoTimeCnt)
+          demoTimeCnt--;
+      }
       daveCyclesRemaining += daveCyclesPerNickCycle;
       while (daveCyclesRemaining > 0) {
         daveCyclesRemaining -= (int64_t(1) << 32);
@@ -463,11 +574,15 @@ namespace Ep128 {
         z80.executeInstruction();
       nick.runOneSlot();
       nickCyclesRemaining -= (int64_t(1) << 32);
+      if (isRecordingDemo)
+        demoTimeCnt++;
     }
   }
 
   void Ep128VM::reset(bool isColdReset)
   {
+    stopDemoPlayback();         // TODO: should be recorded as an event ?
+    stopDemoRecording(false);
     z80.reset();
     dave.reset();
     isRemote1On = false;
@@ -476,7 +591,7 @@ namespace Ep128 {
       tape->setIsMotorOn(false);
     if (isColdReset) {
       for (int i = 0; i < 256; i++) {
-        if ((ramBitmap[i >> 3] & (1 << (i & 7))) != 0)
+        if (memory.isSegmentRAM(uint8_t(i)))
           memory.loadSegment(uint8_t(i), false, (uint8_t *) 0, 0);
       }
     }
@@ -489,23 +604,17 @@ namespace Ep128 {
     nSegments = (nSegments > 4 ? (nSegments < 232 ? nSegments : 232) : 4);
     // delete all ROM segments
     for (int i = 0; i < 256; i++) {
-      if ((romBitmap[i >> 3] & (1 << (i & 7))) != 0) {
+      if (memory.isSegmentROM(uint8_t(i)))
         memory.deleteSegment(uint8_t(i));
-        romBitmap[i >> 3] &= uint8_t((1 << (i & 7)) ^ 0xFF);
-      }
     }
     // resize RAM
     for (int i = 0; i <= (0xFF - int(nSegments)); i++) {
-      if ((ramBitmap[i >> 3] & (1 << (i & 7))) != 0) {
+      if (memory.isSegmentRAM(uint8_t(i)))
         memory.deleteSegment(uint8_t(i));
-        ramBitmap[i >> 3] &= uint8_t((1 << (i & 7)) ^ 0xFF);
-      }
     }
     for (int i = 0xFF; i > (0xFF - int(nSegments)); i--) {
-      if ((ramBitmap[i >> 3] & (1 << (i & 7))) == 0) {
+      if (!memory.isSegmentRAM(uint8_t(i)))
         memory.loadSegment(uint8_t(i), false, (uint8_t *) 0, 0);
-        ramBitmap[i >> 3] |= uint8_t(1 << (i & 7));
-      }
     }
     // cold reset
     this->reset(true);
@@ -515,18 +624,15 @@ namespace Ep128 {
   {
     if (fileName == (char *) 0 || fileName[0] == '\0') {
       // empty file name: delete segment
-      if ((romBitmap[n >> 3] & (1 << (n & 7))) != 0) {
-        memory.deleteSegment(uint8_t(n));
-        romBitmap[n >> 3] &= uint8_t((1 << (n & 7)) ^ 0xFF);
-      }
-      else if ((ramBitmap[n >> 3] & (1 << (n & 7))) != 0) {
-        memory.deleteSegment(uint8_t(n));
-        ramBitmap[n >> 3] &= uint8_t((1 << (n & 7)) ^ 0xFF);
+      if (memory.isSegmentROM(n))
+        memory.deleteSegment(n);
+      else if (memory.isSegmentRAM(n)) {
+        memory.deleteSegment(n);
         // if there was RAM at the specified segment, relocate it
         for (int i = 0xFF; i >= 0x08; i--) {
-          if (((romBitmap[i >> 3] | ramBitmap[i >> 3]) & (1 << (i & 7))) == 0) {
+          if (!(memory.isSegmentROM(uint8_t(i)) ||
+                memory.isSegmentRAM(uint8_t(i)))) {
             memory.loadSegment(uint8_t(i), false, (uint8_t *) 0, 0);
-            ramBitmap[i >> 3] |= uint8_t(1 << (i & 7));
             break;
           }
         }
@@ -546,15 +652,13 @@ namespace Ep128 {
     std::fseek(f, long(offs), SEEK_SET);
     std::fread(&(buf.front()), 1, 0x4000, f);
     std::fclose(f);
-    if ((ramBitmap[n >> 3] & (1 << (n & 7))) != 0) {
+    if (memory.isSegmentRAM(n)) {
       memory.loadSegment(n, true, &(buf.front()), 0x4000);
-      ramBitmap[n >> 3] &= uint8_t((1 << (n & 7)) ^ 0xFF);
-      romBitmap[n >> 3] |= uint8_t(1 << (n & 7));
       // if there was RAM at the specified segment, relocate it
       for (int i = 0xFF; i >= 0x08; i--) {
-        if (((romBitmap[i >> 3] | ramBitmap[i >> 3]) & (1 << (i & 7))) == 0) {
+        if (!(memory.isSegmentROM(uint8_t(i)) ||
+              memory.isSegmentRAM(uint8_t(i)))) {
           memory.loadSegment(uint8_t(i), false, (uint8_t *) 0, 0);
-          ramBitmap[i >> 3] |= uint8_t(1 << (i & 7));
           break;
         }
       }
@@ -562,7 +666,6 @@ namespace Ep128 {
     else {
       // otherwise just load new segment, or replace existing ROM
       memory.loadSegment(n, true, &(buf.front()), 0x4000);
-      romBitmap[n >> 3] |= uint8_t(1 << (n & 7));
     }
   }
 
@@ -741,15 +844,25 @@ namespace Ep128 {
   void Ep128VM::setEnableMemoryTimingEmulation(bool isEnabled)
   {
     if (memoryTimingEnabled != isEnabled) {
+      stopDemoPlayback();       // changing configuration implies stopping
+      stopDemoRecording(false); // any demo playback or recording
       memoryTimingEnabled = isEnabled;
-      cpuCyclesRemaining = int64_t(0);
-      cpuSyncToNickCnt = int64_t(0);
+      cpuCyclesRemaining = 0;
+      cpuSyncToNickCnt = 0;
     }
   }
 
   void Ep128VM::setKeyboardState(int keyCode, bool isPressed)
   {
-    dave.setKeyboardState(keyCode, (isPressed ? 1 : 0));
+    if (!isPlayingDemo)
+      dave.setKeyboardState(keyCode, (isPressed ? 1 : 0));
+    if (isRecordingDemo) {
+      writeDemoTimeCnt(demoBuffer, demoTimeCnt);
+      demoTimeCnt = 0U;
+      demoBuffer.writeByte(isPressed ? 0x01 : 0x02);
+      demoBuffer.writeByte(0x01);
+      demoBuffer.writeByte(uint8_t(keyCode & 0x7F));
+    }
   }
 
   void Ep128VM::setTapeFileName(const char *fileName)
@@ -776,23 +889,35 @@ namespace Ep128 {
       tape->setIsMotorOn(true);
     tapeSamplesPerDaveCycle =
         (int64_t(tape->getSampleRate()) << 32) / int64_t(daveFrequency);
-    tapeSamplesRemaining = int64_t(0);
+    tapeSamplesRemaining = 0;
   }
 
   void Ep128VM::tapePlay()
   {
-    tapePlaybackOn = true;
     tapeRecordOn = false;
-    if (tape)
+    if (tape) {
+      tapePlaybackOn = true;
       tape->play();
+      if (isRemote1On || isRemote2On)
+        stopDemo();
+    }
+    else
+      tapePlaybackOn = false;
   }
 
   void Ep128VM::tapeRecord()
   {
-    tapePlaybackOn = true;
-    tapeRecordOn = true;
-    if (tape)
+    if (tape) {
+      tapePlaybackOn = true;
+      tapeRecordOn = true;
       tape->record();
+      if (isRemote1On || isRemote2On)
+        stopDemo();
+    }
+    else {
+      tapePlaybackOn = false;
+      tapeRecordOn = false;
+    }
   }
 
   void Ep128VM::tapeStop()
@@ -843,6 +968,361 @@ namespace Ep128 {
   void Ep128VM::setEnableFastTapeMode(bool isEnabled)
   {
     fastTapeModeEnabled = isEnabled;
+  }
+
+  void Ep128VM::setBreakPoints(const std::string& bpList)
+  {
+    BreakPointList  bpl(bpList);
+    for (size_t i = 0; i < bpl.getBreakPointCnt(); i++) {
+      const BreakPoint& bp = bpl.getBreakPoint(i);
+      if (bp.isIO())
+        ioPorts.setBreakPoint(bp.addr(),
+                              bp.priority(), bp.isRead(), bp.isWrite());
+      else if (bp.haveSegment())
+        memory.setBreakPoint(bp.segment(), bp.addr(),
+                             bp.priority(), bp.isRead(), bp.isWrite());
+      else
+        memory.setBreakPoint(bp.addr(),
+                             bp.priority(), bp.isRead(), bp.isWrite());
+    }
+  }
+
+  std::string Ep128VM::getBreakPoints()
+  {
+    return (ioPorts.getBreakPointList().getBreakPointList()
+            + memory.getBreakPointList().getBreakPointList());
+  }
+
+  void Ep128VM::clearBreakPoints()
+  {
+    memory.clearAllBreakPoints();
+    ioPorts.clearBreakPoints();
+  }
+
+  void Ep128VM::setBreakPointPriorityThreshold(int n)
+  {
+    memory.setBreakPointPriorityThreshold(n);
+    ioPorts.setBreakPointPriorityThreshold(n);
+  }
+
+  uint8_t Ep128VM::getMemoryPage(int n) const
+  {
+    return memory.getPage(uint8_t(n & 3));
+  }
+
+  uint8_t Ep128VM::readMemory(uint32_t addr) const
+  {
+    return memory.readRaw(addr & uint32_t(0x003FFFFF));
+  }
+
+  const Z80_REGISTERS& Ep128VM::getCPURegisters() const
+  {
+    return z80.getReg();
+  }
+
+  void Ep128VM::saveState(File& f)
+  {
+    {
+      File::Buffer  buf;
+      buf.setPosition(0);
+      buf.writeUInt32(0x01000000);      // version number
+      buf.writeByte(memory.getPage(0));
+      buf.writeByte(memory.getPage(1));
+      buf.writeByte(memory.getPage(2));
+      buf.writeByte(memory.getPage(3));
+      buf.writeByte(uint8_t(memoryWaitMode & 3));
+      buf.writeUInt32(uint32_t(cpuFrequency));
+      buf.writeUInt32(uint32_t(daveFrequency));
+      buf.writeUInt32(uint32_t(nickFrequency));
+      buf.writeUInt32(uint32_t(videoMemoryLatency));
+      buf.writeBoolean(memoryTimingEnabled);
+      int64_t tmp[3];
+      tmp[0] = cpuCyclesRemaining;
+      tmp[1] = cpuSyncToNickCnt;
+      tmp[2] = daveCyclesRemaining;
+      for (size_t i = 0; i < 3; i++) {
+        buf.writeUInt32(uint32_t(uint64_t(tmp[i]) >> 32)
+                        & uint32_t(0xFFFFFFFFUL));
+        buf.writeUInt32(uint32_t(uint64_t(tmp[i]))
+                        & uint32_t(0xFFFFFFFFUL));
+      }
+      f.addChunk(File::EP128EMU_CHUNKTYPE_VM_STATE, buf);
+    }
+    ioPorts.saveState(f);
+    z80.saveState(f);
+    memory.saveState(f);
+    dave.saveState(f);
+    nick.saveState(f);
+  }
+
+  void Ep128VM::saveMachineConfiguration(File& f)
+  {
+    File::Buffer  buf;
+    buf.setPosition(0);
+    buf.writeUInt32(0x01000000);        // version number
+    buf.writeUInt32(uint32_t(cpuFrequency));
+    buf.writeUInt32(uint32_t(daveFrequency));
+    buf.writeUInt32(uint32_t(nickFrequency));
+    buf.writeUInt32(uint32_t(videoMemoryLatency));
+    buf.writeBoolean(memoryTimingEnabled);
+    f.addChunk(File::EP128EMU_CHUNKTYPE_VM_CONFIG, buf);
+  }
+
+  void Ep128VM::recordDemo(File& f)
+  {
+    // turn off tape motor, stop any previous demo recording or playback,
+    // and reset keyboard state
+    isRemote1On = false;
+    isRemote2On = false;
+    if (tape)
+      tape->setIsMotorOn(false);
+    stopDemo();
+    for (int i = 0; i < 128; i++)
+      dave.setKeyboardState(i, 0);
+    // save full snapshot, including timing and clock frequency settings
+    saveMachineConfiguration(f);
+    saveState(f);
+    demoBuffer.clear();
+    demoBuffer.writeUInt32(0x00010900); // version 1.9.0 (beta)
+    demoFile = &f;
+    isRecordingDemo = true;
+  }
+
+  void Ep128VM::stopDemo()
+  {
+    stopDemoPlayback();
+    stopDemoRecording(true);
+  }
+
+  bool Ep128VM::getIsRecordingDemo()
+  {
+    if (demoFile != (File *) 0 && !isRecordingDemo)
+      stopDemoRecording(true);
+    return isRecordingDemo;
+  }
+
+  bool Ep128VM::getIsPlayingDemo() const
+  {
+    return isPlayingDemo;
+  }
+
+  // --------------------------------------------------------------------------
+
+  void Ep128VM::loadState(File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    // check version number
+    unsigned int  version = buf.readUInt32();
+    if (version != 0x01000000) {
+      buf.setPosition(buf.getDataSize());
+      throw Exception("incompatible ep128 snapshot format");
+    }
+    isRemote1On = false;
+    isRemote2On = false;
+    if (tape)
+      tape->setIsMotorOn(false);
+    stopDemo();
+    snapshotLoadFlag = true;
+    try {
+      uint8_t   p0, p1, p2, p3;
+      p0 = buf.readByte();
+      p1 = buf.readByte();
+      p2 = buf.readByte();
+      p3 = buf.readByte();
+      pageTable[0] = p0;
+      memory.setPage(0, p0);
+      pageTable[1] = p1;
+      memory.setPage(1, p1);
+      pageTable[2] = p2;
+      memory.setPage(2, p2);
+      pageTable[3] = p3;
+      memory.setPage(3, p3);
+      memoryWaitMode = buf.readByte() & 3;
+      uint32_t  tmpCPUFrequency = buf.readUInt32();
+      uint32_t  tmpDaveFrequency = buf.readUInt32();
+      uint32_t  tmpNickFrequency = buf.readUInt32();
+      uint32_t  tmpVideoMemoryLatency = buf.readUInt32();
+      bool      tmpMemoryTimingEnabled = buf.readBoolean();
+      int64_t   tmp[3];
+      for (size_t i = 0; i < 3; i++) {
+        uint64_t  n = uint64_t(buf.readUInt32()) << 32;
+        n |= uint64_t(buf.readUInt32());
+        tmp[i] = int64_t(n);
+      }
+      if (tmpCPUFrequency == cpuFrequency &&
+          tmpDaveFrequency == daveFrequency &&
+          tmpNickFrequency == nickFrequency &&
+          tmpVideoMemoryLatency == videoMemoryLatency &&
+          tmpMemoryTimingEnabled == memoryTimingEnabled) {
+        cpuCyclesRemaining = tmp[0];
+        cpuSyncToNickCnt = tmp[1];
+        daveCyclesRemaining = tmp[2];
+      }
+      else {
+        cpuCyclesRemaining = 0;
+        cpuSyncToNickCnt = 0;
+        daveCyclesRemaining = 0;
+      }
+      if (buf.getPosition() != buf.getDataSize())
+        throw Exception("trailing garbage at end of ep128 snapshot data");
+    }
+    catch (...) {
+      this->reset(true);
+      throw;
+    }
+  }
+
+  void Ep128VM::loadMachineConfiguration(File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    // check version number
+    unsigned int  version = buf.readUInt32();
+    if (version != 0x01000000) {
+      buf.setPosition(buf.getDataSize());
+      throw Exception("incompatible ep128 machine configuration format");
+    }
+    try {
+      setCPUFrequency(buf.readUInt32());
+      uint32_t  tmpDaveFrequency = buf.readUInt32();
+      (void) tmpDaveFrequency;
+      setNickFrequency(buf.readUInt32());
+      setVideoMemoryLatency(buf.readUInt32());
+      setEnableMemoryTimingEmulation(buf.readBoolean());
+      if (buf.getPosition() != buf.getDataSize())
+        throw Exception("trailing garbage at end of "
+                        "ep128 machine configuration data");
+    }
+    catch (...) {
+      this->reset(true);
+      throw;
+    }
+  }
+
+  void Ep128VM::loadDemo(File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    // check version number
+    unsigned int  version = buf.readUInt32();
+#if 0
+    if (version != 0x00010900) {
+      buf.setPosition(buf.getDataSize());
+      throw Exception("incompatible ep128 demo format");
+    }
+#endif
+    (void) version;
+    // turn off tape motor, stop any previous demo recording or playback,
+    // and reset keyboard state
+    isRemote1On = false;
+    isRemote2On = false;
+    if (tape)
+      tape->setIsMotorOn(false);
+    stopDemo();
+    for (int i = 0; i < 128; i++)
+      dave.setKeyboardState(i, 0);
+    // initialize time counter with first delta time
+    demoTimeCnt = readDemoTimeCnt(buf);
+    isPlayingDemo = true;
+    // copy any remaining demo data to local buffer
+    demoBuffer.clear();
+    demoBuffer.writeData(buf.getData() + buf.getPosition(),
+                         buf.getDataSize() - buf.getPosition());
+    demoBuffer.setPosition(0);
+  }
+
+  class ChunkType_Ep128VMConfig : public File::ChunkTypeHandler {
+   private:
+    Ep128VM&  ref;
+   public:
+    ChunkType_Ep128VMConfig(Ep128VM& ref_)
+      : File::ChunkTypeHandler(),
+        ref(ref_)
+    {
+    }
+    virtual ~ChunkType_Ep128VMConfig()
+    {
+    }
+    virtual File::ChunkType getChunkType() const
+    {
+      return File::EP128EMU_CHUNKTYPE_VM_CONFIG;
+    }
+    virtual void processChunk(File::Buffer& buf)
+    {
+      ref.loadMachineConfiguration(buf);
+    }
+  };
+
+  class ChunkType_Ep128VMSnapshot : public File::ChunkTypeHandler {
+   private:
+    Ep128VM&  ref;
+   public:
+    ChunkType_Ep128VMSnapshot(Ep128VM& ref_)
+      : File::ChunkTypeHandler(),
+        ref(ref_)
+    {
+    }
+    virtual ~ChunkType_Ep128VMSnapshot()
+    {
+    }
+    virtual File::ChunkType getChunkType() const
+    {
+      return File::EP128EMU_CHUNKTYPE_VM_STATE;
+    }
+    virtual void processChunk(File::Buffer& buf)
+    {
+      ref.loadState(buf);
+    }
+  };
+
+  class ChunkType_DemoStream : public File::ChunkTypeHandler {
+   private:
+    Ep128VM&  ref;
+   public:
+    ChunkType_DemoStream(Ep128VM& ref_)
+      : File::ChunkTypeHandler(),
+        ref(ref_)
+    {
+    }
+    virtual ~ChunkType_DemoStream()
+    {
+    }
+    virtual File::ChunkType getChunkType() const
+    {
+      return File::EP128EMU_CHUNKTYPE_DEMO_STREAM;
+    }
+    virtual void processChunk(File::Buffer& buf)
+    {
+      ref.loadDemo(buf);
+    }
+  };
+
+  void Ep128VM::registerChunkTypes(File& f)
+  {
+    ChunkType_Ep128VMConfig   *p1 = (ChunkType_Ep128VMConfig *) 0;
+    ChunkType_Ep128VMSnapshot *p2 = (ChunkType_Ep128VMSnapshot *) 0;
+    ChunkType_DemoStream      *p3 = (ChunkType_DemoStream *) 0;
+
+    try {
+      p1 = new ChunkType_Ep128VMConfig(*this);
+      p2 = new ChunkType_Ep128VMSnapshot(*this);
+      p3 = new ChunkType_DemoStream(*this);
+      f.registerChunkType(p1);
+      f.registerChunkType(p2);
+      f.registerChunkType(p3);
+    }
+    catch (...) {
+      if (p1)
+        delete p1;
+      if (p2)
+        delete p2;
+      if (p3)
+        delete p3;
+      throw;
+    }
+    ioPorts.registerChunkType(f);
+    z80.registerChunkType(f);
+    memory.registerChunkType(f);
+    dave.registerChunkType(f);
+    nick.registerChunkType(f);
   }
 
   // --------------------------------------------------------------------------
