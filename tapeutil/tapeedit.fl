@@ -3,18 +3,22 @@ version 1.0107
 do_not_include_H_from_C 
 header_name {.hpp} 
 code_name {.cpp}
+decl {\#include "ep128.hpp"} {} 
+
+decl {\#include "system.hpp"} {} 
+
 decl {\#include "tapeio.hpp"} {} 
 
 decl {\#include <FL/Fl_Hold_Browser.H>} {} 
 
 decl {\#include <FL/Fl_File_Chooser.H>} {} 
 
+decl {\#include <FL/Fl_Text_Buffer.H>} {} 
+
 decl {\#include "tapeedit.hpp"} {} 
 
 class TapeEditorGUI {open selected
 } {
-  decl {Fl_Hold_Browser *fileListBrowser;} {public
-  }
   decl {int fileSelected;} {public
   }
   decl {Ep128Emu::TapeFiles fileList;} {public
@@ -32,6 +36,12 @@ class TapeEditorGUI {open selected
   decl {float soundFileMinFreq;} {public
   }
   decl {float soundFileMaxFreq;} {public
+  }
+  decl {std::string tapeDir;} {public
+  }
+  decl {std::string fileDir;} {public
+  }
+  decl {Fl_Text_Buffer *copyrightText;} {public
   }
   Function {updateDisplay()} {open return_type void
   } {
@@ -94,15 +104,6 @@ class TapeEditorGUI {open selected
   updateFlag = false;
 }} {}
   }
-  Function {fileListBrowserCallback(Fl_Widget *o_, void *v_)} {open private return_type {static void}
-  } {
-    code {{
-  Fl_Hold_Browser *o = (Fl_Hold_Browser *) o_;
-  TapeEditorGUI *v = (TapeEditorGUI *) v_;
-  v->fileSelected = o->value() - 1;
-  v->updateFlag = true;
-}} {}
-  }
   Function {browseFile(bool createFlag = false, const char *title = (char *) 0, const char *fname = (char *) 0)} {open return_type {std::string}
   } {
     code {{
@@ -115,12 +116,16 @@ class TapeEditorGUI {open selected
                                                          : Fl_File_Chooser::SINGLE),
                                            title);
   w->show();
+  if (createFlag)
+    w->value(fname);
   do {
     Fl::wait(0.05);
   } while (w->shown());
   std::string retval("");
-  if (w->value() != (char *) 0)
+  if (w->value() != (char *) 0) {
     retval = w->value();
+    Ep128Emu::stripString(retval);
+  }
   delete w;
   return retval;
 }} {}
@@ -128,13 +133,7 @@ class TapeEditorGUI {open selected
   Function {TapeEditorGUI()} {open
   } {
     code {{
-  fileListBrowser = (Fl_Hold_Browser *) 0;
   fileSelected = -1;
-  duplicateButton = (Fl_Button *) 0;
-  removeButton = (Fl_Button *) 0;
-  moveUpButton = (Fl_Button *) 0;
-  moveDownButton = (Fl_Button *) 0;
-  exportButton = (Fl_Button *) 0;
   overwriteFlag = false;
   exitFlag = true;
   busyFlag = false;
@@ -142,6 +141,27 @@ class TapeEditorGUI {open selected
   soundFileChannel = 0;
   soundFileMinFreq = 600.0f;
   soundFileMaxFreq = 3000.0f;
+  copyrightText = new Fl_Text_Buffer;
+  copyrightText->append("ep128emu -- portable Enterprise 128 emulator\\n");
+  copyrightText->append("Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>\\n");
+  copyrightText->append("http://sourceforge.net/projects/ep128emu/\\n");
+  copyrightText->append("Z80 emulation is based on ENTER emulator, Copyright (C) 1999-2001 by\\n");
+  copyrightText->append("Kevin Thacker, and ep32 (C) by Vincze B\\351la Gy\\366rgy.\\n");
+  copyrightText->append("\\n");
+  copyrightText->append("This program is free software; you can redistribute it and/or modify\\n");
+  copyrightText->append("it under the terms of the GNU General Public License as published by\\n");
+  copyrightText->append("the Free Software Foundation; either version 2 of the License, or\\n");
+  copyrightText->append("(at your option) any later version.\\n");
+  copyrightText->append("\\n");
+  copyrightText->append("This program is distributed in the hope that it will be useful,\\n");
+  copyrightText->append("but WITHOUT ANY WARRANTY; without even the implied warranty of\\n");
+  copyrightText->append("MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\\n");
+  copyrightText->append("GNU General Public License for more details.\\n");
+  copyrightText->append("\\n");
+  copyrightText->append("You should have received a copy of the GNU General Public License\\n");
+  copyrightText->append("along with this program; if not, write to the Free Software\\n");
+  copyrightText->append("Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307\\n");
+  copyrightText->append("USA\\n");
 }} {}
     Fl_Window overwriteWindow {
       label {Confirm file overwrite} open
@@ -258,15 +278,16 @@ class TapeEditorGUI {open selected
     }
     Fl_Window aboutWindow {
       label {Copyright information} open
-      xywh {438 366 360 320} type Double visible
+      xywh {333 349 520 360} type Double visible
     } {
       Fl_Text_Display {} {
-        xywh {10 10 340 265} box DOWN_BOX labelsize 13 textfont 4 textsize 13
+        xywh {10 10 500 305} box DOWN_BOX labelsize 13 textfont 4 textsize 13
+        code0 {o->buffer(copyrightText);}
       }
       Fl_Button {} {
         label OK
         callback {aboutWindow->hide();}
-        xywh {290 285 60 25} labelsize 13
+        xywh {450 325 60 25} labelsize 13
       }
     }
     Fl_Window mainWindow {
@@ -283,6 +304,14 @@ class TapeEditorGUI {open selected
 }} open
       xywh {432 204 360 415} type Double align 80 visible
     } {
+      Fl_Browser fileListBrowser {
+        callback {{
+  fileSelected = o->value() - 1;
+  updateFlag = true;
+}}
+        xywh {10 10 260 270} labelsize 13 textfont 13 textsize 13
+        class Fl_Hold_Browser
+      }
       Fl_Group {} {open
         xywh {10 290 340 115} box ENGRAVED_FRAME
       } {
@@ -329,8 +358,10 @@ class TapeEditorGUI {open selected
         label {Load...}
         callback {if (!busyFlag) {
   busyFlag = true;
-  std::string fname = browseFile(false, "Select tape image file");
+  std::string fname = browseFile(false, "Select tape image file", tapeDir.c_str());
   if (fname != "") {
+    std::string tmp;
+    Ep128Emu::splitPath(fname, tapeDir, tmp);
     progressWindow->show();
     exitFlag = false;
     try {
@@ -359,10 +390,12 @@ class TapeEditorGUI {open selected
         label {Import...}
         callback {if (!busyFlag) {
   busyFlag = true;
-  std::string fname = browseFile(false, "Select file");
+  std::string fname = browseFile(false, "Select file", fileDir.c_str());
   if (fname != "") {
     exitFlag = false;
     try {
+      std::string tmp;
+      Ep128Emu::splitPath(fname, fileDir, tmp);
       fileList.importFile(fname.c_str());
     }
     catch (std::exception& e) {
@@ -470,12 +503,14 @@ class TapeEditorGUI {open selected
       }
       Fl_Button exportButton {
         label {Export...}
-        callback {if (fileSelected >= 0 && !busyFlag) {
+        callback {if (fileSelected >= 0 && fileSelected < int(fileList.getFileCnt()) && !busyFlag) {
   int   n = fileSelected;
   busyFlag = true;
-  std::string fname = browseFile(true, "Select output file");
-  if (fname != "") {
-    try {
+  try {
+    std::string tmp = fileDir + fileList[n]->getFileName();
+    std::string fname = browseFile(true, "Select output file", tmp.c_str());
+    if (fname != "") {
+      Ep128Emu::splitPath(fname, fileDir, tmp);
       if (!fileList.exportFile(n, fname.c_str(), false)) {
         overwriteFlag = false;
         overwriteWindow->show();
@@ -487,14 +522,14 @@ class TapeEditorGUI {open selected
         }
       }
     }
-    catch (std::exception& e) {
-      errorMessage->label(e.what());
-      errorWindow->show();
-      do {
-        Fl::wait(0.05);
-      } while (errorWindow->shown());
-      errorMessage->label("");
-    }
+  }
+  catch (std::exception& e) {
+    errorMessage->label(e.what());
+    errorWindow->show();
+    do {
+      Fl::wait(0.05);
+    } while (errorWindow->shown());
+    errorMessage->label("");
   }
   busyFlag = false;
 }}
@@ -504,9 +539,11 @@ class TapeEditorGUI {open selected
         label {Save...}
         callback {if (!busyFlag) {
   busyFlag = true;
-  std::string fname = browseFile(true, "Select tape image file");
+  std::string fname = browseFile(true, "Select tape image file", tapeDir.c_str());
   if (fname != "") {
     try {
+      std::string tmp;
+      Ep128Emu::splitPath(fname, tapeDir, tmp);
       if (!fileList.writeTapeImage(fname.c_str(), false)) {
         overwriteFlag = false;
         overwriteWindow->show();
@@ -559,13 +596,27 @@ class TapeEditorGUI {open selected
         tooltip {Exit tape editor} xywh {280 260 70 20} labelsize 13
       }
     }
+  }
+  Function {~TapeEditorGUI()} {open
+  } {
     code {{
-  mainWindow->begin();
-  fileListBrowser = new Fl_Hold_Browser(10, 10, 260, 270);
-  fileListBrowser->textsize(13);
-  fileListBrowser->callback(&fileListBrowserCallback, this);
-  fileListBrowser->when(FL_WHEN_RELEASE_ALWAYS);
-  mainWindow->end();
+  Fl::wait(0.0);
+  overwriteWindow->hide();
+  quitWindow->hide();
+  errorWindow->hide();
+  progressWindow->hide();
+  soundFileOptionsWindow->hide();
+  aboutWindow->hide();
+  mainWindow->hide();
+  Fl::wait(0.0);
+  delete mainWindow;
+  delete aboutWindow;
+  delete soundFileOptionsWindow;
+  delete progressWindow;
+  delete errorWindow;
+  delete quitWindow;
+  delete overwriteWindow;
+  delete copyrightText;
 }} {}
   }
 } 

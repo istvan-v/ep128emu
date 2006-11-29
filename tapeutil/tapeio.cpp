@@ -18,6 +18,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include "ep128.hpp"
+#include "system.hpp"
 #include "tapeio.hpp"
 
 #include <iostream>
@@ -218,33 +219,17 @@ namespace Ep128Emu {
 
   void TapeFile::setFileName(const std::string& fname)
   {
-    fileName = "";
-    size_t  i = 0;
-    for ( ; i < fname.length(); i++) {
-      if (fname[i] != ' ' && fname[i] != '\t' &&
-          fname[i] != '\r' && fname[i] != '\n')
-        break;
-    }
-    size_t  j = fname.length();
-    while (j > i) {
-      j--;
-      if (fname[j] != ' ' && fname[j] != '\t' &&
-          fname[j] != '\r' && fname[j] != '\n') {
-        j++;
-        break;
-      }
-    }
-    if (j > (i + 28))
-      j = i + 28;
-    for ( ; i < j; i++) {
-      if ((fname[i] >= 'A' && fname[i] <= 'Z') ||
-          (fname[i] >= '0' && fname[i] <= '9') ||
-          fname[i] == '.' || fname[i] == '-' || fname[i] == '_')
-        fileName += fname[i];
-      else if (fname[i] >= 'a' && fname[i] <= 'z')
-        fileName += ((fname[i] - 'a') + 'A');   // convert to upper case
-      else
-        fileName += '_';        // replace invalid characters with underscores
+    fileName = fname;
+    stripString(fileName);
+    if (fileName.length() > 28)
+      fileName.resize(28, ' ');
+    stringToUpperCase(fileName);
+    for (size_t i = 0; i < fileName.length(); i++) {
+      // replace invalid characters with underscores
+      if (!((fileName[i] >= 'A' && fileName[i] <= 'Z') ||
+            (fileName[i] >= '0' && fileName[i] <= '9') ||
+            (fileName[i] == '.' || fileName[i] == '-' || fileName[i] == '_')))
+        fileName[i] = '_';
     }
     if (fileName == "__unnamed_file__")
       fileName = "";
@@ -256,12 +241,8 @@ namespace Ep128Emu {
     if (fileName.length() == 0)
       s = "__unnamed_file__";
     else {
-      for (size_t i = 0; i < fileName.length(); i++) {
-        if (fileName[i] >= 'A' && fileName[i] <= 'Z')
-          s += ((fileName[i] - 'A') + 'a');     // convert to lower case
-        else
-          s += fileName[i];
-      }
+      s = fileName;
+      stringToLowerCase(s);
     }
     return s;
   }
@@ -695,14 +676,14 @@ namespace Ep128Emu {
     writeByte(0x6A);
     // write header
     std::string fname = file_.getFileName();
+    stringToUpperCase(fname);
     writeByte(0xFF);
     writeByte(uint8_t(fname.length() + 2));
     resetCRC();
     writeByte(file_.isCopyProtected ? 0x00 : 0xFF);
     writeByte(uint8_t(fname.length()));
     for (size_t i = 0; i < fname.length(); i++)
-      writeByte(uint8_t(fname[i] >= 'a' && fname[i] <= 'z' ?
-                        (fname[i] - 'a') + 'A' : fname[i]));
+      writeByte(uint8_t(fname[i]));
     writeCRC();
     for (size_t i = 0; i < 600; i++)        // 0.25 seconds
       writePeriod(10);
@@ -934,7 +915,9 @@ namespace Ep128Emu {
       f = std::fopen(fileName_, "rb");
       if (!f)
         throw Ep128::Exception("error opening file");
-      tf->setFileName(fileName_);
+      std::string dirname_, basename_;
+      splitPath(std::string(fileName_), dirname_, basename_);
+      tf->setFileName(basename_);
       int   c;
       while (true) {
         c = std::fgetc(f);
