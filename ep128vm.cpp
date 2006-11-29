@@ -486,6 +486,12 @@ namespace Ep128 {
 
   Ep128VM::~Ep128VM()
   {
+    try {
+      // FIXME: cannot handle errors here
+      stopDemo();
+    }
+    catch (...) {
+    }
     if (tape)
       delete tape;
     if (audioOutput)
