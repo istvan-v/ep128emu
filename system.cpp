@@ -266,5 +266,78 @@ namespace Ep128Emu {
 #endif
   }
 
+  // --------------------------------------------------------------------------
+
+  void stripString(std::string& s)
+  {
+    const std::string&  t = s;
+    size_t  i, j;
+    for (i = 0; i < t.length(); i++) {
+      if (!(t[i] == ' ' || t[i] == '\t' || t[i] == '\r' || t[i] == '\n'))
+        break;
+    }
+    for (j = t.length(); j > i; j--) {
+      size_t  k = j - 1;
+      if (!(t[k] == ' ' || t[k] == '\t' || t[k] == '\r' || t[k] == '\n'))
+        break;
+    }
+    size_t  l = (j - i);
+    if (l == 0) {
+      s = "";
+      return;
+    }
+    if (i) {
+      for (size_t k = 0; k < l; k++)
+        s[k] = t[k + i];
+    }
+    if (l != t.length())
+      s.resize(l, ' ');
+  }
+
+  void stringToUpperCase(std::string& s)
+  {
+    const std::string&  t = s;
+    for (size_t i = 0; i < t.length(); i++) {
+      if (t[i] >= 'a' && t[i] <= 'z')
+        s[i] = (t[i] - 'a') + 'A';
+    }
+  }
+
+  void stringToLowerCase(std::string& s)
+  {
+    const std::string&  t = s;
+    for (size_t i = 0; i < t.length(); i++) {
+      if (t[i] >= 'A' && t[i] <= 'Z')
+        s[i] = (t[i] - 'A') + 'a';
+    }
+  }
+
+  void splitPath(const std::string& path_,
+                 std::string& dirname_, std::string& basename_)
+  {
+    dirname_ = "";
+    basename_ = "";
+    if (path_.length() == 0)
+      return;
+    size_t  i = path_.length();
+    for ( ; i != 0; i--) {
+      if (path_[i - 1] == '/' || path_[i - 1] == '\\')
+        break;
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+      if (i == 2) {
+        if (((path_[0] >= 'A' && path_[0] <= 'Z') ||
+             (path_[0] >= 'a' && path_[0] <= 'z')) &&
+            path_[1] == ':')
+          break;
+      }
+#endif
+    }
+    size_t  j = 0;
+    for ( ; j < i; j++)
+      dirname_ += path_[j];
+    for ( ; j < path_.length(); j++)
+      basename_ += path_[j];
+  }
+
 }       // namespace Ep128Emu
 

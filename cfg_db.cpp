@@ -19,6 +19,7 @@
 
 #include "ep128.hpp"
 #include "fileio.hpp"
+#include "system.hpp"
 #include "cfg_db.hpp"
 #include <map>
 #include <cmath>
@@ -304,43 +305,12 @@ namespace Ep128Emu {
     }
     virtual void checkValue()
     {
-      if (stripStringFlag) {
-        size_t  j = 0, k = value.length();
-        for ( ; j < k; j++) {
-          if (!(value[j] == ' ' || value[j] == '\t' ||
-                value[j] == '\r' || value[j] == '\n'))
-            break;
-        }
-        while (k > j) {
-          if (!(value[k - 1] == ' ' || value[k - 1] == '\t' ||
-                value[k - 1] == '\r' || value[k - 1] == '\n'))
-            break;
-          k--;
-        }
-        if (!(j == 0 && k == value.length())) {
-          if (j >= k)
-            value = "";
-          else {
-            if (j) {
-              for (size_t i = j; i < k; i++)
-                value[i - j] = value[i];
-            }
-            value.resize(k - j, ' ');
-          }
-        }
-      }
-      if (lowerCaseFlag) {
-        for (size_t i = 0; i < value.length(); i++) {
-          if (value[i] >= 'A' && value[i] <= 'Z')
-            value[i] += ('a' - 'A');
-        }
-      }
-      if (upperCaseFlag) {
-        for (size_t i = 0; i < value.length(); i++) {
-          if (value[i] >= 'a' && value[i] <= 'z')
-            value[i] -= ('a' - 'A');
-        }
-      }
+      if (stripStringFlag)
+        stripString(value);
+      if (lowerCaseFlag)
+        stringToLowerCase(value);
+      if (upperCaseFlag)
+        stringToUpperCase(value);
     }
   };
 

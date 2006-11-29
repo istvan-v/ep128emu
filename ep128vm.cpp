@@ -605,6 +605,7 @@ namespace Ep128 {
 
   void Ep128VM::resetMemoryConfiguration(size_t memSize)
   {
+    stopDemo();
     // calculate new number of RAM segments
     size_t  nSegments = (memSize + 15) >> 4;
     nSegments = (nSegments > 4 ? (nSegments < 232 ? nSegments : 232) : 4);
@@ -628,6 +629,7 @@ namespace Ep128 {
 
   void Ep128VM::loadROMSegment(uint8_t n, const char *fileName, size_t offs)
   {
+    stopDemo();
     if (fileName == (char *) 0 || fileName[0] == '\0') {
       // empty file name: delete segment
       if (memory.isSegmentROM(n))

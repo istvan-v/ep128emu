@@ -116,6 +116,21 @@ namespace Ep128Emu {
     void unlock();
   };
 
+  // remove leading and trailing whitespace from string
+  void stripString(std::string& s);
+
+  // convert string to upper case
+  void stringToUpperCase(std::string& s);
+
+  // convert string to lower case
+  void stringToLowerCase(std::string& s);
+
+  // split path into directory name and base name
+  // note: the result of passing multiple references to the same string
+  // is undefined
+  void splitPath(const std::string& path_,
+                 std::string& dirname_, std::string& basename_);
+
 }       // namespace Ep128Emu
 
 #endif  // EP128EMU_SYSTEM_HPP
