@@ -12,8 +12,10 @@ ep128emuEnvironment = Environment()
 ep128emuEnvironment.Append(CCFLAGS = compilerFlags)
 ep128emuEnvironment.Append(CPPPATH = ['.', './z80'])
 ep128emuEnvironment.Append(LINKFLAGS = ['-L.'])
-ep128emuEnvironment.Append(LIBS = ['ep128', 'z80', 'portaudio', 'sndfile',
-                                   'jack', 'asound', 'pthread'])
+ep128emuEnvironment.Append(LIBS = ['ep128', 'z80',
+                                   'fltk_gl', 'GL',
+                                   'portaudio', 'sndfile', 'jack', 'asound',
+                                   'pthread'])
 
 z80libEnvironment = Environment()
 z80libEnvironment.Append(CCFLAGS = compilerFlags)
@@ -38,25 +40,24 @@ z80lib = z80libEnvironment.StaticLibrary('z80', Split('''
     z80/z80funcs2.cpp
 '''))
 
-# ep128emu = ep128emuEnvironment.Program('ep128emu', Split('''
-#     main.cpp
-# '''))
-# Depends(ep128emu, ep128lib)
-# Depends(ep128emu, z80lib)
+ep128emu = ep128emuEnvironment.Program('ep128emu', Split('''
+    main.cpp
+'''))
+Depends(ep128emu, ep128lib)
+Depends(ep128emu, z80lib)
 
 tapeeditEnvironment = Environment()
 tapeeditEnvironment.Append(CCFLAGS = compilerFlags)
 tapeeditEnvironment.Append(CPPPATH = ['.', './tapeutil'])
 tapeeditEnvironment.Append(LINKFLAGS = ['-L.'])
-tapeeditEnvironment.Append(LIBS = ['fltk', 'sndfile', 'pthread'])
+tapeeditEnvironment.Append(LIBS = ['ep128', 'fltk', 'sndfile', 'pthread'])
 
 tapeedit = tapeeditEnvironment.Program('tapeedit', Split('''
     tapeutil/tapeedit.cpp
     tapeutil/tapeio.cpp
 '''))
 
-Depends('tapeutil/tapeedit.cpp', 'tapeutil/tapeedit.fl')
-Depends('tapeutil/tapeedit.hpp', 'tapeutil/tapeedit.fl')
-Command('tapeutil/tapeedit.cpp', 'tapeutil/tapeedit.fl',
+Command(['tapeutil/tapeedit.cpp', 'tapeutil/tapeedit.hpp'],
+        'tapeutil/tapeedit.fl',
         'fluid -c -o tapeutil/tapeedit.cpp -h tapeutil/tapeedit.hpp $SOURCES')
 
