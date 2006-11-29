@@ -44,3 +44,19 @@ z80lib = z80libEnvironment.StaticLibrary('z80', Split('''
 # Depends(ep128emu, ep128lib)
 # Depends(ep128emu, z80lib)
 
+tapeeditEnvironment = Environment()
+tapeeditEnvironment.Append(CCFLAGS = compilerFlags)
+tapeeditEnvironment.Append(CPPPATH = ['.', './tapeutil'])
+tapeeditEnvironment.Append(LINKFLAGS = ['-L.'])
+tapeeditEnvironment.Append(LIBS = ['fltk', 'sndfile', 'pthread'])
+
+tapeedit = tapeeditEnvironment.Program('tapeedit', Split('''
+    tapeutil/tapeedit.cpp
+    tapeutil/tapeio.cpp
+'''))
+
+Depends('tapeutil/tapeedit.cpp', 'tapeutil/tapeedit.fl')
+Depends('tapeutil/tapeedit.hpp', 'tapeutil/tapeedit.fl')
+Command('tapeutil/tapeedit.cpp', 'tapeutil/tapeedit.fl',
+        'fluid -c -o tapeutil/tapeedit.cpp -h tapeutil/tapeedit.hpp $SOURCES')
+
