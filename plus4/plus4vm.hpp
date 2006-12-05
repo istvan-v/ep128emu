@@ -1,5 +1,5 @@
 
-// ep128emu -- portable Enterprise 128 emulator
+// plus4 -- portable Commodore PLUS/4 emulator
 // Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
@@ -17,108 +17,40 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-#ifndef EP128EMU_EP128VM_HPP
-#define EP128EMU_EP128VM_HPP
+#ifndef EP128EMU_PLUS4VM_HPP
+#define EP128EMU_PLUS4VM_HPP
 
 #include "ep128.hpp"
-#include "z80/z80.hpp"
-#include "memory.hpp"
-#include "ioports.hpp"
+#include "ted.hpp"
 #include "dave.hpp"
-#include "nick.hpp"
 #include "tape.hpp"
 #include "display.hpp"
 #include "vm.hpp"
 
-namespace Ep128 {
+namespace Plus4 {
 
-  class Ep128VM : public Ep128Emu::VirtualMachine {
+  class Plus4VM : public Ep128Emu::VirtualMachine {
    private:
-    class Z80_ : public Z80 {
+    class TED7360_ : public TED7360 {
      private:
-      Ep128VM&  vm;
+      Plus4VM&  vm;
+      int       lineCnt_;
      public:
-      Z80_(Ep128VM& vm_);
-      virtual ~Z80_();
+      TED7360_(Plus4VM& vm_);
+      virtual ~TED7360_();
      protected:
-      virtual uint8_t readMemory(uint16_t addr);
-      virtual uint16_t readMemoryWord(uint16_t addr);
-      virtual uint8_t readOpcodeFirstByte();
-      virtual uint8_t readOpcodeByte(int offset);
-      virtual uint16_t readOpcodeWord(int offset);
-      virtual void writeMemory(uint16_t addr, uint8_t value);
-      virtual void writeMemoryWord(uint16_t addr, uint16_t value);
-      virtual void doOut(uint16_t addr, uint8_t value);
-      virtual uint8_t doIn(uint16_t addr);
-      virtual void updateCycles(int cycles);
-    };
-    class Memory_ : public Memory {
-     private:
-      Ep128VM&  vm;
-     public:
-      Memory_(Ep128VM& vm_);
-      virtual ~Memory_();
-     protected:
-      virtual void breakPointCallback(bool isWrite,
-                                      uint16_t addr, uint8_t value);
-    };
-    class IOPorts_ : public IOPorts {
-     private:
-      Ep128VM&  vm;
-     public:
-      IOPorts_(Ep128VM& vm_);
-      virtual ~IOPorts_();
-     protected:
-      virtual void breakPointCallback(bool isWrite,
-                                      uint16_t addr, uint8_t value);
-    };
-    class Dave_ : public Dave {
-     private:
-      Ep128VM&  vm;
-     public:
-      Dave_(Ep128VM& vm_);
-      virtual ~Dave_();
-     protected:
-      virtual void setMemoryPage(uint8_t page, uint8_t segment);
-      virtual void setMemoryWaitMode(int mode);
-      virtual void setRemote1State(int state);
-      virtual void setRemote2State(int state);
-      virtual void interruptRequest();
-      virtual void clearInterruptRequest();
-    };
-    class Nick_ : public Nick {
-     private:
-      Ep128VM&  vm;
-     public:
-      Nick_(Ep128VM& vm_);
-      virtual ~Nick_();
-     protected:
-      virtual void irqStateChange(bool newState);
-      virtual void drawLine(const uint8_t *buf, size_t nBytes);
-      virtual void vsyncStateChange(bool newState, unsigned int currentSlot_);
+      virtual void playSample(int16_t sampleValue);
+      virtual void drawLine(const uint8_t *buf, int nPixels);
+      virtual void verticalSync();
     };
     // ----------------
     Ep128Emu::VideoDisplay& display;
-    Z80_      z80;
-    Memory_   memory;
-    IOPorts_  ioPorts;
-    Dave_     dave;
-    Nick_     nick;
-    DaveConverter   *audioOutput;
-    uint8_t   pageTable[4];
-    size_t    cpuFrequency;             // defaults to 4000000 Hz
-    size_t    daveFrequency;            // for now, this is always 500000 Hz
-    size_t    nickFrequency;            // defaults to 15625 * 57 = 890625 Hz
-    size_t    videoMemoryLatency;       // defaults to 62 ns
-    int64_t   nickCyclesRemaining;      // in 2^-32 NICK cycle units
-    int64_t   cpuCyclesPerNickCycle;    // in 2^-32 Z80 cycle units
-    int64_t   cpuCyclesRemaining;       // in 2^-32 Z80 cycle units
-    int64_t   cpuSyncToNickCnt;         // in 2^-32 Z80 cycle units
-    int64_t   videoMemoryLatencyCycles; // in 2^-32 Z80 cycle units
-    int64_t   daveCyclesPerNickCycle;   // in 2^-32 DAVE cycle units
-    int64_t   daveCyclesRemaining;      // in 2^-32 DAVE cycle units
-    int       memoryWaitMode;           // set on write to port 0xBF
-    bool      memoryTimingEnabled;
+    TED7360_                *ted;
+    Ep128::DaveConverter    *audioOutput;
+    size_t    cpuFrequencyMultiplier;   // defaults to 1
+    size_t    tedFrequency;             // fixed at 886724 Hz
+    size_t    soundClockFrequency;      // fixed at 221681 Hz
+    int64_t   tedCyclesRemaining;       // in 2^-32 TED cycle units
     bool      displayEnabled;
     bool      audioOutputEnabled;
     bool      audioOutputHighQuality;
@@ -132,20 +64,18 @@ namespace Ep128 {
     float     audioOutputFilter2Freq;
     std::string audioOutputFileName;
     std::string tapeFileName;
-    Tape      *tape;
-    int64_t   tapeSamplesPerDaveCycle;
+    Ep128::Tape *tape;
+    int64_t   tapeSamplesPerTEDCycle;
     int64_t   tapeSamplesRemaining;
-    bool      isRemote1On;
-    bool      isRemote2On;
     bool      tapePlaybackOn;
     bool      tapeRecordOn;
     bool      fastTapeModeEnabled;
     bool      writingAudioOutput;
-    File      *demoFile;
+    Ep128::File *demoFile;
     // contains demo data, which is the emulator version number as a 32-bit
     // integer ((MAJOR << 16) + (MINOR << 8) + PATCHLEVEL), followed by a
     // sequence of events in the following format:
-    //   uint64_t   deltaTime   (in NICK cycles, stored as MSB first dynamic
+    //   uint64_t   deltaTime   (in TED cycles, stored as MSB first dynamic
     //                          length (1 to 8 bytes) value)
     //   uint8_t    eventType   (currently allowed values are 0 for end of
     //                          demo (zero data bytes), 1 for key press, and
@@ -155,7 +85,7 @@ namespace Ep128 {
     // the event data for event types 1 and 2 is the key code with a length of
     // one byte:
     //   uint8_t    keyCode     key code in the range 0 to 127
-    File::Buffer  demoBuffer;
+    Ep128::File::Buffer demoBuffer;
     // true while recording a demo
     bool      isRecordingDemo;
     // true while playing a demo
@@ -163,44 +93,14 @@ namespace Ep128 {
     // true after loading a snapshot; if not playing a demo as well, the
     // keyboard state will be cleared
     bool      snapshotLoadFlag;
-    // used for counting time between demo events (in NICK cycles)
+    // used for counting time between demo events (in TED cycles)
     uint64_t  demoTimeCnt;
     // ----------------
-    void updateTimingParameters();
-    inline void updateCPUCycles(int cycles)
-    {
-      cpuCyclesRemaining -= (int64_t(cycles) << 32);
-      if (memoryTimingEnabled) {
-        while (cpuSyncToNickCnt >= cpuCyclesRemaining)
-          cpuSyncToNickCnt -= cpuCyclesPerNickCycle;
-      }
-    }
-    inline void memoryWaitCycle()
-    {
-      cpuCyclesRemaining -= (int64_t(1) << 32);
-      // assume cpuFrequency > nickFrequency
-      if (cpuSyncToNickCnt >= cpuCyclesRemaining)
-        cpuSyncToNickCnt -= cpuCyclesPerNickCycle;
-    }
-    inline void videoMemoryWait()
-    {
-      // NOTE: videoMemoryLatencyCycles also includes the +0xFFFFFFFF
-      // needed for ceil rounding
-      cpuCyclesRemaining -= (((cpuCyclesRemaining - cpuSyncToNickCnt)
-                              + videoMemoryLatencyCycles)
-                             & (int64_t(-1) - int64_t(0xFFFFFFFFUL)));
-      cpuSyncToNickCnt -= cpuCyclesPerNickCycle;
-    }
-    static uint8_t davePortReadCallback(void *userData, uint16_t addr);
-    static void davePortWriteCallback(void *userData,
-                                      uint16_t addr, uint8_t value);
-    static void nickPortWriteCallback(void *userData,
-                                      uint16_t addr, uint8_t value);
     void stopDemoPlayback();
     void stopDemoRecording(bool writeFile_);
    public:
-    Ep128VM(Ep128Emu::VideoDisplay&);
-    virtual ~Ep128VM();
+    Plus4VM(Ep128Emu::VideoDisplay&);
+    virtual ~Plus4VM();
     // run emulation for the specified number of microseconds
     virtual void run(size_t microseconds);
     // reset emulated machine; if 'isColdReset' is true, RAM is cleared
@@ -235,9 +135,9 @@ namespace Ep128 {
     virtual void setEnableAudioOutput(bool isEnabled);
     // set if video data is sent to the associated VideoDisplay object
     virtual void setEnableDisplay(bool isEnabled);
-    // set CPU clock frequency (in Hz); defaults to 4000000 Hz
+    // set CPU clock frequency (in Hz); defaults to 1773448 Hz
     virtual void setCPUFrequency(size_t freq_);
-    // set the number of video 'slots' per second (defaults to 890625 Hz)
+    // set the number of video 'slots' per second (defaults to 886724 Hz)
     virtual void setVideoFrequency(size_t freq_);
     // set parameter used for tuning video memory timing (defaults to 62 ns)
     virtual void setVideoMemoryLatency(size_t t_);
@@ -318,25 +218,27 @@ namespace Ep128 {
     // number, while bits 0 to 13 are the offset (0 to 0x3FFF) within the
     // segment.
     virtual uint8_t readMemory(uint32_t addr) const;
-    // Returns read-only reference to a structure containing all Z80
-    // registers; see z80/z80.hpp for more information.
-    virtual const Z80_REGISTERS& getZ80Registers() const;
     // ------------------------------- FILE I/O -------------------------------
     // Save snapshot of virtual machine state, including all ROM and RAM
     // segments, as well as all hardware registers. Note that the clock
     // frequency and timing settings, tape and disk state, and breakpoint list
     // are not saved.
-    virtual void saveState(File&);
+    virtual void saveState(Ep128::File&);
     // Save clock frequency and timing settings.
-    virtual void saveMachineConfiguration(File&);
+    virtual void saveMachineConfiguration(Ep128::File&);
+    // save program
+    virtual void saveProgram(Ep128::File&);
+    virtual void saveProgram(const char *fileName);
+    // load program
+    virtual void loadProgram(const char *fileName);
     // Register all types of file data supported by this class, for use by
-    // File::processAllChunks(). Note that loading snapshot data will clear
-    // all breakpoints.
-    virtual void registerChunkTypes(File&);
+    // Ep128::File::processAllChunks(). Note that loading snapshot data will
+    // clear all breakpoints.
+    virtual void registerChunkTypes(Ep128::File&);
     // Start recording a demo to the file object, which will be used until
     // the recording is stopped for some reason.
     // Implies calling saveMachineConfiguration() and saveState() first.
-    virtual void recordDemo(File&);
+    virtual void recordDemo(Ep128::File&);
     // Stop playing or recording demo.
     virtual void stopDemo();
     // Returns true if a demo is currently being recorded. The recording stops
@@ -353,15 +255,15 @@ namespace Ep128 {
     // playing a demo.
     virtual bool getIsPlayingDemo() const;
     // ----------------
-    virtual void loadState(File::Buffer&);
-    virtual void loadMachineConfiguration(File::Buffer&);
-    virtual void loadDemo(File::Buffer&);
+    virtual void loadState(Ep128::File::Buffer&);
+    virtual void loadMachineConfiguration(Ep128::File::Buffer&);
+    virtual void loadDemo(Ep128::File::Buffer&);
    protected:
     virtual void breakPointCallback(bool isIO, bool isWrite,
                                     uint16_t addr, uint8_t value);
   };
 
-}       // namespace Ep128
+}       // namespace Plus4
 
-#endif  // EP128EMU_EP128VM_HPP
+#endif  // EP128EMU_PLUS4VM_HPP
 

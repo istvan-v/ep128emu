@@ -22,62 +22,13 @@
 
 #include "ep128.hpp"
 #include "system.hpp"
+#include "display.hpp"
 
 #include <FL/Fl_Gl_Window.H>
 
 namespace Ep128Emu {
 
-  class OpenGLDisplay : public Fl_Gl_Window {
-   public:
-    struct DisplayParameters {
-      // 0: half horizontal resolution, no interlace (352x288),
-      //    no texture filtering, no blend effects
-      // 1: half horizontal resolution, no interlace (352x288)
-      // 2: full horizontal resolution, no interlace (704x288)
-      // 3: full horizontal resolution, interlace (704x576)
-      int     displayQuality;
-      // function to convert 8-bit color indices to red, green, and blue
-      // levels (in the range 0.0 to 1.0); if NULL, greyscale is assumed
-      void    (*indexToRGBFunc)(uint8_t color,
-                                float& red, float& green, float& blue);
-      // brightness (default: 0.0)
-      double  b;
-      // contrast (default: 1.0)
-      double  c;
-      // gamma (default: 1.0, higher values result in a brighter display)
-      double  g;
-      // brightness for red channel
-      double  rb;
-      // contrast for red channel
-      double  rc;
-      // gamma for red channel
-      double  rg;
-      // brightness for green channel
-      double  gb;
-      // contrast for green channel
-      double  gc;
-      // gamma for green channel
-      double  gg;
-      // brightness for blue channel
-      double  bb;
-      // contrast for blue channel
-      double  bc;
-      // gamma for blue channel
-      double  bg;
-      // controls vertical filtering of textures (0 to 0.5)
-      double  blendScale1;
-      // scale applied to new pixels written to frame buffer
-      double  blendScale2;
-      // scale applied to old pixels in frame buffer
-      double  blendScale3;
-      // pixel aspect ratio to assume
-      // (calculated as (screen_width / screen_height) / (X_res / Y_res))
-      double  pixelAspectRatio;
-      // ----------------
-      DisplayParameters();
-      DisplayParameters(const DisplayParameters&);
-      DisplayParameters& operator=(const DisplayParameters&);
-    };
+  class OpenGLDisplay : public Fl_Gl_Window, public VideoDisplay {
    private:
     class Colormap {
      private:
@@ -209,8 +160,8 @@ namespace Ep128Emu {
     virtual ~OpenGLDisplay();
     // set color correction and other display parameters
     // (see 'struct DisplayParameters' above for more information)
-    void setDisplayParameters(const DisplayParameters& dp);
-    const DisplayParameters& getDisplayParameters() const;
+    virtual void setDisplayParameters(const DisplayParameters& dp);
+    virtual const DisplayParameters& getDisplayParameters() const;
     // Draw next line of display.
     // 'buf' defines a line of 736 pixels, as 46 groups of 16 pixels each,
     // in the following format: the first byte defines the number of
@@ -229,11 +180,11 @@ namespace Ep128Emu {
     //   0x08: eight 8-bit color indices (pixel width = 2)
     //   0x10: sixteen 8-bit color indices (pixel width = 1)
     // The buffer contains 'nBytes' (in the range of 92 to 782) bytes of data.
-    void drawLine(const uint8_t *buf, size_t nBytes);
+    virtual void drawLine(const uint8_t *buf, size_t nBytes);
     // Should be called at the beginning (newState = true) and end
     // (newState = false) of VSYNC. 'currentSlot_' is the position within
     // the current line (0 to 56).
-    void vsyncStateChange(bool newState, unsigned int currentSlot_);
+    virtual void vsyncStateChange(bool newState, unsigned int currentSlot_);
    protected:
     virtual void draw();
    public:

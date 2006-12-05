@@ -25,7 +25,7 @@
 #include "nick.hpp"
 #include "tape.hpp"
 #include "soundio.hpp"
-#include "gldisp.hpp"
+#include "display.hpp"
 #include "ep128vm.hpp"
 
 #include <cstdio>
@@ -404,8 +404,9 @@ namespace Ep128 {
     reinterpret_cast<Ep128VM *>(userData)->nick.writePort(addr, value);
   }
 
-  Ep128VM::Ep128VM(Ep128Emu::OpenGLDisplay& display_)
-    : display(display_),
+  Ep128VM::Ep128VM(Ep128Emu::VideoDisplay& display_)
+    : VirtualMachine(),
+      display(display_),
       z80(*this),
       memory(*this),
       ioPorts(*this),
@@ -478,7 +479,7 @@ namespace Ep128 {
       nick.writePort(i, 0x00);
     dave.reset();
     // use NICK colormap
-    Ep128Emu::OpenGLDisplay::DisplayParameters
+    Ep128Emu::VideoDisplay::DisplayParameters
         dp(display.getDisplayParameters());
     dp.indexToRGBFunc = &Nick::convertPixelToRGB;
     display.setDisplayParameters(dp);
@@ -828,7 +829,7 @@ namespace Ep128 {
     }
   }
 
-  void Ep128VM::setNickFrequency(size_t freq_)
+  void Ep128VM::setVideoFrequency(size_t freq_)
   {
     size_t  freq;
     // allow refresh rates in the range 10 Hz to 100 Hz
@@ -841,8 +842,8 @@ namespace Ep128 {
 
   void Ep128VM::setVideoMemoryLatency(size_t t_)
   {
-    // NOTE: this should always be less than the length of one NICK cycle
-    size_t  t = (t_ > 0 ? (t_ < 500 ? t_ : 500) : 0);
+    // NOTE: this should always be less than half the length of one NICK cycle
+    size_t  t = (t_ > 0 ? (t_ < 250 ? t_ : 250) : 0);
     if (videoMemoryLatency != t) {
       videoMemoryLatency = t;
       updateTimingParameters();
@@ -1023,7 +1024,7 @@ namespace Ep128 {
     return memory.readRaw(addr & uint32_t(0x003FFFFF));
   }
 
-  const Z80_REGISTERS& Ep128VM::getCPURegisters() const
+  const Z80_REGISTERS& Ep128VM::getZ80Registers() const
   {
     return z80.getReg();
   }
@@ -1193,7 +1194,7 @@ namespace Ep128 {
       setCPUFrequency(buf.readUInt32());
       uint32_t  tmpDaveFrequency = buf.readUInt32();
       (void) tmpDaveFrequency;
-      setNickFrequency(buf.readUInt32());
+      setVideoFrequency(buf.readUInt32());
       setVideoMemoryLatency(buf.readUInt32());
       setEnableMemoryTimingEmulation(buf.readBoolean());
       if (buf.getPosition() != buf.getDataSize())

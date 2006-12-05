@@ -34,49 +34,6 @@
 
 #include "gldisp.hpp"
 
-static const double defaultSrcBlendScale = 0.7;
-static const double defaultDstBlendScale = 0.3;
-static const double defaultPixelAspectRatio = 1.0;
-
-static void defaultIndexToRGBFunc(uint8_t color,
-                                  float& red, float& green, float& blue)
-{
-  blue = green = red = (float(color) / 255.0f);
-}
-
-static void copyDisplayParameters(
-    Ep128Emu::OpenGLDisplay::DisplayParameters& dst,
-    const Ep128Emu::OpenGLDisplay::DisplayParameters& src)
-{
-  dst.displayQuality = (src.displayQuality > 0 ?
-                        (src.displayQuality < 3 ? src.displayQuality : 3) : 0);
-  if (src.indexToRGBFunc)
-    dst.indexToRGBFunc = src.indexToRGBFunc;
-  else
-    dst.indexToRGBFunc = &defaultIndexToRGBFunc;
-  dst.b = (src.b > -0.5 ? (src.b < 0.5 ? src.b : 0.5) : -0.5);
-  dst.c = (src.c > 0.5 ? (src.c < 2.0 ? src.c : 2.0) : 0.5);
-  dst.g = (src.g > 0.25 ? (src.g < 4.0 ? src.g : 4.0) : 0.25);
-  dst.rb = (src.rb > -0.5 ? (src.rb < 0.5 ? src.rb : 0.5) : -0.5);
-  dst.rc = (src.rc > 0.5 ? (src.rc < 2.0 ? src.rc : 2.0) : 0.5);
-  dst.rg = (src.rg > 0.25 ? (src.rg < 4.0 ? src.rg : 4.0) : 0.25);
-  dst.gb = (src.gb > -0.5 ? (src.gb < 0.5 ? src.gb : 0.5) : -0.5);
-  dst.gc = (src.gc > 0.5 ? (src.gc < 2.0 ? src.gc : 2.0) : 0.5);
-  dst.gg = (src.gg > 0.25 ? (src.gg < 4.0 ? src.gg : 4.0) : 0.25);
-  dst.bb = (src.bb > -0.5 ? (src.bb < 0.5 ? src.bb : 0.5) : -0.5);
-  dst.bc = (src.bc > 0.5 ? (src.bc < 2.0 ? src.bc : 2.0) : 0.5);
-  dst.bg = (src.bg > 0.25 ? (src.bg < 4.0 ? src.bg : 4.0) : 0.25);
-  dst.blendScale1 = (src.blendScale1 > 0.0 ?
-                     (src.blendScale1 < 0.5 ? src.blendScale1 : 0.5) : 0.0);
-  dst.blendScale2 = (src.blendScale2 > 0.0 ?
-                     (src.blendScale2 < 1.0 ? src.blendScale2 : 1.0) : 0.0);
-  dst.blendScale3 = (src.blendScale3 > 0.0 ?
-                     (src.blendScale3 < 1.0 ? src.blendScale3 : 1.0) : 0.0);
-  dst.pixelAspectRatio = (src.pixelAspectRatio > 0.5 ?
-                          (src.pixelAspectRatio < 2.0 ?
-                           src.pixelAspectRatio : 2.0) : 0.5);
-}
-
 static void decodeLine(unsigned char *outBuf,
                        const unsigned char *inBuf, size_t nBytes)
 {
@@ -228,35 +185,6 @@ static void setTextureParameters(int displayQuality)
 }
 
 namespace Ep128Emu {
-
-  OpenGLDisplay::DisplayParameters::DisplayParameters()
-    : displayQuality(2),
-      indexToRGBFunc(&defaultIndexToRGBFunc),
-      b(0.0), c(1.0), g(1.0),
-      rb(0.0), rc(1.0), rg(1.0),
-      gb(0.0), gc(1.0), gg(1.0),
-      bb(0.0), bc(1.0), bg(1.0),
-      blendScale1(0.5),
-      blendScale2(defaultSrcBlendScale),
-      blendScale3(defaultDstBlendScale),
-      pixelAspectRatio(defaultPixelAspectRatio)
-  {
-  }
-
-  OpenGLDisplay::DisplayParameters::DisplayParameters(const DisplayParameters&
-                                                          dp)
-  {
-    copyDisplayParameters(*this, dp);
-  }
-
-  OpenGLDisplay::DisplayParameters&
-      OpenGLDisplay::DisplayParameters::operator=(const DisplayParameters& dp)
-  {
-    copyDisplayParameters(*this, dp);
-    return (*this);
-  }
-
-  // --------------------------------------------------------------------------
 
   OpenGLDisplay::Colormap::Colormap()
   {
@@ -785,7 +713,7 @@ namespace Ep128Emu {
     queueMessage(m);
   }
 
-  const OpenGLDisplay::DisplayParameters&
+  const VideoDisplay::DisplayParameters&
       OpenGLDisplay::getDisplayParameters() const
   {
     return savedDisplayParameters;

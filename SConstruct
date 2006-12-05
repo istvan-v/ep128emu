@@ -46,6 +46,8 @@ ep128emu = ep128emuEnvironment.Program('ep128emu', Split('''
 Depends(ep128emu, ep128lib)
 Depends(ep128emu, z80lib)
 
+# -----------------------------------------------------------------------------
+
 tapeeditEnvironment = Environment()
 tapeeditEnvironment.Append(CCFLAGS = compilerFlags)
 tapeeditEnvironment.Append(CPPPATH = ['.', './tapeutil'])
@@ -60,4 +62,37 @@ tapeedit = tapeeditEnvironment.Program('tapeedit', Split('''
 Command(['tapeutil/tapeedit.cpp', 'tapeutil/tapeedit.hpp'],
         'tapeutil/tapeedit.fl',
         'fluid -c -o tapeutil/tapeedit.cpp -h tapeutil/tapeedit.hpp $SOURCES')
+
+# -----------------------------------------------------------------------------
+
+plus4libEnvironment = Environment()
+plus4libEnvironment.Append(CCFLAGS = compilerFlags)
+plus4libEnvironment.Append(CPPPATH = ['.', './plus4'])
+
+plus4lib = plus4libEnvironment.StaticLibrary('plus4', Split('''
+    plus4/cpu.cpp
+    plus4/memory.cpp
+    plus4/plus4vm.cpp
+    plus4/render.cpp
+    plus4/ted_api.cpp
+    plus4/ted_init.cpp
+    plus4/ted_main.cpp
+    plus4/ted_read.cpp
+    plus4/ted_write.cpp
+'''))
+
+plus4Environment = Environment()
+plus4Environment.Append(CCFLAGS = compilerFlags)
+plus4Environment.Append(CPPPATH = ['.', './plus4'])
+plus4Environment.Append(LINKFLAGS = ['-L.'])
+plus4Environment.Append(LIBS = ['plus4', 'ep128',
+                                'fltk_gl', 'GL',
+                                'portaudio', 'sndfile', 'jack', 'asound',
+                                'pthread'])
+
+plus4 = plus4Environment.Program('plus4emu', Split('''
+    p4main.cpp
+'''))
+Depends(plus4, plus4lib)
+Depends(plus4, ep128lib)
 
