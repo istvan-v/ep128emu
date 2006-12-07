@@ -401,29 +401,29 @@ namespace Ep128 {
 
   // --------------------------------------------------------------------------
 
-  class ChunkType_Z80_Snapshot : public File::ChunkTypeHandler {
+  class ChunkType_Z80_Snapshot : public Ep128Emu::File::ChunkTypeHandler {
    private:
     Z80&    ref;
    public:
     ChunkType_Z80_Snapshot(Z80& ref_)
-      : File::ChunkTypeHandler(),
+      : Ep128Emu::File::ChunkTypeHandler(),
         ref(ref_)
     {
     }
     virtual ~ChunkType_Z80_Snapshot()
     {
     }
-    virtual File::ChunkType getChunkType() const
+    virtual Ep128Emu::File::ChunkType getChunkType() const
     {
-      return File::EP128EMU_CHUNKTYPE_Z80_STATE;
+      return Ep128Emu::File::EP128EMU_CHUNKTYPE_Z80_STATE;
     }
-    virtual void processChunk(File::Buffer& buf)
+    virtual void processChunk(Ep128Emu::File::Buffer& buf)
     {
       ref.loadState(buf);
     }
   };
 
-  void Z80::saveState(File::Buffer& buf)
+  void Z80::saveState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
     buf.writeUInt32(0x01000000);        // version number
@@ -463,21 +463,21 @@ namespace Ep128 {
     buf.writeUInt32(uint32_t(R.Flags));
   }
 
-  void Z80::saveState(File& f)
+  void Z80::saveState(Ep128Emu::File& f)
   {
-    File::Buffer  buf;
+    Ep128Emu::File::Buffer  buf;
     this->saveState(buf);
-    f.addChunk(File::EP128EMU_CHUNKTYPE_Z80_STATE, buf);
+    f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_Z80_STATE, buf);
   }
 
-  void Z80::loadState(File::Buffer& buf)
+  void Z80::loadState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
     if (version != 0x01000000) {
       buf.setPosition(buf.getDataSize());
-      throw Exception("incompatible Z80 snapshot format");
+      throw Ep128Emu::Exception("incompatible Z80 snapshot format");
     }
     try {
       std::memset(&R, 0, sizeof(Z80_REGISTERS));
@@ -517,7 +517,8 @@ namespace Ep128 {
       R.InterruptVectorBase = buf.readByte();
       R.Flags = buf.readUInt32() & Z80_FLAGS_MASK;
       if (buf.getPosition() != buf.getDataSize())
-        throw Exception("trailing garbage at end of Z80 snapshot data");
+        throw Ep128Emu::Exception("trailing garbage at end of "
+                                  "Z80 snapshot data");
     }
     catch (...) {
       // reset Z80
@@ -526,7 +527,7 @@ namespace Ep128 {
     }
   }
 
-  void Z80::registerChunkType(File& f)
+  void Z80::registerChunkType(Ep128Emu::File& f)
   {
     ChunkType_Z80_Snapshot  *p;
     p = new ChunkType_Z80_Snapshot(*this);

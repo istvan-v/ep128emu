@@ -17,17 +17,15 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-#include "ep128.hpp"
-#include "dave.hpp"
-#include "tape.hpp"
-#include "soundio.hpp"
+#include "ep128emu.hpp"
 #include "display.hpp"
+#include "soundio.hpp"
 #include "plus4vm.hpp"
 
 #include <cstdio>
 #include <vector>
 
-static void writeDemoTimeCnt(Ep128::File::Buffer& buf, uint64_t n)
+static void writeDemoTimeCnt(Ep128Emu::File::Buffer& buf, uint64_t n)
 {
   uint64_t  mask = uint64_t(0x7F) << 49;
   uint8_t   rshift = 49;
@@ -43,7 +41,7 @@ static void writeDemoTimeCnt(Ep128::File::Buffer& buf, uint64_t n)
   buf.writeByte(uint8_t(n) & 0x7F);
 }
 
-static uint64_t readDemoTimeCnt(Ep128::File::Buffer& buf)
+static uint64_t readDemoTimeCnt(Ep128Emu::File::Buffer& buf)
 {
   uint64_t  n = 0U;
   uint8_t   i = 8, c;
@@ -70,15 +68,13 @@ namespace Plus4 {
 
   void Plus4VM::TED7360_::playSample(int16_t sampleValue)
   {
-    if (vm.writingAudioOutput && vm.audioOutput != (Ep128::DaveConverter *) 0) {
-      uint32_t  tmp = (uint32_t(sampleValue) >> 6) & 0x01FF;
-      vm.audioOutput->sendInputSignal(tmp | (tmp << 16));
-    }
+    vm.sendAudioOutput(uint16_t(sampleValue & 0x7FFF),
+                       uint16_t(sampleValue & 0x7FFF));
   }
 
   void Plus4VM::TED7360_::drawLine(const uint8_t *buf, int nPixels)
   {
-    if (vm.displayEnabled && lineCnt_ < 500) {
+    if (vm.getIsDisplayEnabled() && lineCnt_ < 500) {
       uint8_t tmpBuf[414];      // 9 * 46
       uint8_t *bufp = &(tmpBuf[0]);
       int     i;
@@ -102,7 +98,7 @@ namespace Plus4 {
   {
     if (lineCnt_ >= 100) {
       lineCnt_ = 0;
-      if (vm.displayEnabled)
+      if (vm.getIsDisplayEnabled())
         vm.display.vsyncStateChange(true, 8);
     }
   }
@@ -124,58 +120,39 @@ namespace Plus4 {
   void Plus4VM::stopDemoRecording(bool writeFile_)
   {
     isRecordingDemo = false;
-    if (writeFile_ && demoFile != (Ep128::File *) 0) {
+    if (writeFile_ && demoFile != (Ep128Emu::File *) 0) {
       try {
         // put end of demo event
         writeDemoTimeCnt(demoBuffer, demoTimeCnt);
         demoTimeCnt = 0U;
         demoBuffer.writeByte(0x00);
         demoBuffer.writeByte(0x00);
-        demoFile->addChunk(Ep128::File::EP128EMU_CHUNKTYPE_PLUS4_DEMO,
+        demoFile->addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_PLUS4_DEMO,
                            demoBuffer);
       }
       catch (...) {
-        demoFile = (Ep128::File *) 0;
+        demoFile = (Ep128Emu::File *) 0;
         demoTimeCnt = 0U;
         demoBuffer.clear();
         throw;
       }
-      demoFile = (Ep128::File *) 0;
+      demoFile = (Ep128Emu::File *) 0;
       demoTimeCnt = 0U;
       demoBuffer.clear();
     }
   }
 
-  Plus4VM::Plus4VM(Ep128Emu::VideoDisplay& display_)
-    : VirtualMachine(),
-      display(display_),
+  Plus4VM::Plus4VM(Ep128Emu::VideoDisplay& display_,
+                   Ep128Emu::AudioOutput& audioOutput_)
+    : VirtualMachine(display_, audioOutput_),
       ted((TED7360_ *) 0),
-      audioOutput((Ep128::DaveConverter *) 0),
       cpuFrequencyMultiplier(1),
       tedFrequency(886724),
       soundClockFrequency(221681),
       tedCyclesRemaining(0),
-      displayEnabled(true),
-      audioOutputEnabled(true),
-      audioOutputHighQuality(false),
-      audioOutputSampleRate(48000.0f),
-      audioOutputDevice(0),
-      audioOutputLatency(0.1f),
-      audioOutputPeriodsHW(4),
-      audioOutputPeriodsSW(3),
-      audioOutputVolume(0.7071f),
-      audioOutputFilter1Freq(10.0f),
-      audioOutputFilter2Freq(10.0f),
-      audioOutputFileName(""),
-      tapeFileName(""),
-      tape((Ep128::Tape *) 0),
       tapeSamplesPerTEDCycle(0),
       tapeSamplesRemaining(0),
-      tapePlaybackOn(false),
-      tapeRecordOn(false),
-      fastTapeModeEnabled(false),
-      writingAudioOutput(false),
-      demoFile((Ep128::File *) 0),
+      demoFile((Ep128Emu::File *) 0),
       demoBuffer(),
       isRecordingDemo(false),
       isPlayingDemo(false),
@@ -191,6 +168,7 @@ namespace Plus4 {
           dp(display.getDisplayParameters());
       dp.indexToRGBFunc = &TED7360::convertPixelToRGB;
       display.setDisplayParameters(dp);
+      setAudioConverterSampleRate(float(long(soundClockFrequency)));
     }
     catch (...) {
       delete ted;
@@ -206,20 +184,12 @@ namespace Plus4 {
     }
     catch (...) {
     }
-    if (tape)
-      delete tape;
-    if (audioOutput)
-      delete audioOutput;
     delete ted;
   }
 
   void Plus4VM::run(size_t microseconds)
   {
-    bool  fastTapeModeFlag =
-        (fastTapeModeEnabled && tape != (Ep128::Tape *) 0 &&
-         (tapePlaybackOn || tapeRecordOn));
-    bool  audioOutputFlag =
-        (audioOutputEnabled && audioOutput != (Ep128::DaveConverter *) 0);
+    Ep128Emu::VirtualMachine::run(microseconds);
     if (snapshotLoadFlag) {
       snapshotLoadFlag = false;
       // if just loaded a snapshot, and not playing a demo,
@@ -235,6 +205,8 @@ namespace Plus4 {
     while (tedCyclesRemaining > 0) {
       if (isPlayingDemo) {
         while (!demoTimeCnt) {
+          if (haveTape() && getIsTapeMotorOn() && getTapeButtonState() != 0)
+            stopDemoPlayback();
           try {
             uint8_t evtType = demoBuffer.readByte();
             uint8_t evtBytes = demoBuffer.readByte();
@@ -268,19 +240,15 @@ namespace Plus4 {
         if (demoTimeCnt)
           demoTimeCnt--;
       }
-      if (tape) {
+      if (haveTape()) {
         tapeSamplesRemaining += tapeSamplesPerTEDCycle;
         if (tapeSamplesRemaining > 0) {
           // assume tape sample rate < tedFrequency
           tapeSamplesRemaining -= (int64_t(1) << 32);
-          tape->setIsMotorOn(ted->getTapeMotorState());
-          tape->setInputSignal(ted->getTapeOutput() ? 1 : 0);
-          tape->runOneSample();
-          ted->setTapeInput(tape->getOutputSignal() > 0);
+          setTapeMotorState(ted->getTapeMotorState());
+          ted->setTapeInput(runTape(ted->getTapeOutput() ? 1 : 0) > 0);
         }
       }
-      writingAudioOutput =
-          (audioOutputFlag && !(fastTapeModeFlag && ted->getTapeMotorState()));
       ted->run(2);
       tedCyclesRemaining -= (int64_t(1) << 32);
       if (isRecordingDemo)
@@ -293,8 +261,7 @@ namespace Plus4 {
     stopDemoPlayback();         // TODO: should be recorded as an event ?
     stopDemoRecording(false);
     ted->reset(isColdReset);
-    if (tape)
-      tape->setIsMotorOn(false);
+    setTapeMotorState(false);
   }
 
   void Plus4VM::resetMemoryConfiguration(size_t memSize)
@@ -328,155 +295,16 @@ namespace Plus4 {
     buf.resize(0x4000);
     std::FILE   *f = std::fopen(fileName, "rb");
     if (!f)
-      throw Ep128::Exception("cannot open ROM file");
+      throw Ep128Emu::Exception("cannot open ROM file");
     std::fseek(f, 0L, SEEK_END);
     if (ftell(f) < long(offs + 0x4000)) {
       std::fclose(f);
-      throw Ep128::Exception("ROM file is shorter than expected");
+      throw Ep128Emu::Exception("ROM file is shorter than expected");
     }
     std::fseek(f, long(offs), SEEK_SET);
     std::fread(&(buf.front()), 1, 0x4000, f);
     std::fclose(f);
     ted->loadROM(int(n) >> 1, int(n & 1) << 14, 16384, &(buf.front()));
-  }
-
-  void Plus4VM::setAudioOutputQuality(bool useHighQualityResample,
-                                      float sampleRate_)
-  {
-    float   sampleRate = (sampleRate_ > 11025.0f ?
-                          (sampleRate_ < 192000.0f ? sampleRate_ : 192000.0f)
-                          : 11025.0f);
-    if (audioOutputHighQuality != useHighQualityResample ||
-        audioOutputSampleRate != sampleRate) {
-      audioOutputHighQuality = useHighQualityResample;
-      audioOutputSampleRate = sampleRate;
-      if (audioOutput) {
-        delete audioOutput;
-        audioOutput = (Ep128::DaveConverter *) 0;
-        if (audioOutputHighQuality) {
-          audioOutput = new Ep128Emu::AudioOutput_HighQuality(
-              float(long(soundClockFrequency)), audioOutputSampleRate,
-              audioOutputFilter1Freq, audioOutputFilter2Freq, audioOutputVolume,
-              audioOutputDevice, audioOutputLatency,
-              audioOutputPeriodsHW, audioOutputPeriodsSW,
-              audioOutputFileName.c_str());
-        }
-        else {
-          audioOutput = new Ep128Emu::AudioOutput_LowQuality(
-              float(long(soundClockFrequency)), audioOutputSampleRate,
-              audioOutputFilter1Freq, audioOutputFilter2Freq, audioOutputVolume,
-              audioOutputDevice, audioOutputLatency,
-              audioOutputPeriodsHW, audioOutputPeriodsSW,
-              audioOutputFileName.c_str());
-        }
-      }
-    }
-  }
-
-  void Plus4VM::setAudioOutputDeviceParameters(int devNum,
-                                               float totalLatency_,
-                                               int nPeriodsHW_,
-                                               int nPeriodsSW_)
-  {
-    float   totalLatency = (totalLatency_ > 0.005f ?
-                            (totalLatency_ < 0.5f ? totalLatency_ : 0.5f)
-                            : 0.005f);
-    int     nPeriodsHW = (nPeriodsHW_ > 2 ?
-                          (nPeriodsHW_ < 16 ? nPeriodsHW_ : 16) : 2);
-    int     nPeriodsSW = (nPeriodsSW_ > 2 ?
-                          (nPeriodsSW_ < 16 ? nPeriodsSW_ : 16) : 2);
-    if (audioOutputDevice != devNum ||
-        audioOutputLatency != totalLatency ||
-        audioOutputPeriodsHW != nPeriodsHW ||
-        audioOutputPeriodsSW != nPeriodsSW ||
-        audioOutput == (Ep128::DaveConverter *) 0) {
-      audioOutputDevice = devNum;
-      audioOutputLatency = totalLatency;
-      audioOutputPeriodsHW = nPeriodsHW;
-      audioOutputPeriodsSW = nPeriodsSW;
-      if (audioOutput) {
-        delete audioOutput;
-        audioOutput = (Ep128::DaveConverter *) 0;
-      }
-      if (audioOutputHighQuality) {
-        audioOutput = new Ep128Emu::AudioOutput_HighQuality(
-            float(long(soundClockFrequency)), audioOutputSampleRate,
-            audioOutputFilter1Freq, audioOutputFilter2Freq, audioOutputVolume,
-            audioOutputDevice, audioOutputLatency,
-            audioOutputPeriodsHW, audioOutputPeriodsSW,
-            audioOutputFileName.c_str());
-      }
-      else {
-        audioOutput = new Ep128Emu::AudioOutput_LowQuality(
-            float(long(soundClockFrequency)), audioOutputSampleRate,
-            audioOutputFilter1Freq, audioOutputFilter2Freq, audioOutputVolume,
-            audioOutputDevice, audioOutputLatency,
-            audioOutputPeriodsHW, audioOutputPeriodsSW,
-            audioOutputFileName.c_str());
-      }
-    }
-  }
-
-  void Plus4VM::setAudioOutputFilters(float dcBlockFreq1_, float dcBlockFreq2_)
-  {
-    audioOutputFilter1Freq =
-        (dcBlockFreq1_ > 1.0f ?
-         (dcBlockFreq1_ < 1000.0f ? dcBlockFreq1_ : 1000.0f) : 1.0f);
-    audioOutputFilter2Freq =
-        (dcBlockFreq2_ > 1.0f ?
-         (dcBlockFreq2_ < 1000.0f ? dcBlockFreq2_ : 1000.0f) : 1.0f);
-    if (audioOutput)
-      audioOutput->setDCBlockFilters(audioOutputFilter1Freq,
-                                     audioOutputFilter2Freq);
-  }
-
-  void Plus4VM::setAudioOutputVolume(float ampScale_)
-  {
-    audioOutputVolume =
-        (ampScale_ > 0.01f ? (ampScale_ < 1.0f ? ampScale_ : 1.0f) : 0.01f);
-    if (audioOutput)
-      audioOutput->setOutputVolume(audioOutputVolume);
-  }
-
-  void Plus4VM::setAudioOutputFileName(const char *fileName)
-  {
-    std::string fname("");
-    if (fileName)
-      fname = fileName;
-    if (audioOutputFileName == fname)
-      return;
-    audioOutputFileName = fname;
-    if (!audioOutput)
-      return;
-    if (typeid(*audioOutput) == typeid(Ep128Emu::AudioOutput_HighQuality)) {
-      Ep128Emu::AudioOutput_HighQuality *p;
-      p = dynamic_cast<Ep128Emu::AudioOutput_HighQuality *>(audioOutput);
-      p->setOutputFile(fname);
-    }
-    else if (typeid(*audioOutput) == typeid(Ep128Emu::AudioOutput_LowQuality)) {
-      Ep128Emu::AudioOutput_LowQuality  *p;
-      p = dynamic_cast<Ep128Emu::AudioOutput_LowQuality *>(audioOutput);
-      p->setOutputFile(fname);
-    }
-  }
-
-  void Plus4VM::setEnableAudioOutput(bool isEnabled)
-  {
-    audioOutputEnabled = isEnabled;
-  }
-
-  void Plus4VM::setEnableDisplay(bool isEnabled)
-  {
-    if (displayEnabled != isEnabled) {
-      displayEnabled = isEnabled;
-      if (!isEnabled) {
-        // clear display
-        display.vsyncStateChange(true, 0);
-        display.vsyncStateChange(false, 28);
-        display.vsyncStateChange(true, 0);
-        display.vsyncStateChange(false, 28);
-      }
-    }
   }
 
   void Plus4VM::setCPUFrequency(size_t freq_)
@@ -514,6 +342,10 @@ namespace Plus4 {
     if (!isPlayingDemo)
       ted->setKeyState(keyCode, isPressed);
     if (isRecordingDemo) {
+      if (haveTape() && getIsTapeMotorOn() && getTapeButtonState() != 0) {
+        stopDemoRecording(false);
+        return;
+      }
       writeDemoTimeCnt(demoBuffer, demoTimeCnt);
       demoTimeCnt = 0U;
       demoBuffer.writeByte(isPressed ? 0x01 : 0x02);
@@ -524,113 +356,35 @@ namespace Plus4 {
 
   void Plus4VM::setTapeFileName(const char *fileName)
   {
-    std::string fname("");
-    if (fileName)
-      fname = fileName;
-    if (tape) {
-      if (fname == tapeFileName) {
-        tape->seek(0.0);
-        return;
-      }
-      delete tape;
-      tape = (Ep128::Tape *) 0;
+    Ep128Emu::VirtualMachine::setTapeFileName(fileName);
+    setTapeMotorState(ted->getTapeMotorState());
+    if (haveTape()) {
+      tapeSamplesPerTEDCycle =
+          (int64_t(getTapeSampleRate()) << 32) / int64_t(tedFrequency);
     }
-    if (fname.length() == 0)
-      return;
-    tape = new Ep128::Tape(fname.c_str());
-    if (tapeRecordOn)
-      tape->record();
-    else if (tapePlaybackOn)
-      tape->play();
-    if (ted->getTapeMotorState())
-      tape->setIsMotorOn(true);
-    tapeSamplesPerTEDCycle =
-        (int64_t(tape->getSampleRate()) << 32) / int64_t(tedFrequency);
     tapeSamplesRemaining = 0;
   }
 
   void Plus4VM::tapePlay()
   {
-    tapeRecordOn = false;
-    if (tape) {
-      tapePlaybackOn = true;
-      ted->setTapeButtonState(true);
-      tape->play();
-      if (ted->getTapeMotorState())
-        stopDemo();
-    }
-    else {
-      tapePlaybackOn = false;
-      ted->setTapeButtonState(false);
-    }
+    Ep128Emu::VirtualMachine::tapePlay();
+    ted->setTapeButtonState(getTapeButtonState() != 0);
+    if (haveTape() && getIsTapeMotorOn() && getTapeButtonState() != 0)
+      stopDemo();
   }
 
   void Plus4VM::tapeRecord()
   {
-    if (tape) {
-      tapePlaybackOn = true;
-      tapeRecordOn = true;
-      ted->setTapeButtonState(true);
-      tape->record();
-      if (ted->getTapeMotorState())
-        stopDemo();
-    }
-    else {
-      tapePlaybackOn = false;
-      tapeRecordOn = false;
-      ted->setTapeButtonState(false);
-    }
+    Ep128Emu::VirtualMachine::tapeRecord();
+    ted->setTapeButtonState(getTapeButtonState() != 0);
+    if (haveTape() && getIsTapeMotorOn() && getTapeButtonState() != 0)
+      stopDemo();
   }
 
   void Plus4VM::tapeStop()
   {
-    tapePlaybackOn = false;
-    tapeRecordOn = false;
+    Ep128Emu::VirtualMachine::tapeStop();
     ted->setTapeButtonState(false);
-    if (tape)
-      tape->stop();
-  }
-
-  void Plus4VM::tapeSeek(double t)
-  {
-    if (tape)
-      tape->seek(t);
-  }
-
-  double Plus4VM::getTapePosition() const
-  {
-    if (tape)
-      return tape->getPosition();
-    return -1.0;
-  }
-
-  void Plus4VM::tapeSeekToCuePoint(bool isForward, double t)
-  {
-    if (tape)
-      tape->seekToCuePoint(isForward, t);
-  }
-
-  void Plus4VM::tapeAddCuePoint()
-  {
-    if (tape)
-      tape->addCuePoint();
-  }
-
-  void Plus4VM::tapeDeleteNearestCuePoint()
-  {
-    if (tape)
-      tape->deleteNearestCuePoint();
-  }
-
-  void Plus4VM::tapeDeleteAllCuePoints()
-  {
-    if (tape)
-      tape->deleteAllCuePoints();
-  }
-
-  void Plus4VM::setEnableFastTapeMode(bool isEnabled)
-  {
-    fastTapeModeEnabled = isEnabled;
   }
 
   void Plus4VM::setBreakPoints(const std::string& bpList)
@@ -666,19 +420,19 @@ namespace Plus4 {
     return ted->readMemoryRaw(addr);
   }
 
-  void Plus4VM::saveState(Ep128::File& f)
+  void Plus4VM::saveState(Ep128Emu::File& f)
   {
     // TODO: implement this
     (void) f;
   }
 
-  void Plus4VM::saveMachineConfiguration(Ep128::File& f)
+  void Plus4VM::saveMachineConfiguration(Ep128Emu::File& f)
   {
     // TODO: implement this
     (void) f;
   }
 
-  void Plus4VM::saveProgram(Ep128::File& f)
+  void Plus4VM::saveProgram(Ep128Emu::File& f)
   {
     ted->saveProgram(f);
   }
@@ -693,13 +447,12 @@ namespace Plus4 {
     ted->loadProgram(fileName);
   }
 
-  void Plus4VM::recordDemo(Ep128::File& f)
+  void Plus4VM::recordDemo(Ep128Emu::File& f)
   {
     // turn off tape motor, stop any previous demo recording or playback,
     // and reset keyboard state
     ted->setTapeMotorState(false);
-    if (tape)
-      tape->setIsMotorOn(false);
+    setTapeMotorState(false);
     stopDemo();
     for (int i = 0; i < 128; i++)
       ted->setKeyState(i, false);
@@ -720,7 +473,7 @@ namespace Plus4 {
 
   bool Plus4VM::getIsRecordingDemo()
   {
-    if (demoFile != (Ep128::File *) 0 && !isRecordingDemo)
+    if (demoFile != (Ep128Emu::File *) 0 && !isRecordingDemo)
       stopDemoRecording(true);
     return isRecordingDemo;
   }
@@ -732,19 +485,19 @@ namespace Plus4 {
 
   // --------------------------------------------------------------------------
 
-  void Plus4VM::loadState(Ep128::File::Buffer& buf)
+  void Plus4VM::loadState(Ep128Emu::File::Buffer& buf)
   {
     // TODO: implement this
     (void) buf;
   }
 
-  void Plus4VM::loadMachineConfiguration(Ep128::File::Buffer& buf)
+  void Plus4VM::loadMachineConfiguration(Ep128Emu::File::Buffer& buf)
   {
     // TODO: implement this
     (void) buf;
   }
 
-  void Plus4VM::loadDemo(Ep128::File::Buffer& buf)
+  void Plus4VM::loadDemo(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
     // check version number
@@ -752,15 +505,14 @@ namespace Plus4 {
 #if 0
     if (version != 0x00010900) {
       buf.setPosition(buf.getDataSize());
-      throw Ep128::Exception("incompatible ep128 demo format");
+      throw Ep128Emu::Exception("incompatible ep128 demo format");
     }
 #endif
     (void) version;
     // turn off tape motor, stop any previous demo recording or playback,
     // and reset keyboard state
     ted->setTapeMotorState(false);
-    if (tape)
-      tape->setIsMotorOn(false);
+    setTapeMotorState(false);
     stopDemo();
     for (int i = 0; i < 128; i++)
       ted->setKeyState(i, false);
@@ -774,73 +526,73 @@ namespace Plus4 {
     demoBuffer.setPosition(0);
   }
 
-  class ChunkType_Plus4VMConfig : public Ep128::File::ChunkTypeHandler {
+  class ChunkType_Plus4VMConfig : public Ep128Emu::File::ChunkTypeHandler {
    private:
     Plus4VM&  ref;
    public:
     ChunkType_Plus4VMConfig(Plus4VM& ref_)
-      : Ep128::File::ChunkTypeHandler(),
+      : Ep128Emu::File::ChunkTypeHandler(),
         ref(ref_)
     {
     }
     virtual ~ChunkType_Plus4VMConfig()
     {
     }
-    virtual Ep128::File::ChunkType getChunkType() const
+    virtual Ep128Emu::File::ChunkType getChunkType() const
     {
-      return Ep128::File::EP128EMU_CHUNKTYPE_P4VM_CONFIG;
+      return Ep128Emu::File::EP128EMU_CHUNKTYPE_P4VM_CONFIG;
     }
-    virtual void processChunk(Ep128::File::Buffer& buf)
+    virtual void processChunk(Ep128Emu::File::Buffer& buf)
     {
       ref.loadMachineConfiguration(buf);
     }
   };
 
-  class ChunkType_Plus4VMSnapshot : public Ep128::File::ChunkTypeHandler {
+  class ChunkType_Plus4VMSnapshot : public Ep128Emu::File::ChunkTypeHandler {
    private:
     Plus4VM&  ref;
    public:
     ChunkType_Plus4VMSnapshot(Plus4VM& ref_)
-      : Ep128::File::ChunkTypeHandler(),
+      : Ep128Emu::File::ChunkTypeHandler(),
         ref(ref_)
     {
     }
     virtual ~ChunkType_Plus4VMSnapshot()
     {
     }
-    virtual Ep128::File::ChunkType getChunkType() const
+    virtual Ep128Emu::File::ChunkType getChunkType() const
     {
-      return Ep128::File::EP128EMU_CHUNKTYPE_P4VM_STATE;
+      return Ep128Emu::File::EP128EMU_CHUNKTYPE_P4VM_STATE;
     }
-    virtual void processChunk(Ep128::File::Buffer& buf)
+    virtual void processChunk(Ep128Emu::File::Buffer& buf)
     {
       ref.loadState(buf);
     }
   };
 
-  class ChunkType_Plus4DemoStream : public Ep128::File::ChunkTypeHandler {
+  class ChunkType_Plus4DemoStream : public Ep128Emu::File::ChunkTypeHandler {
    private:
     Plus4VM&  ref;
    public:
     ChunkType_Plus4DemoStream(Plus4VM& ref_)
-      : Ep128::File::ChunkTypeHandler(),
+      : Ep128Emu::File::ChunkTypeHandler(),
         ref(ref_)
     {
     }
     virtual ~ChunkType_Plus4DemoStream()
     {
     }
-    virtual Ep128::File::ChunkType getChunkType() const
+    virtual Ep128Emu::File::ChunkType getChunkType() const
     {
-      return Ep128::File::EP128EMU_CHUNKTYPE_PLUS4_DEMO;
+      return Ep128Emu::File::EP128EMU_CHUNKTYPE_PLUS4_DEMO;
     }
-    virtual void processChunk(Ep128::File::Buffer& buf)
+    virtual void processChunk(Ep128Emu::File::Buffer& buf)
     {
       ref.loadDemo(buf);
     }
   };
 
-  void Plus4VM::registerChunkTypes(Ep128::File& f)
+  void Plus4VM::registerChunkTypes(Ep128Emu::File& f)
   {
     ChunkType_Plus4VMConfig   *p1 = (ChunkType_Plus4VMConfig *) 0;
     ChunkType_Plus4VMSnapshot *p2 = (ChunkType_Plus4VMSnapshot *) 0;
@@ -864,17 +616,6 @@ namespace Plus4 {
       throw;
     }
     ted->registerChunkTypes(f);
-  }
-
-  // --------------------------------------------------------------------------
-
-  void Plus4VM::breakPointCallback(bool isIO, bool isWrite,
-                                   uint16_t addr, uint8_t value)
-  {
-    (void) isIO;
-    (void) isWrite;
-    (void) addr;
-    (void) value;
   }
 
 }       // namespace Plus4

@@ -20,7 +20,7 @@
 #ifndef EP128EMU_CFG_DB_HPP
 #define EP128EMU_CFG_DB_HPP
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "fileio.hpp"
 #include <map>
 
@@ -65,10 +65,10 @@ namespace Ep128Emu {
     void createKey(const std::string& name, unsigned int& ref);
     void createKey(const std::string& name, double& ref);
     void createKey(const std::string& name, std::string& ref);
-    void saveState(Ep128::File::Buffer& buf);
-    void saveState(Ep128::File& f);
-    void loadState(Ep128::File::Buffer& buf);
-    void registerChunkType(Ep128::File& f);
+    void saveState(File::Buffer& buf);
+    void saveState(File& f);
+    void loadState(File::Buffer& buf);
+    void registerChunkType(File& f);
   };
 
 }       // namespace Ep128Emu

@@ -20,11 +20,10 @@
 #ifndef EP128EMU_PLUS4VM_HPP
 #define EP128EMU_PLUS4VM_HPP
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "ted.hpp"
-#include "dave.hpp"
-#include "tape.hpp"
 #include "display.hpp"
+#include "soundio.hpp"
 #include "vm.hpp"
 
 namespace Plus4 {
@@ -44,34 +43,14 @@ namespace Plus4 {
       virtual void verticalSync();
     };
     // ----------------
-    Ep128Emu::VideoDisplay& display;
     TED7360_                *ted;
-    Ep128::DaveConverter    *audioOutput;
     size_t    cpuFrequencyMultiplier;   // defaults to 1
     size_t    tedFrequency;             // fixed at 886724 Hz
     size_t    soundClockFrequency;      // fixed at 221681 Hz
     int64_t   tedCyclesRemaining;       // in 2^-32 TED cycle units
-    bool      displayEnabled;
-    bool      audioOutputEnabled;
-    bool      audioOutputHighQuality;
-    float     audioOutputSampleRate;
-    int       audioOutputDevice;
-    float     audioOutputLatency;
-    int       audioOutputPeriodsHW;
-    int       audioOutputPeriodsSW;
-    float     audioOutputVolume;
-    float     audioOutputFilter1Freq;
-    float     audioOutputFilter2Freq;
-    std::string audioOutputFileName;
-    std::string tapeFileName;
-    Ep128::Tape *tape;
     int64_t   tapeSamplesPerTEDCycle;
     int64_t   tapeSamplesRemaining;
-    bool      tapePlaybackOn;
-    bool      tapeRecordOn;
-    bool      fastTapeModeEnabled;
-    bool      writingAudioOutput;
-    Ep128::File *demoFile;
+    Ep128Emu::File  *demoFile;
     // contains demo data, which is the emulator version number as a 32-bit
     // integer ((MAJOR << 16) + (MINOR << 8) + PATCHLEVEL), followed by a
     // sequence of events in the following format:
@@ -85,7 +64,7 @@ namespace Plus4 {
     // the event data for event types 1 and 2 is the key code with a length of
     // one byte:
     //   uint8_t    keyCode     key code in the range 0 to 127
-    Ep128::File::Buffer demoBuffer;
+    Ep128Emu::File::Buffer  demoBuffer;
     // true while recording a demo
     bool      isRecordingDemo;
     // true while playing a demo
@@ -99,7 +78,7 @@ namespace Plus4 {
     void stopDemoPlayback();
     void stopDemoRecording(bool writeFile_);
    public:
-    Plus4VM(Ep128Emu::VideoDisplay&);
+    Plus4VM(Ep128Emu::VideoDisplay&, Ep128Emu::AudioOutput&);
     virtual ~Plus4VM();
     // run emulation for the specified number of microseconds
     virtual void run(size_t microseconds);
@@ -110,31 +89,6 @@ namespace Plus4 {
     virtual void resetMemoryConfiguration(size_t memSize);
     // load ROM segment 'n' from the specified file, skipping 'offs' bytes
     virtual void loadROMSegment(uint8_t n, const char *fileName, size_t offs);
-    // set audio output quality parameters (changing these settings implies
-    // restarting the audio output stream if it is already open)
-    virtual void setAudioOutputQuality(bool useHighQualityResample,
-                                       float sampleRate_);
-    // select and open audio output device, and set buffering parameters
-    // (changing these settings implies restarting the audio output stream)
-    virtual void setAudioOutputDeviceParameters(int devNum,
-                                                float totalLatency_ = 0.1f,
-                                                int nPeriodsHW_ = 4,
-                                                int nPeriodsSW_ = 3);
-    // set cutoff frequencies of highpass filters used on audio output to
-    // remove DC offset
-    virtual void setAudioOutputFilters(float dcBlockFreq1_,
-                                       float dcBlockFreq2_);
-    // set amplitude scale for audio output (defaults to 0.7071)
-    virtual void setAudioOutputVolume(float ampScale_);
-    // set audio output file name (if a file is already opened, and the new
-    // name is different, the old file is closed first); a NULL or empty name
-    // means not writing sound to a file
-    virtual void setAudioOutputFileName(const char *fileName);
-    // set if audio data is sent to sound card and output file (disabling
-    // this also makes the emulation run faster than real time)
-    virtual void setEnableAudioOutput(bool isEnabled);
-    // set if video data is sent to the associated VideoDisplay object
-    virtual void setEnableDisplay(bool isEnabled);
     // set CPU clock frequency (in Hz); defaults to 1773448 Hz
     virtual void setCPUFrequency(size_t freq_);
     // set the number of video 'slots' per second (defaults to 886724 Hz)
@@ -156,26 +110,6 @@ namespace Plus4 {
     virtual void tapeRecord();
     // stop tape playback and recording
     virtual void tapeStop();
-    // Set tape position to the specified time (in seconds).
-    virtual void tapeSeek(double t);
-    // Returns the current tape position in seconds, or -1.0 if there is
-    // no tape image file opened.
-    virtual double getTapePosition() const;
-    // Seek forward (if isForward = true) or backward (if isForward = false)
-    // to the nearest cue point, or by 't' seconds if no cue point is found.
-    virtual void tapeSeekToCuePoint(bool isForward = true, double t = 10.0);
-    // Create a new cue point at the current tape position.
-    // Has no effect if the file does not have a cue point table, or it
-    // is read-only.
-    virtual void tapeAddCuePoint();
-    // Delete the cue point nearest to the current tape position.
-    // Has no effect if the file is read-only.
-    virtual void tapeDeleteNearestCuePoint();
-    // Delete all cue points. Has no effect if the file is read-only.
-    virtual void tapeDeleteAllCuePoints();
-    // Set if audio output is turned off on tape I/O, allowing the emulation
-    // to run faster than real time.
-    virtual void setEnableFastTapeMode(bool isEnabled);
     // ------------------------------ DEBUGGING -------------------------------
     // Add breakpoints from the specified ASCII format breakpoint list.
     // The breakpoint list is a sequence of breakpoint definitions, separated
@@ -201,7 +135,7 @@ namespace Plus4 {
     // Example: 8000-8003rp1 means break on reading CPU addresses 0x8000,
     // 0x8001, 0x8002, and 0x8003, if the breakpoint priority threshold is
     // less than or equal to 1.
-    // If there are any syntax errors in the list, Ep128::Exception is
+    // If there are any syntax errors in the list, Ep128Emu::Exception is
     // thrown, and no breakpoints are added.
     virtual void setBreakPoints(const std::string& bpList);
     // Returns currently defined breakpoints in the same format as described
@@ -223,22 +157,22 @@ namespace Plus4 {
     // segments, as well as all hardware registers. Note that the clock
     // frequency and timing settings, tape and disk state, and breakpoint list
     // are not saved.
-    virtual void saveState(Ep128::File&);
+    virtual void saveState(Ep128Emu::File&);
     // Save clock frequency and timing settings.
-    virtual void saveMachineConfiguration(Ep128::File&);
+    virtual void saveMachineConfiguration(Ep128Emu::File&);
     // save program
-    virtual void saveProgram(Ep128::File&);
+    virtual void saveProgram(Ep128Emu::File&);
     virtual void saveProgram(const char *fileName);
     // load program
     virtual void loadProgram(const char *fileName);
     // Register all types of file data supported by this class, for use by
-    // Ep128::File::processAllChunks(). Note that loading snapshot data will
+    // Ep128Emu::File::processAllChunks(). Note that loading snapshot data will
     // clear all breakpoints.
-    virtual void registerChunkTypes(Ep128::File&);
+    virtual void registerChunkTypes(Ep128Emu::File&);
     // Start recording a demo to the file object, which will be used until
     // the recording is stopped for some reason.
     // Implies calling saveMachineConfiguration() and saveState() first.
-    virtual void recordDemo(Ep128::File&);
+    virtual void recordDemo(Ep128Emu::File&);
     // Stop playing or recording demo.
     virtual void stopDemo();
     // Returns true if a demo is currently being recorded. The recording stops
@@ -255,12 +189,9 @@ namespace Plus4 {
     // playing a demo.
     virtual bool getIsPlayingDemo() const;
     // ----------------
-    virtual void loadState(Ep128::File::Buffer&);
-    virtual void loadMachineConfiguration(Ep128::File::Buffer&);
-    virtual void loadDemo(Ep128::File::Buffer&);
-   protected:
-    virtual void breakPointCallback(bool isIO, bool isWrite,
-                                    uint16_t addr, uint8_t value);
+    virtual void loadState(Ep128Emu::File::Buffer&);
+    virtual void loadMachineConfiguration(Ep128Emu::File::Buffer&);
+    virtual void loadDemo(Ep128Emu::File::Buffer&);
   };
 
 }       // namespace Plus4

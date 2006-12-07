@@ -20,7 +20,7 @@
 #ifndef PLUS4_CPU_HPP
 #define PLUS4_CPU_HPP
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 
 namespace Plus4 {
 

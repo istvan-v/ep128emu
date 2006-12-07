@@ -22,7 +22,7 @@
 #ifndef __Z80_HEADER_INCLUDED__
 #define __Z80_HEADER_INCLUDED__
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -252,11 +252,11 @@ namespace Ep128 {
     void executeInstruction();
     void test();
     // save snapshot
-    void saveState(File::Buffer&);
-    void saveState(File&);
+    void saveState(Ep128Emu::File::Buffer&);
+    void saveState(Ep128Emu::File&);
     // load snapshot
-    void loadState(File::Buffer&);
-    void registerChunkType(File&);
+    void loadState(Ep128Emu::File::Buffer&);
+    void registerChunkType(Ep128Emu::File&);
    protected:
     virtual void ackInterruptFunction();
     // read a byte from memory

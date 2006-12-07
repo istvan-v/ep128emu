@@ -20,7 +20,7 @@
 #ifndef EP128EMU_NICK_HPP
 #define EP128EMU_NICK_HPP
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 
 namespace Ep128 {
 
@@ -230,10 +230,10 @@ class x : public NickRenderer {                 \
                                   float& r, float& g, float& b);
     void writePort(uint16_t portNum, uint8_t value);
     void runOneSlot();
-    void saveState(File::Buffer&);
-    void saveState(File&);
-    void loadState(File::Buffer&);
-    void registerChunkType(File&);
+    void saveState(Ep128Emu::File::Buffer&);
+    void saveState(Ep128Emu::File&);
+    void loadState(Ep128Emu::File::Buffer&);
+    void registerChunkType(Ep128Emu::File&);
   };
 
 }

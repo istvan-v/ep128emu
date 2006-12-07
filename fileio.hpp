@@ -20,10 +20,10 @@
 #ifndef EP128EMU_FILEIO_HPP
 #define EP128EMU_FILEIO_HPP
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include <map>
 
-namespace Ep128 {
+namespace Ep128Emu {
 
   class File {
    public:
@@ -105,7 +105,7 @@ namespace Ep128 {
     ~File();
   };
 
-}       // namespace Ep128
+}       // namespace Ep128Emu
 
 #endif  // EP128EMU_FILEIO_HPP
 

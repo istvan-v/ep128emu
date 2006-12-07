@@ -20,7 +20,7 @@
 #ifndef EP128EMU_MEMORY_HPP
 #define EP128EMU_MEMORY_HPP
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "bplist.hpp"
 
 namespace Ep128 {
@@ -58,11 +58,11 @@ namespace Ep128 {
     inline uint8_t getPage(uint8_t page) const;
     inline bool isSegmentROM(uint8_t segment) const;
     inline bool isSegmentRAM(uint8_t segment) const;
-    BreakPointList getBreakPointList();
-    void saveState(File::Buffer&);
-    void saveState(File&);
-    void loadState(File::Buffer&);
-    void registerChunkType(File&);
+    Ep128Emu::BreakPointList getBreakPointList();
+    void saveState(Ep128Emu::File::Buffer&);
+    void saveState(Ep128Emu::File&);
+    void loadState(Ep128Emu::File::Buffer&);
+    void registerChunkType(Ep128Emu::File&);
    protected:
     virtual void breakPointCallback(bool isWrite, uint16_t addr, uint8_t value);
   };

@@ -17,7 +17,7 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "fileio.hpp"
 
 #include <cstdio>
@@ -149,7 +149,7 @@ static void getFullPathFileName(const char *fileName, std::string& fullName)
 
 // ----------------------------------------------------------------------------
 
-namespace Ep128 {
+namespace Ep128Emu {
 
   File::Buffer::Buffer()
   {
@@ -529,5 +529,5 @@ namespace Ep128 {
     chunkTypeDB[type] = p;
   }
 
-}       // namespace Ep128
+}       // namespace Ep128Emu
 

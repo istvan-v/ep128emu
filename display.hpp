@@ -20,7 +20,7 @@
 #ifndef EP128EMU_DISPLAY_HPP
 #define EP128EMU_DISPLAY_HPP
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 
 namespace Ep128Emu {
 

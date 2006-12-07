@@ -20,7 +20,7 @@
 #ifndef EP128EMU_TAPEIO_HPP
 #define EP128EMU_TAPEIO_HPP
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 
 #include <cstdio>
 #include <string>

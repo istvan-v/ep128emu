@@ -19,8 +19,9 @@
 
 // simple emulator frontend for testing only
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "gldisp.hpp"
+#include "soundio.hpp"
 #include "ep128vm.hpp"
 
 #include <iostream>
@@ -127,11 +128,12 @@ class VMThread : public Ep128Emu::Thread {
  private:
   Ep128::Ep128VM  vm;
   Display&        display;
+  Ep128Emu::AudioOutput_PortAudio audioOutput;
  public:
   volatile bool stopFlag;
   VMThread(Display& display_)
     : Thread(),
-      vm(display_),
+      vm(display_, audioOutput),
       display(display_)
   {
     stopFlag = false;
@@ -146,19 +148,19 @@ class VMThread : public Ep128Emu::Thread {
     vm.loadROMSegment(0, "./roms/exos0.rom", 0);
     vm.loadROMSegment(1, "./roms/exos1.rom", 0);
     vm.loadROMSegment(4, "./roms/basic.rom", 0);
-    vm.setAudioOutputQuality(true, 48000.0f);
-    vm.setAudioOutputDeviceParameters(11, 0.02, 4, 4);
+    vm.setAudioOutputQuality(true);
+    audioOutput.setParameters(11, 48000.0f, 0.02, 4, 4);
     vm.setCPUFrequency(4000000);
  // vm.setAudioOutputFileName("/tmp/ep.wav");
     vm.setTapeFileName("./tape/tape0.tap");
     vm.tapePlay();
     vm.setEnableFastTapeMode(true);
 #ifdef RECORDING_DEMO
-    Ep128::File f;
+    Ep128Emu::File  f;
     vm.recordDemo(f);
 #endif
 #ifdef PLAYING_DEMO
-    Ep128::File f("demotest.dat");
+    Ep128Emu::File  f("demotest.dat");
     vm.registerChunkTypes(f);
     f.processAllChunks();
 #endif

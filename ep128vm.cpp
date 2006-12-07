@@ -17,21 +17,21 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "z80/z80.hpp"
 #include "memory.hpp"
 #include "ioports.hpp"
 #include "dave.hpp"
 #include "nick.hpp"
-#include "tape.hpp"
 #include "soundio.hpp"
 #include "display.hpp"
+#include "vm.hpp"
 #include "ep128vm.hpp"
 
 #include <cstdio>
 #include <vector>
 
-static void writeDemoTimeCnt(Ep128::File::Buffer& buf, uint64_t n)
+static void writeDemoTimeCnt(Ep128Emu::File::Buffer& buf, uint64_t n)
 {
   uint64_t  mask = uint64_t(0x7F) << 49;
   uint8_t   rshift = 49;
@@ -47,7 +47,7 @@ static void writeDemoTimeCnt(Ep128::File::Buffer& buf, uint64_t n)
   buf.writeByte(uint8_t(n) & 0x7F);
 }
 
-static uint64_t readDemoTimeCnt(Ep128::File::Buffer& buf)
+static uint64_t readDemoTimeCnt(Ep128Emu::File::Buffer& buf)
 {
   uint64_t  n = 0U;
   uint8_t   i = 8, c;
@@ -218,7 +218,8 @@ namespace Ep128 {
   void Ep128VM::Memory_::breakPointCallback(bool isWrite,
                                             uint16_t addr, uint8_t value)
   {
-    vm.breakPointCallback(false, isWrite, addr, value);
+    vm.breakPointCallback(vm.breakPointCallbackUserData,
+                          false, isWrite, addr, value);
   }
 
   // --------------------------------------------------------------------------
@@ -236,7 +237,8 @@ namespace Ep128 {
   void Ep128VM::IOPorts_::breakPointCallback(bool isWrite,
                                              uint16_t addr, uint8_t value)
   {
-    vm.breakPointCallback(true, isWrite, addr, value);
+    vm.breakPointCallback(vm.breakPointCallbackUserData,
+                          true, isWrite, addr, value);
   }
 
   // --------------------------------------------------------------------------
@@ -265,31 +267,13 @@ namespace Ep128 {
   void Ep128VM::Dave_::setRemote1State(int state)
   {
     vm.isRemote1On = (state != 0);
-    if (vm.tape)
-      vm.tape->setIsMotorOn(vm.isRemote1On || vm.isRemote2On);
-    if (vm.fastTapeModeEnabled &&
-        vm.tape != (Tape *) 0 &&
-        (vm.isRemote1On || vm.isRemote2On) &&
-        (vm.tapePlaybackOn || vm.tapeRecordOn))
-      vm.writingAudioOutput = false;
-    else
-      vm.writingAudioOutput =
-          (vm.audioOutputEnabled && vm.audioOutput != (DaveConverter *) 0);
+    vm.setTapeMotorState(vm.isRemote1On || vm.isRemote2On);
   }
 
   void Ep128VM::Dave_::setRemote2State(int state)
   {
     vm.isRemote2On = (state != 0);
-    if (vm.tape)
-      vm.tape->setIsMotorOn(vm.isRemote1On || vm.isRemote2On);
-    if (vm.fastTapeModeEnabled &&
-        vm.tape != (Tape *) 0 &&
-        (vm.isRemote1On || vm.isRemote2On) &&
-        (vm.tapePlaybackOn || vm.tapeRecordOn))
-      vm.writingAudioOutput = false;
-    else
-      vm.writingAudioOutput =
-          (vm.audioOutputEnabled && vm.audioOutput != (DaveConverter *) 0);
+    vm.setTapeMotorState(vm.isRemote1On || vm.isRemote2On);
   }
 
   void Ep128VM::Dave_::interruptRequest()
@@ -321,14 +305,14 @@ namespace Ep128 {
 
   void Ep128VM::Nick_::drawLine(const uint8_t *buf, size_t nBytes)
   {
-    if (vm.displayEnabled)
+    if (vm.getIsDisplayEnabled())
       vm.display.drawLine(buf, nBytes);
   }
 
   void Ep128VM::Nick_::vsyncStateChange(bool newState,
                                         unsigned int currentSlot_)
   {
-    if (vm.displayEnabled)
+    if (vm.getIsDisplayEnabled())
       vm.display.vsyncStateChange(newState, currentSlot_);
   }
 
@@ -349,22 +333,23 @@ namespace Ep128 {
   void Ep128VM::stopDemoRecording(bool writeFile_)
   {
     isRecordingDemo = false;
-    if (writeFile_ && demoFile != (File *) 0) {
+    if (writeFile_ && demoFile != (Ep128Emu::File *) 0) {
       try {
         // put end of demo event
         writeDemoTimeCnt(demoBuffer, demoTimeCnt);
         demoTimeCnt = 0U;
         demoBuffer.writeByte(0x00);
         demoBuffer.writeByte(0x00);
-        demoFile->addChunk(File::EP128EMU_CHUNKTYPE_DEMO_STREAM, demoBuffer);
+        demoFile->addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_DEMO_STREAM,
+                           demoBuffer);
       }
       catch (...) {
-        demoFile = (File *) 0;
+        demoFile = (Ep128Emu::File *) 0;
         demoTimeCnt = 0U;
         demoBuffer.clear();
         throw;
       }
-      demoFile = (File *) 0;
+      demoFile = (Ep128Emu::File *) 0;
       demoTimeCnt = 0U;
       demoBuffer.clear();
     }
@@ -404,15 +389,14 @@ namespace Ep128 {
     reinterpret_cast<Ep128VM *>(userData)->nick.writePort(addr, value);
   }
 
-  Ep128VM::Ep128VM(Ep128Emu::VideoDisplay& display_)
-    : VirtualMachine(),
-      display(display_),
+  Ep128VM::Ep128VM(Ep128Emu::VideoDisplay& display_,
+                   Ep128Emu::AudioOutput& audioOutput_)
+    : VirtualMachine(display_, audioOutput_),
       z80(*this),
       memory(*this),
       ioPorts(*this),
       dave(*this),
       nick(*this),
-      audioOutput((DaveConverter *) 0),
       cpuFrequency(4000000),
       daveFrequency(500000),
       nickFrequency(890625),
@@ -426,29 +410,11 @@ namespace Ep128 {
       daveCyclesRemaining(0),
       memoryWaitMode(1),
       memoryTimingEnabled(true),
-      displayEnabled(true),
-      audioOutputEnabled(true),
-      audioOutputHighQuality(false),
-      audioOutputSampleRate(48000.0f),
-      audioOutputDevice(0),
-      audioOutputLatency(0.1f),
-      audioOutputPeriodsHW(4),
-      audioOutputPeriodsSW(3),
-      audioOutputVolume(0.7071f),
-      audioOutputFilter1Freq(10.0f),
-      audioOutputFilter2Freq(10.0f),
-      audioOutputFileName(""),
-      tapeFileName(""),
-      tape((Tape *) 0),
       tapeSamplesPerDaveCycle(0),
       tapeSamplesRemaining(0),
       isRemote1On(false),
       isRemote2On(false),
-      tapePlaybackOn(false),
-      tapeRecordOn(false),
-      fastTapeModeEnabled(false),
-      writingAudioOutput(false),
-      demoFile((File *) 0),
+      demoFile((Ep128Emu::File *) 0),
       demoBuffer(),
       isRecordingDemo(false),
       isPlayingDemo(false),
@@ -483,6 +449,7 @@ namespace Ep128 {
         dp(display.getDisplayParameters());
     dp.indexToRGBFunc = &Nick::convertPixelToRGB;
     display.setDisplayParameters(dp);
+    setAudioConverterSampleRate(float(long(daveFrequency)));
   }
 
   Ep128VM::~Ep128VM()
@@ -493,25 +460,11 @@ namespace Ep128 {
     }
     catch (...) {
     }
-    if (tape)
-      delete tape;
-    if (audioOutput)
-      delete audioOutput;
   }
 
   void Ep128VM::run(size_t microseconds)
   {
-    nickCyclesRemaining +=
-        ((int64_t(microseconds) << 26) * int64_t(nickFrequency)
-         / int64_t(15625));     // 10^6 / 2^6
-    if (fastTapeModeEnabled &&
-        tape != (Tape *) 0 &&
-        (isRemote1On || isRemote2On) &&
-        (tapePlaybackOn || tapeRecordOn))
-      writingAudioOutput = false;
-    else
-      writingAudioOutput =
-          (audioOutputEnabled && audioOutput != (DaveConverter *) 0);
+    Ep128Emu::VirtualMachine::run(microseconds);
     if (snapshotLoadFlag) {
       snapshotLoadFlag = false;
       // if just loaded a snapshot, and not playing a demo,
@@ -521,9 +474,14 @@ namespace Ep128 {
           dave.setKeyboardState(i, 0);
       }
     }
+    nickCyclesRemaining +=
+        ((int64_t(microseconds) << 26) * int64_t(nickFrequency)
+         / int64_t(15625));     // 10^6 / 2^6
     while (nickCyclesRemaining > 0) {
       if (isPlayingDemo) {
         while (!demoTimeCnt) {
+          if (haveTape() && getIsTapeMotorOn() && getTapeButtonState() != 0)
+            stopDemoPlayback();
           try {
             uint8_t evtType = demoBuffer.readByte();
             uint8_t evtBytes = demoBuffer.readByte();
@@ -561,16 +519,13 @@ namespace Ep128 {
       while (daveCyclesRemaining > 0) {
         daveCyclesRemaining -= (int64_t(1) << 32);
         uint32_t  tmp = dave.runOneCycle();
-        if (writingAudioOutput)
-          audioOutput->sendInputSignal(tmp);
-        if (tape) {
+        sendAudioOutput(tmp);
+        if (haveTape()) {
           tapeSamplesRemaining += tapeSamplesPerDaveCycle;
           if (tapeSamplesRemaining > 0) {
             // assume tape sample rate < daveFrequency
             tapeSamplesRemaining -= (int64_t(1) << 32);
-            tape->setInputSignal(int(tmp & 0x01FF));
-            tape->runOneSample();
-            int   daveTapeInput = (tapeRecordOn ? 0 : tape->getOutputSignal());
+            int   daveTapeInput = runTape(int(tmp & 0xFFFFU));
             dave.setTapeInput(daveTapeInput, daveTapeInput);
           }
         }
@@ -594,8 +549,7 @@ namespace Ep128 {
     dave.reset();
     isRemote1On = false;
     isRemote2On = false;
-    if (tape)
-      tape->setIsMotorOn(false);
+    setTapeMotorState(false);
     if (isColdReset) {
       for (int i = 0; i < 256; i++) {
         if (memory.isSegmentRAM(uint8_t(i)))
@@ -652,11 +606,11 @@ namespace Ep128 {
     buf.resize(0x4000);
     std::FILE   *f = std::fopen(fileName, "rb");
     if (!f)
-      throw Exception("cannot open ROM file");
+      throw Ep128Emu::Exception("cannot open ROM file");
     std::fseek(f, 0L, SEEK_END);
     if (ftell(f) < long(offs + 0x4000)) {
       std::fclose(f);
-      throw Exception("ROM file is shorter than expected");
+      throw Ep128Emu::Exception("ROM file is shorter than expected");
     }
     std::fseek(f, long(offs), SEEK_SET);
     std::fread(&(buf.front()), 1, 0x4000, f);
@@ -675,145 +629,6 @@ namespace Ep128 {
     else {
       // otherwise just load new segment, or replace existing ROM
       memory.loadSegment(n, true, &(buf.front()), 0x4000);
-    }
-  }
-
-  void Ep128VM::setAudioOutputQuality(bool useHighQualityResample,
-                                      float sampleRate_)
-  {
-    float   sampleRate = (sampleRate_ > 11025.0f ?
-                          (sampleRate_ < 192000.0f ? sampleRate_ : 192000.0f)
-                          : 11025.0f);
-    if (audioOutputHighQuality != useHighQualityResample ||
-        audioOutputSampleRate != sampleRate) {
-      audioOutputHighQuality = useHighQualityResample;
-      audioOutputSampleRate = sampleRate;
-      if (audioOutput) {
-        delete audioOutput;
-        audioOutput = (DaveConverter *) 0;
-        if (audioOutputHighQuality) {
-          audioOutput = new Ep128Emu::AudioOutput_HighQuality(
-              float(long(daveFrequency)), audioOutputSampleRate,
-              audioOutputFilter1Freq, audioOutputFilter2Freq, audioOutputVolume,
-              audioOutputDevice, audioOutputLatency,
-              audioOutputPeriodsHW, audioOutputPeriodsSW,
-              audioOutputFileName.c_str());
-        }
-        else {
-          audioOutput = new Ep128Emu::AudioOutput_LowQuality(
-              float(long(daveFrequency)), audioOutputSampleRate,
-              audioOutputFilter1Freq, audioOutputFilter2Freq, audioOutputVolume,
-              audioOutputDevice, audioOutputLatency,
-              audioOutputPeriodsHW, audioOutputPeriodsSW,
-              audioOutputFileName.c_str());
-        }
-      }
-    }
-  }
-
-  void Ep128VM::setAudioOutputDeviceParameters(int devNum,
-                                               float totalLatency_,
-                                               int nPeriodsHW_,
-                                               int nPeriodsSW_)
-  {
-    float   totalLatency = (totalLatency_ > 0.005f ?
-                            (totalLatency_ < 0.5f ? totalLatency_ : 0.5f)
-                            : 0.005f);
-    int     nPeriodsHW = (nPeriodsHW_ > 2 ?
-                          (nPeriodsHW_ < 16 ? nPeriodsHW_ : 16) : 2);
-    int     nPeriodsSW = (nPeriodsSW_ > 2 ?
-                          (nPeriodsSW_ < 16 ? nPeriodsSW_ : 16) : 2);
-    if (audioOutputDevice != devNum ||
-        audioOutputLatency != totalLatency ||
-        audioOutputPeriodsHW != nPeriodsHW ||
-        audioOutputPeriodsSW != nPeriodsSW ||
-        audioOutput == (DaveConverter *) 0) {
-      audioOutputDevice = devNum;
-      audioOutputLatency = totalLatency;
-      audioOutputPeriodsHW = nPeriodsHW;
-      audioOutputPeriodsSW = nPeriodsSW;
-      if (audioOutput) {
-        delete audioOutput;
-        audioOutput = (DaveConverter *) 0;
-      }
-      if (audioOutputHighQuality) {
-        audioOutput = new Ep128Emu::AudioOutput_HighQuality(
-            float(long(daveFrequency)), audioOutputSampleRate,
-            audioOutputFilter1Freq, audioOutputFilter2Freq, audioOutputVolume,
-            audioOutputDevice, audioOutputLatency,
-            audioOutputPeriodsHW, audioOutputPeriodsSW,
-            audioOutputFileName.c_str());
-      }
-      else {
-        audioOutput = new Ep128Emu::AudioOutput_LowQuality(
-            float(long(daveFrequency)), audioOutputSampleRate,
-            audioOutputFilter1Freq, audioOutputFilter2Freq, audioOutputVolume,
-            audioOutputDevice, audioOutputLatency,
-            audioOutputPeriodsHW, audioOutputPeriodsSW,
-            audioOutputFileName.c_str());
-      }
-    }
-  }
-
-  void Ep128VM::setAudioOutputFilters(float dcBlockFreq1_, float dcBlockFreq2_)
-  {
-    audioOutputFilter1Freq =
-        (dcBlockFreq1_ > 1.0f ?
-         (dcBlockFreq1_ < 1000.0f ? dcBlockFreq1_ : 1000.0f) : 1.0f);
-    audioOutputFilter2Freq =
-        (dcBlockFreq2_ > 1.0f ?
-         (dcBlockFreq2_ < 1000.0f ? dcBlockFreq2_ : 1000.0f) : 1.0f);
-    if (audioOutput)
-      audioOutput->setDCBlockFilters(audioOutputFilter1Freq,
-                                     audioOutputFilter2Freq);
-  }
-
-  void Ep128VM::setAudioOutputVolume(float ampScale_)
-  {
-    audioOutputVolume =
-        (ampScale_ > 0.01f ? (ampScale_ < 1.0f ? ampScale_ : 1.0f) : 0.01f);
-    if (audioOutput)
-      audioOutput->setOutputVolume(audioOutputVolume);
-  }
-
-  void Ep128VM::setAudioOutputFileName(const char *fileName)
-  {
-    std::string fname("");
-    if (fileName)
-      fname = fileName;
-    if (audioOutputFileName == fname)
-      return;
-    audioOutputFileName = fname;
-    if (!audioOutput)
-      return;
-    if (typeid(*audioOutput) == typeid(Ep128Emu::AudioOutput_HighQuality)) {
-      Ep128Emu::AudioOutput_HighQuality *p;
-      p = dynamic_cast<Ep128Emu::AudioOutput_HighQuality *>(audioOutput);
-      p->setOutputFile(fname);
-    }
-    else if (typeid(*audioOutput) == typeid(Ep128Emu::AudioOutput_LowQuality)) {
-      Ep128Emu::AudioOutput_LowQuality  *p;
-      p = dynamic_cast<Ep128Emu::AudioOutput_LowQuality *>(audioOutput);
-      p->setOutputFile(fname);
-    }
-  }
-
-  void Ep128VM::setEnableAudioOutput(bool isEnabled)
-  {
-    audioOutputEnabled = isEnabled;
-  }
-
-  void Ep128VM::setEnableDisplay(bool isEnabled)
-  {
-    if (displayEnabled != isEnabled) {
-      displayEnabled = isEnabled;
-      if (!isEnabled) {
-        // clear display
-        display.vsyncStateChange(true, 0);
-        display.vsyncStateChange(false, 28);
-        display.vsyncStateChange(true, 0);
-        display.vsyncStateChange(false, 28);
-      }
     }
   }
 
@@ -866,6 +681,10 @@ namespace Ep128 {
     if (!isPlayingDemo)
       dave.setKeyboardState(keyCode, (isPressed ? 1 : 0));
     if (isRecordingDemo) {
+      if (haveTape() && getIsTapeMotorOn() && getTapeButtonState() != 0) {
+        stopDemoRecording(false);
+        return;
+      }
       writeDemoTimeCnt(demoBuffer, demoTimeCnt);
       demoTimeCnt = 0U;
       demoBuffer.writeByte(isPressed ? 0x01 : 0x02);
@@ -876,114 +695,34 @@ namespace Ep128 {
 
   void Ep128VM::setTapeFileName(const char *fileName)
   {
-    std::string fname("");
-    if (fileName)
-      fname = fileName;
-    if (tape) {
-      if (fname == tapeFileName) {
-        tape->seek(0.0);
-        return;
-      }
-      delete tape;
-      tape = (Tape *) 0;
+    Ep128Emu::VirtualMachine::setTapeFileName(fileName);
+    setTapeMotorState(isRemote1On || isRemote2On);
+    if (haveTape()) {
+      tapeSamplesPerDaveCycle =
+          (int64_t(getTapeSampleRate()) << 32) / int64_t(daveFrequency);
     }
-    if (fname.length() == 0)
-      return;
-    tape = new Tape(fname.c_str());
-    if (tapeRecordOn)
-      tape->record();
-    else if (tapePlaybackOn)
-      tape->play();
-    if (isRemote1On || isRemote2On)
-      tape->setIsMotorOn(true);
-    tapeSamplesPerDaveCycle =
-        (int64_t(tape->getSampleRate()) << 32) / int64_t(daveFrequency);
     tapeSamplesRemaining = 0;
   }
 
   void Ep128VM::tapePlay()
   {
-    tapeRecordOn = false;
-    if (tape) {
-      tapePlaybackOn = true;
-      tape->play();
-      if (isRemote1On || isRemote2On)
-        stopDemo();
-    }
-    else
-      tapePlaybackOn = false;
+    Ep128Emu::VirtualMachine::tapePlay();
+    if (haveTape() && getIsTapeMotorOn() && getTapeButtonState() != 0)
+      stopDemo();
   }
 
   void Ep128VM::tapeRecord()
   {
-    if (tape) {
-      tapePlaybackOn = true;
-      tapeRecordOn = true;
-      tape->record();
-      if (isRemote1On || isRemote2On)
-        stopDemo();
-    }
-    else {
-      tapePlaybackOn = false;
-      tapeRecordOn = false;
-    }
-  }
-
-  void Ep128VM::tapeStop()
-  {
-    tapePlaybackOn = false;
-    tapeRecordOn = false;
-    if (tape)
-      tape->stop();
-  }
-
-  void Ep128VM::tapeSeek(double t)
-  {
-    if (tape)
-      tape->seek(t);
-  }
-
-  double Ep128VM::getTapePosition() const
-  {
-    if (tape)
-      return tape->getPosition();
-    return -1.0;
-  }
-
-  void Ep128VM::tapeSeekToCuePoint(bool isForward, double t)
-  {
-    if (tape)
-      tape->seekToCuePoint(isForward, t);
-  }
-
-  void Ep128VM::tapeAddCuePoint()
-  {
-    if (tape)
-      tape->addCuePoint();
-  }
-
-  void Ep128VM::tapeDeleteNearestCuePoint()
-  {
-    if (tape)
-      tape->deleteNearestCuePoint();
-  }
-
-  void Ep128VM::tapeDeleteAllCuePoints()
-  {
-    if (tape)
-      tape->deleteAllCuePoints();
-  }
-
-  void Ep128VM::setEnableFastTapeMode(bool isEnabled)
-  {
-    fastTapeModeEnabled = isEnabled;
+    Ep128Emu::VirtualMachine::tapePlay();
+    if (haveTape() && getIsTapeMotorOn() && getTapeButtonState() != 0)
+      stopDemo();
   }
 
   void Ep128VM::setBreakPoints(const std::string& bpList)
   {
-    BreakPointList  bpl(bpList);
+    Ep128Emu::BreakPointList  bpl(bpList);
     for (size_t i = 0; i < bpl.getBreakPointCnt(); i++) {
-      const BreakPoint& bp = bpl.getBreakPoint(i);
+      const Ep128Emu::BreakPoint& bp = bpl.getBreakPoint(i);
       if (bp.isIO())
         ioPorts.setBreakPoint(bp.addr(),
                               bp.priority(), bp.isRead(), bp.isWrite());
@@ -1029,10 +768,10 @@ namespace Ep128 {
     return z80.getReg();
   }
 
-  void Ep128VM::saveState(File& f)
+  void Ep128VM::saveState(Ep128Emu::File& f)
   {
     {
-      File::Buffer  buf;
+      Ep128Emu::File::Buffer  buf;
       buf.setPosition(0);
       buf.writeUInt32(0x01000000);      // version number
       buf.writeByte(memory.getPage(0));
@@ -1055,7 +794,7 @@ namespace Ep128 {
         buf.writeUInt32(uint32_t(uint64_t(tmp[i]))
                         & uint32_t(0xFFFFFFFFUL));
       }
-      f.addChunk(File::EP128EMU_CHUNKTYPE_VM_STATE, buf);
+      f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_VM_STATE, buf);
     }
     ioPorts.saveState(f);
     z80.saveState(f);
@@ -1064,9 +803,9 @@ namespace Ep128 {
     nick.saveState(f);
   }
 
-  void Ep128VM::saveMachineConfiguration(File& f)
+  void Ep128VM::saveMachineConfiguration(Ep128Emu::File& f)
   {
-    File::Buffer  buf;
+    Ep128Emu::File::Buffer  buf;
     buf.setPosition(0);
     buf.writeUInt32(0x01000000);        // version number
     buf.writeUInt32(uint32_t(cpuFrequency));
@@ -1074,17 +813,16 @@ namespace Ep128 {
     buf.writeUInt32(uint32_t(nickFrequency));
     buf.writeUInt32(uint32_t(videoMemoryLatency));
     buf.writeBoolean(memoryTimingEnabled);
-    f.addChunk(File::EP128EMU_CHUNKTYPE_VM_CONFIG, buf);
+    f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_VM_CONFIG, buf);
   }
 
-  void Ep128VM::recordDemo(File& f)
+  void Ep128VM::recordDemo(Ep128Emu::File& f)
   {
     // turn off tape motor, stop any previous demo recording or playback,
     // and reset keyboard state
     isRemote1On = false;
     isRemote2On = false;
-    if (tape)
-      tape->setIsMotorOn(false);
+    setTapeMotorState(false);
     stopDemo();
     for (int i = 0; i < 128; i++)
       dave.setKeyboardState(i, 0);
@@ -1105,7 +843,7 @@ namespace Ep128 {
 
   bool Ep128VM::getIsRecordingDemo()
   {
-    if (demoFile != (File *) 0 && !isRecordingDemo)
+    if (demoFile != (Ep128Emu::File *) 0 && !isRecordingDemo)
       stopDemoRecording(true);
     return isRecordingDemo;
   }
@@ -1117,19 +855,18 @@ namespace Ep128 {
 
   // --------------------------------------------------------------------------
 
-  void Ep128VM::loadState(File::Buffer& buf)
+  void Ep128VM::loadState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
     if (version != 0x01000000) {
       buf.setPosition(buf.getDataSize());
-      throw Exception("incompatible ep128 snapshot format");
+      throw Ep128Emu::Exception("incompatible ep128 snapshot format");
     }
     isRemote1On = false;
     isRemote2On = false;
-    if (tape)
-      tape->setIsMotorOn(false);
+    setTapeMotorState(false);
     stopDemo();
     snapshotLoadFlag = true;
     try {
@@ -1173,7 +910,8 @@ namespace Ep128 {
         daveCyclesRemaining = 0;
       }
       if (buf.getPosition() != buf.getDataSize())
-        throw Exception("trailing garbage at end of ep128 snapshot data");
+        throw Ep128Emu::Exception("trailing garbage at end of "
+                                  "ep128 snapshot data");
     }
     catch (...) {
       this->reset(true);
@@ -1181,14 +919,15 @@ namespace Ep128 {
     }
   }
 
-  void Ep128VM::loadMachineConfiguration(File::Buffer& buf)
+  void Ep128VM::loadMachineConfiguration(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
     if (version != 0x01000000) {
       buf.setPosition(buf.getDataSize());
-      throw Exception("incompatible ep128 machine configuration format");
+      throw Ep128Emu::Exception("incompatible ep128 "
+                                "machine configuration format");
     }
     try {
       setCPUFrequency(buf.readUInt32());
@@ -1198,8 +937,8 @@ namespace Ep128 {
       setVideoMemoryLatency(buf.readUInt32());
       setEnableMemoryTimingEmulation(buf.readBoolean());
       if (buf.getPosition() != buf.getDataSize())
-        throw Exception("trailing garbage at end of "
-                        "ep128 machine configuration data");
+        throw Ep128Emu::Exception("trailing garbage at end of "
+                                  "ep128 machine configuration data");
     }
     catch (...) {
       this->reset(true);
@@ -1207,7 +946,7 @@ namespace Ep128 {
     }
   }
 
-  void Ep128VM::loadDemo(File::Buffer& buf)
+  void Ep128VM::loadDemo(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
     // check version number
@@ -1215,7 +954,7 @@ namespace Ep128 {
 #if 0
     if (version != 0x00010900) {
       buf.setPosition(buf.getDataSize());
-      throw Exception("incompatible ep128 demo format");
+      throw Ep128Emu::Exception("incompatible ep128 demo format");
     }
 #endif
     (void) version;
@@ -1223,8 +962,7 @@ namespace Ep128 {
     // and reset keyboard state
     isRemote1On = false;
     isRemote2On = false;
-    if (tape)
-      tape->setIsMotorOn(false);
+    setTapeMotorState(false);
     stopDemo();
     for (int i = 0; i < 128; i++)
       dave.setKeyboardState(i, 0);
@@ -1238,73 +976,73 @@ namespace Ep128 {
     demoBuffer.setPosition(0);
   }
 
-  class ChunkType_Ep128VMConfig : public File::ChunkTypeHandler {
+  class ChunkType_Ep128VMConfig : public Ep128Emu::File::ChunkTypeHandler {
    private:
     Ep128VM&  ref;
    public:
     ChunkType_Ep128VMConfig(Ep128VM& ref_)
-      : File::ChunkTypeHandler(),
+      : Ep128Emu::File::ChunkTypeHandler(),
         ref(ref_)
     {
     }
     virtual ~ChunkType_Ep128VMConfig()
     {
     }
-    virtual File::ChunkType getChunkType() const
+    virtual Ep128Emu::File::ChunkType getChunkType() const
     {
-      return File::EP128EMU_CHUNKTYPE_VM_CONFIG;
+      return Ep128Emu::File::EP128EMU_CHUNKTYPE_VM_CONFIG;
     }
-    virtual void processChunk(File::Buffer& buf)
+    virtual void processChunk(Ep128Emu::File::Buffer& buf)
     {
       ref.loadMachineConfiguration(buf);
     }
   };
 
-  class ChunkType_Ep128VMSnapshot : public File::ChunkTypeHandler {
+  class ChunkType_Ep128VMSnapshot : public Ep128Emu::File::ChunkTypeHandler {
    private:
     Ep128VM&  ref;
    public:
     ChunkType_Ep128VMSnapshot(Ep128VM& ref_)
-      : File::ChunkTypeHandler(),
+      : Ep128Emu::File::ChunkTypeHandler(),
         ref(ref_)
     {
     }
     virtual ~ChunkType_Ep128VMSnapshot()
     {
     }
-    virtual File::ChunkType getChunkType() const
+    virtual Ep128Emu::File::ChunkType getChunkType() const
     {
-      return File::EP128EMU_CHUNKTYPE_VM_STATE;
+      return Ep128Emu::File::EP128EMU_CHUNKTYPE_VM_STATE;
     }
-    virtual void processChunk(File::Buffer& buf)
+    virtual void processChunk(Ep128Emu::File::Buffer& buf)
     {
       ref.loadState(buf);
     }
   };
 
-  class ChunkType_DemoStream : public File::ChunkTypeHandler {
+  class ChunkType_DemoStream : public Ep128Emu::File::ChunkTypeHandler {
    private:
     Ep128VM&  ref;
    public:
     ChunkType_DemoStream(Ep128VM& ref_)
-      : File::ChunkTypeHandler(),
+      : Ep128Emu::File::ChunkTypeHandler(),
         ref(ref_)
     {
     }
     virtual ~ChunkType_DemoStream()
     {
     }
-    virtual File::ChunkType getChunkType() const
+    virtual Ep128Emu::File::ChunkType getChunkType() const
     {
-      return File::EP128EMU_CHUNKTYPE_DEMO_STREAM;
+      return Ep128Emu::File::EP128EMU_CHUNKTYPE_DEMO_STREAM;
     }
-    virtual void processChunk(File::Buffer& buf)
+    virtual void processChunk(Ep128Emu::File::Buffer& buf)
     {
       ref.loadDemo(buf);
     }
   };
 
-  void Ep128VM::registerChunkTypes(File& f)
+  void Ep128VM::registerChunkTypes(Ep128Emu::File& f)
   {
     ChunkType_Ep128VMConfig   *p1 = (ChunkType_Ep128VMConfig *) 0;
     ChunkType_Ep128VMSnapshot *p2 = (ChunkType_Ep128VMSnapshot *) 0;
@@ -1332,17 +1070,6 @@ namespace Ep128 {
     memory.registerChunkType(f);
     dave.registerChunkType(f);
     nick.registerChunkType(f);
-  }
-
-  // --------------------------------------------------------------------------
-
-  void Ep128VM::breakPointCallback(bool isIO, bool isWrite,
-                                   uint16_t addr, uint8_t value)
-  {
-    (void) isIO;
-    (void) isWrite;
-    (void) addr;
-    (void) value;
   }
 
 }       // namespace Ep128

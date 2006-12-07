@@ -17,7 +17,7 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "fileio.hpp"
 #include "cpu.hpp"
 #include "ted.hpp"
@@ -108,26 +108,26 @@ namespace Plus4 {
 
   // --------------------------------------------------------------------------
 
-  void TED7360::saveState(Ep128::File::Buffer& buf)
+  void TED7360::saveState(Ep128Emu::File::Buffer& buf)
   {
     // TODO: implement this
     (void) buf;
   }
 
-  void TED7360::saveState(Ep128::File& f)
+  void TED7360::saveState(Ep128Emu::File& f)
   {
-    Ep128::File::Buffer buf;
+    Ep128Emu::File::Buffer  buf;
     this->saveState(buf);
-    f.addChunk(Ep128::File::EP128EMU_CHUNKTYPE_TED_STATE, buf);
+    f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_TED_STATE, buf);
   }
 
-  void TED7360::loadState(Ep128::File::Buffer& buf)
+  void TED7360::loadState(Ep128Emu::File::Buffer& buf)
   {
     // TODO: implement this
     (void) buf;
   }
 
-  void TED7360::saveProgram(Ep128::File::Buffer& buf)
+  void TED7360::saveProgram(Ep128Emu::File::Buffer& buf)
   {
     uint16_t  startAddr, endAddr, len;
     startAddr =
@@ -144,20 +144,20 @@ namespace Plus4 {
     }
   }
 
-  void TED7360::saveProgram(Ep128::File& f)
+  void TED7360::saveProgram(Ep128Emu::File& f)
   {
-    Ep128::File::Buffer buf;
+    Ep128Emu::File::Buffer  buf;
     this->saveProgram(buf);
-    f.addChunk(Ep128::File::EP128EMU_CHUNKTYPE_PLUS4_PRG, buf);
+    f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_PLUS4_PRG, buf);
   }
 
   void TED7360::saveProgram(const char *fileName)
   {
     if (fileName == (char *) 0 || fileName[0] == '\0')
-      throw Ep128::Exception("invalid plus4 program file name");
+      throw Ep128Emu::Exception("invalid plus4 program file name");
     std::FILE *f = std::fopen(fileName, "wb");
     if (!f)
-      throw Ep128::Exception("error opening plus4 program file");
+      throw Ep128Emu::Exception("error opening plus4 program file");
     uint16_t  startAddr, endAddr, len;
     startAddr =
         uint16_t(memory_ram[0x002B]) | (uint16_t(memory_ram[0x002C]) << 8);
@@ -180,20 +180,20 @@ namespace Plus4 {
     if (std::fclose(f) != 0)
       err = true;
     if (err)
-      throw Ep128::Exception("error writing plus4 program file "
-                             "-- is the disk full ?");
+      throw Ep128Emu::Exception("error writing plus4 program file "
+                                "-- is the disk full ?");
   }
 
-  void TED7360::loadProgram(Ep128::File::Buffer& buf)
+  void TED7360::loadProgram(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
     uint32_t  addr = buf.readUInt32();
     uint32_t  len = buf.readUInt32();
     if (addr >= 0x00010000U)
-      throw Ep128::Exception("invalid start address in plus4 program data");
+      throw Ep128Emu::Exception("invalid start address in plus4 program data");
     if (len >= 0x00010000U ||
         size_t(len) != (buf.getDataSize() - buf.getPosition()))
-      throw Ep128::Exception("invalid plus4 program length");
+      throw Ep128Emu::Exception("invalid plus4 program length");
     memory_ram[0x002B] = uint8_t(addr & 0xFF);
     memory_ram[0x002C] = uint8_t((addr >> 8) & 0xFF);
     while (len) {
@@ -218,19 +218,19 @@ namespace Plus4 {
   void TED7360::loadProgram(const char *fileName)
   {
     if (fileName == (char *) 0 || fileName[0] == '\0')
-      throw Ep128::Exception("invalid plus4 program file name");
+      throw Ep128Emu::Exception("invalid plus4 program file name");
     std::FILE *f = std::fopen(fileName, "rb");
     if (!f)
-      throw Ep128::Exception("error opening plus4 program file");
+      throw Ep128Emu::Exception("error opening plus4 program file");
     uint16_t  addr;
     int       c;
     c = std::fgetc(f);
     if (c == EOF)
-      throw Ep128::Exception("unexpected end of plus4 program file");
+      throw Ep128Emu::Exception("unexpected end of plus4 program file");
     addr = uint16_t(c & 0xFF);
     c = std::fgetc(f);
     if (c == EOF)
-      throw Ep128::Exception("unexpected end of plus4 program file");
+      throw Ep128Emu::Exception("unexpected end of plus4 program file");
     addr |= uint16_t((c & 0xFF) << 8);
     memory_ram[0x002B] = uint8_t(addr & 0xFF);
     memory_ram[0x002C] = uint8_t((addr >> 8) & 0xFF);
@@ -241,7 +241,7 @@ namespace Plus4 {
         break;
       if (++len > 0xFFFF) {
         std::fclose(f);
-        throw Ep128::Exception("plus4 program file has invalid length");
+        throw Ep128Emu::Exception("plus4 program file has invalid length");
       }
       (this->*(write_memory[addr]))(addr, uint8_t(c));
       addr = (addr + 1) & 0xFFFF;
@@ -261,7 +261,7 @@ namespace Plus4 {
     memory_ram[0x0038] = 0xFD;
   }
 
-  void TED7360::registerChunkTypes(Ep128::File& f)
+  void TED7360::registerChunkTypes(Ep128Emu::File& f)
   {
     // TODO: implement this
     (void) f;

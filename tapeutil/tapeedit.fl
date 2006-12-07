@@ -3,7 +3,7 @@ version 1.0107
 do_not_include_H_from_C 
 header_name {.hpp} 
 code_name {.cpp}
-decl {\#include "ep128.hpp"} {} 
+decl {\#include "ep128emu.hpp"} {} 
 
 decl {\#include "system.hpp"} {} 
 

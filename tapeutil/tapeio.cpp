@@ -17,7 +17,7 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "system.hpp"
 #include "tapeio.hpp"
 
@@ -578,7 +578,7 @@ namespace Ep128Emu {
     bitCnt = 0;
     if (f) {
       if (std::fputc(bitBuffer, f) == EOF)
-        throw Ep128::Exception("error writing file - is the disk full ?");
+        throw Exception("error writing file - is the disk full ?");
       fileSize++;
     }
     bitBuffer = 0;
@@ -631,10 +631,10 @@ namespace Ep128Emu {
       fileSize(0)
   {
     if (fileName == (char *) 0 || fileName[0] == '\0')
-      throw Ep128::Exception("invalid file name");
+      throw Exception("invalid file name");
     f = std::fopen(fileName, "wb");
     if (!f)
-      throw Ep128::Exception("error opening file");
+      throw Exception("error opening file");
     try {
       // empty space for cue point table (will be written later by flush())
       for (size_t i = 0; i < 32768; i++)
@@ -735,7 +735,7 @@ namespace Ep128Emu {
       writeSample(0);
     // write cue point table
     if (std::fseek(f, 0L, SEEK_SET) < 0)
-      throw Ep128::Exception("error setting file position in tape image");
+      throw Exception("error setting file position in tape image");
     bool    err = false;
     if (std::fputc(0x7B, f) == EOF)
       err = true;
@@ -766,9 +766,9 @@ namespace Ep128Emu {
                          & uint32_t(0xFFFFFFFFUL);
     }
     if (err)
-      throw Ep128::Exception("error writing file - is the disk full ?");
+      throw Exception("error writing file - is the disk full ?");
     if (std::fseek(f, long(fileSize), SEEK_SET) < 0)
-      throw Ep128::Exception("error setting file position in tape image");
+      throw Exception("error setting file position in tape image");
     while (fileSize < 8192)
       writeSample(0);
     isFlushed = true;
@@ -795,7 +795,7 @@ namespace Ep128Emu {
                                 int channel_, float minFreq_, float maxFreq_)
   {
     if (fileName_ == (char *) 0 || fileName_[0] == '\0')
-      throw Ep128::Exception("invalid file name");
+      throw Exception("invalid file name");
     SF_INFO   sfinfo;
     std::memset(&sfinfo, 0, sizeof(SF_INFO));
     SNDFILE   *sf = sf_open(fileName_, SFM_READ, &sfinfo);
@@ -803,7 +803,7 @@ namespace Ep128Emu {
     if (!sf) {
       f = std::fopen(fileName_, "rb");
       if (!f)
-        throw Ep128::Exception("error opening file");
+        throw Exception("error opening file");
     }
     TapeInput *t = (TapeInput *) 0;
     try {
@@ -888,7 +888,7 @@ namespace Ep128Emu {
   bool TapeFiles::writeTapeImage(const char *fileName_, bool allowOverwrite_)
   {
     if (fileName_ == (char *) 0 || fileName_[0] == '\0')
-      throw Ep128::Exception("invalid file name");
+      throw Exception("invalid file name");
     if (!allowOverwrite_) {
       std::FILE *f = std::fopen(fileName_, "rb");
       if (f) {
@@ -911,10 +911,10 @@ namespace Ep128Emu {
     std::FILE *f = (std::FILE *) 0;
     try {
       if (fileName_ == (char *) 0 || fileName_[0] == '\0')
-        throw Ep128::Exception("invalid file name");
+        throw Exception("invalid file name");
       f = std::fopen(fileName_, "rb");
       if (!f)
-        throw Ep128::Exception("error opening file");
+        throw Exception("error opening file");
       std::string dirname_, basename_;
       splitPath(std::string(fileName_), dirname_, basename_);
       tf->setFileName(basename_);
@@ -941,7 +941,7 @@ namespace Ep128Emu {
     if (n < 0 || n >= int(tapeFiles_.size()))
       return true;
     if (fileName_ == (char *) 0 || fileName_[0] == '\0')
-      throw Ep128::Exception("invalid file name");
+      throw Exception("invalid file name");
     std::FILE *f = (std::FILE *) 0;
     try {
       if (!allowOverwrite_) {
@@ -953,14 +953,14 @@ namespace Ep128Emu {
       }
       f = std::fopen(fileName_, "wb");
       if (!f)
-        throw Ep128::Exception("error opening file");
+        throw Exception("error opening file");
       for (size_t i = 0; i < tapeFiles_[n]->fileData.size(); i++) {
         if (std::fputc(tapeFiles_[n]->fileData[i], f) == EOF)
-          throw Ep128::Exception("error writing file - is the disk full ?");
+          throw Exception("error writing file - is the disk full ?");
       }
       if (std::fclose(f) != 0) {
         f = (std::FILE *) 0;
-        throw Ep128::Exception("error writing file - is the disk full ?");
+        throw Exception("error writing file - is the disk full ?");
       }
     }
     catch (...) {

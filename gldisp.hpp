@@ -20,7 +20,7 @@
 #ifndef EP128EMU_GLDISP_HPP
 #define EP128EMU_GLDISP_HPP
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "system.hpp"
 #include "display.hpp"
 

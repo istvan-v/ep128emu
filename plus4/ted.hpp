@@ -17,7 +17,7 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "fileio.hpp"
 #include "cpu.hpp"
 
@@ -303,18 +303,18 @@ namespace Plus4 {
     static void convertPixelToRGB(uint8_t color,
                                   float& red, float& green, float& blue);
     // save snapshot
-    void saveState(Ep128::File::Buffer&);
-    void saveState(Ep128::File&);
+    void saveState(Ep128Emu::File::Buffer&);
+    void saveState(Ep128Emu::File&);
     // load snapshot
-    void loadState(Ep128::File::Buffer&);
+    void loadState(Ep128Emu::File::Buffer&);
     // save program
-    void saveProgram(Ep128::File::Buffer&);
-    void saveProgram(Ep128::File&);
+    void saveProgram(Ep128Emu::File::Buffer&);
+    void saveProgram(Ep128Emu::File&);
     void saveProgram(const char *fileName);
     // load program
-    void loadProgram(Ep128::File::Buffer&);
+    void loadProgram(Ep128Emu::File::Buffer&);
     void loadProgram(const char *fileName);
-    void registerChunkTypes(Ep128::File&);
+    void registerChunkTypes(Ep128Emu::File&);
   };
 
 }       // namespace Plus4

@@ -17,7 +17,7 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "ioports.hpp"
 
 static uint8_t dummyReadCallback(void *userData, uint16_t addr)
@@ -190,9 +190,9 @@ namespace Ep128 {
     } while (i != j);
   }
 
-  BreakPointList IOPorts::getBreakPointList()
+  Ep128Emu::BreakPointList IOPorts::getBreakPointList()
   {
-    BreakPointList  bplst;
+    Ep128Emu::BreakPointList  bplst;
     if (breakPointTable) {
       for (size_t i = 0; i < 256; i++) {
         uint8_t bp = breakPointTable[i];
@@ -205,29 +205,29 @@ namespace Ep128 {
 
   // --------------------------------------------------------------------------
 
-  class ChunkType_IOSnapshot : public File::ChunkTypeHandler {
+  class ChunkType_IOSnapshot : public Ep128Emu::File::ChunkTypeHandler {
    private:
     IOPorts&  ref;
    public:
     ChunkType_IOSnapshot(IOPorts& ref_)
-      : File::ChunkTypeHandler(),
+      : Ep128Emu::File::ChunkTypeHandler(),
         ref(ref_)
     {
     }
     virtual ~ChunkType_IOSnapshot()
     {
     }
-    virtual File::ChunkType getChunkType() const
+    virtual Ep128Emu::File::ChunkType getChunkType() const
     {
-      return File::EP128EMU_CHUNKTYPE_IO_STATE;
+      return Ep128Emu::File::EP128EMU_CHUNKTYPE_IO_STATE;
     }
-    virtual void processChunk(File::Buffer& buf)
+    virtual void processChunk(Ep128Emu::File::Buffer& buf)
     {
       ref.loadState(buf);
     }
   };
 
-  void IOPorts::saveState(File::Buffer& buf)
+  void IOPorts::saveState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
     buf.writeUInt32(0x01000000);        // version number
@@ -235,28 +235,29 @@ namespace Ep128 {
       buf.writeByte(portValues[i]);
   }
 
-  void IOPorts::saveState(File& f)
+  void IOPorts::saveState(Ep128Emu::File& f)
   {
-    File::Buffer  buf;
+    Ep128Emu::File::Buffer  buf;
     this->saveState(buf);
-    f.addChunk(File::EP128EMU_CHUNKTYPE_IO_STATE, buf);
+    f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_IO_STATE, buf);
   }
 
-  void IOPorts::loadState(File::Buffer& buf)
+  void IOPorts::loadState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
     if (version != 0x01000000) {
       buf.setPosition(buf.getDataSize());
-      throw Exception("incompatible I/O port snapshot format");
+      throw Ep128Emu::Exception("incompatible I/O port snapshot format");
     }
     // load saved state
     uint8_t tmp[256];
     for (size_t i = 0; i < 256; i++)
       tmp[i] = buf.readByte();
     if (buf.getPosition() != buf.getDataSize())
-      throw Exception("trailing garbage at end of I/O port snapshot data");
+      throw Ep128Emu::Exception("trailing garbage at end of "
+                                "I/O port snapshot data");
     for (size_t i = 0; i < 256; i++) {
       WriteCallback&  cb = writeCallbacks[i];
       portValues[i] = tmp[i];
@@ -264,7 +265,7 @@ namespace Ep128 {
     }
   }
 
-  void IOPorts::registerChunkType(File& f)
+  void IOPorts::registerChunkType(Ep128Emu::File& f)
   {
     ChunkType_IOSnapshot  *p;
     p = new ChunkType_IOSnapshot(*this);

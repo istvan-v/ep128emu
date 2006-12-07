@@ -17,7 +17,7 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "fileio.hpp"
 #include "system.hpp"
 #include "cfg_db.hpp"
@@ -332,15 +332,15 @@ namespace Ep128Emu {
 
     i = db.find(keyName);
     if (i == db.end())
-      throw Ep128::Exception("configuration variable is not found");
+      throw Exception("configuration variable is not found");
     return *((*i).second);
   }
 
   void ConfigurationDB::createKey(const std::string& name, bool& ref)
   {
     if (db.find(name) != db.end())
-      throw Ep128::Exception("cannot create configuration variable: "
-                             "the key name is already in use");
+      throw Exception("cannot create configuration variable: "
+                      "the key name is already in use");
     ConfigurationVariable_Boolean   *p;
     p = new ConfigurationVariable_Boolean(ref);
     try {
@@ -355,8 +355,8 @@ namespace Ep128Emu {
   void ConfigurationDB::createKey(const std::string& name, int& ref)
   {
     if (db.find(name) != db.end())
-      throw Ep128::Exception("cannot create configuration variable: "
-                             "the key name is already in use");
+      throw Exception("cannot create configuration variable: "
+                      "the key name is already in use");
     ConfigurationVariable_Integer   *p;
     p = new ConfigurationVariable_Integer(ref);
     try {
@@ -371,8 +371,8 @@ namespace Ep128Emu {
   void ConfigurationDB::createKey(const std::string& name, unsigned int& ref)
   {
     if (db.find(name) != db.end())
-      throw Ep128::Exception("cannot create configuration variable: "
-                             "the key name is already in use");
+      throw Exception("cannot create configuration variable: "
+                      "the key name is already in use");
     ConfigurationVariable_UnsignedInteger   *p;
     p = new ConfigurationVariable_UnsignedInteger(ref);
     try {
@@ -387,8 +387,8 @@ namespace Ep128Emu {
   void ConfigurationDB::createKey(const std::string& name, double& ref)
   {
     if (db.find(name) != db.end())
-      throw Ep128::Exception("cannot create configuration variable: "
-                             "the key name is already in use");
+      throw Exception("cannot create configuration variable: "
+                      "the key name is already in use");
     ConfigurationVariable_Float     *p;
     p = new ConfigurationVariable_Float(ref);
     try {
@@ -403,8 +403,8 @@ namespace Ep128Emu {
   void ConfigurationDB::createKey(const std::string& name, std::string& ref)
   {
     if (db.find(name) != db.end())
-      throw Ep128::Exception("cannot create configuration variable: "
-                             "the key name is already in use");
+      throw Exception("cannot create configuration variable: "
+                      "the key name is already in use");
     ConfigurationVariable_String    *p;
     p = new ConfigurationVariable_String(ref);
     try {
@@ -418,29 +418,29 @@ namespace Ep128Emu {
 
   // --------------------------------------------------------------------------
 
-  class ChunkType_ConfigDB : public Ep128::File::ChunkTypeHandler {
+  class ChunkType_ConfigDB : public File::ChunkTypeHandler {
    private:
     ConfigurationDB&  ref;
    public:
     ChunkType_ConfigDB(ConfigurationDB& ref_)
-      : Ep128::File::ChunkTypeHandler(),
+      : File::ChunkTypeHandler(),
         ref(ref_)
     {
     }
     virtual ~ChunkType_ConfigDB()
     {
     }
-    virtual Ep128::File::ChunkType getChunkType() const
+    virtual File::ChunkType getChunkType() const
     {
-      return Ep128::File::EP128EMU_CHUNKTYPE_CONFIG_DB;
+      return File::EP128EMU_CHUNKTYPE_CONFIG_DB;
     }
-    virtual void processChunk(Ep128::File::Buffer& buf)
+    virtual void processChunk(File::Buffer& buf)
     {
       ref.loadState(buf);
     }
   };
 
-  void ConfigurationDB::saveState(Ep128::File::Buffer& buf)
+  void ConfigurationDB::saveState(File::Buffer& buf)
   {
     std::map<std::string, ConfigurationVariable *>::iterator  i;
 
@@ -475,14 +475,14 @@ namespace Ep128Emu {
     }
   }
 
-  void ConfigurationDB::saveState(Ep128::File& f)
+  void ConfigurationDB::saveState(File& f)
   {
-    Ep128::File::Buffer buf;
+    File::Buffer  buf;
     this->saveState(buf);
-    f.addChunk(Ep128::File::EP128EMU_CHUNKTYPE_CONFIG_DB, buf);
+    f.addChunk(File::EP128EMU_CHUNKTYPE_CONFIG_DB, buf);
   }
 
-  void ConfigurationDB::loadState(Ep128::File::Buffer& buf)
+  void ConfigurationDB::loadState(File::Buffer& buf)
   {
     buf.setPosition(0);
     while (buf.getPosition() < buf.getDataSize()) {
@@ -493,7 +493,7 @@ namespace Ep128Emu {
 
       type = int(buf.readUInt32());
       if (type < 1 || type > 5)
-        throw Ep128::Exception("unknown configuration variable type");
+        throw Exception("unknown configuration variable type");
       name = buf.readString();
       i = db.find(name);
       if (i != db.end())
@@ -550,7 +550,7 @@ namespace Ep128Emu {
     }
   }
 
-  void ConfigurationDB::registerChunkType(Ep128::File& f)
+  void ConfigurationDB::registerChunkType(File& f)
   {
     ChunkType_ConfigDB  *p;
     p = new ChunkType_ConfigDB(*this);
@@ -571,64 +571,62 @@ namespace Ep128Emu {
 
   ConfigurationDB::ConfigurationVariable::operator bool()
   {
-    throw Ep128::Exception("configuration variable is not of type 'Boolean'");
+    throw Exception("configuration variable is not of type 'Boolean'");
     return false;
   }
 
   ConfigurationDB::ConfigurationVariable::operator int()
   {
-    throw Ep128::Exception("configuration variable is not of type 'Integer'");
+    throw Exception("configuration variable is not of type 'Integer'");
     return 0;
   }
 
   ConfigurationDB::ConfigurationVariable::operator unsigned int()
   {
-    throw Ep128::Exception("configuration variable is not of type "
-                           "'Unsigned Integer'");
+    throw Exception("configuration variable is not of type 'Unsigned Integer'");
     return 0U;
   }
 
   ConfigurationDB::ConfigurationVariable::operator double()
   {
-    throw Ep128::Exception("configuration variable is not of type 'Float'");
+    throw Exception("configuration variable is not of type 'Float'");
     return 0.0;
   }
 
   ConfigurationDB::ConfigurationVariable::operator std::string()
   {
-    throw Ep128::Exception("configuration variable is not of type 'String'");
+    throw Exception("configuration variable is not of type 'String'");
     return std::string("");
   }
 
   void ConfigurationDB::ConfigurationVariable::operator=(const bool& n)
   {
     (void) n;
-    throw Ep128::Exception("configuration variable is not of type 'Boolean'");
+    throw Exception("configuration variable is not of type 'Boolean'");
   }
 
   void ConfigurationDB::ConfigurationVariable::operator=(const int& n)
   {
     (void) n;
-    throw Ep128::Exception("configuration variable is not of type 'Integer'");
+    throw Exception("configuration variable is not of type 'Integer'");
   }
 
   void ConfigurationDB::ConfigurationVariable::operator=(const unsigned int& n)
   {
     (void) n;
-    throw Ep128::Exception("configuration variable is not of type "
-                           "'Unsigned Integer'");
+    throw Exception("configuration variable is not of type 'Unsigned Integer'");
   }
 
   void ConfigurationDB::ConfigurationVariable::operator=(const double& n)
   {
     (void) n;
-    throw Ep128::Exception("configuration variable is not of type 'Float'");
+    throw Exception("configuration variable is not of type 'Float'");
   }
 
   void ConfigurationDB::ConfigurationVariable::operator=(const std::string& n)
   {
     (void) n;
-    throw Ep128::Exception("configuration variable is not of type 'String'");
+    throw Exception("configuration variable is not of type 'String'");
   }
 
   void ConfigurationDB::ConfigurationVariable::setRange(double min, double max,
@@ -637,35 +635,35 @@ namespace Ep128Emu {
     (void) min;
     (void) max;
     (void) step;
-    throw Ep128::Exception("cannot set range for configuration variable");
+    throw Exception("cannot set range for configuration variable");
   }
 
   void ConfigurationDB::ConfigurationVariable::setRequirePowerOfTwo(bool n)
   {
     (void) n;
-    throw Ep128::Exception("cannot set 'power of two' flag "
-                           "for configuration variable");
+    throw Exception("cannot set 'power of two' flag "
+                    "for configuration variable");
   }
 
   void ConfigurationDB::ConfigurationVariable::setStripString(bool n)
   {
     (void) n;
-    throw Ep128::Exception("cannot set 'strip string' flag "
-                           "for configuration variable");
+    throw Exception("cannot set 'strip string' flag "
+                    "for configuration variable");
   }
 
   void ConfigurationDB::ConfigurationVariable::setStringToLowerCase(bool n)
   {
     (void) n;
-    throw Ep128::Exception("cannot set 'string to lower case' flag "
-                           "for configuration variable");
+    throw Exception("cannot set 'string to lower case' flag "
+                    "for configuration variable");
   }
 
   void ConfigurationDB::ConfigurationVariable::setStringToUpperCase(bool n)
   {
     (void) n;
-    throw Ep128::Exception("cannot set 'string to upper case' flag "
-                           "for configuration variable");
+    throw Exception("cannot set 'string to upper case' flag "
+                    "for configuration variable");
   }
 
   void ConfigurationDB::ConfigurationVariable::checkValue()

@@ -17,13 +17,13 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include <cstdio>
 
 #ifndef EP128EMU_TAPE_HPP
 #define EP128EMU_TAPE_HPP
 
-namespace Ep128 {
+namespace Ep128Emu {
 
   class Tape {
    private:
@@ -144,7 +144,7 @@ namespace Ep128 {
     void deleteAllCuePoints();
   };
 
-}       // namespace Ep128
+}       // namespace Ep128Emu
 
 #endif  // EP128EMU_TAPE_HPP
 

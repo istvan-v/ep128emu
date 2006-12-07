@@ -17,7 +17,7 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "memory.hpp"
 
 namespace Ep128 {
@@ -255,9 +255,9 @@ namespace Ep128 {
       deleteSegment((uint8_t) segment);
   }
 
-  BreakPointList Memory::getBreakPointList()
+  Ep128Emu::BreakPointList Memory::getBreakPointList()
   {
-    BreakPointList  bplst;
+    Ep128Emu::BreakPointList  bplst;
     if (breakPointTable) {
       for (size_t i = 0; i < 65536; i++) {
         uint8_t bp = breakPointTable[i];
@@ -281,29 +281,29 @@ namespace Ep128 {
 
   // --------------------------------------------------------------------------
 
-  class ChunkType_MemorySnapshot : public File::ChunkTypeHandler {
+  class ChunkType_MemorySnapshot : public Ep128Emu::File::ChunkTypeHandler {
    private:
     Memory& ref;
    public:
     ChunkType_MemorySnapshot(Memory& ref_)
-      : File::ChunkTypeHandler(),
+      : Ep128Emu::File::ChunkTypeHandler(),
         ref(ref_)
     {
     }
     virtual ~ChunkType_MemorySnapshot()
     {
     }
-    virtual File::ChunkType getChunkType() const
+    virtual Ep128Emu::File::ChunkType getChunkType() const
     {
-      return File::EP128EMU_CHUNKTYPE_MEMORY_STATE;
+      return Ep128Emu::File::EP128EMU_CHUNKTYPE_MEMORY_STATE;
     }
-    virtual void processChunk(File::Buffer& buf)
+    virtual void processChunk(Ep128Emu::File::Buffer& buf)
     {
       ref.loadState(buf);
     }
   };
 
-  void Memory::saveState(File::Buffer& buf)
+  void Memory::saveState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
     buf.writeUInt32(0x01000000);        // version number
@@ -323,21 +323,21 @@ namespace Ep128 {
     }
   }
 
-  void Memory::saveState(File& f)
+  void Memory::saveState(Ep128Emu::File& f)
   {
-    File::Buffer  buf;
+    Ep128Emu::File::Buffer  buf;
     this->saveState(buf);
-    f.addChunk(File::EP128EMU_CHUNKTYPE_MEMORY_STATE, buf);
+    f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_MEMORY_STATE, buf);
   }
 
-  void Memory::loadState(File::Buffer& buf)
+  void Memory::loadState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
     if (version != 0x01000000) {
       buf.setPosition(buf.getDataSize());
-      throw Exception("incompatible memory snapshot format");
+      throw Ep128Emu::Exception("incompatible memory snapshot format");
     }
     // reset memory
     deleteAllSegments();
@@ -361,7 +361,7 @@ namespace Ep128 {
     }
   }
 
-  void Memory::registerChunkType(File& f)
+  void Memory::registerChunkType(Ep128Emu::File& f)
   {
     ChunkType_MemorySnapshot  *p;
     p = new ChunkType_MemorySnapshot(*this);

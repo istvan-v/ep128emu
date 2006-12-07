@@ -17,16 +17,15 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "bplist.hpp"
-#include "ioports.hpp"
-#include "memory.hpp"
 
+#include <map>
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
 
-namespace Ep128 {
+namespace Ep128Emu {
 
   BreakPointList::BreakPointList(const std::string& lst)
   {
@@ -53,8 +52,7 @@ namespace Ep128 {
       tokens.push_back(curToken);
     }
 
-    IOPorts p;
-    Memory  m;
+    std::map<uint32_t, BreakPoint>  bpList;
 
     for (size_t i = 0; i < tokens.size(); i++) {
       size_t    j;
@@ -152,21 +150,42 @@ namespace Ep128 {
         isWrite = true;
       }
       while (true) {
+        uint32_t    addr_ = 0U;
         if (isIO)
-          p.setBreakPoint(addr, priority, isRead, isWrite);
+          addr_ = uint32_t(0x80000000UL) | uint32_t(addr & 0xFF);
         else if (haveSegment)
-          m.setBreakPoint(segment, addr, priority, isRead, isWrite);
+          addr_ = uint32_t(0x40000000UL)
+                  | ((uint32_t(segment & 0xFF) << 14)
+                     | uint32_t(addr & 0x3FFF));
         else
-          m.setBreakPoint(addr, priority, isRead, isWrite);
+          addr_ = uint32_t(addr & 0xFFFF);
+        std::map<uint32_t, BreakPoint>::iterator  i_ = bpList.find(addr_);
+        if (i_ == bpList.end()) {
+          // add new breakpoint
+          BreakPoint  bp(isIO, haveSegment, isRead, isWrite,
+                         segment, addr, priority);
+          bpList.insert(std::pair<uint32_t, BreakPoint>(addr_, bp));
+        }
+        else {
+          // update existing breakpoint
+          BreakPoint  *bpp = &((*i_).second);
+          BreakPoint  bp(isIO, haveSegment,
+                         (isRead || bpp->isRead()),
+                         (isWrite || bpp->isWrite()),
+                         segment, addr,
+                         (priority > bpp->priority() ?
+                          priority : bpp->priority()));
+          (*bpp) = bp;
+        }
         if (addr == lastAddr)
           break;
         addr++;
       }
     }
 
-    lst_ = p.getBreakPointList().lst_;
-    BreakPointList  tmp = m.getBreakPointList();
-    lst_.insert(lst_.end(), tmp.lst_.begin(), tmp.lst_.end());
+    std::map<uint32_t, BreakPoint>::iterator  i_;
+    for (i_ = bpList.begin(); i_ != bpList.end(); i_++)
+      lst_.push_back((*i_).second);
   }
 
   void BreakPointList::addMemoryBreakPoint(uint8_t segment, uint16_t addr,
@@ -343,5 +362,5 @@ namespace Ep128 {
     }
   }
 
-}       // namespace Ep128
+}       // namespace Ep128Emu
 

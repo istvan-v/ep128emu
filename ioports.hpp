@@ -20,7 +20,7 @@
 #ifndef EP128EMU_IOPORTS_HPP
 #define EP128EMU_IOPORTS_HPP
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "bplist.hpp"
 
 namespace Ep128 {
@@ -58,11 +58,11 @@ namespace Ep128 {
     void setWriteCallback(uint16_t firstAddr, uint16_t lastAddr,
                           void (*func)(void *p, uint16_t addr, uint8_t value),
                           void *userData, uint16_t baseAddr);
-    BreakPointList getBreakPointList();
-    void saveState(File::Buffer&);
-    void saveState(File&);
-    void loadState(File::Buffer&);
-    void registerChunkType(File&);
+    Ep128Emu::BreakPointList getBreakPointList();
+    void saveState(Ep128Emu::File::Buffer&);
+    void saveState(Ep128Emu::File&);
+    void loadState(Ep128Emu::File::Buffer&);
+    void registerChunkType(Ep128Emu::File&);
    protected:
     virtual void breakPointCallback(bool isWrite, uint16_t addr, uint8_t value);
   };

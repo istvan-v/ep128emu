@@ -17,7 +17,7 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "memory.hpp"
 #include "nick.hpp"
 
@@ -909,29 +909,29 @@ namespace Ep128 {
 
   // --------------------------------------------------------------------------
 
-  class ChunkType_NickSnapshot : public File::ChunkTypeHandler {
+  class ChunkType_NickSnapshot : public Ep128Emu::File::ChunkTypeHandler {
    private:
     Nick&   ref;
    public:
     ChunkType_NickSnapshot(Nick& ref_)
-      : File::ChunkTypeHandler(),
+      : Ep128Emu::File::ChunkTypeHandler(),
         ref(ref_)
     {
     }
     virtual ~ChunkType_NickSnapshot()
     {
     }
-    virtual File::ChunkType getChunkType() const
+    virtual Ep128Emu::File::ChunkType getChunkType() const
     {
-      return File::EP128EMU_CHUNKTYPE_NICK_STATE;
+      return Ep128Emu::File::EP128EMU_CHUNKTYPE_NICK_STATE;
     }
-    virtual void processChunk(File::Buffer& buf)
+    virtual void processChunk(Ep128Emu::File::Buffer& buf)
     {
       ref.loadState(buf);
     }
   };
 
-  void Nick::saveState(File::Buffer& buf)
+  void Nick::saveState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
     buf.writeUInt32(0x01000000);        // version number
@@ -965,21 +965,21 @@ namespace Ep128 {
     buf.writeBoolean(lptClockEnabled);
   }
 
-  void Nick::saveState(File& f)
+  void Nick::saveState(Ep128Emu::File& f)
   {
-    File::Buffer  buf;
+    Ep128Emu::File::Buffer  buf;
     this->saveState(buf);
-    f.addChunk(File::EP128EMU_CHUNKTYPE_NICK_STATE, buf);
+    f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_NICK_STATE, buf);
   }
 
-  void Nick::loadState(File::Buffer& buf)
+  void Nick::loadState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
     if (version != 0x01000000) {
       buf.setPosition(buf.getDataSize());
-      throw Exception("incompatible Nick snapshot format");
+      throw Ep128Emu::Exception("incompatible Nick snapshot format");
     }
     try {
       // load saved state
@@ -1030,7 +1030,8 @@ namespace Ep128 {
       }
       lptClockEnabled = buf.readBoolean();
       if (buf.getPosition() != buf.getDataSize())
-        throw Exception("trailing garbage at end of Nick snapshot data");
+        throw Ep128Emu::Exception("trailing garbage at end of "
+                                  "Nick snapshot data");
     }
     catch (...) {
       // reset NICK
@@ -1044,7 +1045,7 @@ namespace Ep128 {
     }
   }
 
-  void Nick::registerChunkType(File& f)
+  void Nick::registerChunkType(Ep128Emu::File& f)
   {
     ChunkType_NickSnapshot  *p;
     p = new ChunkType_NickSnapshot(*this);

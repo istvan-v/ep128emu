@@ -20,7 +20,7 @@
 #ifndef EP128EMU_SYSTEM_HPP
 #define EP128EMU_SYSTEM_HPP
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
 #  define WIN32_LEAN_AND_MEAN   1

@@ -19,8 +19,9 @@
 
 // simple emulator frontend for testing only
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "gldisp.hpp"
+#include "soundio.hpp"
 #include "plus4/plus4vm.hpp"
 
 #include <iostream>
@@ -141,11 +142,12 @@ class VMThread : public Ep128Emu::Thread {
  private:
   Plus4::Plus4VM  vm;
   Display&        display;
+  Ep128Emu::AudioOutput_PortAudio audioOutput;
  public:
   volatile bool stopFlag;
   VMThread(Display& display_)
     : Thread(),
-      vm(display_),
+      vm(display_, audioOutput),
       display(display_)
   {
     stopFlag = false;
@@ -159,19 +161,18 @@ class VMThread : public Ep128Emu::Thread {
     vm.resetMemoryConfiguration(64);
     vm.loadROMSegment(0, "./roms/plus4.rom", 0);
     vm.loadROMSegment(1, "./roms/plus4.rom", 16384);
-    vm.setAudioOutputQuality(true, 48000.0f);
-    vm.setAudioOutputDeviceParameters(11, 0.02, 4, 4);
-    vm.setAudioOutputVolume(0.5f);
+    vm.setAudioOutputQuality(true);
+    audioOutput.setParameters(11, 48000.0f, 0.02, 4, 4);
     vm.setCPUFrequency(1775000);
  // vm.setTapeFileName("./tape/tape1.tap");
  // vm.tapePlay();
     vm.setEnableFastTapeMode(true);
 #ifdef RECORDING_DEMO
-    Ep128::File f;
+    Ep128Emu::File  f;
     vm.recordDemo(f);
 #endif
 #ifdef PLAYING_DEMO
-    Ep128::File f("demotest.dat");
+    Ep128Emu::File  f("demotest.dat");
     vm.registerChunkTypes(f);
     f.processAllChunks();
 #endif

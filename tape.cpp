@@ -17,7 +17,7 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-#include "ep128.hpp"
+#include "ep128emu.hpp"
 #include "tape.hpp"
 #include <cstdio>
 #include <cstdlib>
@@ -63,9 +63,9 @@ static int cuePointCmpFunc(const void *p1, const void *p2)
   return 0;
 }
 
-namespace Ep128 {
+namespace Ep128Emu {
 
-  void Ep128::Tape::seek_(size_t pos_, bool recording)
+  void Tape::seek_(size_t pos_, bool recording)
   {
     // unless recording, clamp position to tape length
     size_t  pos = ((pos_ < tapeLength || recording) ? pos_ : tapeLength);
@@ -368,5 +368,5 @@ namespace Ep128 {
     }
   }
 
-}       // namespace Ep128
+}       // namespace Ep128Emu
 
