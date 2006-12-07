@@ -17,8 +17,8 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-#ifndef EP128EMU_EP128_HPP
-#define EP128EMU_EP128_HPP
+#ifndef EP128EMU_EP128EMU_HPP
+#define EP128EMU_EP128EMU_HPP
 
 #include <exception>
 #include <new>
@@ -43,7 +43,7 @@ typedef unsigned __int64    uint64_t;
 #  endif
 #endif
 
-namespace Ep128 {
+namespace Ep128Emu {
 
   class Exception : public std::exception {
    private:
@@ -77,9 +77,9 @@ namespace Ep128 {
     }
   };
 
-}       // namespace Ep128
+}       // namespace Ep128Emu
 
 #include "fileio.hpp"
 
-#endif  // EP128EMU_EP128_HPP
+#endif  // EP128EMU_EP128EMU_HPP
 
