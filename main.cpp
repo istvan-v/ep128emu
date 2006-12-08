@@ -20,12 +20,14 @@
 // simple emulator frontend for testing only
 
 #include "ep128emu.hpp"
+#include "system.hpp"
 #include "gldisp.hpp"
 #include "soundio.hpp"
 #include "ep128vm.hpp"
 
 #include <iostream>
 #include <cmath>
+#include <list>
 #include <map>
 #include <FL/Fl.H>
 #include <FL/Fl_Window.H>
@@ -33,18 +35,80 @@
 #include <FL/gl.h>
 #include <unistd.h>
 
-// #define RECORDING_DEMO 1
-// #define PLAYING_DEMO 1
+struct KeyboardEvent {
+  bool    isKeyPress;
+  int     keyCode;
+};
 
 class Display : public Ep128Emu::OpenGLDisplay {
  private:
   Ep128::Ep128VM  *vm;
-  std::map<int, int> keyboardMap;
+  std::list<KeyboardEvent>  keyboardQueue;
+  Ep128Emu::Mutex keyboardQueueMutex;
  public:
   Display(int xx, int yy, int ww, int hh, const char *lbl = 0)
     : Ep128Emu::OpenGLDisplay(xx, yy, ww, hh, lbl)
   {
     vm = 0;
+  }
+  virtual ~Display()
+  {
+  }
+  void setVM(Ep128::Ep128VM& vm_)
+  {
+    vm = &vm_;
+  }
+  virtual int handle(int event)
+  {
+    if (event == FL_FOCUS || event == FL_UNFOCUS)
+      return 1;
+    if ((event == FL_KEYUP || event == FL_KEYDOWN) && vm) {
+      KeyboardEvent evt;
+      evt.isKeyPress = (event == FL_KEYDOWN);
+      evt.keyCode = Fl::event_key();
+      keyboardQueueMutex.lock();
+      keyboardQueue.push_back(evt);
+      keyboardQueueMutex.unlock();
+      return 1;
+    }
+    return 0;
+  }
+  KeyboardEvent getKeyboardEvent()
+  {
+    KeyboardEvent evt;
+    evt.isKeyPress = false;
+    evt.keyCode = 0;
+    keyboardQueueMutex.lock();
+    if (keyboardQueue.begin() != keyboardQueue.end()) {
+      evt = keyboardQueue.front();
+      keyboardQueue.pop_front();
+    }
+    keyboardQueueMutex.unlock();
+    return evt;
+  }
+};
+
+class VMThread : public Ep128Emu::Thread {
+ private:
+  Ep128::Ep128VM  vm;
+  Display&        display;
+  Ep128Emu::AudioOutput_PortAudio audioOutput;
+  std::map<int, int> keyboardMap;
+ public:
+  volatile bool   stopFlag;
+  VMThread(Display& display_)
+    : Thread(),
+      vm(display_, audioOutput),
+      display(display_),
+      stopFlag(false)
+  {
+  }
+  virtual ~VMThread()
+  {
+  }
+  virtual void run()
+  {
+    display.setVM(vm);
     keyboardMap['a'] = 0x0E;
     keyboardMap['b'] = 0x02;
     keyboardMap['c'] = 0x03;
@@ -100,50 +164,6 @@ class Display : public Ep128Emu::OpenGLDisplay {
     keyboardMap['\''] = 0x35;
     keyboardMap[']'] = 0x36;
     keyboardMap['['] = 0x4D;
-  }
-  virtual ~Display()
-  {
-  }
-  void setVM(Ep128::Ep128VM& vm_)
-  {
-    vm = &vm_;
-  }
-  virtual int handle(int event)
-  {
-    if (event == FL_FOCUS || event == FL_UNFOCUS)
-      return 1;
-    if ((event == FL_KEYUP || event == FL_KEYDOWN) && vm) {
-      int   keyCode = Fl::event_key();
-      if (event == FL_KEYDOWN && keyCode == (FL_F + 12))
-        vm->reset();
-      else
-        vm->setKeyboardState(keyboardMap[keyCode], (event == FL_KEYDOWN));
-      return 1;
-    }
-    return 0;
-  }
-};
-
-class VMThread : public Ep128Emu::Thread {
- private:
-  Ep128::Ep128VM  vm;
-  Display&        display;
-  Ep128Emu::AudioOutput_PortAudio audioOutput;
- public:
-  volatile bool stopFlag;
-  VMThread(Display& display_)
-    : Thread(),
-      vm(display_, audioOutput),
-      display(display_)
-  {
-    stopFlag = false;
-  }
-  virtual ~VMThread()
-  {
-  }
-  virtual void run()
-  {
-    display.setVM(vm);
     vm.resetMemoryConfiguration(128);
     vm.loadROMSegment(0, "./roms/exos0.rom", 0);
     vm.loadROMSegment(1, "./roms/exos1.rom", 0);
@@ -161,22 +181,46 @@ class VMThread : public Ep128Emu::Thread {
     vm.setTapeFileName("./tape/tape0.tap");
     vm.tapePlay();
     vm.setEnableFastTapeMode(true);
-#ifdef RECORDING_DEMO
     Ep128Emu::File  f;
-    vm.recordDemo(f);
-#endif
-#ifdef PLAYING_DEMO
-    Ep128Emu::File  f("demotest.dat");
-    vm.registerChunkTypes(f);
-    f.processAllChunks();
-#endif
+    bool    recordingDemo = false;
     while (!stopFlag) {
-      vm.run(50000);
+      while (true) {
+        if (recordingDemo && !vm.getIsRecordingDemo()) {
+          f.writeFile("demotest.dat");
+          recordingDemo = false;
+        }
+        KeyboardEvent evt = display.getKeyboardEvent();
+        if (evt.keyCode == 0)
+          break;
+        if (evt.isKeyPress && evt.keyCode == (FL_F + 12))
+          vm.reset();
+        else if (evt.isKeyPress && evt.keyCode == (FL_F + 9)) {
+          if (vm.getIsPlayingDemo() || vm.getIsRecordingDemo())
+            vm.stopDemo();
+          else {
+            vm.recordDemo(f);
+            recordingDemo = true;
+          }
+        }
+        else if (evt.isKeyPress && evt.keyCode == (FL_F + 10)) {
+          if (vm.getIsPlayingDemo() || vm.getIsRecordingDemo())
+            vm.stopDemo();
+          else {
+            Ep128Emu::File  f_("demotest.dat");
+            vm.registerChunkTypes(f_);
+            f_.processAllChunks();
+          }
+        }
+        else if (keyboardMap.find(evt.keyCode) != keyboardMap.end())
+          vm.setKeyboardState(keyboardMap[evt.keyCode], evt.isKeyPress);
+      }
+      vm.run(2000);
+    }
+    if (vm.getIsRecordingDemo()) {
+      vm.stopDemo();
+      f.writeFile("demotest.dat");
     }
     vm.stopDemo();
-#ifdef RECORDING_DEMO
-    f.writeFile("demotest.dat");
-#endif
   }
 };
 

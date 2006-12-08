@@ -1054,7 +1054,7 @@ namespace Ep128 {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible Dave snapshot format");
     }
-    // reset DAVE
+    // reset DAVE (FIXME: needed ?)
     this->reset();
     // load saved state
     clockDiv = (buf.readByte() & 1) | 2;
@@ -1228,10 +1228,10 @@ namespace Ep128 {
     int_1_active = (buf.readBoolean() ? 1 : 0);
     int_2_active = (buf.readBoolean() ? 1 : 0);
     audioOutput = buf.readUInt32() & 0x01FF01FF;
-    page0Segment = buf.readByte();
-    page1Segment = buf.readByte();
-    page2Segment = buf.readByte();
-    page3Segment = buf.readByte();
+    writePort(0x10, buf.readByte());
+    writePort(0x11, buf.readByte());
+    writePort(0x12, buf.readByte());
+    writePort(0x13, buf.readByte());
     tape_feedback = (buf.readBoolean() ? 1 : 0);
     tape_input = (buf.readByte() == 0 ? 0 : 1);
     tape_input_level = (buf.readByte() == 0 ? 0 : 1);

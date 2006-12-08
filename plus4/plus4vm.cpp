@@ -463,6 +463,7 @@ namespace Plus4 {
     demoBuffer.writeUInt32(0x00010900); // version 1.9.0 (beta)
     demoFile = &f;
     isRecordingDemo = true;
+    demoTimeCnt = 0U;
   }
 
   void Plus4VM::stopDemo()

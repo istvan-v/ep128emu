@@ -770,6 +770,11 @@ namespace Ep128 {
 
   void Ep128VM::saveState(Ep128Emu::File& f)
   {
+    ioPorts.saveState(f);
+    memory.saveState(f);
+    nick.saveState(f);
+    dave.saveState(f);
+    z80.saveState(f);
     {
       Ep128Emu::File::Buffer  buf;
       buf.setPosition(0);
@@ -796,11 +801,6 @@ namespace Ep128 {
       }
       f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_VM_STATE, buf);
     }
-    ioPorts.saveState(f);
-    z80.saveState(f);
-    memory.saveState(f);
-    dave.saveState(f);
-    nick.saveState(f);
   }
 
   void Ep128VM::saveMachineConfiguration(Ep128Emu::File& f)
@@ -833,6 +833,7 @@ namespace Ep128 {
     demoBuffer.writeUInt32(0x00010900); // version 1.9.0 (beta)
     demoFile = &f;
     isRecordingDemo = true;
+    demoTimeCnt = 0U;
   }
 
   void Ep128VM::stopDemo()
