@@ -207,12 +207,12 @@ namespace Ep128Emu {
    protected:
     inline void sendAudioOutput(uint32_t audioData)
     {
-      if (writingAudioOutput)
+      if (this->writingAudioOutput)
         this->audioConverter->sendInputSignal(audioData);
     }
     inline void sendAudioOutput(uint16_t left, uint16_t right)
     {
-      if (writingAudioOutput)
+      if (this->writingAudioOutput)
         this->audioConverter->sendInputSignal(uint32_t(left)
                                               | (uint32_t(right) << 16));
     }

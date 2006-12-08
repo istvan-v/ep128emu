@@ -149,6 +149,12 @@ class VMThread : public Ep128Emu::Thread {
     vm.loadROMSegment(1, "./roms/exos1.rom", 0);
     vm.loadROMSegment(4, "./roms/basic.rom", 0);
     vm.setAudioOutputQuality(true);
+    {
+      std::vector< std::string >  devList = audioOutput.getDeviceList();
+      std::cout << "The available sound devices are:" << std::endl;
+      for (size_t i = 0; i < devList.size(); i++)
+        std::cout << "  " << i << ": " << devList[i] << std::endl;
+    }
     audioOutput.setParameters(11, 48000.0f, 0.02, 4, 4);
     vm.setCPUFrequency(4000000);
  // vm.setAudioOutputFileName("/tmp/ep.wav");

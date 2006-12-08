@@ -59,7 +59,7 @@ namespace Ep128Emu {
                    : 11025.0f);
     totalLatency_ = (totalLatency_ > 0.005f ?
                      (totalLatency_ < 0.5f ? totalLatency_ : 0.5f)
-                     : 0.5f);
+                     : 0.005f);
     nPeriodsHW_ = (nPeriodsHW_ > 2 ? (nPeriodsHW_ < 16 ? nPeriodsHW_ : 16) : 2);
     nPeriodsSW_ = (nPeriodsSW_ > 2 ? (nPeriodsSW_ < 16 ? nPeriodsSW_ : 16) : 2);
     if (deviceNumber_ == deviceNumber &&
@@ -73,12 +73,7 @@ namespace Ep128Emu {
         closeDevice();
       }
       catch (...) {
-        deviceNumber = -1;
-        sampleRate = 0.0f;
-        totalLatency = totalLatency_;
-        nPeriodsHW = nPeriodsHW_;
-        nPeriodsSW = nPeriodsSW_;
-        throw;
+        // FIXME: should not ignore errors, although not likely to happen here
       }
     }
     deviceNumber = -1;
@@ -86,7 +81,7 @@ namespace Ep128Emu {
     nPeriodsHW = nPeriodsHW_;
     nPeriodsSW = nPeriodsSW_;
     if (sampleRate_ != sampleRate) {
-      sampleRate = 0.0f;
+      sampleRate = sampleRate_;
       if (soundFile != (SNDFILE *) 0) {
         sf_close(soundFile);
         soundFile = (SNDFILE *) 0;
@@ -95,7 +90,7 @@ namespace Ep128Emu {
         SF_INFO sfinfo;
         std::memset(&sfinfo, 0, sizeof(SF_INFO));
         sfinfo.frames = -1;
-        sfinfo.samplerate = int(sampleRate_ + 0.5);
+        sfinfo.samplerate = int(sampleRate + 0.5);
         sfinfo.channels = 2;
         sfinfo.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
         soundFile = sf_open(outputFileName.c_str(), SFM_WRITE, &sfinfo);
@@ -113,7 +108,6 @@ namespace Ep128Emu {
       }
       catch (...) {
         deviceNumber = -1;
-        sampleRate = 0.0f;
         throw;
       }
     }
@@ -164,7 +158,6 @@ namespace Ep128Emu {
     // NOTE: AudioOutput::closeDevice() should be called by derived classes
     // to reset internal data
     deviceNumber = -1;
-    sampleRate = 0.0f;
   }
 
   std::vector< std::string > AudioOutput::getDeviceList()
