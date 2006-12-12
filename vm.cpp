@@ -255,6 +255,17 @@ namespace Ep128Emu {
     (void) isPressed;
   }
 
+  void VirtualMachine::setDiskImageFile(int n, const std::string& fileName_,
+                                        int nTracks_, int nSides_,
+                                        int nSectorsPerTrack_)
+  {
+    (void) n;
+    (void) fileName_;
+    (void) nTracks_;
+    (void) nSides_;
+    (void) nSectorsPerTrack_;
+  }
+
   void VirtualMachine::setTapeFileName(const char *fileName)
   {
     std::string fname("");

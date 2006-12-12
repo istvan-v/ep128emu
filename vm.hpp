@@ -90,6 +90,11 @@ namespace Ep128Emu {
     virtual void setEnableMemoryTimingEmulation(bool isEnabled);
     // Set state of key 'keyCode' (0 to 127).
     virtual void setKeyboardState(int keyCode, bool isPressed);
+    // Load disk image for drive 'n' (counting from zero); an empty file
+    // name means no disk.
+    virtual void setDiskImageFile(int n, const std::string& fileName_,
+                                  int nTracks_ = -1, int nSides_ = 2,
+                                  int nSectorsPerTrack_ = 9);
     // ---------------------------- TAPE EMULATION ----------------------------
     // Set tape image file name (if the file name is NULL or empty, tape
     // emulation is disabled).

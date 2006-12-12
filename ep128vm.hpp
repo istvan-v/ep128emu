@@ -30,6 +30,7 @@
 #include "snd_conv.hpp"
 #include "soundio.hpp"
 #include "vm.hpp"
+#include "wd177x.hpp"
 
 namespace Ep128 {
 
@@ -146,6 +147,9 @@ namespace Ep128 {
     bool      snapshotLoadFlag;
     // used for counting time between demo events (in NICK cycles)
     uint64_t  demoTimeCnt;
+    // floppy drives
+    Ep128Emu::WD177x  floppyDrives[4];
+    uint8_t   currentFloppyDrive;
     // ----------------
     void updateTimingParameters();
     inline void updateCPUCycles(int cycles)
@@ -177,6 +181,9 @@ namespace Ep128 {
                                       uint16_t addr, uint8_t value);
     static void nickPortWriteCallback(void *userData,
                                       uint16_t addr, uint8_t value);
+    static uint8_t exdosPortReadCallback(void *userData, uint16_t addr);
+    static void exdosPortWriteCallback(void *userData,
+                                       uint16_t addr, uint8_t value);
     void stopDemoPlayback();
     void stopDemoRecording(bool writeFile_);
    public:
@@ -201,6 +208,11 @@ namespace Ep128 {
     virtual void setEnableMemoryTimingEmulation(bool isEnabled);
     // Set state of key 'keyCode' (0 to 127).
     virtual void setKeyboardState(int keyCode, bool isPressed);
+    // Load disk image for drive 'n' (counting from zero); an empty file
+    // name means no disk.
+    virtual void setDiskImageFile(int n, const std::string& fileName_,
+                                  int nTracks_ = -1, int nSides_ = 2,
+                                  int nSectorsPerTrack_ = 9);
     // ---------------------------- TAPE EMULATION ----------------------------
     // Set tape image file name (if the file name is NULL or empty, tape
     // emulation is disabled).

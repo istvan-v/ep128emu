@@ -389,6 +389,74 @@ namespace Ep128 {
     reinterpret_cast<Ep128VM *>(userData)->nick.writePort(addr, value);
   }
 
+  uint8_t Ep128VM::exdosPortReadCallback(void *userData, uint16_t addr)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    // floppy emulation is disabled while recording or playing demo
+    if (!(vm.isRecordingDemo || vm.isPlayingDemo)) {
+      if (vm.currentFloppyDrive <= 3) {
+        Ep128Emu::WD177x& floppyDrive = vm.floppyDrives[vm.currentFloppyDrive];
+        switch (addr) {
+        case 0x00:
+          return floppyDrive.readStatusRegister();
+        case 0x01:
+          return floppyDrive.readTrackRegister();
+        case 0x02:
+          return floppyDrive.readSectorRegister();
+        case 0x03:
+          return floppyDrive.readDataRegister();
+        case 0x08:
+          return uint8_t(  (floppyDrive.getInterruptRequestFlag() ? 0x02 : 0x00)
+                         | (floppyDrive.getDiskChangeFlag() ? 0x40 : 0x00)
+                         | (floppyDrive.getDataRequestFlag() ? 0x80 : 0x00));
+        }
+      }
+    }
+    return 0x00;
+  }
+
+  void Ep128VM::exdosPortWriteCallback(void *userData,
+                                       uint16_t addr, uint8_t value)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    // floppy emulation is disabled while recording or playing demo
+    if (!(vm.isRecordingDemo || vm.isPlayingDemo)) {
+      if (vm.currentFloppyDrive <= 3) {
+        Ep128Emu::WD177x& floppyDrive = vm.floppyDrives[vm.currentFloppyDrive];
+        switch (addr) {
+        case 0x00:
+          floppyDrive.writeCommandRegister(value);
+          break;
+        case 0x01:
+          floppyDrive.writeTrackRegister(value);
+          break;
+        case 0x02:
+          floppyDrive.writeSectorRegister(value);
+          break;
+        case 0x03:
+          floppyDrive.writeDataRegister(value);
+          break;
+        }
+      }
+      if (addr == 0x08) {
+        vm.currentFloppyDrive = 0xFF;
+        if ((value & 0x01) != 0)
+          vm.currentFloppyDrive = 0;
+        else if ((value & 0x02) != 0)
+          vm.currentFloppyDrive = 1;
+        else if ((value & 0x04) != 0)
+          vm.currentFloppyDrive = 2;
+        else if ((value & 0x08) != 0)
+          vm.currentFloppyDrive = 3;
+        else
+          return;
+        if ((value & 0x40) != 0)
+          vm.floppyDrives[vm.currentFloppyDrive].clearDiskChangeFlag();
+        vm.floppyDrives[vm.currentFloppyDrive].setSide((value & 0x10) >> 4);
+      }
+    }
+  }
+
   Ep128VM::Ep128VM(Ep128Emu::VideoDisplay& display_,
                    Ep128Emu::AudioOutput& audioOutput_)
     : VirtualMachine(display_, audioOutput_),
@@ -419,7 +487,8 @@ namespace Ep128 {
       isRecordingDemo(false),
       isPlayingDemo(false),
       snapshotLoadFlag(false),
-      demoTimeCnt(0U)
+      demoTimeCnt(0U),
+      currentFloppyDrive(0xFF)
   {
     for (size_t i = 0; i < 4; i++)
       pageTable[i] = 0x00;
@@ -450,6 +519,22 @@ namespace Ep128 {
     dp.indexToRGBFunc = &Nick::convertPixelToRGB;
     display.setDisplayParameters(dp);
     setAudioConverterSampleRate(float(long(daveFrequency)));
+    floppyDrives[0].setIsWD1773(false);
+    floppyDrives[0].reset();
+    floppyDrives[1].setIsWD1773(false);
+    floppyDrives[1].reset();
+    floppyDrives[2].setIsWD1773(false);
+    floppyDrives[2].reset();
+    floppyDrives[3].setIsWD1773(false);
+    floppyDrives[3].reset();
+    ioPorts.setReadCallback(0x10, 0x13, &exdosPortReadCallback, this, 0x10);
+    ioPorts.setReadCallback(0x14, 0x17, &exdosPortReadCallback, this, 0x14);
+    ioPorts.setReadCallback(0x18, 0x18, &exdosPortReadCallback, this, 0x10);
+    ioPorts.setReadCallback(0x1C, 0x1C, &exdosPortReadCallback, this, 0x14);
+    ioPorts.setWriteCallback(0x10, 0x13, &exdosPortWriteCallback, this, 0x10);
+    ioPorts.setWriteCallback(0x14, 0x17, &exdosPortWriteCallback, this, 0x14);
+    ioPorts.setWriteCallback(0x18, 0x18, &exdosPortWriteCallback, this, 0x10);
+    ioPorts.setWriteCallback(0x1C, 0x1C, &exdosPortWriteCallback, this, 0x14);
   }
 
   Ep128VM::~Ep128VM()
@@ -550,6 +635,11 @@ namespace Ep128 {
     isRemote1On = false;
     isRemote2On = false;
     setTapeMotorState(false);
+    currentFloppyDrive = 0xFF;
+    floppyDrives[0].reset();
+    floppyDrives[1].reset();
+    floppyDrives[2].reset();
+    floppyDrives[3].reset();
     if (isColdReset) {
       for (int i = 0; i < 256; i++) {
         if (memory.isSegmentRAM(uint8_t(i)))
@@ -693,6 +783,16 @@ namespace Ep128 {
     }
   }
 
+  void Ep128VM::setDiskImageFile(int n, const std::string& fileName_,
+                                 int nTracks_, int nSides_,
+                                 int nSectorsPerTrack_)
+  {
+    if (n < 0 || n > 3)
+      throw Ep128Emu::Exception("invalid floppy drive number");
+    floppyDrives[n].setDiskImageFile(fileName_,
+                                     nTracks_, nSides_, nSectorsPerTrack_);
+  }
+
   void Ep128VM::setTapeFileName(const char *fileName)
   {
     Ep128Emu::VirtualMachine::setTapeFileName(fileName);
@@ -826,6 +926,12 @@ namespace Ep128 {
     stopDemo();
     for (int i = 0; i < 128; i++)
       dave.setKeyboardState(i, 0);
+    // floppy emulation is disabled while recording or playing demo
+    currentFloppyDrive = 0xFF;
+    floppyDrives[0].reset();
+    floppyDrives[1].reset();
+    floppyDrives[2].reset();
+    floppyDrives[3].reset();
     // save full snapshot, including timing and clock frequency settings
     saveMachineConfiguration(f);
     saveState(f);
@@ -870,6 +976,12 @@ namespace Ep128 {
     setTapeMotorState(false);
     stopDemo();
     snapshotLoadFlag = true;
+    // reset floppy emulation, as its state is not saved
+    currentFloppyDrive = 0xFF;
+    floppyDrives[0].reset();
+    floppyDrives[1].reset();
+    floppyDrives[2].reset();
+    floppyDrives[3].reset();
     try {
       uint8_t   p0, p1, p2, p3;
       p0 = buf.readByte();
@@ -967,6 +1079,12 @@ namespace Ep128 {
     stopDemo();
     for (int i = 0; i < 128; i++)
       dave.setKeyboardState(i, 0);
+    // floppy emulation is disabled while recording or playing demo
+    currentFloppyDrive = 0xFF;
+    floppyDrives[0].reset();
+    floppyDrives[1].reset();
+    floppyDrives[2].reset();
+    floppyDrives[3].reset();
     // initialize time counter with first delta time
     demoTimeCnt = readDemoTimeCnt(buf);
     isPlayingDemo = true;

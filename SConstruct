@@ -11,6 +11,7 @@ ep128emuLibEnvironment.Append(CPPPATH = ['.'])
 ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
     bplist.cpp
     cfg_db.cpp
+    display.cpp
     fileio.cpp
     gldisp.cpp
     snd_conv.cpp
@@ -18,6 +19,7 @@ ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
     system.cpp
     tape.cpp
     vm.cpp
+    wd177x.cpp
 '''))
 
 # -----------------------------------------------------------------------------
