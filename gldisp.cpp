@@ -20,7 +20,6 @@
 #include "ep128emu.hpp"
 #include "system.hpp"
 
-#include <cmath>
 #include <cstring>
 #include <typeinfo>
 
@@ -208,37 +207,29 @@ namespace Ep128Emu {
 
   void OpenGLDisplay::Colormap::setParams(const DisplayParameters& dp)
   {
-    double  b = dp.b + ((1.0 - dp.c) * 0.5);
-    double  rb = dp.rb + ((1.0 - dp.rc) * 0.5);
-    double  gb = dp.gb + ((1.0 - dp.gc) * 0.5);
-    double  bb = dp.bb + ((1.0 - dp.bc) * 0.5);
+    float   rTbl[256];
+    float   gTbl[256];
+    float   bTbl[256];
     for (size_t i = 0; i < 256; i++) {
-      float   r1, g1, b1;
-      dp.indexToRGBFunc(uint8_t(i), r1, g1, b1);
-      palette[i] =
-          pixelConv(std::pow(double(r1), 1.0 / (dp.rg * dp.g))
-                    * (dp.rc * dp.c) + (rb + b),
-                    std::pow(double(g1), 1.0 / (dp.gg * dp.g))
-                    * (dp.gc * dp.c) + (gb + b),
-                    std::pow(double(b1), 1.0 / (dp.bg * dp.g))
-                    * (dp.bc * dp.c) + (bb + b));
+      float   r = float(uint8_t(i)) / 255.0f;
+      float   g = float(uint8_t(i)) / 255.0f;
+      float   b = float(uint8_t(i)) / 255.0f;
+      if (dp.indexToRGBFunc)
+        dp.indexToRGBFunc(uint8_t(i), r, g, b);
+      dp.applyColorCorrection(r, g, b);
+      rTbl[i] = r;
+      gTbl[i] = g;
+      bTbl[i] = b;
     }
     for (size_t i = 0; i < 256; i++) {
-      float   r1, g1, b1;
-      dp.indexToRGBFunc(uint8_t(i), r1, g1, b1);
+      palette[i] = pixelConv(rTbl[i], gTbl[i], bTbl[i]);
+    }
+    for (size_t i = 0; i < 256; i++) {
       for (size_t j = 0; j < 256; j++) {
-        float   r2, g2, b2;
-        dp.indexToRGBFunc(uint8_t(j), r2, g2, b2);
-        double  rx = (r1 + r2) * dp.blendScale1;
-        double  gx = (g1 + g2) * dp.blendScale1;
-        double  bx = (b1 + b2) * dp.blendScale1;
-        palette2[(i << 8) + j] =
-            pixelConv(std::pow(double(rx), 1.0 / (dp.rg * dp.g))
-                      * (dp.rc * dp.c) + (rb + b),
-                      std::pow(double(gx), 1.0 / (dp.gg * dp.g))
-                      * (dp.gc * dp.c) + (gb + b),
-                      std::pow(double(bx), 1.0 / (dp.bg * dp.g))
-                      * (dp.bc * dp.c) + (bb + b));
+        double  r = (rTbl[i] + rTbl[j]) * dp.blendScale1;
+        double  g = (gTbl[i] + gTbl[j]) * dp.blendScale1;
+        double  b = (bTbl[i] + bTbl[j]) * dp.blendScale1;
+        palette2[(i << 8) + j] = pixelConv(r, g, b);
       }
     }
   }

@@ -110,6 +110,11 @@ class Display : public Ep128Emu::OpenGLDisplay {
     keyboardMap[FL_KP + '2'] = 0x49;
     keyboardMap[FL_KP + '1'] = 0x4A;
     keyboardMap[FL_KP + '\r'] = 0x4F;
+    keyboardMap[FL_Control_L] = 0x3D;
+    keyboardMap[FL_F + 1] = 0x04;
+    keyboardMap[FL_F + 2] = 0x05;
+    keyboardMap[FL_F + 3] = 0x06;
+    keyboardMap[FL_F + 4] = 0x03;
   }
   virtual ~Display()
   {
@@ -202,9 +207,10 @@ int main()
   dp.blendScale1 = 0.37;
   dp.blendScale2 = 0.72;
   dp.blendScale3 = 0.30;
-  dp.g = 1.0;
-  dp.c = 1.1;
-  dp.b = 0.05;
+  dp.gamma = 1.0;
+  dp.contrast = 1.1;
+  dp.brightness = 0.05;
+  dp.saturation = 1.0;
   dp.pixelAspectRatio = 1.0;
   w->setDisplayParameters(dp);
   {

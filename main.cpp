@@ -168,6 +168,8 @@ class VMThread : public Ep128Emu::Thread {
     vm.loadROMSegment(0, "./roms/exos0.rom", 0);
     vm.loadROMSegment(1, "./roms/exos1.rom", 0);
     vm.loadROMSegment(4, "./roms/basic.rom", 0);
+    vm.loadROMSegment(5, "./roms/exdos0.rom", 0);
+    vm.loadROMSegment(6, "./roms/exdos1.rom", 0);
     vm.setAudioOutputQuality(true);
     {
       std::vector< std::string >  devList = audioOutput.getDeviceList();
@@ -181,6 +183,8 @@ class VMThread : public Ep128Emu::Thread {
     vm.setTapeFileName("./tape/tape0.tap");
     vm.tapePlay();
     vm.setEnableFastTapeMode(true);
+    vm.setDiskImageFile(0, "./disk/floppy.img");
+ // vm.setDiskImageFile(1, "./disk/floppy2.img");
     Ep128Emu::File  f;
     bool    recordingDemo = false;
     while (!stopFlag) {
@@ -240,8 +244,9 @@ int main()
   dp.blendScale1 = 0.37;
   dp.blendScale2 = 0.72;
   dp.blendScale3 = 0.30;
-  dp.g = 1.25;
-  dp.b = 0.025;
+  dp.gamma = 1.25;
+  dp.brightness = 0.025;
+//dp.saturation = 0.0;
   dp.pixelAspectRatio = 1.0;
   w->setDisplayParameters(dp);
   {

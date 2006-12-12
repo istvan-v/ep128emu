@@ -55,9 +55,6 @@ namespace Plus4 {
     red = (v / 0.877f) + y;
     blue = (u / 0.492f) + y;
     green = (y - ((red * 0.299f) + (blue * 0.114f))) / 0.587f;
-    red = (red > 0.0f ? (red < 1.0f ? red : 1.0f) : 0.0f);
-    green = (green > 0.0f ? (green < 1.0f ? green : 1.0f) : 0.0f);
-    blue = (blue > 0.0f ? (blue < 1.0f ? blue : 1.0f) : 0.0f);
   }
 
   void TED7360::setCPUClockMultiplier(int clk)

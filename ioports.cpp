@@ -259,9 +259,13 @@ namespace Ep128 {
       throw Ep128Emu::Exception("trailing garbage at end of "
                                 "I/O port snapshot data");
     for (size_t i = 0; i < 256; i++) {
-      WriteCallback&  cb = writeCallbacks[i];
       portValues[i] = tmp[i];
+      // this is probably not needed, since the devices should save
+      // and restore all internal data
+#if 0
+      WriteCallback&  cb = writeCallbacks[i];
       cb.func(cb.userData_, cb.addr_, tmp[i]);
+#endif
     }
   }
 

@@ -39,29 +39,31 @@ namespace Ep128Emu {
       void    (*indexToRGBFunc)(uint8_t color,
                                 float& red, float& green, float& blue);
       // brightness (default: 0.0)
-      double  b;
+      double  brightness;
       // contrast (default: 1.0)
-      double  c;
+      double  contrast;
       // gamma (default: 1.0, higher values result in a brighter display)
-      double  g;
+      double  gamma;
+      // color saturation (default: 1.0)
+      double  saturation;
       // brightness for red channel
-      double  rb;
+      double  redBrightness;
       // contrast for red channel
-      double  rc;
+      double  redContrast;
       // gamma for red channel
-      double  rg;
+      double  redGamma;
       // brightness for green channel
-      double  gb;
+      double  greenBrightness;
       // contrast for green channel
-      double  gc;
+      double  greenContrast;
       // gamma for green channel
-      double  gg;
+      double  greenGamma;
       // brightness for blue channel
-      double  bb;
+      double  blueBrightness;
       // contrast for blue channel
-      double  bc;
+      double  blueContrast;
       // gamma for blue channel
-      double  bg;
+      double  blueGamma;
       // controls vertical filtering of textures (0 to 0.5)
       double  blendScale1;
       // scale applied to new pixels written to frame buffer
@@ -73,72 +75,19 @@ namespace Ep128Emu {
       double  pixelAspectRatio;
      private:
       static void defaultIndexToRGBFunc(uint8_t color,
-                                        float& red, float& green, float& blue)
-      {
-        blue = green = red = (float(color) / 255.0f);
-      }
-      void copyDisplayParameters(const DisplayParameters& src)
-      {
-        displayQuality = (src.displayQuality > 0 ?
-                          (src.displayQuality < 3 ? src.displayQuality : 3)
-                          : 0);
-        if (src.indexToRGBFunc)
-          indexToRGBFunc = src.indexToRGBFunc;
-        else
-          indexToRGBFunc = &defaultIndexToRGBFunc;
-        b = (src.b > -0.5 ? (src.b < 0.5 ? src.b : 0.5) : -0.5);
-        c = (src.c > 0.5 ? (src.c < 2.0 ? src.c : 2.0) : 0.5);
-        g = (src.g > 0.25 ? (src.g < 4.0 ? src.g : 4.0) : 0.25);
-        rb = (src.rb > -0.5 ? (src.rb < 0.5 ? src.rb : 0.5) : -0.5);
-        rc = (src.rc > 0.5 ? (src.rc < 2.0 ? src.rc : 2.0) : 0.5);
-        rg = (src.rg > 0.25 ? (src.rg < 4.0 ? src.rg : 4.0) : 0.25);
-        gb = (src.gb > -0.5 ? (src.gb < 0.5 ? src.gb : 0.5) : -0.5);
-        gc = (src.gc > 0.5 ? (src.gc < 2.0 ? src.gc : 2.0) : 0.5);
-        gg = (src.gg > 0.25 ? (src.gg < 4.0 ? src.gg : 4.0) : 0.25);
-        bb = (src.bb > -0.5 ? (src.bb < 0.5 ? src.bb : 0.5) : -0.5);
-        bc = (src.bc > 0.5 ? (src.bc < 2.0 ? src.bc : 2.0) : 0.5);
-        bg = (src.bg > 0.25 ? (src.bg < 4.0 ? src.bg : 4.0) : 0.25);
-        blendScale1 = (src.blendScale1 > 0.0 ?
-                       (src.blendScale1 < 0.5 ? src.blendScale1 : 0.5) : 0.0);
-        blendScale2 = (src.blendScale2 > 0.0 ?
-                       (src.blendScale2 < 1.0 ? src.blendScale2 : 1.0) : 0.0);
-        blendScale3 = (src.blendScale3 > 0.0 ?
-                       (src.blendScale3 < 1.0 ? src.blendScale3 : 1.0) : 0.0);
-        pixelAspectRatio = (src.pixelAspectRatio > 0.5 ?
-                            (src.pixelAspectRatio < 2.0 ?
-                             src.pixelAspectRatio : 2.0) : 0.5);
-      }
+                                        float& red, float& green, float& blue);
+      void copyDisplayParameters(const DisplayParameters& src);
      public:
-      DisplayParameters()
-        : displayQuality(2),
-          indexToRGBFunc(&defaultIndexToRGBFunc),
-          b(0.0), c(1.0), g(1.0),
-          rb(0.0), rc(1.0), rg(1.0),
-          gb(0.0), gc(1.0), gg(1.0),
-          bb(0.0), bc(1.0), bg(1.0),
-          blendScale1(0.5),
-          blendScale2(0.7),
-          blendScale3(0.3),
-          pixelAspectRatio(1.0)
-      {
-      }
-      DisplayParameters(const DisplayParameters& dp)
-      {
-        copyDisplayParameters(dp);
-      }
-      DisplayParameters& operator=(const DisplayParameters& dp)
-      {
-        copyDisplayParameters(dp);
-        return (*this);
-      }
+      DisplayParameters();
+      DisplayParameters(const DisplayParameters& dp);
+      DisplayParameters& operator=(const DisplayParameters& dp);
+      void applyColorCorrection(float& red, float& green, float& blue) const;
     };
     // ----------------
     VideoDisplay()
     {
     }
-    virtual ~VideoDisplay()
-    {
-    }
+    virtual ~VideoDisplay();
     // set color correction and other display parameters
     // (see 'struct DisplayParameters' above for more information)
     virtual void setDisplayParameters(const DisplayParameters& dp) = 0;
