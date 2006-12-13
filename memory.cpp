@@ -22,20 +22,34 @@
 
 namespace Ep128 {
 
+  void Memory::allocateSegment(uint8_t n, bool isROM)
+  {
+    if (n >= 0xFC && isROM)
+      throw Ep128Emu::Exception("video memory cannot be ROM");
+    if (segmentTable[n] == (uint8_t *) 0)
+      segmentTable[n] = new uint8_t[16384];
+    segmentROMTable[n] = isROM;
+    for (uint8_t i = 0; i < 4; i++)
+      setPage(i, getPage(i));
+  }
+
   Memory::Memory()
   {
     segmentTable = (uint8_t**) 0;
     segmentROMTable = (bool*) 0;
-    pageTable[0] = 0;
-    pageTable[1] = 0;
-    pageTable[2] = 0;
-    pageTable[3] = 0;
     breakPointTable = (uint8_t*) 0;
     breakPointCnt = 0;
     segmentBreakPointTable = (uint8_t**) 0;
     segmentBreakPointCntTable = (size_t*) 0;
     haveBreakPoints = false;
     breakPointPriorityThreshold = 0;
+    videoMemory = (uint8_t *) 0;
+    dummyMemory = (uint8_t *) 0;
+    for (int i = 0; i < 4; i++) {
+      pageTable[i] = 0;
+      pageAddressTableR[i] = (uint8_t *) 0;
+      pageAddressTableW[i] = (uint8_t *) 0;
+    }
     try {
       segmentTable = new uint8_t*[256];
       for (int i = 0; i < 256; i++)
@@ -49,6 +63,18 @@ namespace Ep128 {
       segmentBreakPointCntTable = new size_t[256];
       for (int i = 0; i < 256; i++)
         segmentBreakPointCntTable[i] = 0;
+      videoMemory = new uint8_t[65536];
+      for (int i = 0; i < 65536; i++)
+        videoMemory[i] = 0xFF;
+      for (int i = 0; i < 4; i++) {
+        segmentTable[0xFC + i] = &(videoMemory[i << 14]);
+        segmentROMTable[0xFC + i] = false;
+      }
+      dummyMemory = new uint8_t[32768];
+      for (int i = 0; i < 32768; i++)
+        dummyMemory[i] = 0xFF;
+      for (uint8_t i = 0; i < 4; i++)
+        setPage(i, 0x00);
     }
     catch (...) {
       if (segmentTable) {
@@ -67,16 +93,26 @@ namespace Ep128 {
         delete[] segmentBreakPointCntTable;
         segmentBreakPointCntTable = (size_t*) 0;
       }
+      if (videoMemory) {
+        delete[] videoMemory;
+        videoMemory = (uint8_t *) 0;
+      }
+      if (dummyMemory) {
+        delete[] dummyMemory;
+        dummyMemory = (uint8_t *) 0;
+      }
       throw;
     }
   }
 
   Memory::~Memory()
   {
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 252; i++) {
       if (segmentTable[i])
         delete[] segmentTable[i];
     }
+    delete[] dummyMemory;
+    delete[] videoMemory;
     delete[] segmentTable;
     delete[] segmentROMTable;
     if (breakPointTable)
@@ -216,11 +252,8 @@ namespace Ep128 {
       deleteSegment(segment);
       return;
     }
-    if (!segmentTable[segment]) {
-      // allocate memory for segment if necessary
-      segmentTable[segment] = new uint8_t[0x4000];
-    }
-    segmentROMTable[segment] = isROM;
+    // allocate memory for segment if necessary
+    allocateSegment(segment, isROM);
     size_t  i = 0;
     if (dataSize) {
       while (true) {
@@ -229,11 +262,8 @@ namespace Ep128 {
           break;
         if ((i & 0x3FFF) == 0) {
           segment = (segment + 1) & 0xFF;
-          if (!segmentTable[segment]) {
-            // allocate memory for segment if necessary
-            segmentTable[segment] = new uint8_t[0x4000];
-          }
-          segmentROMTable[segment] = isROM;
+          // allocate memory for segment if necessary
+          allocateSegment(segment, isROM);
         }
       }
     }
@@ -243,16 +273,38 @@ namespace Ep128 {
 
   void Memory::deleteSegment(uint8_t segment)
   {
+    if (segment >= 0xFC)
+      throw Ep128Emu::Exception("cannot delete video memory segments");
     if (segmentTable[segment])
       delete[] segmentTable[segment];
     segmentTable[segment] = (uint8_t*) 0;
     segmentROMTable[segment] = true;
+    for (uint8_t i = 0; i < 4; i++)
+      setPage(i, getPage(i));
   }
 
   void Memory::deleteAllSegments()
   {
-    for (unsigned int segment = 0; segment < 256; segment++)
+    for (unsigned int segment = 0; segment < 252; segment++)
       deleteSegment((uint8_t) segment);
+  }
+
+  void Memory::setPage(uint8_t page, uint8_t segment)
+  {
+    page = page & 3;
+    pageTable[page] = segment;
+    long    offs = -(long(page) << 14);
+    if (segmentTable[segment] != (uint8_t *) 0) {
+      pageAddressTableR[page] = segmentTable[segment] + offs;
+      if (!segmentROMTable[segment])
+        pageAddressTableW[page] = segmentTable[segment] + offs;
+      else
+        pageAddressTableW[page] = dummyMemory + (0x4000L + offs);
+    }
+    else {
+      pageAddressTableR[page] = dummyMemory + offs;
+      pageAddressTableW[page] = dummyMemory + (0x4000L + offs);
+    }
   }
 
   Ep128Emu::BreakPointList Memory::getBreakPointList()
@@ -341,21 +393,21 @@ namespace Ep128 {
     }
     // reset memory
     deleteAllSegments();
-    pageTable[0] = 0x00;
-    pageTable[1] = 0x00;
-    pageTable[2] = 0x00;
-    pageTable[3] = 0x00;
+    setPage(0, 0x00);
+    setPage(1, 0x00);
+    setPage(2, 0x00);
+    setPage(3, 0x00);
     // now load saved state
-    pageTable[0] = buf.readByte();
-    pageTable[1] = buf.readByte();
-    pageTable[2] = buf.readByte();
-    pageTable[3] = buf.readByte();
+    setPage(0, buf.readByte());
+    setPage(1, buf.readByte());
+    setPage(2, buf.readByte());
+    setPage(3, buf.readByte());
     while (buf.getPosition() < buf.getDataSize()) {
       uint8_t segment = buf.readByte();
       // allocate space
       loadSegment(segment, false, (uint8_t*) 0, 0);
       // set ROM flag and load data
-      segmentROMTable[segment] = buf.readBoolean();
+      allocateSegment(segment, buf.readBoolean());
       for (size_t i = 0; i < 16384; i++)
         segmentTable[segment][i] = buf.readByte();
     }

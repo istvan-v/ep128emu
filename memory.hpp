@@ -36,6 +36,11 @@ namespace Ep128 {
     size_t  *segmentBreakPointCntTable;
     bool    haveBreakPoints;
     uint8_t breakPointPriorityThreshold;
+    uint8_t *videoMemory;   // 64K for segments FC, FD, FE, and FF; always RAM
+    uint8_t *dummyMemory;   // 2*16K dummy memory for invalid reads and writes
+    uint8_t *pageAddressTableR[4];
+    uint8_t *pageAddressTableW[4];
+    void allocateSegment(uint8_t n, bool isROM);
    public:
     Memory();
     virtual ~Memory();
@@ -54,8 +59,9 @@ namespace Ep128 {
     inline uint8_t read(uint16_t addr);
     inline uint8_t readRaw(uint32_t addr) const;
     inline void write(uint16_t addr, uint8_t value);
-    inline void setPage(uint8_t page, uint8_t segment);
+    void setPage(uint8_t page, uint8_t segment);
     inline uint8_t getPage(uint8_t page) const;
+    inline const uint8_t * getVideoMemory() const;
     inline bool isSegmentROM(uint8_t segment) const;
     inline bool isSegmentRAM(uint8_t segment) const;
     Ep128Emu::BreakPointList getBreakPointList();
@@ -71,20 +77,17 @@ namespace Ep128 {
 
   inline uint8_t Memory::read(uint16_t addr)
   {
-    uint16_t  offs = addr & 0x3FFF;
-    uint8_t   segment = pageTable[uint8_t(addr >> 14)], value;
+    uint8_t page = uint8_t(addr >> 14);
+    uint8_t value = pageAddressTableR[page][addr];
 
-    if (segmentTable[segment])
-      value = segmentTable[segment][offs];
-    else
-      value = 0xFF;
     if (haveBreakPoints) {
       uint8_t *tbl = breakPointTable;
       if (tbl != (uint8_t*) 0 &&
           tbl[addr] >= breakPointPriorityThreshold && (tbl[addr] & 1) != 0)
         breakPointCallback(false, addr, value);
       else {
-        tbl = segmentBreakPointTable[segment];
+        uint16_t  offs = addr & 0x3FFF;
+        tbl = segmentBreakPointTable[pageTable[page]];
         if (tbl != (uint8_t*) 0 &&
             tbl[offs] >= breakPointPriorityThreshold && (tbl[offs] & 1) != 0)
           breakPointCallback(false, addr, value);
@@ -107,8 +110,7 @@ namespace Ep128 {
 
   inline void Memory::write(uint16_t addr, uint8_t value)
   {
-    uint16_t  offs = addr & 0x3FFF;
-    uint8_t   segment = pageTable[uint8_t(addr >> 14)];
+    uint8_t page = uint8_t(addr >> 14);
 
     if (haveBreakPoints) {
       uint8_t *tbl = breakPointTable;
@@ -116,24 +118,24 @@ namespace Ep128 {
           tbl[addr] >= breakPointPriorityThreshold && (tbl[addr] & 2) != 0)
         breakPointCallback(true, addr, value);
       else {
-        tbl = segmentBreakPointTable[segment];
+        uint16_t  offs = addr & 0x3FFF;
+        tbl = segmentBreakPointTable[pageTable[page]];
         if (tbl != (uint8_t*) 0 &&
             tbl[offs] >= breakPointPriorityThreshold && (tbl[offs] & 2) != 0)
           breakPointCallback(true, addr, value);
       }
     }
-    if (!segmentROMTable[segment])
-      segmentTable[segment][offs] = value;
-  }
-
-  inline void Memory::setPage(uint8_t page, uint8_t segment)
-  {
-    pageTable[page & 3] = segment;
+    pageAddressTableW[page][addr] = value;
   }
 
   inline uint8_t Memory::getPage(uint8_t page) const
   {
     return pageTable[page & 3];
+  }
+
+  inline const uint8_t * Memory::getVideoMemory() const
+  {
+    return videoMemory;
   }
 
   inline bool Memory::isSegmentROM(uint8_t segment) const

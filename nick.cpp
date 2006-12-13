@@ -169,11 +169,6 @@ namespace Ep128 {
     buf_ = buf + 4;
   }
 
-  inline uint8_t NickRenderer::readVideoMemory(uint16_t addr)
-  {
-    return m.readRaw(uint32_t(addr) + VIDEO_MEMORY_BASE_ADDR);
-  }
-
   // --------------------------------------------------------------------------
 
 #ifdef REGPARM
@@ -192,18 +187,18 @@ namespace Ep128 {
 
   REGPARM void NickRenderer_PIXEL_2::doRender(uint8_t*& buf)
   {
-    uint8_t   b1 = readVideoMemory(lpb.ld1Addr);
+    uint8_t   b1 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t   b2 = readVideoMemory(lpb.ld1Addr);
+    uint8_t   b2 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     renderBytes2Colors(buf, b1, b2, 0, 0);
   }
 
   REGPARM void NickRenderer_PIXEL_2_LSBALT::doRender(uint8_t*& buf)
   {
-    uint8_t   b1 = readVideoMemory(lpb.ld1Addr);
+    uint8_t   b1 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t   b2 = readVideoMemory(lpb.ld1Addr);
+    uint8_t   b2 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     renderBytes2Colors(buf,
                        b1 & 0xFE, b2 & 0xFE,
@@ -212,9 +207,9 @@ namespace Ep128 {
 
   REGPARM void NickRenderer_PIXEL_2_MSBALT::doRender(uint8_t*& buf)
   {
-    uint8_t   b1 = readVideoMemory(lpb.ld1Addr);
+    uint8_t   b1 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t   b2 = readVideoMemory(lpb.ld1Addr);
+    uint8_t   b2 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     renderBytes2Colors(buf,
                        b1 & 0x7F, b2 & 0x7F,
@@ -223,9 +218,9 @@ namespace Ep128 {
 
   REGPARM void NickRenderer_PIXEL_2_LSBALT_MSBALT::doRender(uint8_t*& buf)
   {
-    uint8_t   b1 = readVideoMemory(lpb.ld1Addr);
+    uint8_t   b1 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t   b2 = readVideoMemory(lpb.ld1Addr);
+    uint8_t   b2 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     renderBytes2Colors(buf,
                        b1 & 0x7E, b2 & 0x7E,
@@ -235,18 +230,18 @@ namespace Ep128 {
 
   REGPARM void NickRenderer_PIXEL_4::doRender(uint8_t*& buf)
   {
-    uint8_t   b1 = readVideoMemory(lpb.ld1Addr);
+    uint8_t   b1 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t   b2 = readVideoMemory(lpb.ld1Addr);
+    uint8_t   b2 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     renderBytes4Colors(buf, b1, b2, 0, 0);
   }
 
   REGPARM void NickRenderer_PIXEL_4_LSBALT::doRender(uint8_t*& buf)
   {
-    uint8_t   b1 = readVideoMemory(lpb.ld1Addr);
+    uint8_t   b1 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t   b2 = readVideoMemory(lpb.ld1Addr);
+    uint8_t   b2 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     renderBytes4Colors(buf,
                        b1 & 0xFE, b2 & 0xFE,
@@ -255,18 +250,18 @@ namespace Ep128 {
 
   REGPARM void NickRenderer_PIXEL_16::doRender(uint8_t*& buf)
   {
-    uint8_t   b1 = readVideoMemory(lpb.ld1Addr);
+    uint8_t   b1 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t   b2 = readVideoMemory(lpb.ld1Addr);
+    uint8_t   b2 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     renderBytes16Colors(buf, b1, b2);
   }
 
   REGPARM void NickRenderer_PIXEL_256::doRender(uint8_t*& buf)
   {
-    uint8_t   b1 = readVideoMemory(lpb.ld1Addr);
+    uint8_t   b1 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t   b2 = readVideoMemory(lpb.ld1Addr);
+    uint8_t   b2 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     renderBytes256Colors(buf, b1, b2);
   }
@@ -274,145 +269,144 @@ namespace Ep128 {
   REGPARM void NickRenderer_ATTRIBUTE::doRender(uint8_t*& buf)
   {
     renderBytesAttribute(buf,
-                         readVideoMemory(lpb.ld2Addr),
-                         readVideoMemory(lpb.ld1Addr));
+                         videoMemory[lpb.ld2Addr], videoMemory[lpb.ld1Addr]);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     lpb.ld2Addr = (lpb.ld2Addr + 1) & 0xFFFF;
   }
 
   REGPARM void NickRenderer_CH256_2::doRender(uint8_t*& buf)
   {
-    uint8_t ch = readVideoMemory(lpb.ld1Addr);
+    uint8_t ch = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t b = readVideoMemory(lpb.ld2Addr | uint16_t(ch));
+    uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch)];
     renderByte2ColorsL(buf, b, 0);
   }
 
   REGPARM void NickRenderer_CH256_4::doRender(uint8_t*& buf)
   {
-    uint8_t ch = readVideoMemory(lpb.ld1Addr);
+    uint8_t ch = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t b = readVideoMemory(lpb.ld2Addr | uint16_t(ch));
+    uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch)];
     renderByte4ColorsL(buf, b, 0);
   }
 
   REGPARM void NickRenderer_CH256_16::doRender(uint8_t*& buf)
   {
-    uint8_t ch = readVideoMemory(lpb.ld1Addr);
+    uint8_t ch = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t b = readVideoMemory(lpb.ld2Addr | uint16_t(ch));
+    uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch)];
     renderByte16ColorsL(buf, b);
   }
 
   REGPARM void NickRenderer_CH256_256::doRender(uint8_t*& buf)
   {
-    uint8_t ch = readVideoMemory(lpb.ld1Addr);
+    uint8_t ch = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t b = readVideoMemory(lpb.ld2Addr | uint16_t(ch));
+    uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch)];
     renderByte256ColorsL(buf, b);
   }
 
   REGPARM void NickRenderer_CH128_2::doRender(uint8_t*& buf)
   {
-    uint8_t ch = readVideoMemory(lpb.ld1Addr);
+    uint8_t ch = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t b = readVideoMemory(lpb.ld2Addr | uint16_t(ch & 0x7F));
+    uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x7F)];
     renderByte2ColorsL(buf, b, 0);
   }
 
   REGPARM void NickRenderer_CH128_2_ALTIND1::doRender(uint8_t*& buf)
   {
-    uint8_t ch = readVideoMemory(lpb.ld1Addr);
+    uint8_t ch = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t b = readVideoMemory(lpb.ld2Addr | uint16_t(ch & 0x7F));
+    uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x7F)];
     renderByte2ColorsL(buf, b, (ch & 0x80) >> 6);
   }
 
   REGPARM void NickRenderer_CH128_4::doRender(uint8_t*& buf)
   {
-    uint8_t ch = readVideoMemory(lpb.ld1Addr);
+    uint8_t ch = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t b = readVideoMemory(lpb.ld2Addr | uint16_t(ch & 0x7F));
+    uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x7F)];
     renderByte4ColorsL(buf, b, 0);
   }
 
   REGPARM void NickRenderer_CH128_16::doRender(uint8_t*& buf)
   {
-    uint8_t ch = readVideoMemory(lpb.ld1Addr);
+    uint8_t ch = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t b = readVideoMemory(lpb.ld2Addr | uint16_t(ch & 0x7F));
+    uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x7F)];
     renderByte16ColorsL(buf, b);
   }
 
   REGPARM void NickRenderer_CH128_256::doRender(uint8_t*& buf)
   {
-    uint8_t ch = readVideoMemory(lpb.ld1Addr);
+    uint8_t ch = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t b = readVideoMemory(lpb.ld2Addr | uint16_t(ch & 0x7F));
+    uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x7F)];
     renderByte256ColorsL(buf, b);
   }
 
   REGPARM void NickRenderer_CH64_2::doRender(uint8_t*& buf)
   {
-    uint8_t ch = readVideoMemory(lpb.ld1Addr);
+    uint8_t ch = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t b = readVideoMemory(lpb.ld2Addr | uint16_t(ch & 0x3F));
+    uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x3F)];
     renderByte2ColorsL(buf, b, 0);
   }
 
   REGPARM void NickRenderer_CH64_2_ALTIND0::doRender(uint8_t*& buf)
   {
-    uint8_t ch = readVideoMemory(lpb.ld1Addr);
+    uint8_t ch = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t b = readVideoMemory(lpb.ld2Addr | uint16_t(ch & 0x3F));
+    uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x3F)];
     renderByte2ColorsL(buf, b, (ch & 0x40) >> 4);
   }
 
   REGPARM void NickRenderer_CH64_2_ALTIND1::doRender(uint8_t*& buf)
   {
-    uint8_t ch = readVideoMemory(lpb.ld1Addr);
+    uint8_t ch = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t b = readVideoMemory(lpb.ld2Addr | uint16_t(ch & 0x3F));
+    uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x3F)];
     renderByte2ColorsL(buf, b, (ch & 0x80) >> 6);
   }
 
   REGPARM void NickRenderer_CH64_2_ALTIND0_ALTIND1::doRender(uint8_t*& buf)
   {
-    uint8_t ch = readVideoMemory(lpb.ld1Addr);
+    uint8_t ch = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t b = readVideoMemory(lpb.ld2Addr | uint16_t(ch & 0x3F));
+    uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x3F)];
     renderByte2ColorsL(buf, b, ((ch & 0x80) >> 6) + ((ch & 0x40) >> 4));
   }
 
   REGPARM void NickRenderer_CH64_4::doRender(uint8_t*& buf)
   {
-    uint8_t ch = readVideoMemory(lpb.ld1Addr);
+    uint8_t ch = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t b = readVideoMemory(lpb.ld2Addr | uint16_t(ch & 0x3F));
+    uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x3F)];
     renderByte4ColorsL(buf, b, 0);
   }
 
   REGPARM void NickRenderer_CH64_4_ALTIND0::doRender(uint8_t*& buf)
   {
-    uint8_t ch = readVideoMemory(lpb.ld1Addr);
+    uint8_t ch = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t b = readVideoMemory(lpb.ld2Addr | uint16_t(ch & 0x3F));
+    uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x3F)];
     renderByte4ColorsL(buf, b, (ch & 0x40) >> 4);
   }
 
   REGPARM void NickRenderer_CH64_16::doRender(uint8_t*& buf)
   {
-    uint8_t ch = readVideoMemory(lpb.ld1Addr);
+    uint8_t ch = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t b = readVideoMemory(lpb.ld2Addr | uint16_t(ch & 0x3F));
+    uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x3F)];
     renderByte16ColorsL(buf, b);
   }
 
   REGPARM void NickRenderer_CH64_256::doRender(uint8_t*& buf)
   {
-    uint8_t ch = readVideoMemory(lpb.ld1Addr);
+    uint8_t ch = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
-    uint8_t b = readVideoMemory(lpb.ld2Addr | uint16_t(ch & 0x3F));
+    uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x3F)];
     renderByte256ColorsL(buf, b);
   }
 
@@ -423,53 +417,53 @@ namespace Ep128 {
 
   REGPARM void NickRenderer_LPIXEL_2::doRender(uint8_t*& buf)
   {
-    renderByte2ColorsL(buf, readVideoMemory(lpb.ld1Addr), 0);
+    renderByte2ColorsL(buf, videoMemory[lpb.ld1Addr], 0);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
   }
 
   REGPARM void NickRenderer_LPIXEL_2_LSBALT::doRender(uint8_t*& buf)
   {
-    uint8_t b = readVideoMemory(lpb.ld1Addr);
+    uint8_t b = videoMemory[lpb.ld1Addr];
     renderByte2ColorsL(buf, b & 0xFE, (b & 0x01) << 2);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
   }
 
   REGPARM void NickRenderer_LPIXEL_2_MSBALT::doRender(uint8_t*& buf)
   {
-    uint8_t b = readVideoMemory(lpb.ld1Addr);
+    uint8_t b = videoMemory[lpb.ld1Addr];
     renderByte2ColorsL(buf, b & 0x7F, (b & 0x80) >> 6);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
   }
 
   REGPARM void NickRenderer_LPIXEL_2_LSBALT_MSBALT::doRender(uint8_t*& buf)
   {
-    uint8_t b = readVideoMemory(lpb.ld1Addr);
+    uint8_t b = videoMemory[lpb.ld1Addr];
     renderByte2ColorsL(buf, b & 0x7E, ((b & 0x80) >> 6) | ((b & 0x01) << 2));
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
   }
 
   REGPARM void NickRenderer_LPIXEL_4::doRender(uint8_t*& buf)
   {
-    renderByte4ColorsL(buf, readVideoMemory(lpb.ld1Addr), 0);
+    renderByte4ColorsL(buf, videoMemory[lpb.ld1Addr], 0);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
   }
 
   REGPARM void NickRenderer_LPIXEL_4_LSBALT::doRender(uint8_t*& buf)
   {
-    uint8_t b = readVideoMemory(lpb.ld1Addr);
+    uint8_t b = videoMemory[lpb.ld1Addr];
     renderByte4ColorsL(buf, b & 0xFE, (b & 0x01) << 2);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
   }
 
   REGPARM void NickRenderer_LPIXEL_16::doRender(uint8_t*& buf)
   {
-    renderByte16ColorsL(buf, readVideoMemory(lpb.ld1Addr));
+    renderByte16ColorsL(buf, videoMemory[lpb.ld1Addr]);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
   }
 
   REGPARM void NickRenderer_LPIXEL_256::doRender(uint8_t*& buf)
   {
-    renderByte256ColorsL(buf, readVideoMemory(lpb.ld1Addr));
+    renderByte256ColorsL(buf, videoMemory[lpb.ld1Addr]);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
   }
 
@@ -479,7 +473,8 @@ namespace Ep128 {
 
   // --------------------------------------------------------------------------
 
-  NickRendererTable::NickRendererTable(NickLPB& lpb, Memory& m)
+  NickRendererTable::NickRendererTable(NickLPB& lpb,
+                                       const uint8_t *videoMemory_)
   {
     t = (NickRenderer**) 0;
     try {
@@ -495,52 +490,53 @@ namespace Ep128 {
         bool    msbAlt  = !!(i & 0x0100);
         switch (videoMode) {
         case 0:
-          t[i] = new NickRenderer_Blank(lpb, m);
+          t[i] = new NickRenderer_Blank(lpb, videoMemory_);
           break;
         case 1:
           switch (colorMode) {
           case 0:
             if (lsbAlt) {
               if (msbAlt)
-                t[i] = new NickRenderer_PIXEL_2_LSBALT_MSBALT(lpb, m);
+                t[i] = new NickRenderer_PIXEL_2_LSBALT_MSBALT(lpb,
+                                                              videoMemory_);
               else
-                t[i] = new NickRenderer_PIXEL_2_LSBALT(lpb, m);
+                t[i] = new NickRenderer_PIXEL_2_LSBALT(lpb, videoMemory_);
             }
             else if (msbAlt)
-              t[i] = new NickRenderer_PIXEL_2_MSBALT(lpb, m);
+              t[i] = new NickRenderer_PIXEL_2_MSBALT(lpb, videoMemory_);
             else
-              t[i] = new NickRenderer_PIXEL_2(lpb, m);
+              t[i] = new NickRenderer_PIXEL_2(lpb, videoMemory_);
             break;
           case 1:
             if (lsbAlt)
-              t[i] = new NickRenderer_PIXEL_4_LSBALT(lpb, m);
+              t[i] = new NickRenderer_PIXEL_4_LSBALT(lpb, videoMemory_);
             else
-              t[i] = new NickRenderer_PIXEL_4(lpb, m);
+              t[i] = new NickRenderer_PIXEL_4(lpb, videoMemory_);
             break;
           case 2:
-            t[i] = new NickRenderer_PIXEL_16(lpb, m);
+            t[i] = new NickRenderer_PIXEL_16(lpb, videoMemory_);
             break;
           case 3:
-            t[i] = new NickRenderer_PIXEL_256(lpb, m);
+            t[i] = new NickRenderer_PIXEL_256(lpb, videoMemory_);
             break;
           }
           break;
         case 2:
-          t[i] = new NickRenderer_ATTRIBUTE(lpb, m);
+          t[i] = new NickRenderer_ATTRIBUTE(lpb, videoMemory_);
           break;
         case 3:
           switch (colorMode) {
           case 0:
-            t[i] = new NickRenderer_CH256_2(lpb, m);
+            t[i] = new NickRenderer_CH256_2(lpb, videoMemory_);
             break;
           case 1:
-            t[i] = new NickRenderer_CH256_4(lpb, m);
+            t[i] = new NickRenderer_CH256_4(lpb, videoMemory_);
             break;
           case 2:
-            t[i] = new NickRenderer_CH256_16(lpb, m);
+            t[i] = new NickRenderer_CH256_16(lpb, videoMemory_);
             break;
           case 3:
-            t[i] = new NickRenderer_CH256_256(lpb, m);
+            t[i] = new NickRenderer_CH256_256(lpb, videoMemory_);
             break;
           }
           break;
@@ -548,18 +544,18 @@ namespace Ep128 {
           switch (colorMode) {
           case 0:
             if (altInd1)
-              t[i] = new NickRenderer_CH128_2_ALTIND1(lpb, m);
+              t[i] = new NickRenderer_CH128_2_ALTIND1(lpb, videoMemory_);
             else
-              t[i] = new NickRenderer_CH128_2(lpb, m);
+              t[i] = new NickRenderer_CH128_2(lpb, videoMemory_);
             break;
           case 1:
-            t[i] = new NickRenderer_CH128_4(lpb, m);
+            t[i] = new NickRenderer_CH128_4(lpb, videoMemory_);
             break;
           case 2:
-            t[i] = new NickRenderer_CH128_16(lpb, m);
+            t[i] = new NickRenderer_CH128_16(lpb, videoMemory_);
             break;
           case 3:
-            t[i] = new NickRenderer_CH128_256(lpb, m);
+            t[i] = new NickRenderer_CH128_256(lpb, videoMemory_);
             break;
           }
           break;
@@ -568,57 +564,59 @@ namespace Ep128 {
           case 0:
             if (altInd0) {
               if (altInd1)
-                t[i] = new NickRenderer_CH64_2_ALTIND0_ALTIND1(lpb, m);
+                t[i] = new NickRenderer_CH64_2_ALTIND0_ALTIND1(lpb,
+                                                               videoMemory_);
               else
-                t[i] = new NickRenderer_CH64_2_ALTIND0(lpb, m);
+                t[i] = new NickRenderer_CH64_2_ALTIND0(lpb, videoMemory_);
             }
             else if (altInd1)
-              t[i] = new NickRenderer_CH64_2_ALTIND1(lpb, m);
+              t[i] = new NickRenderer_CH64_2_ALTIND1(lpb, videoMemory_);
             else
-              t[i] = new NickRenderer_CH64_2(lpb, m);
+              t[i] = new NickRenderer_CH64_2(lpb, videoMemory_);
             break;
           case 1:
             if (altInd0)
-              t[i] = new NickRenderer_CH64_4_ALTIND0(lpb, m);
+              t[i] = new NickRenderer_CH64_4_ALTIND0(lpb, videoMemory_);
             else
-              t[i] = new NickRenderer_CH64_4(lpb, m);
+              t[i] = new NickRenderer_CH64_4(lpb, videoMemory_);
             break;
           case 2:
-            t[i] = new NickRenderer_CH64_16(lpb, m);
+            t[i] = new NickRenderer_CH64_16(lpb, videoMemory_);
             break;
           case 3:
-            t[i] = new NickRenderer_CH64_256(lpb, m);
+            t[i] = new NickRenderer_CH64_256(lpb, videoMemory_);
             break;
           }
           break;
         case 6:
-          t[i] = new NickRenderer_INVALID_MODE(lpb, m);
+          t[i] = new NickRenderer_INVALID_MODE(lpb, videoMemory_);
           break;
         case 7:
           switch (colorMode) {
           case 0:
             if (lsbAlt) {
               if (msbAlt)
-                t[i] = new NickRenderer_LPIXEL_2_LSBALT_MSBALT(lpb, m);
+                t[i] = new NickRenderer_LPIXEL_2_LSBALT_MSBALT(lpb,
+                                                               videoMemory_);
               else
-                t[i] = new NickRenderer_LPIXEL_2_LSBALT(lpb, m);
+                t[i] = new NickRenderer_LPIXEL_2_LSBALT(lpb, videoMemory_);
             }
             else if (msbAlt)
-              t[i] = new NickRenderer_LPIXEL_2_MSBALT(lpb, m);
+              t[i] = new NickRenderer_LPIXEL_2_MSBALT(lpb, videoMemory_);
             else
-              t[i] = new NickRenderer_LPIXEL_2(lpb, m);
+              t[i] = new NickRenderer_LPIXEL_2(lpb, videoMemory_);
             break;
           case 1:
             if (lsbAlt)
-              t[i] = new NickRenderer_LPIXEL_4_LSBALT(lpb, m);
+              t[i] = new NickRenderer_LPIXEL_4_LSBALT(lpb, videoMemory_);
             else
-              t[i] = new NickRenderer_LPIXEL_4(lpb, m);
+              t[i] = new NickRenderer_LPIXEL_4(lpb, videoMemory_);
             break;
           case 2:
-            t[i] = new NickRenderer_LPIXEL_16(lpb, m);
+            t[i] = new NickRenderer_LPIXEL_16(lpb, videoMemory_);
             break;
           case 3:
-            t[i] = new NickRenderer_LPIXEL_256(lpb, m);
+            t[i] = new NickRenderer_LPIXEL_256(lpb, videoMemory_);
             break;
           }
           break;
@@ -665,11 +663,6 @@ namespace Ep128 {
 
   // --------------------------------------------------------------------------
 
-  inline uint8_t Nick::readVideoMemory(uint16_t addr)
-  {
-    return m.readRaw(uint32_t(addr) + VIDEO_MEMORY_BASE_ADDR);
-  }
-
   void Nick::runOneSlot()
   {
     if (currentSlot < 8) {
@@ -677,10 +670,10 @@ namespace Ep128 {
       switch (currentSlot) {
       case 0:
         {
-          lpb.nLines = 256 - int(readVideoMemory(lptCurrentAddr + 0));
+          lpb.nLines = 256 - int(videoMemory[lptCurrentAddr + 0]);
           if (linesRemaining <= 0)
             linesRemaining = lpb.nLines;
-          uint8_t modeByte = readVideoMemory(lptCurrentAddr + 1);
+          uint8_t modeByte = videoMemory[lptCurrentAddr + 1];
           bool    irqState = !!(modeByte & 0x80);
           if (irqState != lpb.interruptFlag) {
             lpb.interruptFlag = irqState;
@@ -690,27 +683,31 @@ namespace Ep128 {
           lpb.vresMode = !!(modeByte & 0x10);
           lpb.videoMode = (modeByte >> 1) & 7;
           lpb.reloadFlag = !!(modeByte & 0x01);
+          if (vsyncFlag && lpb.videoMode != 0) {
+            vsyncFlag = false;
+            vsyncStateChange(false, currentSlot);
+          }
         }
         break;
       case 1:
-        lpb.leftMargin = readVideoMemory(lptCurrentAddr + 2);
+        lpb.leftMargin = videoMemory[lptCurrentAddr + 2];
         lpb.lsbAlt = !!(lpb.leftMargin & 0x40);
         lpb.msbAlt = !!(lpb.leftMargin & 0x80);
         lpb.leftMargin &= 0x3F;
-        lpb.rightMargin = readVideoMemory(lptCurrentAddr + 3);
+        lpb.rightMargin = videoMemory[lptCurrentAddr + 3];
         lpb.altInd1 = !!(lpb.rightMargin & 0x40);
         lpb.altInd0 = !!(lpb.rightMargin & 0x80);
         lpb.rightMargin &= 0x3F;
         break;
       case 2:
-        lpb.ld1Base =    uint16_t(readVideoMemory(lptCurrentAddr + 4))
-                      | (uint16_t(readVideoMemory(lptCurrentAddr + 5)) << 8);
+        lpb.ld1Base =    uint16_t(videoMemory[lptCurrentAddr + 4])
+                      | (uint16_t(videoMemory[lptCurrentAddr + 5]) << 8);
         if (linesRemaining == lpb.nLines || !lpb.vresMode)
           lpb.ld1Addr = lpb.ld1Base;
         break;
       case 3:
-        lpb.ld2Base =    uint16_t(readVideoMemory(lptCurrentAddr + 6))
-                      | (uint16_t(readVideoMemory(lptCurrentAddr + 7)) << 8);
+        lpb.ld2Base =    uint16_t(videoMemory[lptCurrentAddr + 6])
+                      | (uint16_t(videoMemory[lptCurrentAddr + 7]) << 8);
         switch (lpb.videoMode) {
         case 3:                     // CH256
           lpb.ld2Base = (lpb.ld2Base << 8) & 0xFF00;
@@ -729,73 +726,72 @@ namespace Ep128 {
           lpb.ld2Addr = lpb.ld2Base;
         break;
       case 4:
-        lpb.palette[0] = readVideoMemory(lptCurrentAddr + 8);
-        lpb.palette[1] = readVideoMemory(lptCurrentAddr + 9);
+        lpb.palette[0] = videoMemory[lptCurrentAddr + 8];
+        lpb.palette[1] = videoMemory[lptCurrentAddr + 9];
         break;
       case 5:
-        lpb.palette[2] = readVideoMemory(lptCurrentAddr + 10);
-        lpb.palette[3] = readVideoMemory(lptCurrentAddr + 11);
+        lpb.palette[2] = videoMemory[lptCurrentAddr + 10];
+        lpb.palette[3] = videoMemory[lptCurrentAddr + 11];
         break;
       case 6:
-        lpb.palette[4] = readVideoMemory(lptCurrentAddr + 12);
-        lpb.palette[5] = readVideoMemory(lptCurrentAddr + 13);
+        lpb.palette[4] = videoMemory[lptCurrentAddr + 12];
+        lpb.palette[5] = videoMemory[lptCurrentAddr + 13];
         break;
       case 7:
-        lpb.palette[6] = readVideoMemory(lptCurrentAddr + 14);
-        lpb.palette[7] = readVideoMemory(lptCurrentAddr + 15);
+        lpb.palette[6] = videoMemory[lptCurrentAddr + 14];
+        lpb.palette[7] = videoMemory[lptCurrentAddr + 15];
         break;
       }
     }
-    else if (currentSlot < 54) {
-      // display area
-      if (!currentRenderer) {
-        if (currentSlot >= lpb.leftMargin && currentSlot < lpb.rightMargin) {
-          currentRenderer = &(renderers.getRenderer(lpb));
-          if (lpb.videoMode == 0)
-            vsyncStateChange(true, currentSlot);
-        }
-      }
-      else {
-        if (currentSlot >= lpb.rightMargin) {
-          currentRenderer = (NickRenderer *) 0;
-          if (lpb.videoMode == 0)
-            vsyncStateChange(false, currentSlot);
-        }
-      }
-      if (!currentRenderer) {
-        *(lineBufPtr++) = 0x01;
-        *(lineBufPtr++) = borderColor;
-      }
-      else {
-        currentRenderer->doRender(lineBufPtr);
+    if (currentSlot == lpb.rightMargin) {
+      currentRenderer = (NickRenderer *) 0;
+      if (vsyncFlag) {
+        vsyncFlag = false;
+        vsyncStateChange(false, currentSlot);
       }
     }
-    else if (currentSlot == 54) {
-      if (lpb.videoMode != 0)
-        currentRenderer = (NickRenderer *) 0;
-      size_t  nBytes = size_t(lineBufPtr - lineBuf);
-      lineBufPtr = lineBuf;
-      for (size_t i = nBytes; (i & 3) != 0; i++)
-        lineBuf[i] = 0;
-      drawLine(lineBuf, nBytes);
+    else if (currentSlot == lpb.leftMargin) {
+      currentRenderer = &(renderers.getRenderer(lpb));
+      bool  wasVsync = vsyncFlag;
+      vsyncFlag = (lpb.videoMode == 0);
+      if (vsyncFlag != wasVsync)
+        vsyncStateChange(vsyncFlag, currentSlot);
     }
-    else if (currentSlot == 56) {
-      if (lptClockEnabled) {
-        if (--linesRemaining == 0) {
-          if (!lpb.reloadFlag)
-            lptCurrentAddr = (lptCurrentAddr + 0x0010) & 0xFFF0;
-          else
-            lptCurrentAddr = lptBaseAddr;
+    if (currentSlot >= 8) {
+      if (currentSlot < 54) {
+        // display area
+        if (!currentRenderer) {
+          *(lineBufPtr++) = 0x01;
+          *(lineBufPtr++) = borderColor;
         }
+        else
+          currentRenderer->doRender(lineBufPtr);
       }
-      currentSlot = 0;
-      currentSlot--;
+      else if (currentSlot == 54) {
+        size_t  nBytes = size_t(lineBufPtr - lineBuf);
+        lineBufPtr = lineBuf;
+        for (size_t i = nBytes; (i & 3) != 0; i++)
+          lineBuf[i] = 0;
+        drawLine(lineBuf, nBytes);
+      }
+      else if (currentSlot == 56) {
+        if (lptClockEnabled) {
+          if (--linesRemaining == 0) {
+            if (!lpb.reloadFlag)
+              lptCurrentAddr = (lptCurrentAddr + 0x0010) & 0xFFF0;
+            else
+              lptCurrentAddr = lptBaseAddr;
+          }
+        }
+        currentSlot = 0;
+        currentSlot--;
+      }
     }
     currentSlot++;
   }
 
   Nick::Nick(Memory& m_)
-    : m(m_), renderers(lpb, m_)
+    : renderers(lpb, m_.getVideoMemory())
   {
     lpb.nLines = 1;
     lpb.interruptFlag = false;
@@ -818,10 +814,12 @@ namespace Ep128 {
     lptBaseAddr = 0;
     lptCurrentAddr = 0;
     linesRemaining = 0;
+    videoMemory = m_.getVideoMemory();
     currentRenderer = (NickRenderer*) 0;
     currentSlot = 0;
     borderColor = 0;
     lptClockEnabled = true;
+    vsyncFlag = false;
     try {
       uint32_t  *p = new uint32_t[196];     // for 782 bytes (46 * 17)
       for (size_t i = 0; i < 196; i++)

@@ -89,7 +89,7 @@ namespace Plus4 {
         *(bufp++) = 0x00;
       }
       vm.display.drawLine(&(tmpBuf[0]), 414);
-      if (++lineCnt_ == 8)
+      if (++lineCnt_ == 3)
         vm.display.vsyncStateChange(false, 28);
     }
   }

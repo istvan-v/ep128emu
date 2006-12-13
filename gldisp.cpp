@@ -328,6 +328,7 @@ namespace Ep128Emu {
       textureID(0UL),
       curLine(0),
       lineCnt(0),
+      prvLineCnt(0),
       framesPending(0),
       skippingFrame(false),
       displayParameters(),
@@ -697,6 +698,7 @@ namespace Ep128Emu {
 
   void OpenGLDisplay::setDisplayParameters(const DisplayParameters& dp)
   {
+    vsyncStateChange(true, 8);
     vsyncStateChange(false, 28);
     Message_SetParameters *m = allocateMessage<Message_SetParameters>();
     m->dp = dp;
@@ -730,16 +732,18 @@ namespace Ep128Emu {
                                        unsigned int currentSlot_)
   {
     (void) currentSlot_;
-    if (newState)
+    if (newState) {
+      curLine = 272 - prvLineCnt;
+      prvLineCnt = lineCnt;
+      lineCnt = 0;
       return;
+    }
     messageQueueMutex.lock();
     bool    skippedFrame = skippingFrame;
     if (!skippedFrame)
       framesPending++;
     skippingFrame = (framesPending > 2);
     messageQueueMutex.unlock();
-    curLine = 288 - (lineCnt ^ 1);
-    lineCnt = 0;
     if (skippedFrame)
       return;
     Message *m = allocateMessage<Message_FrameDone>();

@@ -149,6 +149,7 @@ namespace Ep128Emu {
     unsigned long textureID;
     int           curLine;
     int           lineCnt;      // nr. of lines received so far in this frame
+    int           prvLineCnt;
     int           framesPending;
     bool          skippingFrame;
     DisplayParameters   displayParameters;

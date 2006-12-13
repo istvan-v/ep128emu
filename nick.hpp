@@ -24,10 +24,6 @@
 
 namespace Ep128 {
 
-  enum {
-    VIDEO_MEMORY_BASE_ADDR = 0x003F0000
-  };
-
   class Memory;
   class Nick;
 
@@ -82,7 +78,7 @@ namespace Ep128 {
     };
     static NickTables t;
     NickLPB&  lpb;
-    Memory&   m;
+    const uint8_t *videoMemory;
     inline void renderByte2ColorsL(uint8_t*& buf_, uint8_t b1,
                                    uint8_t paletteOffset);
     inline void renderByte4ColorsL(uint8_t*& buf_, uint8_t b1,
@@ -100,10 +96,9 @@ namespace Ep128 {
     inline void renderBytes16Colors(uint8_t*& buf_, uint8_t b1, uint8_t b2);
     inline void renderBytes256Colors(uint8_t*& buf_, uint8_t b1, uint8_t b2);
     inline void renderBytesAttribute(uint8_t*& buf_, uint8_t b1, uint8_t attr);
-    inline uint8_t readVideoMemory(uint16_t addr);
    public:
-    NickRenderer(NickLPB& lpb_, Memory& m_)
-      : lpb(lpb_), m(m_)
+    NickRenderer(NickLPB& lpb_, const uint8_t *videoMemory_)
+      : lpb(lpb_), videoMemory(videoMemory_)
     {
     }
     virtual ~NickRenderer()
@@ -119,8 +114,8 @@ namespace Ep128 {
 #define DECLARE_RENDERER(x)                     \
 class x : public NickRenderer {                 \
  public:                                        \
-  x(NickLPB& lpb_, Memory& m_)                  \
-    : NickRenderer(lpb_, m_) { }                \
+  x(NickLPB& lpb_, const uint8_t *videoMemory_) \
+    : NickRenderer(lpb_, videoMemory_) { }      \
   virtual ~x() { }                              \
   virtual REGPARM void doRender(uint8_t*& buf); \
 }
@@ -172,7 +167,7 @@ class x : public NickRenderer {                 \
    private:
     NickRenderer  **t;
    public:
-    NickRendererTable(NickLPB& lpb, Memory& m);
+    NickRendererTable(NickLPB& lpb, const uint8_t *videoMemory_);
     virtual ~NickRendererTable();
     NickRenderer& getRenderer(const NickLPB& lpb);
   };
@@ -185,7 +180,7 @@ class x : public NickRenderer {                 \
     uint16_t  lptBaseAddr;      // LPT base address
     uint16_t  lptCurrentAddr;   // current LPT address
     int       linesRemaining;   // lines remaining until loading next LPB
-    Memory&   m;
+    const uint8_t *videoMemory;
     NickRenderer  *currentRenderer;     // NULL if border only
     NickRendererTable   renderers;
     uint8_t   currentSlot;      // 0 to 56
@@ -193,8 +188,7 @@ class x : public NickRenderer {                 \
     uint8_t   *lineBufPtr;
     uint8_t   borderColor;
     bool      lptClockEnabled;
-    // ----------------
-    inline uint8_t readVideoMemory(uint16_t addr);
+    bool      vsyncFlag;
    protected:
     // called when the IRQ state changes, with a true parameter when the
     // IRQ is active (low)

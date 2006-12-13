@@ -241,11 +241,11 @@ int main()
   w->cursor(FL_CURSOR_NONE);
   Ep128Emu::VideoDisplay::DisplayParameters dp(w->getDisplayParameters());
   dp.displayQuality = 3;
-  dp.blendScale1 = 0.37;
-  dp.blendScale2 = 0.72;
-  dp.blendScale3 = 0.30;
+  dp.blendScale1 = 0.33;
+  dp.blendScale2 = 0.67;
+  dp.blendScale3 = 0.35;
   dp.gamma = 1.25;
-  dp.brightness = 0.025;
+  dp.brightness = 0.05;
 //dp.saturation = 0.0;
   dp.pixelAspectRatio = 1.0;
   w->setDisplayParameters(dp);
