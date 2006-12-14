@@ -33,6 +33,36 @@ namespace Ep128 {
       setPage(i, getPage(i));
   }
 
+  void Memory::checkReadBreakPoint(uint16_t addr, uint8_t page, uint8_t value)
+  {
+    uint8_t *tbl = breakPointTable;
+    if (tbl != (uint8_t*) 0 &&
+        tbl[addr] >= breakPointPriorityThreshold && (tbl[addr] & 1) != 0)
+      breakPointCallback(false, addr, value);
+    else {
+      uint16_t  offs = addr & 0x3FFF;
+      tbl = segmentBreakPointTable[pageTable[page]];
+      if (tbl != (uint8_t*) 0 &&
+          tbl[offs] >= breakPointPriorityThreshold && (tbl[offs] & 1) != 0)
+        breakPointCallback(false, addr, value);
+    }
+  }
+
+  void Memory::checkWriteBreakPoint(uint16_t addr, uint8_t page, uint8_t value)
+  {
+    uint8_t *tbl = breakPointTable;
+    if (tbl != (uint8_t*) 0 &&
+        tbl[addr] >= breakPointPriorityThreshold && (tbl[addr] & 2) != 0)
+      breakPointCallback(true, addr, value);
+    else {
+      uint16_t  offs = addr & 0x3FFF;
+      tbl = segmentBreakPointTable[pageTable[page]];
+      if (tbl != (uint8_t*) 0 &&
+          tbl[offs] >= breakPointPriorityThreshold && (tbl[offs] & 2) != 0)
+        breakPointCallback(true, addr, value);
+    }
+  }
+
   Memory::Memory()
   {
     segmentTable = (uint8_t**) 0;

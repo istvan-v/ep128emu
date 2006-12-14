@@ -41,6 +41,8 @@ namespace Ep128 {
     uint8_t *pageAddressTableR[4];
     uint8_t *pageAddressTableW[4];
     void allocateSegment(uint8_t n, bool isROM);
+    void checkReadBreakPoint(uint16_t addr, uint8_t page, uint8_t value);
+    void checkWriteBreakPoint(uint16_t addr, uint8_t page, uint8_t value);
    public:
     Memory();
     virtual ~Memory();
@@ -57,6 +59,7 @@ namespace Ep128 {
     void deleteSegment(uint8_t segment);
     void deleteAllSegments();
     inline uint8_t read(uint16_t addr);
+    inline uint8_t readNoDebug(uint16_t addr) const;
     inline uint8_t readRaw(uint32_t addr) const;
     inline void write(uint16_t addr, uint8_t value);
     void setPage(uint8_t page, uint8_t segment);
@@ -79,21 +82,14 @@ namespace Ep128 {
   {
     uint8_t page = uint8_t(addr >> 14);
     uint8_t value = pageAddressTableR[page][addr];
-
-    if (haveBreakPoints) {
-      uint8_t *tbl = breakPointTable;
-      if (tbl != (uint8_t*) 0 &&
-          tbl[addr] >= breakPointPriorityThreshold && (tbl[addr] & 1) != 0)
-        breakPointCallback(false, addr, value);
-      else {
-        uint16_t  offs = addr & 0x3FFF;
-        tbl = segmentBreakPointTable[pageTable[page]];
-        if (tbl != (uint8_t*) 0 &&
-            tbl[offs] >= breakPointPriorityThreshold && (tbl[offs] & 1) != 0)
-          breakPointCallback(false, addr, value);
-      }
-    }
+    if (haveBreakPoints)
+      checkReadBreakPoint(addr, page, value);
     return value;
+  }
+
+  inline uint8_t Memory::readNoDebug(uint16_t addr) const
+  {
+    return pageAddressTableR[uint8_t(addr >> 14)][addr];
   }
 
   inline uint8_t Memory::readRaw(uint32_t addr) const
@@ -111,20 +107,8 @@ namespace Ep128 {
   inline void Memory::write(uint16_t addr, uint8_t value)
   {
     uint8_t page = uint8_t(addr >> 14);
-
-    if (haveBreakPoints) {
-      uint8_t *tbl = breakPointTable;
-      if (tbl != (uint8_t*) 0 &&
-          tbl[addr] >= breakPointPriorityThreshold && (tbl[addr] & 2) != 0)
-        breakPointCallback(true, addr, value);
-      else {
-        uint16_t  offs = addr & 0x3FFF;
-        tbl = segmentBreakPointTable[pageTable[page]];
-        if (tbl != (uint8_t*) 0 &&
-            tbl[offs] >= breakPointPriorityThreshold && (tbl[offs] & 2) != 0)
-          breakPointCallback(true, addr, value);
-      }
-    }
+    if (haveBreakPoints)
+      checkWriteBreakPoint(addr, page, value);
     pageAddressTableW[page][addr] = value;
   }
 

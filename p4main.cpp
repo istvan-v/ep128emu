@@ -166,7 +166,7 @@ class VMThread : public Ep128Emu::Thread {
     vm.resetMemoryConfiguration(64);
     vm.loadROMSegment(0, "./roms/plus4.rom", 0);
     vm.loadROMSegment(1, "./roms/plus4.rom", 16384);
-    vm.setAudioOutputQuality(true);
+    vm.setAudioOutputHighQuality(true);
     audioOutput.setParameters(11, 48000.0f, 0.02, 4, 4);
     vm.setCPUFrequency(1775000);
  // vm.setTapeFileName("./tape/tape1.tap");
