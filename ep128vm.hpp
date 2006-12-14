@@ -119,6 +119,7 @@ namespace Ep128 {
     int64_t   daveCyclesRemaining;      // in 2^-32 DAVE cycle units
     int       memoryWaitMode;           // set on write to port 0xBF
     bool      memoryTimingEnabled;
+    bool      singleStepModeEnabled;
     int64_t   tapeSamplesPerDaveCycle;
     int64_t   tapeSamplesRemaining;
     bool      isRemote1On;
@@ -150,6 +151,7 @@ namespace Ep128 {
     // floppy drives
     Ep128Emu::WD177x  floppyDrives[4];
     uint8_t   currentFloppyDrive;
+    uint8_t   breakPointPriorityThreshold;
     // ----------------
     void updateTimingParameters();
     inline void updateCPUCycles(int cycles)
@@ -206,13 +208,16 @@ namespace Ep128 {
     virtual void setVideoMemoryLatency(size_t t_);
     // set if emulation of memory timing is enabled
     virtual void setEnableMemoryTimingEmulation(bool isEnabled);
-    // Set state of key 'keyCode' (0 to 127).
+    // Set state of key 'keyCode' (0 to 127; see dave.hpp).
     virtual void setKeyboardState(int keyCode, bool isPressed);
+    // -------------------------- DISK AND FILE I/O ---------------------------
     // Load disk image for drive 'n' (counting from zero); an empty file
     // name means no disk.
     virtual void setDiskImageFile(int n, const std::string& fileName_,
                                   int nTracks_ = -1, int nSides_ = 2,
                                   int nSectorsPerTrack_ = 9);
+    // Set directory for files to be saved and loaded by the emulated machine.
+    virtual void setWorkingDirectory(const std::string& dirName_);
     // ---------------------------- TAPE EMULATION ----------------------------
     // Set tape image file name (if the file name is NULL or empty, tape
     // emulation is disabled).
@@ -258,6 +263,10 @@ namespace Ep128 {
     // Set breakpoint priority threshold (0 to 4); breakpoints with a
     // priority less than this value will not trigger a break.
     virtual void setBreakPointPriorityThreshold(int n);
+    // Set if the breakpoint callback should be called whenever the first byte
+    // of a CPU instruction is read from memory. Breakpoints are ignored in
+    // this mode.
+    virtual void setSingleStepMode(bool isEnabled);
     // Returns the segment at page 'n' (0 to 3).
     virtual uint8_t getMemoryPage(int n) const;
     // Read a byte from memory; bits 14 to 21 of 'addr' define the segment

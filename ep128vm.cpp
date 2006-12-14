@@ -116,7 +116,13 @@ namespace Ep128 {
       else
         vm.videoMemoryWait();
     }
-    return (vm.memory.read(addr));
+    if (!vm.singleStepModeEnabled)
+      return (vm.memory.read(addr));
+    // single step mode
+    uint8_t retval = vm.memory.readNoDebug(addr);
+    vm.breakPointCallback(vm.breakPointCallbackUserData,
+                          false, false, addr, retval);
+    return retval;
   }
 
   uint8_t Ep128VM::Z80_::readOpcodeByte(int offset)
@@ -478,6 +484,7 @@ namespace Ep128 {
       daveCyclesRemaining(0),
       memoryWaitMode(1),
       memoryTimingEnabled(true),
+      singleStepModeEnabled(false),
       tapeSamplesPerDaveCycle(0),
       tapeSamplesRemaining(0),
       isRemote1On(false),
@@ -488,7 +495,8 @@ namespace Ep128 {
       isPlayingDemo(false),
       snapshotLoadFlag(false),
       demoTimeCnt(0U),
-      currentFloppyDrive(0xFF)
+      currentFloppyDrive(0xFF),
+      breakPointPriorityThreshold(0)
   {
     for (size_t i = 0; i < 4; i++)
       pageTable[i] = 0x00;
@@ -793,6 +801,12 @@ namespace Ep128 {
                                      nTracks_, nSides_, nSectorsPerTrack_);
   }
 
+  void Ep128VM::setWorkingDirectory(const std::string& dirName_)
+  {
+    // TODO: implement this
+    (void) dirName_;
+  }
+
   void Ep128VM::setTapeFileName(const char *fileName)
   {
     Ep128Emu::VirtualMachine::setTapeFileName(fileName);
@@ -849,6 +863,17 @@ namespace Ep128 {
 
   void Ep128VM::setBreakPointPriorityThreshold(int n)
   {
+    breakPointPriorityThreshold = uint8_t(n > 0 ? (n < 4 ? n : 4) : 0);
+    if (!singleStepModeEnabled) {
+      memory.setBreakPointPriorityThreshold(n);
+      ioPorts.setBreakPointPriorityThreshold(n);
+    }
+  }
+
+  void Ep128VM::setSingleStepMode(bool isEnabled)
+  {
+    singleStepModeEnabled = isEnabled;
+    int   n = (isEnabled ? 4 : int(breakPointPriorityThreshold));
     memory.setBreakPointPriorityThreshold(n);
     ioPorts.setBreakPointPriorityThreshold(n);
   }

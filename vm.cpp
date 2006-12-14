@@ -36,6 +36,12 @@ static void defaultBreakPointCallback(void *userData,
   (void) value;
 }
 
+static void defaultFileNameCallback(void *userData, std::string& fileName)
+{
+  (void) userData;
+  fileName.clear();
+}
+
 namespace Ep128Emu {
 
   template <typename T>
@@ -92,7 +98,9 @@ namespace Ep128Emu {
       tape((Tape *) 0),
       tapeFileName(""),
       breakPointCallback(&defaultBreakPointCallback),
-      breakPointCallbackUserData((void *) 0)
+      breakPointCallbackUserData((void *) 0),
+      fileNameCallback(&defaultFileNameCallback),
+      fileNameCallbackUserData((void *) 0)
   {
   }
 
@@ -162,7 +170,7 @@ namespace Ep128Emu {
     (void) offs;
   }
 
-  void VirtualMachine::setAudioOutputQuality(bool useHighQualityResample)
+  void VirtualMachine::setAudioOutputHighQuality(bool useHighQualityResample)
   {
     if (useHighQualityResample != audioOutputHighQuality) {
       audioOutputHighQuality = useHighQualityResample;
@@ -264,6 +272,20 @@ namespace Ep128Emu {
     (void) nTracks_;
     (void) nSides_;
     (void) nSectorsPerTrack_;
+  }
+
+  void VirtualMachine::setWorkingDirectory(const std::string& dirName_)
+  {
+    (void) dirName_;
+  }
+
+  void VirtualMachine::setFileNameCallback(void (*fileNameCallback_)(
+                                               void *userData,
+                                               std::string& fileName),
+                                           void *userData_)
+  {
+    fileNameCallback = fileNameCallback_;
+    fileNameCallbackUserData = userData_;
   }
 
   void VirtualMachine::setTapeFileName(const char *fileName)
@@ -380,6 +402,11 @@ namespace Ep128Emu {
   void VirtualMachine::setBreakPointPriorityThreshold(int n)
   {
     (void) n;
+  }
+
+  void VirtualMachine::setSingleStepMode(bool isEnabled)
+  {
+    (void) isEnabled;
   }
 
   void VirtualMachine::setBreakPointCallback(void (*breakPointCallback_)(

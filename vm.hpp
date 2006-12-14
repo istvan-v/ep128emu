@@ -55,6 +55,8 @@ namespace Ep128Emu {
                                           bool isIO, bool isWrite,
                                           uint16_t addr, uint8_t value);
     void            *breakPointCallbackUserData;
+    void            (*fileNameCallback)(void *userData, std::string& fileName);
+    void            *fileNameCallbackUserData;
    public:
     VirtualMachine(VideoDisplay& display_, AudioOutput& audioOutput_);
     virtual ~VirtualMachine();
@@ -68,7 +70,7 @@ namespace Ep128Emu {
     // load ROM segment 'n' from the specified file, skipping 'offs' bytes
     virtual void loadROMSegment(uint8_t n, const char *fileName, size_t offs);
     // set audio output quality
-    virtual void setAudioOutputQuality(bool useHighQualityResample);
+    virtual void setAudioOutputHighQuality(bool useHighQualityResample);
     // set cutoff frequencies of highpass filters used on audio output to
     // remove DC offset
     virtual void setAudioOutputFilters(float dcBlockFreq1_,
@@ -90,11 +92,21 @@ namespace Ep128Emu {
     virtual void setEnableMemoryTimingEmulation(bool isEnabled);
     // Set state of key 'keyCode' (0 to 127).
     virtual void setKeyboardState(int keyCode, bool isPressed);
+    // -------------------------- DISK AND FILE I/O ---------------------------
     // Load disk image for drive 'n' (counting from zero); an empty file
     // name means no disk.
     virtual void setDiskImageFile(int n, const std::string& fileName_,
                                   int nTracks_ = -1, int nSides_ = 2,
                                   int nSectorsPerTrack_ = 9);
+    // Set directory for files to be saved and loaded by the emulated machine.
+    virtual void setWorkingDirectory(const std::string& dirName_);
+    // Set function to be called when the emulated machine tries to open a
+    // file with unspecified name. 'fileName' should be set to the name of the
+    // file to be opened.
+    virtual void setFileNameCallback(void (*fileNameCallback_)(
+                                         void *userData,
+                                         std::string& fileName),
+                                     void *userData_);
     // ---------------------------- TAPE EMULATION ----------------------------
     // Set tape image file name (if the file name is NULL or empty, tape
     // emulation is disabled).
@@ -162,6 +174,10 @@ namespace Ep128Emu {
     // Set breakpoint priority threshold (0 to 4); breakpoints with a
     // priority less than this value will not trigger a break.
     virtual void setBreakPointPriorityThreshold(int n);
+    // Set if the breakpoint callback should be called whenever the first byte
+    // of a CPU instruction is read from memory. Breakpoints are ignored in
+    // this mode.
+    virtual void setSingleStepMode(bool isEnabled);
     // Set function to be called when a breakpoint is triggered.
     virtual void setBreakPointCallback(void (*breakPointCallback_)(
                                            void *userData,
