@@ -131,6 +131,10 @@ namespace Ep128Emu {
   void splitPath(const std::string& path_,
                  std::string& dirname_, std::string& basename_);
 
+  // returns full path to ~/.ep128emu, creating the directory first
+  // if it does not exist yet
+  std::string getEp128EmuHomeDirectory();
+
 }       // namespace Ep128Emu
 
 #endif  // EP128EMU_SYSTEM_HPP

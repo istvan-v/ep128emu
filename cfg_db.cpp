@@ -21,8 +21,17 @@
 #include "fileio.hpp"
 #include "system.hpp"
 #include "cfg_db.hpp"
+#include <vector>
 #include <map>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <cmath>
+
+#ifdef HAVE_DOTCONF_H
+#  include <stdio.h>
+#  include <dotconf.h>
+#endif
 
 namespace Ep128Emu {
 
@@ -30,10 +39,12 @@ namespace Ep128Emu {
     : public ConfigurationDB::ConfigurationVariable {
    private:
     bool&   value;
+    void    (*cbFunc)(void *, const std::string&, bool);
    public:
-    ConfigurationVariable_Boolean(bool& ref)
-      : ConfigurationDB::ConfigurationVariable(),
-        value(ref)
+    ConfigurationVariable_Boolean(const std::string& name_, bool& ref)
+      : ConfigurationDB::ConfigurationVariable(name_),
+        value(ref),
+        cbFunc((void (*)(void *, const std::string&, bool)) 0)
     {
     }
     virtual ~ConfigurationVariable_Boolean()
@@ -45,7 +56,19 @@ namespace Ep128Emu {
     }
     virtual void operator=(const bool& n)
     {
+      bool    oldValue = value;
       value = n;
+      if (cbFunc) {
+        if (value != oldValue || !callbackOnChangeOnly)
+          cbFunc(callbackUserData, name.c_str(), value);
+      }
+    }
+    virtual void setCallback(void (*func)(void *, const std::string&, bool),
+                             void *userData, bool callOnChangeOnly = true)
+    {
+      callbackUserData = userData;
+      callbackOnChangeOnly = callOnChangeOnly;
+      cbFunc = func;
     }
   };
 
@@ -57,10 +80,12 @@ namespace Ep128Emu {
     int     maxValue;
     int     step;
     bool    powOfTwoFlag;
+    void    (*cbFunc)(void *, const std::string&, int);
    public:
-    ConfigurationVariable_Integer(int& ref)
-      : ConfigurationDB::ConfigurationVariable(),
-        value(ref)
+    ConfigurationVariable_Integer(const std::string& name_, int& ref)
+      : ConfigurationDB::ConfigurationVariable(name_),
+        value(ref),
+        cbFunc((void (*)(void *, const std::string&, int)) 0)
     {
       minValue = (-1 - int(0x7FFFFFFF));
       maxValue = 0x7FFFFFFF;
@@ -77,8 +102,13 @@ namespace Ep128Emu {
     }
     virtual void operator=(const int& n)
     {
+      int     oldValue = value;
       value = n;
       checkValue();
+      if (cbFunc) {
+        if (value != oldValue || !callbackOnChangeOnly)
+          cbFunc(callbackUserData, name.c_str(), value);
+      }
     }
     virtual void setRange(double min, double max, double step_)
     {
@@ -93,12 +123,12 @@ namespace Ep128Emu {
         maxValue = 2147483647;
       }
       step = (step_ >= 0.5 && step_ < 2147483647.5 ? int(step_ + 0.5) : 1);
-      checkValue();
+      (*this) = value;
     }
     virtual void setRequirePowerOfTwo(bool n)
     {
       powOfTwoFlag = n;
-      checkValue();
+      (*this) = value;
     }
     virtual void checkValue()
     {
@@ -121,6 +151,13 @@ namespace Ep128Emu {
       else if (value > maxValue)
         value = maxValue;
     }
+    virtual void setCallback(void (*func)(void *, const std::string&, int),
+                             void *userData, bool callOnChangeOnly = true)
+    {
+      callbackUserData = userData;
+      callbackOnChangeOnly = callOnChangeOnly;
+      cbFunc = func;
+    }
   };
 
   class ConfigurationVariable_UnsignedInteger
@@ -131,10 +168,13 @@ namespace Ep128Emu {
     unsigned int  maxValue;
     unsigned int  step;
     bool          powOfTwoFlag;
+    void          (*cbFunc)(void *, const std::string&, unsigned int);
    public:
-    ConfigurationVariable_UnsignedInteger(unsigned int& ref)
-      : ConfigurationDB::ConfigurationVariable(),
-        value(ref)
+    ConfigurationVariable_UnsignedInteger(const std::string& name_,
+                                          unsigned int& ref)
+      : ConfigurationDB::ConfigurationVariable(name_),
+        value(ref),
+        cbFunc((void (*)(void *, const std::string&, unsigned int)) 0)
     {
       minValue = 0U;
       maxValue = 0xFFFFFFFFU;
@@ -151,8 +191,13 @@ namespace Ep128Emu {
     }
     virtual void operator=(const unsigned int& n)
     {
+      unsigned int  oldValue = value;
       value = n;
       checkValue();
+      if (cbFunc) {
+        if (value != oldValue || !callbackOnChangeOnly)
+          cbFunc(callbackUserData, name.c_str(), value);
+      }
     }
     virtual void setRange(double min, double max, double step_)
     {
@@ -170,12 +215,12 @@ namespace Ep128Emu {
       }
       step = (step_ >= 0.5 && step_ < 4294967295.5 ?
               (unsigned int) (step_ + 0.5) : 1);
-      checkValue();
+      (*this) = value;
     }
     virtual void setRequirePowerOfTwo(bool n)
     {
       powOfTwoFlag = n;
-      checkValue();
+      (*this) = value;
     }
     virtual void checkValue()
     {
@@ -195,6 +240,14 @@ namespace Ep128Emu {
       else if (value > maxValue)
         value = maxValue;
     }
+    virtual void setCallback(void (*func)(void *, const std::string&,
+                                          unsigned int),
+                             void *userData, bool callOnChangeOnly = true)
+    {
+      callbackUserData = userData;
+      callbackOnChangeOnly = callOnChangeOnly;
+      cbFunc = func;
+    }
   };
 
   class ConfigurationVariable_Float
@@ -204,10 +257,12 @@ namespace Ep128Emu {
     double  minValue;
     double  maxValue;
     double  step;
+    void    (*cbFunc)(void *, const std::string&, double);
    public:
-    ConfigurationVariable_Float(double& ref)
-      : ConfigurationDB::ConfigurationVariable(),
-        value(ref)
+    ConfigurationVariable_Float(const std::string& name_, double& ref)
+      : ConfigurationDB::ConfigurationVariable(name_),
+        value(ref),
+        cbFunc((void (*)(void *, const std::string&, double)) 0)
     {
       minValue = -2147483648.0;
       maxValue =  2147483647.999999;
@@ -223,8 +278,13 @@ namespace Ep128Emu {
     }
     virtual void operator=(const double& n)
     {
+      double  oldValue = value;
       value = n;
       checkValue();
+      if (cbFunc) {
+        if (value != oldValue || !callbackOnChangeOnly)
+          cbFunc(callbackUserData, name.c_str(), value);
+      }
     }
     virtual void setRange(double min, double max, double step_)
     {
@@ -235,7 +295,7 @@ namespace Ep128Emu {
         maxValue =  2147483647.999999;
       }
       step = (step_ >= 0.000000001 && step_ <= 2147483647.999999 ? step_ : 0.0);
-      checkValue();
+      (*this) = value;
     }
     virtual void checkValue()
     {
@@ -250,19 +310,28 @@ namespace Ep128Emu {
       else if (!(value >= minValue && value <= maxValue))
         value = (minValue + maxValue) * 0.5;
     }
+    virtual void setCallback(void (*func)(void *, const std::string&, double),
+                             void *userData, bool callOnChangeOnly = true)
+    {
+      callbackUserData = userData;
+      callbackOnChangeOnly = callOnChangeOnly;
+      cbFunc = func;
+    }
   };
 
   class ConfigurationVariable_String
     : public ConfigurationDB::ConfigurationVariable {
    private:
-     std::string& value;
-     bool         stripStringFlag;
-     bool         lowerCaseFlag;
-     bool         upperCaseFlag;
+    std::string&  value;
+    bool          stripStringFlag;
+    bool          lowerCaseFlag;
+    bool          upperCaseFlag;
+    void          (*cbFunc)(void *, const std::string&, const std::string&);
    public:
-    ConfigurationVariable_String(std::string& ref)
-      : ConfigurationDB::ConfigurationVariable(),
-        value(ref)
+    ConfigurationVariable_String(const std::string& name_, std::string& ref)
+      : ConfigurationDB::ConfigurationVariable(name_),
+        value(ref),
+        cbFunc((void (*)(void *, const std::string&, const std::string&)) 0)
     {
       stripStringFlag = false;
       lowerCaseFlag = false;
@@ -277,22 +346,26 @@ namespace Ep128Emu {
     }
     virtual void operator=(const std::string& n)
     {
+      const std::string oldValue = value;
       value = n;
       checkValue();
+      if (cbFunc) {
+        if (value != oldValue || !callbackOnChangeOnly)
+          cbFunc(callbackUserData, name.c_str(), value);
+      }
     }
     virtual void setStripString(bool n)
     {
       stripStringFlag = n;
-      if (n) {
-        checkValue();
-      }
+      if (n)
+        (*this) = value;
     }
     virtual void setStringToLowerCase(bool n)
     {
       lowerCaseFlag = n;
       if (n) {
         upperCaseFlag = false;
-        checkValue();
+        (*this) = value;
       }
     }
     virtual void setStringToUpperCase(bool n)
@@ -300,7 +373,7 @@ namespace Ep128Emu {
       upperCaseFlag = n;
       if (n) {
         lowerCaseFlag = false;
-        checkValue();
+        (*this) = value;
       }
     }
     virtual void checkValue()
@@ -312,9 +385,47 @@ namespace Ep128Emu {
       if (upperCaseFlag)
         stringToUpperCase(value);
     }
+    virtual void setCallback(void (*func)(void *, const std::string&,
+                                          const std::string&),
+                             void *userData, bool callOnChangeOnly = true)
+    {
+      callbackUserData = userData;
+      callbackOnChangeOnly = callOnChangeOnly;
+      cbFunc = func;
+    }
   };
 
-  // --------------------------------------------------------------------------
+}       // namespace Ep128Emu
+
+#ifdef HAVE_DOTCONF_H
+
+static const char * dotconfCommandCallback(command_t *cmd, context_t *context_)
+{
+  (void) context_;
+  try {
+    Ep128Emu::ConfigurationDB::ConfigurationVariable& cv =
+        (*((Ep128Emu::ConfigurationDB *) cmd->option->info))[cmd->option->name];
+    if (typeid(cv) == typeid(Ep128Emu::ConfigurationVariable_Boolean)) {
+      cv = bool(cmd->data.value != 0L);
+    }
+    else if (typeid(cv) == typeid(Ep128Emu::ConfigurationVariable_String)) {
+      cv = std::string(cmd->data.str);
+    }
+    else {
+      cv = (const char *) cmd->data.str;
+    }
+  }
+  catch (std::exception& e) {
+    // FIXME: this assumes that the string remains valid
+    // after the exception is destroyed
+    return e.what();
+  }
+  return (char *) 0;
+}
+
+#endif
+
+namespace Ep128Emu {
 
   ConfigurationDB::~ConfigurationDB()
   {
@@ -342,7 +453,7 @@ namespace Ep128Emu {
       throw Exception("cannot create configuration variable: "
                       "the key name is already in use");
     ConfigurationVariable_Boolean   *p;
-    p = new ConfigurationVariable_Boolean(ref);
+    p = new ConfigurationVariable_Boolean(name, ref);
     try {
       db.insert(std::pair<std::string, ConfigurationVariable *>(name, p));
     }
@@ -358,7 +469,7 @@ namespace Ep128Emu {
       throw Exception("cannot create configuration variable: "
                       "the key name is already in use");
     ConfigurationVariable_Integer   *p;
-    p = new ConfigurationVariable_Integer(ref);
+    p = new ConfigurationVariable_Integer(name, ref);
     try {
       db.insert(std::pair<std::string, ConfigurationVariable *>(name, p));
     }
@@ -374,7 +485,7 @@ namespace Ep128Emu {
       throw Exception("cannot create configuration variable: "
                       "the key name is already in use");
     ConfigurationVariable_UnsignedInteger   *p;
-    p = new ConfigurationVariable_UnsignedInteger(ref);
+    p = new ConfigurationVariable_UnsignedInteger(name, ref);
     try {
       db.insert(std::pair<std::string, ConfigurationVariable *>(name, p));
     }
@@ -390,7 +501,7 @@ namespace Ep128Emu {
       throw Exception("cannot create configuration variable: "
                       "the key name is already in use");
     ConfigurationVariable_Float     *p;
-    p = new ConfigurationVariable_Float(ref);
+    p = new ConfigurationVariable_Float(name, ref);
     try {
       db.insert(std::pair<std::string, ConfigurationVariable *>(name, p));
     }
@@ -406,7 +517,7 @@ namespace Ep128Emu {
       throw Exception("cannot create configuration variable: "
                       "the key name is already in use");
     ConfigurationVariable_String    *p;
-    p = new ConfigurationVariable_String(ref);
+    p = new ConfigurationVariable_String(name, ref);
     try {
       db.insert(std::pair<std::string, ConfigurationVariable *>(name, p));
     }
@@ -565,6 +676,137 @@ namespace Ep128Emu {
 
   // --------------------------------------------------------------------------
 
+  void ConfigurationDB::saveState(const char *fileName, bool useHomeDirectory)
+  {
+    if (fileName == (char *) 0 || fileName[0] == '\0')
+      throw Exception("invalid file name");
+    std::string fullName;
+    if (useHomeDirectory) {
+      fullName = getEp128EmuHomeDirectory();
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+      fullName += '\\';
+#else
+      fullName += '/';
+#endif
+    }
+    fullName += fileName;
+    std::FILE *f = std::fopen(fullName.c_str(), "w");
+    if (!f)
+      throw Exception("error opening configuration file");
+    bool  err = false;
+    try {
+      std::map< std::string, ConfigurationVariable * >::iterator  i;
+      for (i = db.begin(); i != db.end(); i++) {
+        ConfigurationVariable&  cv = *((*i).second);
+        if (std::fprintf(f, "%s\t", (*i).first.c_str()) < 0) {
+          err = true;
+          break;
+        }
+        if (typeid(cv) == typeid(ConfigurationVariable_Boolean)) {
+          if (bool(cv))
+            err = (std::fprintf(f, "Yes\n") < 0);
+          else
+            err = (std::fprintf(f, "No\n") < 0);
+        }
+        else if (typeid(cv) == typeid(ConfigurationVariable_Integer)) {
+          err = (std::fprintf(f, "%d\n", int(cv)) < 0);
+        }
+        else if (typeid(cv) == typeid(ConfigurationVariable_UnsignedInteger)) {
+          err = (std::fprintf(f, "%u\n", (unsigned int) cv) < 0);
+        }
+        else if (typeid(cv) == typeid(ConfigurationVariable_Float)) {
+          err = (std::fprintf(f, "%.9g\n", double(cv)) < 0);
+        }
+        else if (typeid(cv) == typeid(ConfigurationVariable_String)) {
+          const std::string s = std::string(cv);
+          err = (std::fputc('"', f) == EOF);
+          size_t  j = 0;
+          while (j < s.length() && !err) {
+            unsigned char c = (unsigned char) s[j];
+            if (c >= 32 && c < 127) {
+              if (c != '"')
+                err = (std::fputc(c, f) == EOF);
+              else
+                err = (std::fprintf(f, "\\\"") < 0);
+            }
+            else
+              err = (std::fprintf(f, "\\%03o", (unsigned int) c) < 0);
+            j++;
+          }
+          if (!err)
+            err = (std::fprintf(f, "\"\n") < 0);
+        }
+        if (err)
+          break;
+      }
+      if (!err)
+        err = (std::fputc('\n', f) == EOF);
+    }
+    catch (...) {
+      std::fclose(f);
+      throw;
+    }
+    if (std::fclose(f) != 0)
+      err = true;
+    if (err)
+      throw Exception("error writing configuration file - is the disk full ?");
+  }
+
+  void ConfigurationDB::loadState(const char *fileName, bool useHomeDirectory)
+  {
+#ifdef HAVE_DOTCONF_H
+    if (fileName == (char *) 0 || fileName[0] == '\0')
+      throw Exception("invalid file name");
+    std::string fullName;
+    if (useHomeDirectory) {
+      fullName = getEp128EmuHomeDirectory();
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+      fullName += '\\';
+#else
+      fullName += '/';
+#endif
+    }
+    fullName += fileName;
+    std::vector< configoption_t > options;
+    std::map< std::string, ConfigurationVariable * >::iterator  i;
+    for (i = db.begin(); i != db.end(); i++) {
+      configoption_t  tmp;
+      std::memset(&tmp, 0, sizeof(configoption_t));
+      tmp.name = (*i).first.c_str();
+      if (typeid(*((*i).second)) == typeid(ConfigurationVariable_Boolean))
+        tmp.type = ARG_TOGGLE;
+      else
+        tmp.type = ARG_STR;
+      tmp.callback = &dotconfCommandCallback;
+      tmp.info = reinterpret_cast<info_t *>(this);
+      tmp.context = 0UL;
+      options.push_back(tmp);
+    }
+    {
+      configoption_t  tmp = LAST_OPTION;
+      options.push_back(tmp);
+    }
+    configfile_t  *cfgFile = dotconf_create(
+        const_cast<char *>(fullName.c_str()), &(options.front()),
+        reinterpret_cast<context_t *>(this), CASE_INSENSITIVE);
+    if (!cfgFile)
+      throw Exception("error opening configuration file");
+    const char  *errMsg = dotconf_command_loop_until_error(cfgFile);
+    dotconf_cleanup(cfgFile);
+    if (errMsg) {
+      // FIXME: should include more information in the error message
+      throw Exception("error reading configuration file");
+    }
+#else
+    (void) fileName;
+    (void) useHomeDirectory;
+    throw Exception("loading ASCII format configuration files "
+                    "is not supported");
+#endif
+  }
+
+  // --------------------------------------------------------------------------
+
   ConfigurationDB::ConfigurationVariable::~ConfigurationVariable()
   {
   }
@@ -623,10 +865,84 @@ namespace Ep128Emu {
     throw Exception("configuration variable is not of type 'Float'");
   }
 
+  void ConfigurationDB::ConfigurationVariable::operator=(const char *n)
+  {
+    if (!n)
+      throw Exception("cannot set configuration variable to NULL string");
+    if (typeid(*this) == typeid(ConfigurationVariable_String)) {
+      (*this) = std::string(n);
+      return;
+    }
+    // ignore leading and trailing whitespace
+    while (*n == ' ' || *n == '\t' || *n == '\r' || *n == '\n')
+      n++;
+    size_t  len = std::strlen(n);
+    while (len > 0) {
+      char    c = n[len - 1];
+      if (c != ' ' && c != '\t' && c != '\r' && c != '\n')
+        break;
+      len--;
+    }
+    if (len == 0)
+      throw Exception("missing value for configuration variable");
+    if (typeid(*this) == typeid(ConfigurationVariable_Boolean)) {
+      char    tmp[7];
+      size_t  i;
+      char    *s = &(tmp[0]);
+      // ignore case
+      for (i = 0; i < len && i < 6; i++) {
+        if (n[i] >= 'A' && n[i] <= 'Z')
+          s[i] = (n[i] - 'A') + 'a';
+        else
+          s[i] = n[i];
+      }
+      s[i] = '\0';
+      if (std::strcmp(s, "0") == 0 || std::strcmp(s, "no") == 0 ||
+          std::strcmp(s, "off") == 0 || std::strcmp(s, "false") == 0)
+        (*this) = bool(false);
+      else if (std::strcmp(s, "1") == 0 || std::strcmp(s, "yes") == 0 ||
+               std::strcmp(s, "on") == 0 || std::strcmp(s, "true") == 0)
+        (*this) = bool(true);
+      else
+        throw Exception("syntax error in boolean value");
+    }
+    else if (typeid(*this) == typeid(ConfigurationVariable_Integer)) {
+      char    *endp = const_cast<char *>(n);
+      long    tmp = std::strtol(n, &endp, 0);
+      if (endp != &(n[len]))
+        throw Exception("invalid integer number format "
+                        "for configuration variable");
+      if (long(int32_t(tmp)) != tmp)
+        throw Exception("integer value is out of range "
+                        "for configuration variable");
+      (*this) = int(tmp);
+    }
+    else if (typeid(*this) == typeid(ConfigurationVariable_UnsignedInteger)) {
+      char          *endp = const_cast<char *>(n);
+      unsigned long tmp = std::strtoul(n, &endp, 0);
+      if (endp != &(n[len]))
+        throw Exception("invalid unsigned integer number format "
+                        "for configuration variable");
+      if ((unsigned long) (uint32_t(tmp)) != tmp)
+        throw Exception("unsigned integer value is out of range "
+                        "for configuration variable");
+      (*this) = (unsigned int) tmp;
+    }
+    else if (typeid(*this) == typeid(ConfigurationVariable_Float)) {
+      char    *endp = const_cast<char *>(n);
+      double  tmp = std::strtod(n, &endp);
+      if (endp != &(n[len]))
+        throw Exception("invalid floating point number format "
+                        "for configuration variable");
+      (*this) = double(tmp);
+    }
+    else
+      throw Exception("cannot set configuration variable to string value");
+  }
+
   void ConfigurationDB::ConfigurationVariable::operator=(const std::string& n)
   {
-    (void) n;
-    throw Exception("configuration variable is not of type 'String'");
+    (*this) = (const char *) n.c_str();
   }
 
   void ConfigurationDB::ConfigurationVariable::setRange(double min, double max,
@@ -664,6 +980,58 @@ namespace Ep128Emu {
     (void) n;
     throw Exception("cannot set 'string to upper case' flag "
                     "for configuration variable");
+  }
+
+  void ConfigurationDB::ConfigurationVariable::setCallback(
+      void (*func)(void *userData_, const std::string& name_, bool value_),
+      void *userData, bool callOnChangeOnly)
+  {
+    (void) func;
+    (void) userData;
+    (void) callOnChangeOnly;
+    throw Exception("configuration variable is not of type 'Boolean'");
+  }
+
+  void ConfigurationDB::ConfigurationVariable::setCallback(
+      void (*func)(void *userData_, const std::string& name_, int value_),
+      void *userData, bool callOnChangeOnly)
+  {
+    (void) func;
+    (void) userData;
+    (void) callOnChangeOnly;
+    throw Exception("configuration variable is not of type 'Integer'");
+  }
+
+  void ConfigurationDB::ConfigurationVariable::setCallback(
+      void (*func)(void *userData_, const std::string& name_,
+                   unsigned int value_),
+      void *userData, bool callOnChangeOnly)
+  {
+    (void) func;
+    (void) userData;
+    (void) callOnChangeOnly;
+    throw Exception("configuration variable is not of type 'Unsigned Integer'");
+  }
+
+  void ConfigurationDB::ConfigurationVariable::setCallback(
+      void (*func)(void *userData_, const std::string& name_, double value_),
+      void *userData, bool callOnChangeOnly)
+  {
+    (void) func;
+    (void) userData;
+    (void) callOnChangeOnly;
+    throw Exception("configuration variable is not of type 'Float'");
+  }
+
+  void ConfigurationDB::ConfigurationVariable::setCallback(
+      void (*func)(void *userData_, const std::string& name_,
+                   const std::string& value_),
+      void *userData, bool callOnChangeOnly)
+  {
+    (void) func;
+    (void) userData;
+    (void) callOnChangeOnly;
+    throw Exception("configuration variable is not of type 'String'");
   }
 
   void ConfigurationDB::ConfigurationVariable::checkValue()

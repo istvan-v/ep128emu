@@ -19,27 +19,12 @@
 
 #include "ep128emu.hpp"
 #include "fileio.hpp"
+#include "system.hpp"
 
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
 #include <map>
-
-#ifdef WIN32
-#  undef WIN32
-#endif
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
-#  define WIN32 1
-#endif
-
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-
-#ifdef WIN32
-#  include <direct.h>
-#  include <windows.h>
-#endif
 
 static const unsigned char ep128EmuFile_Magic[16] = {
   0x5D, 0x12, 0xE4, 0xF4, 0xC9, 0xDA, 0xB6, 0x42,
@@ -80,65 +65,7 @@ static uint32_t hash_32(const unsigned char *buf, size_t nBytes)
 
 static void getFullPathFileName(const char *fileName, std::string& fullName)
 {
-  std::string dirName;
-
-  dirName = "";
-#ifndef WIN32
-  if (std::getenv("HOME") != (char*) 0)
-    dirName = std::getenv("HOME");
-  if ((int) dirName.size() == 0)
-    dirName = ".";
-  mkdir(dirName.c_str(), 0700);
-  if (dirName[dirName.size() - 1] != '/')
-    dirName += '/';
-  dirName += ".ep128emu";
-  mkdir(dirName.c_str(), 0700);
-#else
-  CsoundGUIMain::stripString(dirName, std::getenv("USERPROFILE"));
-  if ((int) dirName.size() != 0) {
-    struct _stat tmp;
-    std::memset(&tmp, 0, sizeof(struct _stat));
-    if (dirName[dirName.size() - 1] != '\\')
-      dirName += '\\';
-    dirName += "Application Data";
-    if (_stat(dirName.c_str(), &tmp) != 0 ||
-        !(tmp.st_mode & _S_IFDIR))
-      dirName = "";
-  }
-  if ((int) dirName.size() == 0) {
-    CsoundGUIMain::stripString(dirName, std::getenv("HOME"));
-    if ((int) dirName.size() != 0) {
-      struct _stat tmp;
-      std::memset(&tmp, 0, sizeof(struct _stat));
-      if (_stat(dirName.c_str(), &tmp) != 0 ||
-          !(tmp.st_mode & _S_IFDIR))
-        dirName = "";
-    }
-  }
-  if ((int) dirName.size() == 0) {
-    char  buf[512];
-    int   len;
-    len = (int) GetModuleFileName((HMODULE) 0, &(buf[0]), (DWORD) 512);
-    if (len >= 512)
-      len = 0;
-    while (len > 0) {
-      len--;
-      if (buf[len] == '\\') {
-        buf[len] = (char) 0;
-        break;
-      }
-    }
-    if (len > 0)
-      dirName = &(buf[0]);
-    else
-      dirName = ".";
-  }
-  if (dirName[dirName.size() - 1] != '\\')
-    dirName += '\\';
-  dirName += ".ep128emu";
-  _mkdir(dirName.c_str());
-#endif
-  fullName = dirName;
+  fullName = Ep128Emu::getEp128EmuHomeDirectory();
 #ifndef WIN32
   fullName += '/';
 #else

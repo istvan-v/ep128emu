@@ -8,6 +8,26 @@ ep128emuLibEnvironment = Environment()
 ep128emuLibEnvironment.Append(CCFLAGS = compilerFlags)
 ep128emuLibEnvironment.Append(CPPPATH = ['.'])
 
+configure = ep128emuLibEnvironment.Configure()
+if not configure.CheckCHeader('sndfile.h'):
+    print ' *** error: libsndfile 1.0 is not found'
+    Exit(-1)
+if not configure.CheckCHeader('portaudio.h'):
+    print ' *** error: PortAudio is not found'
+    Exit(-1)
+if not configure.CheckCXXHeader('FL/Fl.H'):
+    print ' *** error: FLTK 1.1 is not found'
+    Exit(-1)
+if not configure.CheckCHeader('GL/gl.h'):
+    print ' *** error: OpenGL is not found'
+    Exit(-1)
+haveDotconf = configure.CheckCHeader('dotconf.h')
+configure.Finish()
+
+if haveDotconf:
+    compilerFlags += ['-DHAVE_DOTCONF_H']
+    ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_DOTCONF_H'])
+
 ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
     bplist.cpp
     cfg_db.cpp
@@ -49,8 +69,10 @@ ep128emuEnvironment = Environment()
 ep128emuEnvironment.Append(CCFLAGS = compilerFlags)
 ep128emuEnvironment.Append(CPPPATH = ['.', './z80'])
 ep128emuEnvironment.Append(LINKFLAGS = ['-L.'])
-ep128emuEnvironment.Append(LIBS = ['ep128', 'z80', 'ep128emu',
-                                   'fltk_gl', 'GL',
+ep128emuEnvironment.Append(LIBS = ['ep128', 'z80', 'ep128emu'])
+if haveDotconf:
+    ep128emuEnvironment.Append(LIBS = ['dotconf'])
+ep128emuEnvironment.Append(LIBS = ['fltk_gl', 'GL',
                                    'portaudio', 'sndfile', 'jack', 'asound',
                                    'pthread'])
 
@@ -67,7 +89,10 @@ tapeeditEnvironment = Environment()
 tapeeditEnvironment.Append(CCFLAGS = compilerFlags)
 tapeeditEnvironment.Append(CPPPATH = ['.', './tapeutil'])
 tapeeditEnvironment.Append(LINKFLAGS = ['-L.'])
-tapeeditEnvironment.Append(LIBS = ['ep128emu', 'fltk', 'sndfile', 'pthread'])
+tapeeditEnvironment.Append(LIBS = ['ep128emu'])
+if haveDotconf:
+    tapeeditEnvironment.Append(LIBS = ['dotconf'])
+tapeeditEnvironment.Append(LIBS = ['fltk', 'sndfile', 'pthread'])
 
 Command(['tapeutil/tapeedit.cpp', 'tapeutil/tapeedit.hpp'],
         'tapeutil/tapeedit.fl',
@@ -101,8 +126,10 @@ plus4Environment = Environment()
 plus4Environment.Append(CCFLAGS = compilerFlags)
 plus4Environment.Append(CPPPATH = ['.', './plus4'])
 plus4Environment.Append(LINKFLAGS = ['-L.'])
-plus4Environment.Append(LIBS = ['plus4', 'ep128emu',
-                                'fltk_gl', 'GL',
+plus4Environment.Append(LIBS = ['plus4', 'ep128emu'])
+if haveDotconf:
+    plus4Environment.Append(LIBS = ['dotconf'])
+plus4Environment.Append(LIBS = ['fltk_gl', 'GL',
                                 'portaudio', 'sndfile', 'jack', 'asound',
                                 'pthread'])
 

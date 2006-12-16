@@ -29,8 +29,15 @@ namespace Ep128Emu {
   class ConfigurationDB {
    public:
     class ConfigurationVariable {
+     protected:
+      const std::string name;
+      void    *callbackUserData;
+      bool    callbackOnChangeOnly;
      public:
-      ConfigurationVariable()
+      ConfigurationVariable(const std::string& name_)
+        : name(name_),
+          callbackUserData((void *) 0),
+          callbackOnChangeOnly(false)
       {
       }
       virtual ~ConfigurationVariable();
@@ -43,13 +50,34 @@ namespace Ep128Emu {
       virtual void operator=(const int&);
       virtual void operator=(const unsigned int&);
       virtual void operator=(const double&);
+      virtual void operator=(const char *);
       virtual void operator=(const std::string&);
       virtual void setRange(double min, double max, double step = 0.0);
       virtual void setRequirePowerOfTwo(bool);
       virtual void setStripString(bool);
       virtual void setStringToLowerCase(bool);
       virtual void setStringToUpperCase(bool);
-     private:
+      virtual void setCallback(void (*func)(void *userData_,
+                                            const std::string& name_,
+                                            bool value_),
+                               void *userData, bool callOnChangeOnly = true);
+      virtual void setCallback(void (*func)(void *userData_,
+                                            const std::string& name_,
+                                            int value_),
+                               void *userData, bool callOnChangeOnly = true);
+      virtual void setCallback(void (*func)(void *userData_,
+                                            const std::string& name_,
+                                            unsigned int value_),
+                               void *userData, bool callOnChangeOnly = true);
+      virtual void setCallback(void (*func)(void *userData_,
+                                            const std::string& name_,
+                                            double value_),
+                               void *userData, bool callOnChangeOnly = true);
+      virtual void setCallback(void (*func)(void *userData_,
+                                            const std::string& name_,
+                                            const std::string& value_),
+                               void *userData, bool callOnChangeOnly = true);
+     protected:
       virtual void checkValue();
     };
    private:
@@ -67,7 +95,11 @@ namespace Ep128Emu {
     void createKey(const std::string& name, std::string& ref);
     void saveState(File::Buffer& buf);
     void saveState(File& f);
+    void saveState(const char *fileName,
+                   bool useHomeDirectory = false);  // save in ASCII format
     void loadState(File::Buffer& buf);
+    void loadState(const char *fileName,
+                   bool useHomeDirectory = false);  // load ASCII format file
     void registerChunkType(File& f);
   };
 

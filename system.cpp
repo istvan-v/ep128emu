@@ -20,8 +20,16 @@
 #include "ep128emu.hpp"
 #include "system.hpp"
 
+#ifdef WIN32
+#  undef WIN32
+#endif
 #if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#  define WIN32 1
+#endif
+
+#ifdef WIN32
 #  define WIN32_LEAN_AND_MEAN   1
+#  include <direct.h>
 #  include <windows.h>
 #  include <process.h>
 #else
@@ -30,13 +38,17 @@
 #  include <pthread.h>
 #endif
 
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
 namespace Ep128Emu {
 
   ThreadLock::ThreadLock(bool isSignaled)
   {
     st = new ThreadLock_;
     st->refCnt = 1L;
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
     st->evt = CreateEvent(NULL, FALSE, (isSignaled ? TRUE : FALSE), NULL);
     if (st->evt == (HANDLE) 0) {
       delete st;
@@ -67,7 +79,7 @@ namespace Ep128Emu {
     if (--(st->refCnt) > 0L)
       return;
     this->notify();
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
     CloseHandle(st->evt);
 #else
     pthread_cond_destroy(&(st->c));
@@ -87,7 +99,7 @@ namespace Ep128Emu {
 
   void ThreadLock::wait()
   {
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
     WaitForSingleObject(st->evt, INFINITE);
 #else
     pthread_mutex_lock(&(st->m));
@@ -102,7 +114,7 @@ namespace Ep128Emu {
   {
     bool    retval = true;
 
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
     retval = !(WaitForSingleObject(st->evt, DWORD(t)));
     return retval;
 #else
@@ -133,7 +145,7 @@ namespace Ep128Emu {
 
   void ThreadLock::notify()
   {
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
     SetEvent(st->evt);
 #else
     pthread_mutex_lock(&(st->m));
@@ -143,7 +155,7 @@ namespace Ep128Emu {
 #endif
   }
 
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
   __stdcall unsigned int Thread::threadRoutine_(void *userData)
   {
     Thread  *p = reinterpret_cast<Thread *>(userData);
@@ -165,7 +177,7 @@ namespace Ep128Emu {
     : threadLock_(false),
       isJoined_(false)
   {
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
     thread_ = (HANDLE) _beginthreadex(NULL, 0U,
                                       &Thread::threadRoutine_, this, 0U, NULL);
     if (!thread_)
@@ -186,7 +198,7 @@ namespace Ep128Emu {
   {
     if (!isJoined_) {
       this->start();
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
       WaitForSingleObject(thread_, INFINITE);
       CloseHandle(thread_);
 #else
@@ -202,7 +214,7 @@ namespace Ep128Emu {
     m = new Mutex_;
     m->refCnt_ = 1L;
     try {
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
       InitializeCriticalSection(&(m->mutex_));
 #else
       pthread_mutexattr_t   attr;
@@ -230,7 +242,7 @@ namespace Ep128Emu {
   Mutex::~Mutex()
   {
     if (--(m->refCnt_) <= 0) {
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
       DeleteCriticalSection(&(m->mutex_));
 #else
       pthread_mutex_destroy(&(m->mutex_));
@@ -250,7 +262,7 @@ namespace Ep128Emu {
 
   void Mutex::lock()
   {
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
     EnterCriticalSection(&(m->mutex_));
 #else
     pthread_mutex_lock(&(m->mutex_));
@@ -259,7 +271,7 @@ namespace Ep128Emu {
 
   void Mutex::unlock()
   {
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
     LeaveCriticalSection(&(m->mutex_));
 #else
     pthread_mutex_unlock(&(m->mutex_));
@@ -323,7 +335,7 @@ namespace Ep128Emu {
     for ( ; i != 0; i--) {
       if (path_[i - 1] == '/' || path_[i - 1] == '\\')
         break;
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
       if (i == 2) {
         if (((path_[0] >= 'A' && path_[0] <= 'Z') ||
              (path_[0] >= 'a' && path_[0] <= 'z')) &&
@@ -337,6 +349,69 @@ namespace Ep128Emu {
       dirname_ += path_[j];
     for ( ; j < path_.length(); j++)
       basename_ += path_[j];
+  }
+
+  std::string getEp128EmuHomeDirectory()
+  {
+    std::string dirName;
+
+    dirName = "";
+#ifndef WIN32
+    if (std::getenv("HOME") != (char*) 0)
+      dirName = std::getenv("HOME");
+    if ((int) dirName.size() == 0)
+      dirName = ".";
+    mkdir(dirName.c_str(), 0700);
+    if (dirName[dirName.size() - 1] != '/')
+      dirName += '/';
+    dirName += ".ep128emu";
+    mkdir(dirName.c_str(), 0700);
+#else
+    stripString(dirName, std::getenv("USERPROFILE"));
+    if ((int) dirName.size() != 0) {
+      struct _stat tmp;
+      std::memset(&tmp, 0, sizeof(struct _stat));
+      if (dirName[dirName.size() - 1] != '\\')
+        dirName += '\\';
+      dirName += "Application Data";
+      if (_stat(dirName.c_str(), &tmp) != 0 ||
+          !(tmp.st_mode & _S_IFDIR))
+        dirName = "";
+    }
+    if ((int) dirName.size() == 0) {
+      stripString(dirName, std::getenv("HOME"));
+      if ((int) dirName.size() != 0) {
+        struct _stat tmp;
+        std::memset(&tmp, 0, sizeof(struct _stat));
+        if (_stat(dirName.c_str(), &tmp) != 0 ||
+            !(tmp.st_mode & _S_IFDIR))
+          dirName = "";
+      }
+    }
+    if ((int) dirName.size() == 0) {
+      char  buf[512];
+      int   len;
+      len = (int) GetModuleFileName((HMODULE) 0, &(buf[0]), (DWORD) 512);
+      if (len >= 512)
+        len = 0;
+      while (len > 0) {
+        len--;
+        if (buf[len] == '\\') {
+          buf[len] = (char) 0;
+          break;
+        }
+      }
+      if (len > 0)
+        dirName = &(buf[0]);
+      else
+        dirName = ".";
+    }
+    if (dirName[dirName.size() - 1] != '\\')
+      dirName += '\\';
+    dirName += ".ep128emu";
+    _mkdir(dirName.c_str());
+#endif
+    return dirName;
   }
 
 }       // namespace Ep128Emu
