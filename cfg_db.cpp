@@ -409,10 +409,17 @@ static const char * dotconfCommandCallback(command_t *cmd, context_t *context_)
       cv = bool(cmd->data.value != 0L);
     }
     else if (typeid(cv) == typeid(Ep128Emu::ConfigurationVariable_String)) {
-      cv = std::string(cmd->data.str);
+      if (cmd->arg_count > 1)
+        throw Ep128Emu::Exception("invalid number of arguments");
+      else if (cmd->arg_count == 1)
+        cv = std::string(cmd->data.list[0]);
+      else
+        cv = std::string("");
     }
     else {
-      cv = (const char *) cmd->data.str;
+      if (cmd->arg_count != 1)
+        throw Ep128Emu::Exception("invalid number of arguments");
+      cv = (const char *) cmd->data.list[0];
     }
   }
   catch (std::exception& e) {
@@ -776,7 +783,7 @@ namespace Ep128Emu {
       if (typeid(*((*i).second)) == typeid(ConfigurationVariable_Boolean))
         tmp.type = ARG_TOGGLE;
       else
-        tmp.type = ARG_STR;
+        tmp.type = ARG_LIST;
       tmp.callback = &dotconfCommandCallback;
       tmp.info = reinterpret_cast<info_t *>(this);
       tmp.context = 0UL;
@@ -849,14 +856,25 @@ namespace Ep128Emu {
 
   void ConfigurationDB::ConfigurationVariable::operator=(const int& n)
   {
-    (void) n;
-    throw Exception("configuration variable is not of type 'Integer'");
+    if (typeid(*this) == typeid(ConfigurationVariable_UnsignedInteger) &&
+        n >= 0)
+      (*this) = (unsigned int) n;
+    else if (typeid(*this) == typeid(ConfigurationVariable_Float))
+      (*this) = double(n);
+    else
+      throw Exception("configuration variable is not of type 'Integer'");
   }
 
   void ConfigurationDB::ConfigurationVariable::operator=(const unsigned int& n)
   {
-    (void) n;
-    throw Exception("configuration variable is not of type 'Unsigned Integer'");
+    if (typeid(*this) == typeid(ConfigurationVariable_Integer) &&
+        n <= 0x7FFFFFFFU)
+      (*this) = int(n);
+    else if (typeid(*this) == typeid(ConfigurationVariable_Float))
+      (*this) = double(n);
+    else
+      throw Exception("configuration variable is not of type "
+                      "'Unsigned Integer'");
   }
 
   void ConfigurationDB::ConfigurationVariable::operator=(const double& n)

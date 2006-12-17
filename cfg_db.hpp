@@ -86,7 +86,7 @@ namespace Ep128Emu {
     ConfigurationDB()
     {
     }
-    ~ConfigurationDB();
+    virtual ~ConfigurationDB();
     ConfigurationVariable& operator[](const std::string&);
     void createKey(const std::string& name, bool& ref);
     void createKey(const std::string& name, int& ref);

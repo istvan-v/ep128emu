@@ -288,22 +288,21 @@ namespace Ep128Emu {
     fileNameCallbackUserData = userData_;
   }
 
-  void VirtualMachine::setTapeFileName(const char *fileName)
+  void VirtualMachine::setTapeFileName(const std::string& fileName)
   {
-    std::string fname("");
-    if (fileName)
-      fname = fileName;
     if (tape) {
-      if (fname == tapeFileName) {
+      if (fileName == tapeFileName) {
         tape->seek(0.0);
         return;
       }
       delete tape;
       tape = (Tape *) 0;
+      tapeFileName = "";
     }
-    if (fname.length() == 0)
+    if (fileName.length() == 0)
       return;
-    tape = new Tape(fname.c_str());
+    tape = new Tape(fileName.c_str());
+    tapeFileName = fileName;
     if (tapeRecordOn)
       tape->record();
     else if (tapePlaybackOn)

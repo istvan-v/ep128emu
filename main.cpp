@@ -24,8 +24,12 @@
 #include "gldisp.hpp"
 #include "soundio.hpp"
 #include "ep128vm.hpp"
+#include "plus4/plus4vm.hpp"
+#include "emucfg.hpp"
 
 #include <iostream>
+#include <cstdio>
+#include <cstring>
 #include <cmath>
 #include <list>
 #include <map>
@@ -42,33 +46,31 @@ struct KeyboardEvent {
 
 class Display : public Ep128Emu::OpenGLDisplay {
  private:
-  Ep128::Ep128VM  *vm;
   std::list<KeyboardEvent>  keyboardQueue;
   Ep128Emu::Mutex keyboardQueueMutex;
+  std::map< int, bool > keyboardState;
  public:
   Display(int xx, int yy, int ww, int hh, const char *lbl = 0)
     : Ep128Emu::OpenGLDisplay(xx, yy, ww, hh, lbl)
   {
-    vm = 0;
   }
   virtual ~Display()
   {
-  }
-  void setVM(Ep128::Ep128VM& vm_)
-  {
-    vm = &vm_;
   }
   virtual int handle(int event)
   {
     if (event == FL_FOCUS || event == FL_UNFOCUS)
       return 1;
-    if ((event == FL_KEYUP || event == FL_KEYDOWN) && vm) {
+    if (event == FL_KEYUP || event == FL_KEYDOWN) {
       KeyboardEvent evt;
       evt.isKeyPress = (event == FL_KEYDOWN);
       evt.keyCode = Fl::event_key();
-      keyboardQueueMutex.lock();
-      keyboardQueue.push_back(evt);
-      keyboardQueueMutex.unlock();
+      if (keyboardState[evt.keyCode] != evt.isKeyPress) {
+        keyboardState[evt.keyCode] = evt.isKeyPress;
+        keyboardQueueMutex.lock();
+        keyboardQueue.push_back(evt);
+        keyboardQueueMutex.unlock();
+      }
       return 1;
     }
     return 0;
@@ -90,16 +92,20 @@ class Display : public Ep128Emu::OpenGLDisplay {
 
 class VMThread : public Ep128Emu::Thread {
  private:
-  Ep128::Ep128VM  vm;
-  Display&        display;
-  Ep128Emu::AudioOutput_PortAudio audioOutput;
-  std::map<int, int> keyboardMap;
+  Ep128Emu::VirtualMachine& vm;
+  Display&                  display;
+  Ep128Emu::AudioOutput&    audioOutput;
+  Ep128Emu::EmulatorConfiguration&  config;
  public:
   volatile bool   stopFlag;
-  VMThread(Display& display_)
+  VMThread(Ep128Emu::VirtualMachine& vm_,
+           Display& display_, Ep128Emu::AudioOutput& audioOutput_,
+           Ep128Emu::EmulatorConfiguration& config_)
     : Thread(),
-      vm(display_, audioOutput),
+      vm(vm_),
       display(display_),
+      audioOutput(audioOutput_),
+      config(config_),
       stopFlag(false)
   {
   }
@@ -108,192 +114,273 @@ class VMThread : public Ep128Emu::Thread {
   }
   virtual void run()
   {
-    display.setVM(vm);
-    keyboardMap['a'] = 0x0E;
-    keyboardMap['b'] = 0x02;
-    keyboardMap['c'] = 0x03;
-    keyboardMap['d'] = 0x0B;
-    keyboardMap['e'] = 0x15;
-    keyboardMap['f'] = 0x0C;
-    keyboardMap['g'] = 0x0A;
-    keyboardMap['h'] = 0x08;
-    keyboardMap['i'] = 0x48;
-    keyboardMap['j'] = 0x30;
-    keyboardMap['k'] = 0x32;
-    keyboardMap['l'] = 0x34;
-    keyboardMap['m'] = 0x40;
-    keyboardMap['n'] = 0x00;
-    keyboardMap['o'] = 0x4A;
-    keyboardMap['p'] = 0x4C;
-    keyboardMap['q'] = 0x11;
-    keyboardMap['r'] = 0x13;
-    keyboardMap['s'] = 0x0D;
-    keyboardMap['t'] = 0x14;
-    keyboardMap['u'] = 0x10;
-    keyboardMap['v'] = 0x04;
-    keyboardMap['w'] = 0x16;
-    keyboardMap['x'] = 0x05;
-    keyboardMap['y'] = 0x12;
-    keyboardMap['z'] = 0x06;
-    keyboardMap['0'] = 0x2C;
-    keyboardMap['1'] = 0x19;
-    keyboardMap['2'] = 0x1E;
-    keyboardMap['3'] = 0x1D;
-    keyboardMap['4'] = 0x1B;
-    keyboardMap['5'] = 0x1C;
-    keyboardMap['6'] = 0x1A;
-    keyboardMap['7'] = 0x18;
-    keyboardMap['8'] = 0x28;
-    keyboardMap['9'] = 0x2A;
-    keyboardMap[' '] = 0x46;
-    keyboardMap['\n'] = 0x3E;
-    keyboardMap['\r'] = 0x3E;
-    keyboardMap[FL_Enter] = 0x3E;
-    keyboardMap[','] = 0x42;
-    keyboardMap['.'] = 0x44;
-    keyboardMap[FL_Down] = 0x39;
-    keyboardMap[FL_Right] = 0x3A;
-    keyboardMap[FL_Up] = 0x3B;
-    keyboardMap[FL_Left] = 0x3D;
-    keyboardMap[FL_Shift_L] = 0x07;
-    keyboardMap[FL_Shift_R] = 0x45;
-    keyboardMap['-'] = 0x2B;
-    keyboardMap['/'] = 0x43;
-    keyboardMap[FL_BackSpace] = 0x2E;
-    keyboardMap[';'] = 0x33;
-    keyboardMap['\''] = 0x35;
-    keyboardMap[']'] = 0x36;
-    keyboardMap['['] = 0x4D;
-    keyboardMap[FL_F + 1] = 0x27;
-    keyboardMap[FL_F + 2] = 0x26;
-    keyboardMap[FL_F + 3] = 0x22;
-    keyboardMap[FL_F + 4] = 0x20;
-    keyboardMap[FL_F + 5] = 0x24;
-    keyboardMap[FL_F + 6] = 0x23;
-    keyboardMap[FL_F + 7] = 0x25;
-    keyboardMap[FL_F + 8] = 0x21;
-    keyboardMap['\\'] = 0x01;
-    keyboardMap[FL_Caps_Lock] = 0x09;
-    keyboardMap[FL_Control_L] = 0x0F;
-    keyboardMap[FL_Control_R] = 0x0F;
-    keyboardMap[FL_Tab] = 0x17;
-    keyboardMap[FL_Escape] = 0x1F;
-    keyboardMap['`'] = 0x4B;
-    keyboardMap['='] = 0x2D;
-    keyboardMap[FL_Print] = 0x38;
-    keyboardMap[FL_Pause] = 0x3C;
-    keyboardMap[FL_Alt_L] = 0x3F;
-    keyboardMap[FL_Alt_R] = 0x3F;
-    keyboardMap[FL_Delete] = 0x41;
-    keyboardMap[FL_Insert] = 0x47;
-    keyboardMap[FL_KP + '9'] = 0x70;
-    keyboardMap[FL_KP + '7'] = 0x71;
-    keyboardMap[FL_KP + '8'] = 0x72;
-    keyboardMap[FL_KP + '/'] = 0x73;
-    keyboardMap[FL_KP + '+'] = 0x74;
-    keyboardMap[FL_KP + '3'] = 0x78;
-    keyboardMap[FL_KP + '1'] = 0x79;
-    keyboardMap[FL_KP + '2'] = 0x7A;
-    keyboardMap[FL_KP + '5'] = 0x7B;
-    keyboardMap[FL_KP_Enter] = 0x7C;
-    keyboardMap[FL_KP + '0'] = 0x7C;
-    vm.resetMemoryConfiguration(128);
-    vm.loadROMSegment(0, "./roms/exos0.rom", 0);
-    vm.loadROMSegment(1, "./roms/exos1.rom", 0);
-    vm.loadROMSegment(4, "./roms/basic.rom", 0);
-    vm.loadROMSegment(5, "./roms/exdos0.rom", 0);
-    vm.loadROMSegment(6, "./roms/exdos1.rom", 0);
-    vm.setAudioOutputHighQuality(true);
+    try {
+      Ep128Emu::File  f;
+      bool    recordingDemo = false;
+      while (!stopFlag) {
+        while (true) {
+          if (recordingDemo && !vm.getIsRecordingDemo()) {
+            f.writeFile("demotest.dat");
+            recordingDemo = false;
+            std::cout << "demo recording stopped" << std::endl;
+          }
+          KeyboardEvent evt = display.getKeyboardEvent();
+          if (evt.keyCode == 0)
+            break;
+          if (evt.isKeyPress &&
+              evt.keyCode >= (FL_F + 9) && evt.keyCode <= (FL_F + 12)) {
+            int   n = evt.keyCode - (FL_F + 9);
+            if (Fl::event_shift() != 0)
+              n += 4;
+            switch (n) {
+            case 0:                               // F9: tape play
+              vm.tapePlay();
+              std::cout << "tape play on (position = "
+                        << vm.getTapePosition() << " seconds)" << std::endl;
+              break;
+            case 1:                               // F10: tape stop
+              vm.tapeStop();
+              std::cout << "tape stopped (position = "
+                        << vm.getTapePosition() << " seconds)" << std::endl;
+              break;
+            case 2:                               // F11: tape seek
+              {
+                double  oldTapePos = vm.getTapePosition();
+                vm.tapeSeekToCuePoint(true, 60.0);
+                if (vm.getTapePosition() == oldTapePos)
+                  vm.tapeSeek(0.0);
+                std::cout << "tape position set to "
+                          << vm.getTapePosition() << " seconds)" << std::endl;
+              }
+              break;
+            case 3:                               // F12: soft reset
+              vm.reset(false);
+              break;
+            case 4:                               // Shift + F9: record demo
+              if (vm.getIsPlayingDemo() || vm.getIsRecordingDemo()) {
+                if (vm.getIsPlayingDemo())
+                  std::cout << "demo playback stopped" << std::endl;
+                vm.stopDemo();
+              }
+              else {
+                vm.recordDemo(f);
+                recordingDemo = true;
+                std::cout << "recording demo..." << std::endl;
+              }
+              break;
+            case 5:                               // Shift + F10: play demo
+              if (vm.getIsPlayingDemo() || vm.getIsRecordingDemo()) {
+                if (vm.getIsPlayingDemo())
+                  std::cout << "demo playback stopped" << std::endl;
+                vm.stopDemo();
+              }
+              else {
+                Ep128Emu::File  f_("demotest.dat");
+                vm.registerChunkTypes(f_);
+                f_.processAllChunks();
+                std::cout << "playing demo..." << std::endl;
+              }
+              break;
+            case 6:                               // Shift + F11: tape record
+              vm.tapeRecord();
+              std::cout << "tape record on (position = "
+                        << vm.getTapePosition() << " seconds)" << std::endl;
+              break;
+            case 7:                               // Shift + F12: hard reset
+              vm.reset(true);
+              break;
+            }
+          }
+          else if (config.convertKeyCode(evt.keyCode) >= 0)
+            vm.setKeyboardState(config.convertKeyCode(evt.keyCode),
+                                evt.isKeyPress);
+        }
+        vm.run(2000);
+      }
+      if (vm.getIsRecordingDemo()) {
+        vm.stopDemo();
+        f.writeFile("demotest.dat");
+        std::cout << "demo recording stopped" << std::endl;
+      }
+      vm.stopDemo();
+    }
+    catch (std::exception& e) {
+      stopFlag = true;
+      std::cerr << " *** error: " << e.what() << std::endl;
+    }
+  }
+};
+
+static void cfgErrorFunc(void *userData, const char *msg)
+{
+  (void) userData;
+  std::cerr << "WARNING: " << msg << std::endl;
+}
+
+int main(int argc, char **argv)
+{
+  Fl_Window *basew = (Fl_Window *) 0;
+  Display   *w = (Display *) 0;
+  Ep128Emu::VirtualMachine  *vm = (Ep128Emu::VirtualMachine *) 0;
+  Ep128Emu::AudioOutput     *audioOutput = (Ep128Emu::AudioOutput *) 0;
+  Ep128Emu::EmulatorConfiguration *config =
+      (Ep128Emu::EmulatorConfiguration *) 0;
+  VMThread  *vmThread = (VMThread *) 0;
+  bool      isPlus4 = false;
+  const char  *cfgFileName = "ep128.cfg";
+
+  try {
+    // find out machine type to be emulated
+    for (int i = 1; i < argc; i++) {
+      if (std::strcmp(argv[i], "-cfg") == 0 && i < (argc - 1)) {
+        i++;
+      }
+      else if (std::strcmp(argv[i], "-ep128") == 0) {
+        isPlus4 = false;
+        cfgFileName = "ep128.cfg";
+      }
+      else if (std::strcmp(argv[i], "-plus4") == 0) {
+        isPlus4 = true;
+        cfgFileName = "plus4.cfg";
+      }
+    }
+
+    Fl::lock();
+    audioOutput = new Ep128Emu::AudioOutput_PortAudio();
     {
-      std::vector< std::string >  devList = audioOutput.getDeviceList();
+      std::vector< std::string >  devList = audioOutput->getDeviceList();
       std::cout << "The available sound devices are:" << std::endl;
       for (size_t i = 0; i < devList.size(); i++)
         std::cout << "  " << i << ": " << devList[i] << std::endl;
     }
-    audioOutput.setParameters(11, 48000.0f, 0.02, 4, 4);
-    vm.setCPUFrequency(4000000);
- // vm.setAudioOutputFileName("/tmp/ep.wav");
-    vm.setTapeFileName("./tape/tape0.tap");
-    vm.tapePlay();
-    vm.setEnableFastTapeMode(true);
-    vm.setDiskImageFile(0, "./disk/floppy.img");
- // vm.setDiskImageFile(1, "./disk/floppy2.img");
-    Ep128Emu::File  f;
-    bool    recordingDemo = false;
-    while (!stopFlag) {
-      while (true) {
-        if (recordingDemo && !vm.getIsRecordingDemo()) {
-          f.writeFile("demotest.dat");
-          recordingDemo = false;
-        }
-        KeyboardEvent evt = display.getKeyboardEvent();
-        if (evt.keyCode == 0)
-          break;
-        if (evt.isKeyPress && evt.keyCode == (FL_F + 12))
-          vm.reset();
-        else if (evt.isKeyPress && evt.keyCode == (FL_F + 9)) {
-          if (vm.getIsPlayingDemo() || vm.getIsRecordingDemo())
-            vm.stopDemo();
-          else {
-            vm.recordDemo(f);
-            recordingDemo = true;
-          }
-        }
-        else if (evt.isKeyPress && evt.keyCode == (FL_F + 10)) {
-          if (vm.getIsPlayingDemo() || vm.getIsRecordingDemo())
-            vm.stopDemo();
-          else {
-            Ep128Emu::File  f_("demotest.dat");
-            vm.registerChunkTypes(f_);
-            f_.processAllChunks();
-          }
-        }
-        else if (keyboardMap.find(evt.keyCode) != keyboardMap.end())
-          vm.setKeyboardState(keyboardMap[evt.keyCode], evt.isKeyPress);
+    basew = new Fl_Window(50, 50, 352, 288, "ep128emu test");
+    w = new Display(0, 0, 352, 288, "OpenGL test window");
+    w->end();
+    basew->end();
+    if (!isPlus4)
+      vm = new Ep128::Ep128VM(*w, *audioOutput);
+    else
+      vm = new Plus4::Plus4VM(*w, *audioOutput);
+    config = new Ep128Emu::EmulatorConfiguration(*vm, *w, *audioOutput);
+    config->setErrorCallback(&cfgErrorFunc, (void *) 0);
+    // set machine specific defaults and limits
+    if (isPlus4) {
+      Ep128Emu::ConfigurationDB::ConfigurationVariable  *cv;
+      cv = &((*config)["vm.cpuClockFrequency"]);
+      (*cv).setRange(1773448.0, 177344800.0, 1773448.0);
+      (*cv) = (unsigned int) 1773448;
+      cv = &((*config)["vm.videoClockFrequency"]);
+      (*cv).setRange(886724.0, 886724.0, 0.0);
+      (*cv) = (unsigned int) 886724;
+      cv = &((*config)["vm.soundClockFrequency"]);
+      (*cv).setRange(221681.0, 221681.0, 0.0);
+      (*cv) = (unsigned int) 221681;
+      cv = &((*config)["vm.videoMemoryLatency"]);
+      (*cv).setRange(0.0, 0.0, 0.0);
+      (*cv) = (unsigned int) 0;
+      cv = &((*config)["memory.ram.size"]);
+      (*cv).setRange(64.0, 64.0, 0.0);
+      (*cv) = int(64);
+    }
+    // load base configuration (if available)
+    {
+      std::string fname = Ep128Emu::getEp128EmuHomeDirectory();
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+      fname += '\\';
+#else
+      fname += '/';
+#endif
+      fname += cfgFileName;
+      std::FILE *f = std::fopen(fname.c_str(), "r");
+      if (f) {
+        std::fclose(f);
+        config->loadState(fname.c_str(), false);
       }
-      vm.run(2000);
     }
-    if (vm.getIsRecordingDemo()) {
-      vm.stopDemo();
-      f.writeFile("demotest.dat");
+    // check command line for any additional configuration
+    for (int i = 1; i < argc; i++) {
+      if (std::strcmp(argv[i], "-ep128") == 0 ||
+          std::strcmp(argv[i], "-plus4") == 0)
+        continue;
+      if (std::strcmp(argv[i], "-cfg") == 0) {
+        if (++i >= argc)
+          throw Ep128Emu::Exception("missing configuration file name");
+        config->loadState(argv[i], false);
+      }
+      else {
+        const char  *s = argv[i];
+        if (*s == '-')
+          s++;
+        if (*s == '-')
+          s++;
+        const char  *p = std::strchr(s, '=');
+        if (!p)
+          (*config)[s] = bool(true);
+        else {
+          std::string optName;
+          while (s != p) {
+            optName += (*s);
+            s++;
+          }
+          p++;
+          (*config)[optName] = p;
+        }
+      }
     }
-    vm.stopDemo();
-  }
-};
-
-int main()
-{
-  Fl::lock();
-  Fl_Window *basew = new Fl_Window(50, 50, 1056, 864, "ep128emu test");
-  basew->size_range(352, 288, 1408, 1152);
-  Display *w = new Display(0, 0, 1056, 864, "OpenGL test window");
-  w->end();
-  basew->end();
-  basew->show();
-  w->show();
-  w->cursor(FL_CURSOR_NONE);
-  Ep128Emu::VideoDisplay::DisplayParameters dp(w->getDisplayParameters());
-  dp.displayQuality = 3;
-  dp.blendScale1 = 0.33;
-  dp.blendScale2 = 0.67;
-  dp.blendScale3 = 0.35;
-  dp.gamma = 1.25;
-  dp.brightness = 0.05;
-//dp.saturation = 0.0;
-  dp.pixelAspectRatio = 1.0;
-  w->setDisplayParameters(dp);
-  {
-    VMThread  vm(*w);
-    vm.start();
+    config->applySettings();
+    basew->size(config->display.width, config->display.height);
+    w->size(config->display.width, config->display.height);
+    basew->size_range(352, 288, 1408, 1152);
+    basew->show();
+    w->show();
+    w->cursor(FL_CURSOR_NONE);
+    vmThread = new VMThread(*vm, *w, *audioOutput, *config);
+    vmThread->start();
     do {
+      config->display.width = basew->w();
+      config->display.height = basew->h();
       w->size(basew->w(), basew->h());
       w->redraw();
-      Fl::wait(0.15);
-    } while (basew->shown());
-    vm.stopFlag = true;
-    vm.join();
+      Fl::wait(0.05);
+    } while (basew->shown() && !vmThread->stopFlag);
+    vmThread->stopFlag = true;
+    vmThread->join();
   }
+  catch (std::exception& e) {
+    if (vmThread) {
+      vmThread->stopFlag = true;
+      vmThread->join();
+      delete vmThread;
+    }
+    if (config) {
+#if 0
+      try {
+        config->saveState(cfgFileName, true);
+      }
+      catch (...) {
+      }
+#endif
+      delete config;
+    }
+    if (vm)
+      delete vm;
+    if (basew)
+      delete basew;
+    if (audioOutput)
+      delete audioOutput;
+    std::cerr << " *** error: " << e.what() << std::endl;
+    return -1;
+  }
+  delete vmThread;
+  try {
+    config->saveState(cfgFileName, true);
+  }
+  catch (...) {
+  }
+  delete config;
+  delete vm;
   delete basew;
+  delete audioOutput;
   return 0;
 }
 

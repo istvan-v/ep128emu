@@ -698,6 +698,7 @@ namespace Ep128 {
           }
         }
       }
+      return;
     }
     // load file into memory
     std::vector<uint8_t>  buf;
@@ -807,7 +808,7 @@ namespace Ep128 {
     (void) dirName_;
   }
 
-  void Ep128VM::setTapeFileName(const char *fileName)
+  void Ep128VM::setTapeFileName(const std::string& fileName)
   {
     Ep128Emu::VirtualMachine::setTapeFileName(fileName);
     setTapeMotorState(isRemote1On || isRemote2On);

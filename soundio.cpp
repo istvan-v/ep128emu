@@ -203,16 +203,18 @@ namespace Ep128Emu {
 
   void AudioOutput_PortAudio::sendAudioData(const int16_t *buf, size_t nFrames)
   {
-    for (size_t i = 0; i < nFrames; i++) {
-      Buffer& buf_ = buffers[writeBufIndex];
-      buf_.audioData[buf_.writePos++] = buf[(i << 1) + 0];
-      buf_.audioData[buf_.writePos++] = buf[(i << 1) + 1];
-      if (buf_.writePos >= buf_.audioData.size()) {
-        buf_.writePos = 0;
-        buf_.paLock.notify();
-        if (buf_.epLock.wait(1000)) {
-          if (++writeBufIndex >= buffers.size())
-            writeBufIndex = 0;
+    if (paStream) {
+      for (size_t i = 0; i < nFrames; i++) {
+        Buffer& buf_ = buffers[writeBufIndex];
+        buf_.audioData[buf_.writePos++] = buf[(i << 1) + 0];
+        buf_.audioData[buf_.writePos++] = buf[(i << 1) + 1];
+        if (buf_.writePos >= buf_.audioData.size()) {
+          buf_.writePos = 0;
+          buf_.paLock.notify();
+          if (buf_.epLock.wait(1000)) {
+            if (++writeBufIndex >= buffers.size())
+              writeBufIndex = 0;
+          }
         }
       }
     }

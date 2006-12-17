@@ -32,6 +32,7 @@ ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
     bplist.cpp
     cfg_db.cpp
     display.cpp
+    emucfg.cpp
     fileio.cpp
     gldisp.cpp
     snd_conv.cpp
@@ -65,11 +66,31 @@ z80Lib = z80LibEnvironment.StaticLibrary('z80', Split('''
     z80/z80funcs2.cpp
 '''))
 
+# -----------------------------------------------------------------------------
+
+plus4LibEnvironment = Environment()
+plus4LibEnvironment.Append(CCFLAGS = compilerFlags)
+plus4LibEnvironment.Append(CPPPATH = ['.', './plus4'])
+
+plus4Lib = plus4LibEnvironment.StaticLibrary('plus4', Split('''
+    plus4/cpu.cpp
+    plus4/memory.cpp
+    plus4/plus4vm.cpp
+    plus4/render.cpp
+    plus4/ted_api.cpp
+    plus4/ted_init.cpp
+    plus4/ted_main.cpp
+    plus4/ted_read.cpp
+    plus4/ted_write.cpp
+'''))
+
+# -----------------------------------------------------------------------------
+
 ep128emuEnvironment = Environment()
 ep128emuEnvironment.Append(CCFLAGS = compilerFlags)
 ep128emuEnvironment.Append(CPPPATH = ['.', './z80'])
 ep128emuEnvironment.Append(LINKFLAGS = ['-L.'])
-ep128emuEnvironment.Append(LIBS = ['ep128', 'z80', 'ep128emu'])
+ep128emuEnvironment.Append(LIBS = ['ep128', 'z80', 'plus4', 'ep128emu'])
 if haveDotconf:
     ep128emuEnvironment.Append(LIBS = ['dotconf'])
 ep128emuEnvironment.Append(LIBS = ['fltk_gl', 'GL',
@@ -81,6 +102,7 @@ ep128emu = ep128emuEnvironment.Program('ep128emu', Split('''
 '''))
 Depends(ep128emu, ep128Lib)
 Depends(ep128emu, z80Lib)
+Depends(ep128emu, plus4Lib)
 Depends(ep128emu, ep128emuLib)
 
 # -----------------------------------------------------------------------------
@@ -103,39 +125,4 @@ tapeedit = tapeeditEnvironment.Program('tapeedit', Split('''
     tapeutil/tapeio.cpp
 '''))
 Depends(tapeedit, ep128emuLib)
-
-# -----------------------------------------------------------------------------
-
-plus4LibEnvironment = Environment()
-plus4LibEnvironment.Append(CCFLAGS = compilerFlags)
-plus4LibEnvironment.Append(CPPPATH = ['.', './plus4'])
-
-plus4Lib = plus4LibEnvironment.StaticLibrary('plus4', Split('''
-    plus4/cpu.cpp
-    plus4/memory.cpp
-    plus4/plus4vm.cpp
-    plus4/render.cpp
-    plus4/ted_api.cpp
-    plus4/ted_init.cpp
-    plus4/ted_main.cpp
-    plus4/ted_read.cpp
-    plus4/ted_write.cpp
-'''))
-
-plus4Environment = Environment()
-plus4Environment.Append(CCFLAGS = compilerFlags)
-plus4Environment.Append(CPPPATH = ['.', './plus4'])
-plus4Environment.Append(LINKFLAGS = ['-L.'])
-plus4Environment.Append(LIBS = ['plus4', 'ep128emu'])
-if haveDotconf:
-    plus4Environment.Append(LIBS = ['dotconf'])
-plus4Environment.Append(LIBS = ['fltk_gl', 'GL',
-                                'portaudio', 'sndfile', 'jack', 'asound',
-                                'pthread'])
-
-plus4 = plus4Environment.Program('plus4emu', Split('''
-    p4main.cpp
-'''))
-Depends(plus4, plus4Lib)
-Depends(plus4, ep128emuLib)
 
