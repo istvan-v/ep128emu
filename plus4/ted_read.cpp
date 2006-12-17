@@ -37,9 +37,10 @@ namespace Plus4 {
   uint8_t TED7360::read_register_0001(uint16_t addr) const
   {
     (void) addr;
-    return ((uint8_t) 0xC0
-            | (tape_motor_state ? (uint8_t) 0x00 : (uint8_t) 0x08)
-            | (tape_read_state ? (uint8_t) 0x10 : (uint8_t) 0x00));
+    return (uint8_t(0xC0)
+            | (tape_write_state ? uint8_t(0x02) : uint8_t(0x00))
+            | (tape_motor_state ? uint8_t(0x00) : uint8_t(0x08))
+            | (tape_read_state ? uint8_t(0x10) : uint8_t(0x00)));
   }
 
   uint8_t TED7360::read_register_FD10(uint16_t addr) const
@@ -99,12 +100,10 @@ namespace Plus4 {
   uint8_t TED7360::read_register_FF09(uint16_t addr) const
   {
     uint8_t irq_state = memory_ram[addr];
-    uint8_t irq_mask = memory_ram[0xFF0A];
     if (video_interrupt_shift_register)
       irq_state |= (uint8_t) 0x02;
-    irq_state = irq_state | (~irq_mask) | (uint8_t) 0xA1;
-    irq_state &= (((irq_state & irq_mask) & (uint8_t) 0x5E) ?
-                  (uint8_t) 0xFF : (uint8_t) 0x7F);
+    irq_state = irq_state | uint8_t(0xA1);
+    irq_state = (irq_state == uint8_t(0xA1) ? uint8_t(0x21) : irq_state);
     return irq_state;
   }
 

@@ -237,7 +237,7 @@ namespace Plus4 {
     {
       int i = cpu_clock_multiplier;
       do {
-        if (memory_ram[0xFF09] & (uint8_t) 0x5E)
+        if (((memory_ram[0xFF09] & memory_ram[0xFF0A]) & uint8_t(0x5E)) != 0)
           M7501::interruptRequest();
         M7501::runOneCycle();
       } while (--i);

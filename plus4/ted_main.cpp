@@ -423,8 +423,7 @@ namespace Plus4 {
       // check for video interrupt
       video_interrupt_shift_register >>= 1;
       if ((video_interrupt_shift_register & 1U) != 0U) {
-        if ((memory_ram[0xFF0A] & (uint8_t) 0x02) != (uint8_t) 0)
-          memory_ram[0xFF09] |= (uint8_t) 0x82;
+          memory_ram[0xFF09] |= uint8_t(0x82);
       }
       // update timers on even cycle count (884 kHz rate)
       if (!(cycle_count & 1UL)) {
@@ -434,24 +433,21 @@ namespace Plus4 {
             // reload timer
             timer1_state = timer1_reload_value;
             // trigger interrupt if enabled
-            if (memory_ram[0xFF0A] & (uint8_t) 0x08)
-              memory_ram[0xFF09] |= (uint8_t) 0x88;
+            memory_ram[0xFF09] |= uint8_t(0x88);
           }
         }
         if (timer2_run) {
           timer2_state = (timer2_state - 1) & 0xFFFF;
           if (!timer2_state) {
             // trigger interrupt if enabled
-            if (memory_ram[0xFF0A] & (uint8_t) 0x10)
-              memory_ram[0xFF09] |= (uint8_t) 0x90;
+            memory_ram[0xFF09] |= uint8_t(0x90);
           }
         }
         if (timer3_run) {
           timer3_state = (timer3_state - 1) & 0xFFFF;
           if (!timer3_state) {
             // trigger interrupt if enabled
-            if (memory_ram[0xFF0A] & (uint8_t) 0x40)
-              memory_ram[0xFF09] |= (uint8_t) 0xC0;
+            memory_ram[0xFF09] |= uint8_t(0xC0);
           }
         }
       }

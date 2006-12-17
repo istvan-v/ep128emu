@@ -102,7 +102,7 @@ namespace Plus4 {
     // ---------------------------- TAPE EMULATION ----------------------------
     // Set tape image file name (if the file name is NULL or empty, tape
     // emulation is disabled).
-    virtual void setTapeFileName(const char *fileName);
+    virtual void setTapeFileName(const std::string& fileName);
     // start tape playback
     virtual void tapePlay();
     // start tape recording; if the tape file is read-only, this is

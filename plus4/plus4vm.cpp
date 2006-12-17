@@ -354,7 +354,7 @@ namespace Plus4 {
     }
   }
 
-  void Plus4VM::setTapeFileName(const char *fileName)
+  void Plus4VM::setTapeFileName(const std::string& fileName)
   {
     Ep128Emu::VirtualMachine::setTapeFileName(fileName);
     setTapeMotorState(ted->getTapeMotorState());

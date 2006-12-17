@@ -91,7 +91,7 @@ namespace Plus4 {
     read_memory_rom[0xFF3F] = &Plus4::TED7360::read_register_FF3F;
     // TED register write
     write_memory[0x0000] = &Plus4::TED7360::write_register_0000;
-    write_memory[0x0000] = &Plus4::TED7360::write_register_0001;
+    write_memory[0x0001] = &Plus4::TED7360::write_register_0001;
     for (int i = 0xFD10; i < 0xFD20; i++)
       write_memory[i] = &Plus4::TED7360::write_register_FD1x;
     for (int i = 0xFD30; i < 0xFD40; i++)

@@ -31,8 +31,8 @@ namespace Plus4 {
   void TED7360::write_register_0001(uint16_t addr, uint8_t value)
   {
     memory_ram[addr] = value;
-    tape_motor_state = ((value & (uint8_t) 0x08) ? false : true);
-    tape_write_state = ((value & (uint8_t) 0x02) ? true : false);
+    tape_motor_state = ((value & uint8_t(0x08)) ? false : true);
+    tape_write_state = ((value & uint8_t(0x02)) ? true : false);
   }
 
   void TED7360::write_register_FD1x(uint16_t addr, uint8_t value)
