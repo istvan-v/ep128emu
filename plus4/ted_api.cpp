@@ -135,7 +135,7 @@ namespace Plus4 {
     buf.writeUInt32(startAddr);
     buf.writeUInt32(len);
     while (len) {
-      buf.writeByte((this->*(read_memory_ram[startAddr]))(startAddr));
+      buf.writeByte(readMemoryRaw(uint32_t(startAddr) | 0x003F0000));
       startAddr = (startAddr + 1) & 0xFFFF;
       len--;
     }
@@ -165,7 +165,7 @@ namespace Plus4 {
     if (std::fputc(int(startAddr & 0xFF), f) != EOF) {
       if (std::fputc(int((startAddr >> 8) & 0xFF), f) != EOF) {
         while (len) {
-          int   c = (this->*(read_memory_ram[startAddr]))(startAddr);
+          int   c = readMemoryRaw(uint32_t(startAddr) | 0x003F0000);
           if (std::fputc(c, f) == EOF)
             break;
           startAddr = (startAddr + 1) & 0xFFFF;
@@ -194,7 +194,7 @@ namespace Plus4 {
     memory_ram[0x002B] = uint8_t(addr & 0xFF);
     memory_ram[0x002C] = uint8_t((addr >> 8) & 0xFF);
     while (len) {
-      (this->*(write_memory[addr]))(uint16_t(addr), buf.readByte());
+      writeMemory(uint16_t(addr), buf.readByte());
       addr = (addr + 1) & 0xFFFF;
       len--;
     }
@@ -210,6 +210,8 @@ namespace Plus4 {
     memory_ram[0x0036] = 0xFC;
     memory_ram[0x0037] = 0x00;
     memory_ram[0x0038] = 0xFD;
+    memory_ram[0x009D] = uint8_t(addr & 0xFF);
+    memory_ram[0x009E] = uint8_t((addr >> 8) & 0xFF);
   }
 
   void TED7360::loadProgram(const char *fileName)
@@ -240,7 +242,7 @@ namespace Plus4 {
         std::fclose(f);
         throw Ep128Emu::Exception("plus4 program file has invalid length");
       }
-      (this->*(write_memory[addr]))(addr, uint8_t(c));
+      writeMemory(addr, uint8_t(c));
       addr = (addr + 1) & 0xFFFF;
     }
     std::fclose(f);
@@ -256,6 +258,8 @@ namespace Plus4 {
     memory_ram[0x0036] = 0xFC;
     memory_ram[0x0037] = 0x00;
     memory_ram[0x0038] = 0xFD;
+    memory_ram[0x009D] = uint8_t(addr & 0xFF);
+    memory_ram[0x009E] = uint8_t((addr >> 8) & 0xFF);
   }
 
   void TED7360::registerChunkTypes(Ep128Emu::File& f)

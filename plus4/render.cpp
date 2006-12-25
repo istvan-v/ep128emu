@@ -23,227 +23,264 @@
 
 namespace Plus4 {
 
-  void TED7360::render_BMM_hires()
+  void TED7360::render_BMM_hires(void *ted_)
   {
-    int     x = (int) video_column >> 1;
-    uint8_t a = attr_buf[x], c = char_buf[x];
-    int     bitmap_addr;
-    int     bitmap;
-    uint8_t c0, c1;
-
-    bitmap_addr = bitmap_base_addr + (character_position << 3) + character_line;
-    bitmap = readVideoMemory((uint16_t) bitmap_addr);
-    c0 = (a & (uint8_t) 0x70) + (c & (uint8_t) 0x0F);
-    c1 = ((a & (uint8_t) 0x07) << 4) + ((c & (uint8_t) 0xF0) >> 4);
-    pixel_buf[8]  = ((bitmap & (uint8_t) 0x80) ? c1 : c0);
-    pixel_buf[9]  = ((bitmap & (uint8_t) 0x40) ? c1 : c0);
-    pixel_buf[10] = ((bitmap & (uint8_t) 0x20) ? c1 : c0);
-    pixel_buf[11] = ((bitmap & (uint8_t) 0x10) ? c1 : c0);
-    pixel_buf[12] = ((bitmap & (uint8_t) 0x08) ? c1 : c0);
-    pixel_buf[13] = ((bitmap & (uint8_t) 0x04) ? c1 : c0);
-    pixel_buf[14] = ((bitmap & (uint8_t) 0x02) ? c1 : c0);
-    pixel_buf[15] = ((bitmap & (uint8_t) 0x01) ? c1 : c0);
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
+    uint8_t   a = ted.currentAttribute;
+    uint8_t   c = ted.currentCharacter;
+    uint8_t   bitmap = ted.currentBitmap;
+    uint8_t   c0 = (a & uint8_t(0x70)) + (c & uint8_t(0x0F));
+    uint8_t   c1 = ((a & uint8_t(0x07)) << 4) + ((c & uint8_t(0xF0)) >> 4);
+    uint8_t   *buf = &(ted.pixel_buf[ted.pixelBufWritePos]);
+    buf[0] = ((bitmap & uint8_t(0x80)) ? c1 : c0);
+    buf[1] = ((bitmap & uint8_t(0x40)) ? c1 : c0);
+    buf[2] = ((bitmap & uint8_t(0x20)) ? c1 : c0);
+    buf[3] = ((bitmap & uint8_t(0x10)) ? c1 : c0);
+    buf[4] = ((bitmap & uint8_t(0x08)) ? c1 : c0);
+    buf[5] = ((bitmap & uint8_t(0x04)) ? c1 : c0);
+    buf[6] = ((bitmap & uint8_t(0x02)) ? c1 : c0);
+    buf[7] = ((bitmap & uint8_t(0x01)) ? c1 : c0);
   }
 
-  void TED7360::render_BMM_multicolor()
+  void TED7360::render_BMM_multicolor(void *ted_)
   {
-    int     x = (int) video_column >> 1;
-    uint8_t a = attr_buf[x], c = char_buf[x];
-    int     bitmap_addr;
-    int     bitmap;
-    uint8_t c_[4];
-
-    bitmap_addr = bitmap_base_addr + (character_position << 3) + character_line;
-    bitmap = readVideoMemory((uint16_t) bitmap_addr);
-    c_[0] = memory_ram[0xFF15];
-    c_[1] = ((a & (uint8_t) 0x07) << 4) + ((c & (uint8_t) 0xF0) >> 4);
-    c_[2] = (a & (uint8_t) 0x70) + (c & (uint8_t) 0x0F);
-    c_[3] = memory_ram[0xFF16];
-    pixel_buf[9]  = pixel_buf[8]  = c_[(bitmap & (uint8_t) 0xC0) >> 6];
-    pixel_buf[11] = pixel_buf[10] = c_[(bitmap & (uint8_t) 0x30) >> 4];
-    pixel_buf[13] = pixel_buf[12] = c_[(bitmap & (uint8_t) 0x0C) >> 2];
-    pixel_buf[15] = pixel_buf[14] = c_[bitmap & (uint8_t) 0x03];
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
+    uint8_t   a = ted.currentAttribute;
+    uint8_t   c = ted.currentCharacter;
+    uint8_t   bitmap = ted.currentBitmap;
+    uint8_t   c_[4];
+    c_[0] = uint8_t(0x80);
+    c_[1] = ((a & uint8_t(0x07)) << 4) + ((c & uint8_t(0xF0)) >> 4);
+    c_[2] = (a & uint8_t(0x70)) + (c & uint8_t(0x0F));
+    c_[3] = uint8_t(0x81);
+    uint8_t   *buf = &(ted.pixel_buf[ted.pixelBufWritePos]);
+    buf[1] = buf[0] = c_[(bitmap & uint8_t(0xC0)) >> 6];
+    buf[3] = buf[2] = c_[(bitmap & uint8_t(0x30)) >> 4];
+    buf[5] = buf[4] = c_[(bitmap & uint8_t(0x0C)) >> 2];
+    buf[7] = buf[6] = c_[bitmap & uint8_t(0x03)];
   }
 
-  void TED7360::render_char_128()
+  void TED7360::render_char_128(void *ted_)
   {
-    int     x = (int) video_column >> 1;
-    uint8_t a = attr_buf[x], c = char_buf[x];
-    int     bitmap_addr;
-    int     bitmap;
-
-    bitmap_addr = charset_base_addr + ((int) (c & (uint8_t) 0x7F) << 3)
-                                    + (int) character_line;
-    bitmap = readVideoMemory((uint16_t) bitmap_addr);
-    if (cursor_position == character_position) {
-      if (flash_state)
-        bitmap ^= (uint8_t) 0xFF;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
+    uint8_t   a = ted.currentAttribute;
+    uint8_t   c = ted.currentCharacter;
+    uint8_t   bitmap = ted.currentBitmap;
+    if (ted.cursor_position == ted.character_position) {
+      if (ted.flash_state)
+        bitmap ^= uint8_t(0xFF);
     }
-    else if (a & (uint8_t) 0x80) {
-      if (!flash_state)
-        bitmap = (uint8_t) 0x00;
+    else if (a & uint8_t(0x80)) {
+      if (!ted.flash_state)
+        bitmap = uint8_t(0x00);
     }
-    if (c & (uint8_t) 0x80)
-      bitmap ^= (uint8_t) 0xFF;
-    a &= (uint8_t) 0x7F;
-    c = memory_ram[0xFF15];
-    pixel_buf[8]  = ((bitmap & (uint8_t) 0x80) ? a : c);
-    pixel_buf[9]  = ((bitmap & (uint8_t) 0x40) ? a : c);
-    pixel_buf[10] = ((bitmap & (uint8_t) 0x20) ? a : c);
-    pixel_buf[11] = ((bitmap & (uint8_t) 0x10) ? a : c);
-    pixel_buf[12] = ((bitmap & (uint8_t) 0x08) ? a : c);
-    pixel_buf[13] = ((bitmap & (uint8_t) 0x04) ? a : c);
-    pixel_buf[14] = ((bitmap & (uint8_t) 0x02) ? a : c);
-    pixel_buf[15] = ((bitmap & (uint8_t) 0x01) ? a : c);
+    if (c & uint8_t(0x80))
+      bitmap ^= uint8_t(0xFF);
+    uint8_t   c0 = uint8_t(0x80);
+    uint8_t   c1 = a & uint8_t(0x7F);
+    uint8_t   *buf = &(ted.pixel_buf[ted.pixelBufWritePos]);
+    buf[0] = ((bitmap & uint8_t(0x80)) ? c1 : c0);
+    buf[1] = ((bitmap & uint8_t(0x40)) ? c1 : c0);
+    buf[2] = ((bitmap & uint8_t(0x20)) ? c1 : c0);
+    buf[3] = ((bitmap & uint8_t(0x10)) ? c1 : c0);
+    buf[4] = ((bitmap & uint8_t(0x08)) ? c1 : c0);
+    buf[5] = ((bitmap & uint8_t(0x04)) ? c1 : c0);
+    buf[6] = ((bitmap & uint8_t(0x02)) ? c1 : c0);
+    buf[7] = ((bitmap & uint8_t(0x01)) ? c1 : c0);
   }
 
-  void TED7360::render_char_256()
+  void TED7360::render_char_256(void *ted_)
   {
-    int     x = (int) video_column >> 1;
-    uint8_t a = attr_buf[x], c = char_buf[x];
-    int     bitmap_addr;
-    int     bitmap;
-
-    bitmap_addr = (charset_base_addr & 0xF800) + ((int) c << 3)
-                                               + (int) character_line;
-    bitmap = readVideoMemory((uint16_t) bitmap_addr);
-    if (cursor_position == character_position) {
-      if (flash_state)
-        bitmap ^= (uint8_t) 0xFF;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
+    uint8_t   a = ted.currentAttribute;
+    uint8_t   bitmap = ted.currentBitmap;
+    if (ted.cursor_position == ted.character_position) {
+      if (ted.flash_state)
+        bitmap ^= uint8_t(0xFF);
     }
-    else if (a & (uint8_t) 0x80) {
-      if (!flash_state)
-        bitmap = (uint8_t) 0x00;
+    else if (a & uint8_t(0x80)) {
+      if (!ted.flash_state)
+        bitmap = uint8_t(0x00);
     }
-    a &= (uint8_t) 0x7F;
-    c = memory_ram[0xFF15];
-    pixel_buf[8]  = ((bitmap & (uint8_t) 0x80) ? a : c);
-    pixel_buf[9]  = ((bitmap & (uint8_t) 0x40) ? a : c);
-    pixel_buf[10] = ((bitmap & (uint8_t) 0x20) ? a : c);
-    pixel_buf[11] = ((bitmap & (uint8_t) 0x10) ? a : c);
-    pixel_buf[12] = ((bitmap & (uint8_t) 0x08) ? a : c);
-    pixel_buf[13] = ((bitmap & (uint8_t) 0x04) ? a : c);
-    pixel_buf[14] = ((bitmap & (uint8_t) 0x02) ? a : c);
-    pixel_buf[15] = ((bitmap & (uint8_t) 0x01) ? a : c);
+    uint8_t   c0 = uint8_t(0x80);
+    uint8_t   c1 = a & uint8_t(0x7F);
+    uint8_t   *buf = &(ted.pixel_buf[ted.pixelBufWritePos]);
+    buf[0] = ((bitmap & uint8_t(0x80)) ? c1 : c0);
+    buf[1] = ((bitmap & uint8_t(0x40)) ? c1 : c0);
+    buf[2] = ((bitmap & uint8_t(0x20)) ? c1 : c0);
+    buf[3] = ((bitmap & uint8_t(0x10)) ? c1 : c0);
+    buf[4] = ((bitmap & uint8_t(0x08)) ? c1 : c0);
+    buf[5] = ((bitmap & uint8_t(0x04)) ? c1 : c0);
+    buf[6] = ((bitmap & uint8_t(0x02)) ? c1 : c0);
+    buf[7] = ((bitmap & uint8_t(0x01)) ? c1 : c0);
   }
 
-  void TED7360::render_char_ECM()
+  void TED7360::render_char_ECM(void *ted_)
   {
-    int     x = (int) video_column >> 1;
-    uint8_t a = attr_buf[x], c = char_buf[x];
-    int     bitmap_addr;
-    int     bitmap;
-
-    bitmap_addr = (charset_base_addr & 0xF800)
-                  + ((int) (c & (uint8_t) 0x3F) << 3) + (int) character_line;
-    bitmap = readVideoMemory((uint16_t) bitmap_addr);
-    a &= (uint8_t) 0x7F;
-    c = memory_ram[0xFF15 + (int) ((c & (uint8_t) 0xC0) >> 6)];
-    pixel_buf[8]  = ((bitmap & (uint8_t) 0x80) ? a : c);
-    pixel_buf[9]  = ((bitmap & (uint8_t) 0x40) ? a : c);
-    pixel_buf[10] = ((bitmap & (uint8_t) 0x20) ? a : c);
-    pixel_buf[11] = ((bitmap & (uint8_t) 0x10) ? a : c);
-    pixel_buf[12] = ((bitmap & (uint8_t) 0x08) ? a : c);
-    pixel_buf[13] = ((bitmap & (uint8_t) 0x04) ? a : c);
-    pixel_buf[14] = ((bitmap & (uint8_t) 0x02) ? a : c);
-    pixel_buf[15] = ((bitmap & (uint8_t) 0x01) ? a : c);
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
+    uint8_t   a = ted.currentAttribute;
+    uint8_t   c = ted.currentCharacter;
+    uint8_t   bitmap = ted.currentBitmap;
+    uint8_t   c0 = uint8_t(0x80) | ((c & uint8_t(0xC0)) >> 6);
+    uint8_t   c1 = a & uint8_t(0x7F);
+    uint8_t   *buf = &(ted.pixel_buf[ted.pixelBufWritePos]);
+    buf[0] = ((bitmap & uint8_t(0x80)) ? c1 : c0);
+    buf[1] = ((bitmap & uint8_t(0x40)) ? c1 : c0);
+    buf[2] = ((bitmap & uint8_t(0x20)) ? c1 : c0);
+    buf[3] = ((bitmap & uint8_t(0x10)) ? c1 : c0);
+    buf[4] = ((bitmap & uint8_t(0x08)) ? c1 : c0);
+    buf[5] = ((bitmap & uint8_t(0x04)) ? c1 : c0);
+    buf[6] = ((bitmap & uint8_t(0x02)) ? c1 : c0);
+    buf[7] = ((bitmap & uint8_t(0x01)) ? c1 : c0);
   }
 
-  void TED7360::render_char_MCM_128()
+  void TED7360::render_char_MCM_128(void *ted_)
   {
-    int     x = (int) video_column >> 1;
-    uint8_t a = attr_buf[x], c = char_buf[x];
-    int     bitmap_addr;
-    int     bitmap;
-
-    bitmap_addr = charset_base_addr + ((int) (c & (uint8_t) 0x7F) << 3)
-                                    + (int) character_line;
-    bitmap = readVideoMemory((uint16_t) bitmap_addr);
-    if (a & (uint8_t) 0x08) {
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
+    uint8_t   a = ted.currentAttribute;
+    uint8_t   bitmap = ted.currentBitmap;
+    uint8_t   *buf = &(ted.pixel_buf[ted.pixelBufWritePos]);
+    if (a & uint8_t(0x08)) {
       uint8_t c_[4];
-      c_[0] = memory_ram[0xFF15];
-      c_[1] = memory_ram[0xFF16];
-      c_[2] = memory_ram[0xFF17];
-      c_[3] = a & (uint8_t) 0x77;
-      pixel_buf[9]  = pixel_buf[8]  = c_[(bitmap & (uint8_t) 0xC0) >> 6];
-      pixel_buf[11] = pixel_buf[10] = c_[(bitmap & (uint8_t) 0x30) >> 4];
-      pixel_buf[13] = pixel_buf[12] = c_[(bitmap & (uint8_t) 0x0C) >> 2];
-      pixel_buf[15] = pixel_buf[14] = c_[bitmap & (uint8_t) 0x03];
+      c_[0] = uint8_t(0x80);
+      c_[1] = uint8_t(0x81);
+      c_[2] = uint8_t(0x82);
+      c_[3] = a & uint8_t(0x77);
+      buf[1] = buf[0] = c_[(bitmap & uint8_t(0xC0)) >> 6];
+      buf[3] = buf[2] = c_[(bitmap & uint8_t(0x30)) >> 4];
+      buf[5] = buf[4] = c_[(bitmap & uint8_t(0x0C)) >> 2];
+      buf[7] = buf[6] = c_[bitmap & uint8_t(0x03)];
     }
     else {
-      a &= (uint8_t) 0x77;
-      c = memory_ram[0xFF15];
-      pixel_buf[8]  = ((bitmap & (uint8_t) 0x80) ? a : c);
-      pixel_buf[9]  = ((bitmap & (uint8_t) 0x40) ? a : c);
-      pixel_buf[10] = ((bitmap & (uint8_t) 0x20) ? a : c);
-      pixel_buf[11] = ((bitmap & (uint8_t) 0x10) ? a : c);
-      pixel_buf[12] = ((bitmap & (uint8_t) 0x08) ? a : c);
-      pixel_buf[13] = ((bitmap & (uint8_t) 0x04) ? a : c);
-      pixel_buf[14] = ((bitmap & (uint8_t) 0x02) ? a : c);
-      pixel_buf[15] = ((bitmap & (uint8_t) 0x01) ? a : c);
+      uint8_t c0 = uint8_t(0x80);
+      uint8_t c1 = a & uint8_t(0x77);
+      buf[0] = ((bitmap & uint8_t(0x80)) ? c1 : c0);
+      buf[1] = ((bitmap & uint8_t(0x40)) ? c1 : c0);
+      buf[2] = ((bitmap & uint8_t(0x20)) ? c1 : c0);
+      buf[3] = ((bitmap & uint8_t(0x10)) ? c1 : c0);
+      buf[4] = ((bitmap & uint8_t(0x08)) ? c1 : c0);
+      buf[5] = ((bitmap & uint8_t(0x04)) ? c1 : c0);
+      buf[6] = ((bitmap & uint8_t(0x02)) ? c1 : c0);
+      buf[7] = ((bitmap & uint8_t(0x01)) ? c1 : c0);
     }
   }
 
-  void TED7360::render_char_MCM_256()
+  void TED7360::render_char_MCM_256(void *ted_)
   {
-    int     x = (int) video_column >> 1;
-    uint8_t a = attr_buf[x], c = char_buf[x];
-    int     bitmap_addr;
-    int     bitmap;
-
-    bitmap_addr = (charset_base_addr & 0xF800) + ((int) c << 3)
-                                               + (int) character_line;
-    bitmap = readVideoMemory((uint16_t) bitmap_addr);
-    if (a & (uint8_t) 0x08) {
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
+    uint8_t   a = ted.currentAttribute;
+    uint8_t   bitmap = ted.currentBitmap;
+    uint8_t   *buf = &(ted.pixel_buf[ted.pixelBufWritePos]);
+    if (a & uint8_t(0x08)) {
       uint8_t c_[4];
-      c_[0] = memory_ram[0xFF15];
-      c_[1] = memory_ram[0xFF16];
-      c_[2] = memory_ram[0xFF17];
-      c_[3] = a & (uint8_t) 0x77;
-      pixel_buf[9]  = pixel_buf[8]  = c_[(bitmap & (uint8_t) 0xC0) >> 6];
-      pixel_buf[11] = pixel_buf[10] = c_[(bitmap & (uint8_t) 0x30) >> 4];
-      pixel_buf[13] = pixel_buf[12] = c_[(bitmap & (uint8_t) 0x0C) >> 2];
-      pixel_buf[15] = pixel_buf[14] = c_[bitmap & (uint8_t) 0x03];
+      c_[0] = uint8_t(0x80);
+      c_[1] = uint8_t(0x81);
+      c_[2] = uint8_t(0x82);
+      c_[3] = a & uint8_t(0x77);
+      buf[1] = buf[0] = c_[(bitmap & uint8_t(0xC0)) >> 6];
+      buf[3] = buf[2] = c_[(bitmap & uint8_t(0x30)) >> 4];
+      buf[5] = buf[4] = c_[(bitmap & uint8_t(0x0C)) >> 2];
+      buf[7] = buf[6] = c_[bitmap & uint8_t(0x03)];
     }
     else {
-      a &= (uint8_t) 0x77;
-      c = memory_ram[0xFF15];
-      pixel_buf[8]  = ((bitmap & (uint8_t) 0x80) ? a : c);
-      pixel_buf[9]  = ((bitmap & (uint8_t) 0x40) ? a : c);
-      pixel_buf[10] = ((bitmap & (uint8_t) 0x20) ? a : c);
-      pixel_buf[11] = ((bitmap & (uint8_t) 0x10) ? a : c);
-      pixel_buf[12] = ((bitmap & (uint8_t) 0x08) ? a : c);
-      pixel_buf[13] = ((bitmap & (uint8_t) 0x04) ? a : c);
-      pixel_buf[14] = ((bitmap & (uint8_t) 0x02) ? a : c);
-      pixel_buf[15] = ((bitmap & (uint8_t) 0x01) ? a : c);
+      uint8_t c0 = uint8_t(0x80);
+      uint8_t c1 = a & uint8_t(0x77);
+      buf[0] = ((bitmap & uint8_t(0x80)) ? c1 : c0);
+      buf[1] = ((bitmap & uint8_t(0x40)) ? c1 : c0);
+      buf[2] = ((bitmap & uint8_t(0x20)) ? c1 : c0);
+      buf[3] = ((bitmap & uint8_t(0x10)) ? c1 : c0);
+      buf[4] = ((bitmap & uint8_t(0x08)) ? c1 : c0);
+      buf[5] = ((bitmap & uint8_t(0x04)) ? c1 : c0);
+      buf[6] = ((bitmap & uint8_t(0x02)) ? c1 : c0);
+      buf[7] = ((bitmap & uint8_t(0x01)) ? c1 : c0);
     }
   }
 
-  void TED7360::render_invalid_mode()
+  void TED7360::render_invalid_mode(void *ted_)
   {
-    pixel_buf[8]  = (uint8_t) 0;
-    pixel_buf[9]  = (uint8_t) 0;
-    pixel_buf[10] = (uint8_t) 0;
-    pixel_buf[11] = (uint8_t) 0;
-    pixel_buf[12] = (uint8_t) 0;
-    pixel_buf[13] = (uint8_t) 0;
-    pixel_buf[14] = (uint8_t) 0;
-    pixel_buf[15] = (uint8_t) 0;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
+    uint8_t   *buf = &(ted.pixel_buf[ted.pixelBufWritePos]);
+    buf[0] = uint8_t(0);
+    buf[1] = uint8_t(0);
+    buf[2] = uint8_t(0);
+    buf[3] = uint8_t(0);
+    buf[4] = uint8_t(0);
+    buf[5] = uint8_t(0);
+    buf[6] = uint8_t(0);
+    buf[7] = uint8_t(0);
   }
 
-  void TED7360::render_init()
+  void TED7360::selectRenderer()
   {
-    if ((memory_ram[0xFF06] & (uint8_t) 0x40) &&
-        ((memory_ram[0xFF06] & (uint8_t) 0x20) ||
-         (memory_ram[0xFF07] & (uint8_t) 0x10))) {
-      // ECM + (BMM or MCM): invalid mode
-      for (int i = 0; i < 8; i++)
-        pixel_buf[i] = (uint8_t) 0;
-      return;
+    uint8_t mode =   (memory_ram[0xFF06] & uint8_t(0x60))
+                   | (memory_ram[0xFF07] & uint8_t(0x90));
+    switch (mode) {
+    case 0x00:
+      bitmapMode = false;
+      render_func = &render_char_128;
+      charset_base_addr = int(memory_ram[0xFF13] & uint8_t(0xFC)) << 8;
+      characterMask = uint8_t(0x7F);
+      break;
+    case 0x10:
+      bitmapMode = false;
+      render_func = &render_char_MCM_128;
+      charset_base_addr = int(memory_ram[0xFF13] & uint8_t(0xFC)) << 8;
+      characterMask = uint8_t(0x7F);
+      break;
+    case 0x20:
+      bitmapMode = true;
+      render_func = &render_BMM_hires;
+      charset_base_addr = 0;
+      characterMask = uint8_t(0);
+      break;
+    case 0x30:
+      bitmapMode = true;
+      render_func = &render_BMM_multicolor;
+      charset_base_addr = 0;
+      characterMask = uint8_t(0);
+      break;
+    case 0x40:
+      bitmapMode = false;
+      render_func = &render_char_ECM;
+      charset_base_addr = int(memory_ram[0xFF13] & uint8_t(0xF8)) << 8;
+      characterMask = uint8_t(0x3F);
+      break;
+    case 0x80:
+      bitmapMode = false;
+      render_func = &render_char_256;
+      charset_base_addr = int(memory_ram[0xFF13] & uint8_t(0xF8)) << 8;
+      characterMask = uint8_t(0xFF);
+      break;
+    case 0x90:
+      bitmapMode = false;
+      render_func = &render_char_MCM_256;
+      charset_base_addr = int(memory_ram[0xFF13] & uint8_t(0xF8)) << 8;
+      characterMask = uint8_t(0xFF);
+      break;
+    case 0xA0:
+      bitmapMode = true;
+      render_func = &render_BMM_hires;
+      charset_base_addr = 0;
+      characterMask = uint8_t(0);
+      break;
+    case 0xB0:
+      bitmapMode = true;
+      render_func = &render_BMM_multicolor;
+      charset_base_addr = 0;
+      characterMask = uint8_t(0);
+      break;
+    case 0xC0:
+      bitmapMode = false;
+      render_func = &render_char_ECM;
+      charset_base_addr = int(memory_ram[0xFF13] & uint8_t(0xF8)) << 8;
+      characterMask = uint8_t(0x3F);
+      break;
+    default:
+      bitmapMode = true;
+      render_func = &render_invalid_mode;
+      charset_base_addr = 0;
+      characterMask = uint8_t(0);
     }
-    // FIXME: for now, fill with background color in any other mode
-    for (int i = 0; i < 8; i++)
-      pixel_buf[i] = memory_ram[0xFF15];
   }
 
 }       // namespace Plus4

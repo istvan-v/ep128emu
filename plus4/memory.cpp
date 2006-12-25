@@ -40,31 +40,43 @@ namespace Plus4 {
     return 0x00;    // not reached
   }
 
-  uint8_t TED7360::read_ram_(uint16_t addr) const
+  uint8_t TED7360::read_ram_(void *userData, uint16_t addr)
   {
-    return memory_ram[addr];
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = ted.memory_ram[addr];
+    return ted.dataBusState;
   }
 
-  uint8_t TED7360::read_rom_low(uint16_t addr) const
+  uint8_t TED7360::read_memory_8000(void *userData, uint16_t addr)
   {
-    return memory_rom[rom_bank_low][addr & (uint16_t) 0x7FFF];
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    if (ted.rom_enabled)
+      ted.dataBusState =
+          ted.memory_rom[ted.rom_bank_low][addr & (uint16_t) 0x7FFF];
+    else
+      ted.dataBusState = ted.memory_ram[addr];
+    return ted.dataBusState;
   }
 
-  uint8_t TED7360::read_rom_high(uint16_t addr) const
+  uint8_t TED7360::read_memory_C000(void *userData, uint16_t addr)
   {
-    return memory_rom[rom_bank_high][addr & (uint16_t) 0x7FFF];
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    if (ted.rom_enabled)
+      ted.dataBusState =
+          ted.memory_rom[ted.rom_bank_high][addr & (uint16_t) 0x7FFF];
+    else
+      ted.dataBusState = ted.memory_ram[addr];
+    return ted.dataBusState;
   }
 
-  uint8_t TED7360::read_rom_FCxx(uint16_t addr) const
+  uint8_t TED7360::read_memory_FC00(void *userData, uint16_t addr)
   {
-    return memory_rom[0][addr & (uint16_t) 0x7FFF];
-  }
-
-  uint8_t TED7360::readMemory(uint16_t addr) const
-  {
-    if (rom_enabled)
-      return (this->*(read_memory_rom[addr]))(addr);
-    return (this->*(read_memory_ram[addr]))(addr);
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    if (ted.rom_enabled)
+      ted.dataBusState = ted.memory_rom[0][addr & (uint16_t) 0x7FFF];
+    else
+      ted.dataBusState = ted.memory_ram[addr];
+    return ted.dataBusState;
   }
 
   uint8_t TED7360::readMemoryRaw(uint32_t addr) const
@@ -72,48 +84,66 @@ namespace Plus4 {
     uint8_t   segment = uint8_t((addr >> 14) & 0xFF);
     if (segment >= 0xFC) {
       uint16_t  offs = uint16_t(addr & 0xFFFF);
-      return (this->*(read_memory_ram[offs]))(offs);
+      if ((offs > 0x0001 && offs < 0xFD00) || offs >= 0xFF40)
+        return memory_ram[offs];
+      else {
+        // FIXME: this is an ugly hack to work around const declaration
+        TED7360&  ted = *(const_cast<TED7360 *>(this));
+        uint8_t savedDataBusState = dataBusState;
+        uint8_t retval = ted.readMemory(offs);
+        ted.dataBusState = savedDataBusState;
+        return retval;
+      }
     }
     else if (segment < 0x08) {
-      if (segment == ((rom_bank_high << 1) + 1)) {
-        uint16_t  offs = uint16_t(addr & 0xFFFF);
-        return (this->*(read_memory_rom[offs]))(offs);
+      uint16_t  offs = uint16_t(addr & 0x7FFF);
+      if (segment == ((rom_bank_high << 1) + 1) &&
+          (offs >= 0x7D00 && offs < 0x7F40)) {
+        // FIXME: this is an ugly hack to work around const declaration
+        TED7360&  ted = *(const_cast<TED7360 *>(this));
+        uint8_t savedDataBusState = dataBusState;
+        uint8_t retval = ted.readMemory(offs | uint16_t(0x8000));
+        ted.dataBusState = savedDataBusState;
+        return retval;
       }
       else
-        return memory_rom[segment >> 1][uint16_t(addr & 0x7FFF)];
+        return memory_rom[segment >> 1][offs];
     }
     return 0xFF;
   }
 
-  void TED7360::write_ram_(uint16_t addr, uint8_t value)
+  void TED7360::write_ram_(void *userData, uint16_t addr, uint8_t value)
   {
-    memory_ram[addr] = value;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] = value;
   }
 
-  void TED7360::writeMemory(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FDDx(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
-    (this->*(write_memory[addr]))(addr, value);
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.rom_bank_low = (unsigned char) ((int) addr & 3);
+    ted.rom_bank_high = (unsigned char) (((int) addr & 12) >> 2);
   }
 
-  void TED7360::write_register_FDDx(uint16_t addr, uint8_t value)
-  {
-    (void) value;
-    rom_bank_low = (unsigned char) ((int) addr & 3);
-    rom_bank_high = (unsigned char) (((int) addr & 12) >> 2);
-  }
-
-  void TED7360::write_register_FF3E(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF3E(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
     (void) addr;
-    (void) value;
-    rom_enabled = true;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.rom_enabled = true;
   }
 
-  void TED7360::write_register_FF3F(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF3F(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
     (void) addr;
-    (void) value;
-    rom_enabled = false;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.rom_enabled = false;
   }
 
   void TED7360::loadROM(int bankNum, int offs, int cnt, const uint8_t *buf)

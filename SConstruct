@@ -74,6 +74,7 @@ plus4LibEnvironment.Append(CPPPATH = ['.', './plus4'])
 
 plus4Lib = plus4LibEnvironment.StaticLibrary('plus4', Split('''
     plus4/cpu.cpp
+    plus4/cpuoptbl.cpp
     plus4/memory.cpp
     plus4/plus4vm.cpp
     plus4/render.cpp

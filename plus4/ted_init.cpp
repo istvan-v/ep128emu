@@ -36,205 +36,105 @@ namespace Plus4 {
         memory_rom[j][i] = (uint8_t) 0xFF;
       }
     }
+    setMemoryCallbackUserData(this);
     for (int i = 0; i < 0x10000; i++) {
-      // memory map for reading (ROM enabled)
-      read_memory_rom[i] = &Plus4::TED7360::read_ram_;
-      // memory map for reading (ROM disabled)
-      read_memory_ram[i] = &Plus4::TED7360::read_ram_;
-      // memory map for writing
-      write_memory[i] = &Plus4::TED7360::write_ram_;
+      setMemoryReadCallback(uint16_t(i), &read_ram_);
+      setMemoryWriteCallback(uint16_t(i), &write_ram_);
     }
-    // ROM read
     for (int i = 0x8000; i < 0xC000; i++)
-      read_memory_rom[i] = &Plus4::TED7360::read_rom_low;
-    for (int i = 0xC000; i < 0x10000; i++)
-      read_memory_rom[i] = &Plus4::TED7360::read_rom_high;
+      setMemoryReadCallback(uint16_t(i), &read_memory_8000);
+    for (int i = 0xC000; i < 0xFC00; i++)
+      setMemoryReadCallback(uint16_t(i), &read_memory_C000);
     for (int i = 0xFC00; i < 0xFD00; i++)
-      read_memory_rom[i] = &Plus4::TED7360::read_rom_FCxx;
+      setMemoryReadCallback(uint16_t(i), &read_memory_FC00);
+    for (int i = 0xFF40; i < 0x10000; i++)
+      setMemoryReadCallback(uint16_t(i), &read_memory_C000);
     // TED register read
-    read_memory_rom[0] = &Plus4::TED7360::read_register_0000;
-    read_memory_rom[1] = &Plus4::TED7360::read_register_0001;
+    setMemoryReadCallback(0x0000, &read_register_0000);
+    setMemoryReadCallback(0x0001, &read_register_0001);
     for (int i = 0xFD00; i < 0xFF00; i++)
-      read_memory_rom[i] = &Plus4::TED7360::read_register_unimplemented;
+      setMemoryReadCallback(uint16_t(i), &read_register_unimplemented);
     for (int i = 0xFD10; i < 0xFD20; i++)
-      read_memory_rom[i] = &Plus4::TED7360::read_register_FD10;
+      setMemoryReadCallback(uint16_t(i), &read_register_FD10);
     for (int i = 0xFD30; i < 0xFD40; i++)
-      read_memory_rom[i] = &Plus4::TED7360::read_register_FD30;
+      setMemoryReadCallback(uint16_t(i), &read_register_FD30);
     for (int i = 0xFF00; i < 0xFF20; i++)
-      read_memory_rom[i] = &Plus4::TED7360::read_ram_;
-    read_memory_rom[0xFF00] = &Plus4::TED7360::read_register_FF00;
-    read_memory_rom[0xFF01] = &Plus4::TED7360::read_register_FF01;
-    read_memory_rom[0xFF02] = &Plus4::TED7360::read_register_FF02;
-    read_memory_rom[0xFF03] = &Plus4::TED7360::read_register_FF03;
-    read_memory_rom[0xFF04] = &Plus4::TED7360::read_register_FF04;
-    read_memory_rom[0xFF05] = &Plus4::TED7360::read_register_FF05;
-    read_memory_rom[0xFF06] = &Plus4::TED7360::read_register_FF06;
-    read_memory_rom[0xFF09] = &Plus4::TED7360::read_register_FF09;
-    read_memory_rom[0xFF0A] = &Plus4::TED7360::read_register_FF0A;
-    read_memory_rom[0xFF0C] = &Plus4::TED7360::read_register_FF0C;
-    read_memory_rom[0xFF10] = &Plus4::TED7360::read_register_FF10;
-    read_memory_rom[0xFF12] = &Plus4::TED7360::read_register_FF12;
-    read_memory_rom[0xFF13] = &Plus4::TED7360::read_register_FF13;
-    read_memory_rom[0xFF14] = &Plus4::TED7360::read_register_FF14;
-    read_memory_rom[0xFF15] = &Plus4::TED7360::read_register_FF15_to_FF19;
-    read_memory_rom[0xFF16] = &Plus4::TED7360::read_register_FF15_to_FF19;
-    read_memory_rom[0xFF17] = &Plus4::TED7360::read_register_FF15_to_FF19;
-    read_memory_rom[0xFF18] = &Plus4::TED7360::read_register_FF15_to_FF19;
-    read_memory_rom[0xFF19] = &Plus4::TED7360::read_register_FF15_to_FF19;
-    read_memory_rom[0xFF1A] = &Plus4::TED7360::read_register_FF1A;
-    read_memory_rom[0xFF1B] = &Plus4::TED7360::read_register_FF1B;
-    read_memory_rom[0xFF1C] = &Plus4::TED7360::read_register_FF1C;
-    read_memory_rom[0xFF1D] = &Plus4::TED7360::read_register_FF1D;
-    read_memory_rom[0xFF1E] = &Plus4::TED7360::read_register_FF1E;
-    read_memory_rom[0xFF1F] = &Plus4::TED7360::read_register_FF1F;
-    read_memory_rom[0xFF3E] = &Plus4::TED7360::read_register_FF3E;
-    read_memory_rom[0xFF3F] = &Plus4::TED7360::read_register_FF3F;
+      setMemoryReadCallback(uint16_t(i), &read_ram_);
+    setMemoryReadCallback(0xFF00, &read_register_FF00);
+    setMemoryReadCallback(0xFF01, &read_register_FF01);
+    setMemoryReadCallback(0xFF02, &read_register_FF02);
+    setMemoryReadCallback(0xFF03, &read_register_FF03);
+    setMemoryReadCallback(0xFF04, &read_register_FF04);
+    setMemoryReadCallback(0xFF05, &read_register_FF05);
+    setMemoryReadCallback(0xFF06, &read_register_FF06);
+    setMemoryReadCallback(0xFF09, &read_register_FF09);
+    setMemoryReadCallback(0xFF0A, &read_register_FF0A);
+    setMemoryReadCallback(0xFF0C, &read_register_FF0C);
+    setMemoryReadCallback(0xFF10, &read_register_FF10);
+    setMemoryReadCallback(0xFF12, &read_register_FF12);
+    setMemoryReadCallback(0xFF13, &read_register_FF13);
+    setMemoryReadCallback(0xFF14, &read_register_FF14);
+    setMemoryReadCallback(0xFF15, &read_register_FF15_to_FF19);
+    setMemoryReadCallback(0xFF16, &read_register_FF15_to_FF19);
+    setMemoryReadCallback(0xFF17, &read_register_FF15_to_FF19);
+    setMemoryReadCallback(0xFF18, &read_register_FF15_to_FF19);
+    setMemoryReadCallback(0xFF19, &read_register_FF15_to_FF19);
+    setMemoryReadCallback(0xFF1A, &read_register_FF1A);
+    setMemoryReadCallback(0xFF1B, &read_register_FF1B);
+    setMemoryReadCallback(0xFF1C, &read_register_FF1C);
+    setMemoryReadCallback(0xFF1D, &read_register_FF1D);
+    setMemoryReadCallback(0xFF1E, &read_register_FF1E);
+    setMemoryReadCallback(0xFF1F, &read_register_FF1F);
+    setMemoryReadCallback(0xFF3E, &read_register_FF3E);
+    setMemoryReadCallback(0xFF3F, &read_register_FF3F);
     // TED register write
-    write_memory[0x0000] = &Plus4::TED7360::write_register_0000;
-    write_memory[0x0001] = &Plus4::TED7360::write_register_0001;
+    setMemoryWriteCallback(0x0000, &write_register_0000);
+    setMemoryWriteCallback(0x0001, &write_register_0001);
     for (int i = 0xFD10; i < 0xFD20; i++)
-      write_memory[i] = &Plus4::TED7360::write_register_FD1x;
+      setMemoryWriteCallback(uint16_t(i), &write_register_FD1x);
     for (int i = 0xFD30; i < 0xFD40; i++)
-      write_memory[i] = &Plus4::TED7360::write_register_FD3x;
+      setMemoryWriteCallback(uint16_t(i), &write_register_FD3x);
     for (int i = 0xFDD0; i < 0xFDE0; i++)
-      write_memory[i] = &Plus4::TED7360::write_register_FDDx;
-    write_memory[0xFF00] = &Plus4::TED7360::write_register_FF00;
-    write_memory[0xFF01] = &Plus4::TED7360::write_register_FF01;
-    write_memory[0xFF02] = &Plus4::TED7360::write_register_FF02;
-    write_memory[0xFF03] = &Plus4::TED7360::write_register_FF03;
-    write_memory[0xFF04] = &Plus4::TED7360::write_register_FF04;
-    write_memory[0xFF05] = &Plus4::TED7360::write_register_FF05;
-    write_memory[0xFF06] = &Plus4::TED7360::write_register_FF06;
-    write_memory[0xFF07] = &Plus4::TED7360::write_register_FF07;
-    write_memory[0xFF08] = &Plus4::TED7360::write_register_FF08;
-    write_memory[0xFF09] = &Plus4::TED7360::write_register_FF09;
-    write_memory[0xFF0C] = &Plus4::TED7360::write_register_FF0C;
-    write_memory[0xFF0D] = &Plus4::TED7360::write_register_FF0D;
-    write_memory[0xFF0E] = &Plus4::TED7360::write_register_FF0E;
-    write_memory[0xFF0F] = &Plus4::TED7360::write_register_FF0F;
-    write_memory[0xFF10] = &Plus4::TED7360::write_register_FF10;
-    write_memory[0xFF12] = &Plus4::TED7360::write_register_FF12;
-    write_memory[0xFF13] = &Plus4::TED7360::write_register_FF13;
-    write_memory[0xFF14] = &Plus4::TED7360::write_register_FF14;
-    write_memory[0xFF1A] = &Plus4::TED7360::write_register_FF1A;
-    write_memory[0xFF1B] = &Plus4::TED7360::write_register_FF1B;
-    write_memory[0xFF1C] = &Plus4::TED7360::write_register_FF1C;
-    write_memory[0xFF1D] = &Plus4::TED7360::write_register_FF1D;
-    write_memory[0xFF1E] = &Plus4::TED7360::write_register_FF1E;
-    write_memory[0xFF1F] = &Plus4::TED7360::write_register_FF1F;
-    write_memory[0xFF3E] = &Plus4::TED7360::write_register_FF3E;
-    write_memory[0xFF3F] = &Plus4::TED7360::write_register_FF3F;
-    // TED registers are always available regardless of ROM paging
-    for (int i = 0x0000; i < 0x0002; i++)
-      read_memory_ram[i] = read_memory_rom[i];
-    for (int i = 0xFD00; i < 0xFF20; i++)
-      read_memory_ram[i] = read_memory_rom[i];
-    for (int i = 0xFF3E; i < 0xFF40; i++)
-      read_memory_ram[i] = read_memory_rom[i];
+      setMemoryWriteCallback(uint16_t(i), &write_register_FDDx);
+    setMemoryWriteCallback(0xFF00, &write_register_FF00);
+    setMemoryWriteCallback(0xFF01, &write_register_FF01);
+    setMemoryWriteCallback(0xFF02, &write_register_FF02);
+    setMemoryWriteCallback(0xFF03, &write_register_FF03);
+    setMemoryWriteCallback(0xFF04, &write_register_FF04);
+    setMemoryWriteCallback(0xFF05, &write_register_FF05);
+    setMemoryWriteCallback(0xFF06, &write_register_FF06);
+    setMemoryWriteCallback(0xFF07, &write_register_FF07);
+    setMemoryWriteCallback(0xFF08, &write_register_FF08);
+    setMemoryWriteCallback(0xFF09, &write_register_FF09);
+    setMemoryWriteCallback(0xFF0A, &write_register_FF0A);
+    setMemoryWriteCallback(0xFF0B, &write_register_FF0B);
+    setMemoryWriteCallback(0xFF0C, &write_register_FF0C);
+    setMemoryWriteCallback(0xFF0D, &write_register_FF0D);
+    setMemoryWriteCallback(0xFF0E, &write_register_FF0E);
+    setMemoryWriteCallback(0xFF0F, &write_register_FF0F);
+    setMemoryWriteCallback(0xFF10, &write_register_FF10);
+    setMemoryWriteCallback(0xFF12, &write_register_FF12);
+    setMemoryWriteCallback(0xFF13, &write_register_FF13);
+    setMemoryWriteCallback(0xFF14, &write_register_FF14);
+    setMemoryWriteCallback(0xFF15, &write_register_FF15_to_FF19);
+    setMemoryWriteCallback(0xFF16, &write_register_FF15_to_FF19);
+    setMemoryWriteCallback(0xFF17, &write_register_FF15_to_FF19);
+    setMemoryWriteCallback(0xFF18, &write_register_FF15_to_FF19);
+    setMemoryWriteCallback(0xFF19, &write_register_FF15_to_FF19);
+    setMemoryWriteCallback(0xFF1A, &write_register_FF1A);
+    setMemoryWriteCallback(0xFF1B, &write_register_FF1B);
+    setMemoryWriteCallback(0xFF1C, &write_register_FF1C);
+    setMemoryWriteCallback(0xFF1D, &write_register_FF1D);
+    setMemoryWriteCallback(0xFF1E, &write_register_FF1E);
+    setMemoryWriteCallback(0xFF1F, &write_register_FF1F);
+    setMemoryWriteCallback(0xFF3E, &write_register_FF3E);
+    setMemoryWriteCallback(0xFF3F, &write_register_FF3F);
     // initialize memory paging
     rom_enabled = true;
     rom_enabled_for_video = true;
     rom_bank_low = (unsigned char) 0;
     rom_bank_high = (unsigned char) 0;
-    // ------------ set up display method tables ------------
-    render_func = &Plus4::TED7360::render_invalid_mode;
-    for (int i = 0; i < 114; i += 2) {
-      displayFuncType func;
-      bool            DRAM_refresh;
-      DRAM_refresh = ((i >= 76 && i < 86) ? true : false);
-      // vertical blanking
-      func = &Plus4::TED7360::run_blank_CPU;
-      if (DRAM_refresh)
-        func = &Plus4::TED7360::run_blank_no_CPU;
-      display_func_table[0][i]      = func;
-      display_func_table[0][i + 1]  = &Plus4::TED7360::run_blank_CPU;
-      // border areas (no data fetch)
-      func = &Plus4::TED7360::run_border_CPU;
-      if (DRAM_refresh)
-        func = &Plus4::TED7360::run_border_no_CPU;
-      display_func_table[1][i]      = func;
-      display_func_table[1][i + 1]  = &Plus4::TED7360::run_border_CPU;
-      // border, but render display
-      if (i >= 102)
-        func = &Plus4::TED7360::run_border_no_CPU;
-      if (i < 80)
-        func = &Plus4::TED7360::run_border_render;
-      if (i == 112)
-        func = &Plus4::TED7360::run_border_render_init;
-      display_func_table[2][i]      = func;
-      display_func_table[2][i + 1]  = &Plus4::TED7360::run_border_CPU;
-      // border, DMA (character line 0)
-      display_func_table[3][i] = func;
-      func = &Plus4::TED7360::run_border_CPU;
-      if (i < 76 || i >= 110)
-        func = &Plus4::TED7360::run_border_DMA_0;
-      if (i == 108)
-        func = &Plus4::TED7360::run_border_no_CPU;
-      display_func_table[3][i + 1]  = func;
-    }
-    // ... horizontal blanking
-    for (int j = 1; j < 4; j++) {
-      for (int i = 88; i < 106; i++) {
-        if (display_func_table[j][i] == &Plus4::TED7360::run_border_no_CPU)
-          display_func_table[j][i] = &Plus4::TED7360::run_blank_no_CPU;
-        else if (display_func_table[j][i] == &Plus4::TED7360::run_border_CPU)
-          display_func_table[j][i] = &Plus4::TED7360::run_blank_CPU;
-      }
-    }
-    // ... border, DMA (character line 7)
-    for (int i = 0; i < 114; i++) {
-      if (display_func_table[3][i] != &Plus4::TED7360::run_border_DMA_0)
-        display_func_table[4][i] = display_func_table[3][i];
-      else
-        display_func_table[4][i] = &Plus4::TED7360::run_border_DMA_7;
-    }
-    // ... 38 column mode (for the above modes, same as 40 column mode)
-    for (int j = 0; j < 5; j++) {
-      for (int i = 0; i < 114; i++)
-        display_func_table[j + 8][i] = display_func_table[j][i];
-    }
-    // ... display area
-    for (int j = 2; j < 5; j++) {
-      for (int i = 0; i < 114; i++) {
-        if (i >= 80) {
-          // border
-          display_func_table[j + 3][i] =  display_func_table[j][i];
-          display_func_table[j + 11][i] = display_func_table[j][i];
-          continue;
-        }
-        if (display_func_table[j][i] == &Plus4::TED7360::run_border_CPU)
-          display_func_table[j + 3][i] =  &Plus4::TED7360::run_display_CPU;
-        else if (display_func_table[j][i] == &Plus4::TED7360::run_border_no_CPU)
-          display_func_table[j + 3][i] =  &Plus4::TED7360::run_display_no_CPU;
-        else if (display_func_table[j][i] == &Plus4::TED7360::run_border_DMA_0)
-          display_func_table[j + 3][i] =  &Plus4::TED7360::run_display_DMA_0;
-        else if (display_func_table[j][i] == &Plus4::TED7360::run_border_DMA_7)
-          display_func_table[j + 3][i] =  &Plus4::TED7360::run_display_DMA_7;
-        else if (display_func_table[j][i] == &Plus4::TED7360::run_border_render)
-          display_func_table[j + 3][i] =  &Plus4::TED7360::run_display_render;
-        // 38 column mode
-        if (i >= 2 && i < 78)
-          display_func_table[j + 11][i] = display_func_table[j + 3][i];
-        else
-          display_func_table[j + 11][i] = display_func_table[j][i];
-      }
-    }
-    // ... single clock mode
-    for (int j = 0; j < 16; j++) {
-      for (int i = 0; i < 114; i++) {
-        if (i & 1)
-          display_func_table[j + 16][i] = display_func_table[j][i];
-        else if (display_func_table[j][i] == &Plus4::TED7360::run_blank_CPU)
-          display_func_table[j + 16][i] = &Plus4::TED7360::run_blank_no_CPU;
-        else if (display_func_table[j][i] == &Plus4::TED7360::run_border_CPU)
-          display_func_table[j + 16][i] = &Plus4::TED7360::run_border_no_CPU;
-        else if (display_func_table[j][i] == &Plus4::TED7360::run_display_CPU)
-          display_func_table[j + 16][i] = &Plus4::TED7360::run_display_no_CPU;
-        else
-          display_func_table[j + 16][i] = display_func_table[j][i];
-      }
-    }
-    // ------------ done setting up display method tables ------------
+    render_func = &render_invalid_mode;
     // clear memory used by TED registers
     memory_ram[0x0000] = (uint8_t) 0x0F;
     memory_ram[0x0001] = (uint8_t) 0xC8;
@@ -251,24 +151,30 @@ namespace Plus4 {
     // set internal TED registers
     cycle_count = 0UL;
     cpu_clock_multiplier = 1;
-    display_mode = 0;
     video_column = 96;
-    video_interrupt_shift_register = 0;
     video_line = 224;
     character_line = 0;
-    character_position = 0;
-    character_position_reload = 0;
-    attr_base_addr = 0;
-    bitmap_base_addr = 0;
-    charset_base_addr = 0;
+    character_position = 0x0000;
+    character_position_reload = 0x0000;
+    character_column = 0;
+    dma_position = 0x0000;
+    attr_base_addr = 0x0000;
+    bitmap_base_addr = 0x0000;
+    charset_base_addr = 0x0000;
     horiz_scroll = 0;
     cursor_position = 0x03FF;
     ted_disabled = false;
     flash_state = false;
-    display_enabled = false;
-    render_enabled = false;
-    DMA_enabled = false;
-    vertical_blanking = false;
+    renderWindow = false;
+    dmaWindow = false;
+    bitmapFetchWindow = false;
+    displayWindow = false;
+    renderingDisplay = false;
+    displayActive = false;
+    horizontalBlanking = true;
+    verticalBlanking = true;
+    singleClockMode = true;
+    doubleClockModeEnabled = true;
     timer1_run = true;                          // timers
     timer2_run = true;
     timer3_run = true;
@@ -285,14 +191,27 @@ namespace Plus4 {
     sound_channel_2_noise_state = (uint8_t) 0xFF;
     sound_channel_2_noise_output = (uint8_t) 1;
     for (int i = 0; i < 40; i++) {              // video buffers
-      attr_buf[i] = (uint8_t) 0;
-      char_buf_tmp[i] = (uint8_t) 0;
-      char_buf[i] = (uint8_t) 0;
+      attr_buf[i] = uint8_t(0);
+      attr_buf_tmp[i] = uint8_t(0);
+      char_buf[i] = uint8_t(0);
     }
-    for (int i = 0; i < 16; i++)
-      pixel_buf[i] = (uint8_t) 0;
-    for (int i = 0; i < 456; i++)
-      line_buf[i] = (uint8_t) 0;
+    for (int i = 0; i < 64; i++)
+      pixel_buf[i] = uint8_t(0);
+    for (int i = 0; i < 414; i++)
+      line_buf[i] = uint8_t(0x08);
+    line_buf_pos = 0;
+    bitmapMode = false;
+    currentCharacter = uint8_t(0x00);
+    characterMask = uint8_t(0xFF);
+    currentAttribute = uint8_t(0x00);
+    currentBitmap = uint8_t(0x00);
+    pixelBufReadPos = 0;
+    pixelBufWritePos = 0;
+    attributeDMACnt = 0;
+    characterDMACnt = 0;
+    videoInterruptLine = 0;
+    prvVideoInterruptState = false;
+    dataBusState = uint8_t(0xFF);
     keyboard_row_select_mask = 0xFFFF;          // keyboard matrix
     for (int i = 0; i < 16; i++)
       keyboard_matrix[i] = (uint8_t) 0xFF;
@@ -323,7 +242,6 @@ namespace Plus4 {
       writeMemory((uint16_t) 0xFF13, (uint8_t) 0x01);
       writeMemory((uint16_t) 0xFF1D, (uint8_t) 224);
       writeMemory((uint16_t) 0xFF3E, (uint8_t) 0);
-      video_interrupt_shift_register = 0;
     }
     // reset CPU
     M7501::reset(cold_reset);

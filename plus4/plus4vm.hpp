@@ -39,8 +39,8 @@ namespace Plus4 {
       virtual ~TED7360_();
      protected:
       virtual void playSample(int16_t sampleValue);
-      virtual void drawLine(const uint8_t *buf, int nPixels);
-      virtual void verticalSync();
+      virtual void drawLine(const uint8_t *buf, size_t nBytes);
+      virtual void verticalSync(bool newState_, unsigned int currentSlot_);
     };
     // ----------------
     TED7360_                *ted;

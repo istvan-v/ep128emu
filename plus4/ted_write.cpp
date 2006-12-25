@@ -23,235 +23,324 @@
 
 namespace Plus4 {
 
-  void TED7360::write_register_0000(uint16_t addr, uint8_t value)
+  void TED7360::write_register_0000(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
-    memory_ram[addr] = value;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] = value;
   }
 
-  void TED7360::write_register_0001(uint16_t addr, uint8_t value)
+  void TED7360::write_register_0001(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
-    memory_ram[addr] = value;
-    tape_motor_state = ((value & uint8_t(0x08)) ? false : true);
-    tape_write_state = ((value & uint8_t(0x02)) ? true : false);
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] = value;
+    ted.tape_motor_state = ((value & uint8_t(0x08)) ? false : true);
+    ted.tape_write_state = ((value & uint8_t(0x02)) ? true : false);
   }
 
-  void TED7360::write_register_FD1x(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FD1x(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
     (void) addr;
-    user_port_state = value;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.user_port_state = value;
   }
 
-  void TED7360::write_register_FD3x(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FD3x(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
     (void) addr;
-    keyboard_row_select_mask = (int) value | 0xFF00;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.keyboard_row_select_mask = int(value) | 0xFF00;
   }
 
-  void TED7360::write_register_FF00(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF00(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
     (void) addr;
-    timer1_run = false;
-    timer1_state = (timer1_state & 0xFF00) | (int) value;
-    timer1_reload_value = (timer1_reload_value & 0xFF00) | (int) value;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.timer1_run = false;
+    ted.timer1_state = (ted.timer1_state & 0xFF00) | int(value);
+    ted.timer1_reload_value = (ted.timer1_reload_value & 0xFF00) | int(value);
   }
 
-  void TED7360::write_register_FF01(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF01(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
     (void) addr;
-    timer1_run = true;
-    timer1_state = (timer1_state & 0x00FF) | ((int) value << 8);
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.timer1_run = true;
+    ted.timer1_state = (ted.timer1_state & 0x00FF) | (int(value) << 8);
   }
 
-  void TED7360::write_register_FF02(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF02(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
     (void) addr;
-    timer2_run = false;
-    timer2_state = (timer2_state & 0xFF00) | (int) value;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.timer2_run = false;
+    ted.timer2_state = (ted.timer2_state & 0xFF00) | int(value);
   }
 
-  void TED7360::write_register_FF03(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF03(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
     (void) addr;
-    timer2_run = true;
-    timer2_state = (timer2_state & 0x00FF) | ((int) value << 8);
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.timer2_run = true;
+    ted.timer2_state = (ted.timer2_state & 0x00FF) | (int(value) << 8);
   }
 
-  void TED7360::write_register_FF04(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF04(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
     (void) addr;
-    timer3_run = false;
-    timer3_state = (timer3_state & 0xFF00) | (int) value;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.timer3_run = false;
+    ted.timer3_state = (ted.timer3_state & 0xFF00) | int(value);
   }
 
-  void TED7360::write_register_FF05(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF05(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
     (void) addr;
-    timer3_run = true;
-    timer3_state = (timer3_state & 0x00FF) | ((int) value << 8);
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.timer3_run = true;
+    ted.timer3_state = (ted.timer3_state & 0x00FF) | (int(value) << 8);
   }
 
-  void TED7360::write_register_FF06(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF06(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
-    memory_ram[addr] = value;
-    int mode = (int) (value & (uint8_t) 0x60);
-    mode |= (int) (memory_ram[0xFF07] & (uint8_t) 0x90);
-    switch (mode) {
-      case 0x00:  render_func = &Plus4::TED7360::render_char_128;       break;
-      case 0x10:  render_func = &Plus4::TED7360::render_char_MCM_128;   break;
-      case 0x20:  render_func = &Plus4::TED7360::render_BMM_hires;      break;
-      case 0x30:  render_func = &Plus4::TED7360::render_BMM_multicolor; break;
-      case 0x40:  render_func = &Plus4::TED7360::render_char_ECM;       break;
-      case 0x80:  render_func = &Plus4::TED7360::render_char_256;       break;
-      case 0x90:  render_func = &Plus4::TED7360::render_char_MCM_256;   break;
-      case 0xA0:  render_func = &Plus4::TED7360::render_BMM_hires;      break;
-      case 0xB0:  render_func = &Plus4::TED7360::render_BMM_multicolor; break;
-      case 0xC0:  render_func = &Plus4::TED7360::render_char_ECM;       break;
-      default:    render_func = &Plus4::TED7360::render_invalid_mode;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] = value;
+    if (ted.renderWindow && !ted.dmaWindow &&
+        (ted.attributeDMACnt | ted.characterDMACnt) == uint8_t(0) &&
+        (ted.video_column < uint8_t(97) || ted.video_column >= uint8_t(101))) {
+      // check if DMA should be requested
+      uint8_t tmp = (uint8_t(ted.video_line) + (value ^ uint8_t(0xFF)))
+                    & uint8_t(0x07);
+      if (tmp == uint8_t(7) && ted.video_line != 203) {
+        ted.singleClockMode = true;
+        ted.attributeDMACnt = 1;
+      }
     }
+    ted.selectRenderer();
   }
 
-  void TED7360::write_register_FF07(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF07(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
-    memory_ram[addr] = value;
-    horiz_scroll = (int) (value & (uint8_t) 0x07);
-    if (value & (uint8_t) 0x08)
-      display_mode &= (~8);
-    else
-      display_mode |= 8;        // 38 column mode
-    ted_disabled = ((value & (uint8_t) 0x20) ? true : false);
-    int mode = (int) (value & (uint8_t) 0x90);
-    mode |= (int) (memory_ram[0xFF06] & (uint8_t) 0x60);
-    switch (mode) {
-      case 0x00:  render_func = &Plus4::TED7360::render_char_128;       break;
-      case 0x10:  render_func = &Plus4::TED7360::render_char_MCM_128;   break;
-      case 0x20:  render_func = &Plus4::TED7360::render_BMM_hires;      break;
-      case 0x30:  render_func = &Plus4::TED7360::render_BMM_multicolor; break;
-      case 0x40:  render_func = &Plus4::TED7360::render_char_ECM;       break;
-      case 0x80:  render_func = &Plus4::TED7360::render_char_256;       break;
-      case 0x90:  render_func = &Plus4::TED7360::render_char_MCM_256;   break;
-      case 0xA0:  render_func = &Plus4::TED7360::render_BMM_hires;      break;
-      case 0xB0:  render_func = &Plus4::TED7360::render_BMM_multicolor; break;
-      case 0xC0:  render_func = &Plus4::TED7360::render_char_ECM;       break;
-      default:    render_func = &Plus4::TED7360::render_invalid_mode;
-    }
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] = value;
+    ted.horiz_scroll = int(value & uint8_t(0x07));
+    ted.ted_disabled = ((value & uint8_t(0x20)) ? true : false);
+    ted.selectRenderer();
   }
 
-  void TED7360::write_register_FF08(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF08(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
-    int     mask = keyboard_row_select_mask & (((int) value << 8) | 0xFF);
-    uint8_t key_state = (uint8_t) 0xFF;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    int     mask = ted.keyboard_row_select_mask & ((int(value) << 8) | 0xFF);
+    uint8_t key_state = uint8_t(0xFF);
     for (int i = 0; i < 11; i++, mask >>= 1) {
       if (!(mask & 1))
-        key_state &= keyboard_matrix[i];
+        key_state &= ted.keyboard_matrix[i];
     }
-    memory_ram[addr] = key_state;
-    keyboard_row_select_mask = 0xFFFF;
+    ted.memory_ram[addr] = key_state;
+    ted.keyboard_row_select_mask = 0xFFFF;
   }
 
-  void TED7360::write_register_FF09(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF09(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
-    memory_ram[addr] &= (value ^ (uint8_t) 0xFF);
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] &= (value ^ uint8_t(0xFF));
   }
 
-  void TED7360::write_register_FF0C(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF0A(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
-    memory_ram[addr] = value;
-    cursor_position &= 0x00FF;
-    cursor_position |= ((int) (value & (uint8_t) 0x03) << 8);
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] = value;
+    ted.videoInterruptLine = (ted.videoInterruptLine & 0x00FF)
+                             | (int(value & uint8_t(0x01)) << 8);
   }
 
-  void TED7360::write_register_FF0D(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF0B(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
-    memory_ram[addr] = value;
-    cursor_position &= 0x0300;
-    cursor_position |= (int) value;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] = value;
+    ted.videoInterruptLine = (ted.videoInterruptLine & 0x0100)
+                             | int(value & uint8_t(0xFF));
   }
 
-  void TED7360::write_register_FF0E(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF0C(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
-    memory_ram[addr] = value;
-    sound_channel_1_reload &= 0x0300;
-    sound_channel_1_reload |= (int) value;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] = value;
+    ted.cursor_position &= 0x00FF;
+    ted.cursor_position |= (int(value & uint8_t(0x03)) << 8);
   }
 
-  void TED7360::write_register_FF0F(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF0D(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
-    memory_ram[addr] = value;
-    sound_channel_2_reload &= 0x0300;
-    sound_channel_2_reload |= (int) value;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] = value;
+    ted.cursor_position &= 0x0300;
+    ted.cursor_position |= int(value);
   }
 
-  void TED7360::write_register_FF10(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF0E(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
-    memory_ram[addr] = value;
-    sound_channel_2_reload &= 0x00FF;
-    sound_channel_2_reload |= ((int) (value & (uint8_t) 0x03) << 8);
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] = value;
+    ted.sound_channel_1_reload &= 0x0300;
+    ted.sound_channel_1_reload |= int(value);
   }
 
-  void TED7360::write_register_FF12(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF0F(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
-    memory_ram[addr] = value;
-    sound_channel_1_reload &= 0x00FF;
-    sound_channel_1_reload |= ((int) (value & (uint8_t) 0x03) << 8);
-    rom_enabled_for_video = ((value & (uint8_t) 0x04) ? true : false);
-    bitmap_base_addr = (int) (value & (uint8_t) 0x38) << 10;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] = value;
+    ted.sound_channel_2_reload &= 0x0300;
+    ted.sound_channel_2_reload |= int(value);
   }
 
-  void TED7360::write_register_FF13(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF10(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
-    memory_ram[addr] = value;
-    if (value & (uint8_t) 0x02)
-      display_mode |= 16;           // single clock mode
-    else
-      display_mode &= (~16);
-    charset_base_addr = (int) (value & (uint8_t) 0xFC) << 8;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] = value;
+    ted.sound_channel_2_reload &= 0x00FF;
+    ted.sound_channel_2_reload |= (int(value & uint8_t(0x03)) << 8);
   }
 
-  void TED7360::write_register_FF14(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF12(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
-    memory_ram[addr] = value;
-    attr_base_addr = (int) (value & (uint8_t) 0xF8) << 8;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] = value;
+    ted.sound_channel_1_reload &= 0x00FF;
+    ted.sound_channel_1_reload |= (int(value & uint8_t(0x03)) << 8);
+    ted.rom_enabled_for_video = !!(value & uint8_t(0x04));
+    ted.bitmap_base_addr = int(value & uint8_t(0x38)) << 10;
   }
 
-  void TED7360::write_register_FF1A(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF13(void *userData,
+                                    uint16_t addr, uint8_t value)
+  {
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] = value;
+    ted.doubleClockModeEnabled = !(value & uint8_t(0x02));
+    ted.selectRenderer();
+  }
+
+  void TED7360::write_register_FF14(void *userData,
+                                    uint16_t addr, uint8_t value)
+  {
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] = value;
+    ted.attr_base_addr = int(value & uint8_t(0xF8)) << 8;
+  }
+
+  void TED7360::write_register_FF15_to_FF19(void *userData,
+                                            uint16_t addr, uint8_t value)
+  {
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] = value | uint8_t(0x80);
+    ted.oldColors[addr - 0xFF15] = uint8_t(0xFF);
+    ted.newColors[addr - 0xFF15] = value & uint8_t(0x7F);
+  }
+
+  void TED7360::write_register_FF1A(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
     (void) addr;
-    character_position_reload &= 0x00FF;
-    character_position_reload |= ((int) (value & (uint8_t) 0x03) << 8);
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.character_position_reload &= 0x00FF;
+    ted.character_position_reload |= (int(value & uint8_t(0x03)) << 8);
   }
 
-  void TED7360::write_register_FF1B(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF1B(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
     (void) addr;
-    character_position_reload &= 0x0300;
-    character_position_reload |= (int) value;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.character_position_reload &= 0x0300;
+    ted.character_position_reload |= int(value);
   }
 
-  void TED7360::write_register_FF1C(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF1C(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
     (void) addr;
-    int lineNum = (video_line & 0x00FF) | ((int) (value & (uint8_t) 0x01) << 8);
-    set_video_line(lineNum, false);
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.video_line =
+        (ted.video_line & 0x00FF) | (int(value & uint8_t(0x01)) << 8);
   }
 
-  void TED7360::write_register_FF1D(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF1D(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
     (void) addr;
-    int lineNum = (video_line & 0x0100) | (int) value;
-    set_video_line(lineNum, false);
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.video_line = (ted.video_line & 0x0100) | int(value);
   }
 
-  void TED7360::write_register_FF1E(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF1E(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
     (void) addr;
-    // FIXME: writing the video column register is not supported
-    (void) value;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.video_column = (ted.video_column & uint8_t(0x01))
+                       | ((value >> 1) & uint8_t(0x7E));
   }
 
-  void TED7360::write_register_FF1F(uint16_t addr, uint8_t value)
+  void TED7360::write_register_FF1F(void *userData,
+                                    uint16_t addr, uint8_t value)
   {
-    memory_ram[addr] = value;
-    character_line = (int) (value & (uint8_t) 0x07);
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = value;
+    ted.memory_ram[addr] = value;
+    ted.character_line = int(value & uint8_t(0x07));
   }
 
 }       // namespace Plus4

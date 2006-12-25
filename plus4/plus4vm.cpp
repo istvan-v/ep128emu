@@ -72,35 +72,17 @@ namespace Plus4 {
                        uint16_t(sampleValue & 0x7FFF));
   }
 
-  void Plus4VM::TED7360_::drawLine(const uint8_t *buf, int nPixels)
+  void Plus4VM::TED7360_::drawLine(const uint8_t *buf, size_t nBytes)
   {
-    if (vm.getIsDisplayEnabled() && lineCnt_ < 500) {
-      uint8_t tmpBuf[414];      // 9 * 46
-      uint8_t *bufp = &(tmpBuf[0]);
-      int     i;
-      for (i = 44; i < 412 && i < nPixels; i++) {
-        if ((i & 7) == 4)
-          *(bufp++) = 0x08;
-        *(bufp++) = buf[i];
-      }
-      for ( ; i < 412; i++) {
-        if ((i & 7) == 4)
-          *(bufp++) = 0x08;
-        *(bufp++) = 0x00;
-      }
-      vm.display.drawLine(&(tmpBuf[0]), 414);
-      if (++lineCnt_ == 3)
-        vm.display.vsyncStateChange(false, 28);
-    }
+    if (vm.getIsDisplayEnabled())
+      vm.display.drawLine(buf, nBytes);
   }
 
-  void Plus4VM::TED7360_::verticalSync()
+  void Plus4VM::TED7360_::verticalSync(bool newState_,
+                                       unsigned int currentSlot_)
   {
-    if (lineCnt_ >= 100) {
-      lineCnt_ = 0;
-      if (vm.getIsDisplayEnabled())
-        vm.display.vsyncStateChange(true, 8);
-    }
+    if (vm.getIsDisplayEnabled())
+      vm.display.vsyncStateChange(newState_, currentSlot_);
   }
 
   // --------------------------------------------------------------------------

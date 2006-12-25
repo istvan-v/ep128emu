@@ -23,407 +23,301 @@
 
 namespace Plus4 {
 
-  void TED7360::set_video_line(int lineNum, bool isHorizontalRefresh)
-  {
-    int   verticalScroll;
-    bool  PAL_mode = ((memory_ram[0xFF07] & (uint8_t) 0x40) ? false : true);
-
-    lineNum &= 0x01FF;
-    if (PAL_mode) {
-      // PAL mode (312 lines)
-      if (lineNum == 312 && isHorizontalRefresh)
-        lineNum = 0;
-      if (lineNum == video_line)
-        return;
-      video_line = lineNum;
-      if (lineNum >= 254 && lineNum < 258)
-        verticalSync();
-    }
-    else {
-      // NTSC mode (262 lines)
-      if (lineNum == 262 && isHorizontalRefresh)
-        lineNum = 0;
-      if (lineNum == video_line)
-        return;
-      video_line = lineNum;
-      if (lineNum >= 229 && lineNum < 233)
-        verticalSync();
-    }
-    // update character sub-line
-    if (isHorizontalRefresh) {
-      character_position = character_position_reload;
-      if (DMA_enabled) {
-        character_line = (character_line + 1) & 7;
-        if (character_line == 7)
-          character_position_reload = (character_position_reload + 40) & 0x03FF;
-      }
-    }
-    verticalScroll = (int) (memory_ram[0xFF06] & (uint8_t) 0x07);
-    if (memory_ram[0xFF06] & (uint8_t) 0x10) {
-      // if display is enabled:
-      if (!lineNum) {
-        // at line 0: start reading pixel data, but still display border only
-        display_enabled = false;
-        render_enabled = true;
-        DMA_enabled = false;
-        vertical_blanking = false;
-        // initialize registers
-        character_line = 7;
-        for (int j = 0; j < 40; j++)
-          char_buf[j] = (uint8_t) 0x00;
-        character_position = 0;
-        character_position_reload = 0;
-      }
-      else {
-        if (memory_ram[0xFF06] & (uint8_t) 0x08) {
-          // 25 line mode:
-          if (lineNum == 4)
-            display_enabled = true;
-          else if (lineNum == 204)
-            display_enabled = false;
-        }
-        else {
-          // 24 line mode:
-          if (lineNum == 8)
-            display_enabled = true;
-          else if (lineNum == 200)
-            display_enabled = false;
-        }
-      }
-      // start DMA fetches, delayed by vertical scroll
-      if (render_enabled && (lineNum & 7) == verticalScroll)
-        DMA_enabled = true;
-    }
-    if (lineNum == 204) {
-      // at end of display area, update flash counter and state
-      memory_ram[0xFF1F] = (memory_ram[0xFF1F] & (uint8_t) 0x7F) + (uint8_t) 8;
-      if (memory_ram[0xFF1F] & (uint8_t) 0x80)
-        flash_state = (flash_state ? false : true);
-      // bottom border start
-      display_enabled = false;
-      render_enabled = false;
-      DMA_enabled = false;
-      vertical_blanking = false;
-    }
-    else if ((PAL_mode && lineNum == 251) || (!PAL_mode && lineNum == 226)) {
-      // bottom border end, vertical blanking start
-      display_enabled = false;
-      render_enabled = false;
-      DMA_enabled = false;
-      vertical_blanking = true;
-    }
-    else if ((PAL_mode && lineNum == 270) || (!PAL_mode && lineNum == 245)) {
-      // vertical blanking end, top border start
-      display_enabled = false;
-      render_enabled = false;
-      DMA_enabled = false;
-      vertical_blanking = false;
-    }
-    // select method table for rendering display
-    //   0: vertical blanking
-    //   1: border, no data fetch
-    //   2: border, but render display
-    //   3: border, DMA (character line 0)
-    //   4: border, DMA (character line 7)
-    //   5: render display (character lines 1 to 6)
-    //   6: display, DMA (character line 0)
-    //   7: display, DMA (character line 7)
-    //  +8: 38 column mode
-    // +16: single clock mode
-    if (vertical_blanking)
-      display_mode = 0;
-    else if (!display_enabled && !render_enabled)
-      display_mode = 1;
-    else {
-      display_mode = 2;
-      if (DMA_enabled) {
-        if (!character_line)
-          display_mode = 3;
-        else if (character_line == 7 && lineNum != 203)
-          display_mode = 4;     // NOTE: need not start DMA at last line
-      }
-      if (display_enabled)
-        display_mode += 3;
-    }
-    if (!(memory_ram[0xFF07] & (uint8_t) 0x08))     // 38 column mode
-      display_mode += 8;
-    if (memory_ram[0xFF13] & (uint8_t) 0x02)        // single clock mode
-      display_mode += 16;
-    // check for video interrupt
-    if ((uint8_t) (lineNum & 0xFF) == memory_ram[0xFF0B] &&
-        (uint8_t) (lineNum >> 8) == (memory_ram[0xFF0A] & (uint8_t) 0x01)) {
-      video_interrupt_shift_register |= 0x080;
-    }
-  }
-
-  // horizontal blanking (88..113)
-
-  void TED7360::run_blank_CPU()
-  {
-    int     i = ((int) video_column << 2) - 388;
-    i = (i < 0 ? i + 456 : i);
-    line_buf[i]     = (uint8_t) 0;
-    line_buf[i + 1] = (uint8_t) 0;
-    line_buf[i + 2] = (uint8_t) 0;
-    line_buf[i + 3] = (uint8_t) 0;
-    runCPU();
-  }
-
-  void TED7360::run_blank_no_CPU()
-  {
-    int     i = ((int) video_column << 2) - 388;
-    i = (i < 0 ? i + 456 : i);
-    line_buf[i]     = (uint8_t) 0;
-    line_buf[i + 1] = (uint8_t) 0;
-    line_buf[i + 2] = (uint8_t) 0;
-    line_buf[i + 3] = (uint8_t) 0;
-  }
-
-  // border areas with no data fetch
-
-  void TED7360::run_border_CPU()
-  {
-    int     i = ((int) video_column << 2) - 388;
-    uint8_t c = memory_ram[0xFF19];
-    i = (i < 0 ? i + 456 : i);
-    line_buf[i]     = c;
-    line_buf[i + 1] = c;
-    line_buf[i + 2] = c;
-    line_buf[i + 3] = c;
-    runCPU();
-  }
-
-  void TED7360::run_border_no_CPU()
-  {
-    int     i = ((int) video_column << 2) - 388;
-    uint8_t c = memory_ram[0xFF19];
-    i = (i < 0 ? i + 456 : i);
-    line_buf[i]     = c;
-    line_buf[i + 1] = c;
-    line_buf[i + 2] = c;
-    line_buf[i + 3] = c;
-  }
-
-  // border areas, reading attribute data (character line 0)
-
-  void TED7360::run_border_DMA_0()
-  {
-    int     ndx = ((int) video_column >> 1) - 55;
-    ndx = (ndx < 0 ? ndx + 57 : ndx);
-    // fetch attribute data
-    attr_buf[ndx] = readMemory((uint16_t) (((ndx + character_position_reload)
-                                            & 0x03FF) + attr_base_addr));
-    // copy character data from temporary buffer
-    char_buf[ndx] = char_buf_tmp[ndx];
-    int     i = ((int) video_column << 2) - 388;
-    uint8_t c = memory_ram[0xFF19];
-    i = (i < 0 ? i + 456 : i);
-    line_buf[i]     = c;
-    line_buf[i + 1] = c;
-    line_buf[i + 2] = c;
-    line_buf[i + 3] = c;
-  }
-
-  // border areas, reading character data (character line 7)
-
-  void TED7360::run_border_DMA_7()
-  {
-    int     ndx = ((int) video_column >> 1) - 55;
-    ndx = (ndx < 0 ? ndx + 57 : ndx);
-    // fetch character data
-    char_buf_tmp[ndx] =
-        readMemory((uint16_t) (((ndx + character_position_reload)
-                                | 0x0400) + attr_base_addr));
-    int     i = ((int) video_column << 2) - 388;
-    uint8_t c = memory_ram[0xFF19];
-    i = (i < 0 ? i + 456 : i);
-    line_buf[i]     = c;
-    line_buf[i + 1] = c;
-    line_buf[i + 2] = c;
-    line_buf[i + 3] = c;
-  }
-
-  // border areas, starting display
-
-  void TED7360::run_border_render_init()
-  {
-    int     i = ((int) video_column << 2) - 388;
-    uint8_t c = memory_ram[0xFF19];
-    i = (i < 0 ? i + 456 : i);
-    line_buf[i]     = c;
-    line_buf[i + 1] = c;
-    line_buf[i + 2] = c;
-    line_buf[i + 3] = c;
-    render_init();
-  }
-
-  // border areas, rendering display
-
-  void TED7360::run_border_render()
-  {
-    int     i = ((int) video_column << 2) - 388;
-    uint8_t c = memory_ram[0xFF19];
-    i = (i < 0 ? i + 456 : i);
-    line_buf[i]     = c;
-    line_buf[i + 1] = c;
-    line_buf[i + 2] = c;
-    line_buf[i + 3] = c;
-    (this->*render_func)();
-    character_position = (character_position + 1) & 0x03FF;
-    // shift contents of pixel buffer for next 8 pixels
-    pixel_buf[0] = pixel_buf[8];
-    pixel_buf[1] = pixel_buf[9];
-    pixel_buf[2] = pixel_buf[10];
-    pixel_buf[3] = pixel_buf[11];
-    pixel_buf[4] = pixel_buf[12];
-    pixel_buf[5] = pixel_buf[13];
-    pixel_buf[6] = pixel_buf[14];
-    pixel_buf[7] = pixel_buf[15];
-  }
-
-  // display area, reading attribute data (character line 0)
-
-  void TED7360::run_display_DMA_0()
-  {
-    int     ndx = ((int) video_column >> 1) - 55;
-    ndx = (ndx < 0 ? ndx + 57 : ndx);
-    // fetch attribute data
-    attr_buf[ndx] = readMemory((uint16_t) (((ndx + character_position_reload)
-                                            & 0x03FF) + attr_base_addr));
-    // copy character data from temporary buffer
-    char_buf[ndx] = char_buf_tmp[ndx];
-    // read from pixel buffer with horizontal scroll
-    int     i = ((int) video_column << 2) - 388;
-    int     j;
-    i = (i < 0 ? i + 456 : i);
-    j = 12 - (int) horiz_scroll;
-    line_buf[i]     = pixel_buf[j];
-    line_buf[i + 1] = pixel_buf[j + 1];
-    line_buf[i + 2] = pixel_buf[j + 2];
-    line_buf[i + 3] = pixel_buf[j + 3];
-    // shift contents of pixel buffer for next 8 pixels
-    pixel_buf[0] = pixel_buf[8];
-    pixel_buf[1] = pixel_buf[9];
-    pixel_buf[2] = pixel_buf[10];
-    pixel_buf[3] = pixel_buf[11];
-    pixel_buf[4] = pixel_buf[12];
-    pixel_buf[5] = pixel_buf[13];
-    pixel_buf[6] = pixel_buf[14];
-    pixel_buf[7] = pixel_buf[15];
-  }
-
-  // display area, reading character data (character line 7)
-
-  void TED7360::run_display_DMA_7()
-  {
-    int     ndx = ((int) video_column >> 1) - 55;
-    ndx = (ndx < 0 ? ndx + 57 : ndx);
-    // fetch character data
-    char_buf_tmp[ndx] =
-        readMemory((uint16_t) (((ndx + character_position_reload)
-                                | 0x0400) + attr_base_addr));
-    // read from pixel buffer with horizontal scroll
-    int     i = ((int) video_column << 2) - 388;
-    int     j;
-    i = (i < 0 ? i + 456 : i);
-    j = 12 - (int) horiz_scroll;
-    line_buf[i]     = pixel_buf[j];
-    line_buf[i + 1] = pixel_buf[j + 1];
-    line_buf[i + 2] = pixel_buf[j + 2];
-    line_buf[i + 3] = pixel_buf[j + 3];
-    // shift contents of pixel buffer for next 8 pixels
-    pixel_buf[0] = pixel_buf[8];
-    pixel_buf[1] = pixel_buf[9];
-    pixel_buf[2] = pixel_buf[10];
-    pixel_buf[3] = pixel_buf[11];
-    pixel_buf[4] = pixel_buf[12];
-    pixel_buf[5] = pixel_buf[13];
-    pixel_buf[6] = pixel_buf[14];
-    pixel_buf[7] = pixel_buf[15];
-  }
-
-  // display area, rendering display
-
-  void TED7360::run_display_render()
-  {
-    (this->*render_func)();
-    character_position = (character_position + 1) & 0x03FF;
-    // read from pixel buffer with horizontal scroll
-    int     i = ((int) video_column << 2) - 388;
-    int     j;
-    i = (i < 0 ? i + 456 : i);
-    j = 8 - (int) horiz_scroll;
-    line_buf[i]     = pixel_buf[j];
-    line_buf[i + 1] = pixel_buf[j + 1];
-    line_buf[i + 2] = pixel_buf[j + 2];
-    line_buf[i + 3] = pixel_buf[j + 3];
-  }
-
-  // display area
-
-  void TED7360::run_display_CPU()
-  {
-    // read from pixel buffer with horizontal scroll
-    int     i = ((int) video_column << 2) - 388;
-    int     j;
-    i = (i < 0 ? i + 456 : i);
-    j = 12 - (int) horiz_scroll;
-    line_buf[i]     = pixel_buf[j];
-    line_buf[i + 1] = pixel_buf[j + 1];
-    line_buf[i + 2] = pixel_buf[j + 2];
-    line_buf[i + 3] = pixel_buf[j + 3];
-    // shift contents of pixel buffer for next 8 pixels
-    pixel_buf[0] = pixel_buf[8];
-    pixel_buf[1] = pixel_buf[9];
-    pixel_buf[2] = pixel_buf[10];
-    pixel_buf[3] = pixel_buf[11];
-    pixel_buf[4] = pixel_buf[12];
-    pixel_buf[5] = pixel_buf[13];
-    pixel_buf[6] = pixel_buf[14];
-    pixel_buf[7] = pixel_buf[15];
-    runCPU();
-  }
-
-  void TED7360::run_display_no_CPU()
-  {
-    // read from pixel buffer with horizontal scroll
-    int     i = ((int) video_column << 2) - 388;
-    int     j;
-    i = (i < 0 ? i + 456 : i);
-    j = 12 - (int) horiz_scroll;
-    line_buf[i]     = pixel_buf[j];
-    line_buf[i + 1] = pixel_buf[j + 1];
-    line_buf[i + 2] = pixel_buf[j + 2];
-    line_buf[i + 3] = pixel_buf[j + 3];
-    // shift contents of pixel buffer for next 8 pixels
-    pixel_buf[0] = pixel_buf[8];
-    pixel_buf[1] = pixel_buf[9];
-    pixel_buf[2] = pixel_buf[10];
-    pixel_buf[3] = pixel_buf[11];
-    pixel_buf[4] = pixel_buf[12];
-    pixel_buf[5] = pixel_buf[13];
-    pixel_buf[6] = pixel_buf[14];
-    pixel_buf[7] = pixel_buf[15];
-  }
-
   void TED7360::run(int nCycles)
   {
     for (int i = 0; i < nCycles; i++, cycle_count++) {
       if (ted_disabled) {
-        if (cycle_count & 1UL) {
-          int j = cpu_clock_multiplier;
-          do {
-            M7501::runOneCycle();
-          } while (--j);
-        }
+        if (cycle_count & 1UL)
+          M7501::run(cpu_clock_multiplier);
         continue;
       }
-      // update display and run CPU
-      (this->*(display_func_table[display_mode][video_column]))();
-      // check for video interrupt
-      video_interrupt_shift_register >>= 1;
-      if ((video_interrupt_shift_register & 1U) != 0U) {
-          memory_ram[0xFF09] |= uint8_t(0x82);
+      bool  evenCycle = !(video_column & uint8_t(0x01));
+      switch (video_column) {
+      case 1:                           // start display (38 column mode)
+        if (displayWindow &&
+            (memory_ram[0xFF07] & uint8_t(0x08)) == uint8_t(0)) {
+          displayActive = true;
+          pixelBufReadPos = (pixelBufWritePos + 40) & 0x38;
+        }
+        break;
+      case 75:                          // DRAM refresh start
+        singleClockMode = true;
+        M7501::setIsCPURunning(true);
+        break;
+      case 76:                          // initialize character position
+        character_position = character_position_reload;
+        break;
+      case 77:                          // end of display (38 column mode)
+        if ((memory_ram[0xFF07] & uint8_t(0x08)) == uint8_t(0))
+          displayActive = false;
+        break;
+      case 79:                          // end of display (40 column mode)
+        if ((memory_ram[0xFF07] & uint8_t(0x08)) != uint8_t(0))
+          displayActive = false;
+        break;
+      case 85:                          // DRAM refresh end
+        singleClockMode = false;
+        drawLine(&(line_buf[0]), 414);
+        break;
+      case 87:                          // increment flash counter
+        if (video_line == 204) {
+          memory_ram[0xFF1F] =
+              (memory_ram[0xFF1F] & uint8_t(0x7F)) + uint8_t(0x08);
+          if (memory_ram[0xFF1F] & uint8_t(0x80))
+            flash_state = !flash_state;
+        }
+        break;
+      case 89:                          // horizontal blanking start
+        horizontalBlanking = true;
+        break;
+      case 97:                          // increment line number
+        if ((memory_ram[0xFF07] & uint8_t(0x40)) == uint8_t(0)) {       // PAL
+          video_line = (video_line != 311 ? ((video_line + 1) & 0x01FF) : 0);
+          switch (video_line) {
+          case 251:
+            verticalBlanking = true;
+            break;
+          case 254:
+            verticalSync(true, 8);
+            break;
+          case 257:
+            verticalSync(false, 28);
+            break;
+          case 269:
+            verticalBlanking = false;
+            break;
+          }
+        }
+        else {                                                          // NTSC
+          video_line = (video_line != 261 ? ((video_line + 1) & 0x01FF) : 0);
+          switch (video_line) {
+          case 226:
+            verticalBlanking = true;
+            break;
+          case 229:
+            verticalSync(true, 8);
+            break;
+          case 232:
+            verticalSync(false, 28);
+            break;
+          case 244:
+            verticalBlanking = false;
+            break;
+          }
+        }
+        if ((memory_ram[0xFF06] & uint8_t(0x10)) != uint8_t(0)) {
+          if (video_line == 0)
+            renderWindow = true;
+          else if ((video_line == 4 &&
+                    (memory_ram[0xFF06] & uint8_t(0x08)) != uint8_t(0)) ||
+                   (video_line == 8 &&
+                    (memory_ram[0xFF06] & uint8_t(0x08)) == uint8_t(0)))
+            displayWindow = true;
+        }
+        if ((video_line == 200 &&
+             (memory_ram[0xFF06] & uint8_t(0x08)) == uint8_t(0)) ||
+            (video_line == 204 &&
+             (memory_ram[0xFF06] & uint8_t(0x08)) != uint8_t(0)))
+          displayWindow = false;
+        if (video_line == 204) {
+          renderWindow = false;
+          dmaWindow = false;
+          bitmapFetchWindow = false;
+        }
+        break;
+      case 99:                          // end of screen
+        if (video_line == 0) {
+          character_line = 7;
+          character_position_reload = 0x0000;
+        }
+        break;
+      case 100:                         // increment character sub-line
+        if (dmaWindow || attributeDMACnt != uint8_t(0)) {
+          character_line = (character_line + 1) & 7;
+          bitmapFetchWindow = true;
+        }
+        break;
+      case 101:                         // external fetch single clock start
+        if (renderWindow) {
+          singleClockMode = true;
+          // check if DMA should be requested
+          uint8_t tmp = (uint8_t(video_line)
+                         + (memory_ram[0xFF06] ^ uint8_t(0xFF)))
+                        & uint8_t(0x07);
+          if (tmp == uint8_t(0)) {
+            if (dmaWindow)
+              characterDMACnt = 1;
+          }
+          else if (tmp == uint8_t(7)) {
+            if (video_line != 203)
+              attributeDMACnt = 1;
+          }
+        }
+        break;
+      case 107:                         // horizontal blanking end
+        horizontalBlanking = false;
+        line_buf_pos = 0;
+        break;
+      case 109:                         // start DMA and/or bitmap fetch
+        if (renderWindow) {
+          renderingDisplay = true;
+          singleClockMode = true;
+          character_column = 0;
+          if (dmaWindow && character_line == 7) {
+            character_position_reload =
+                (character_position_reload + 40) & 0x03FF;
+          }
+        }
+        break;
+      case 113:                         // start display (40 column mode)
+        if (displayWindow &&
+            (memory_ram[0xFF07] & uint8_t(0x08)) != uint8_t(0)) {
+          displayActive = true;
+          pixelBufReadPos = (pixelBufWritePos + 40) & 0x38;
+        }
+        break;
+      }
+      // initialize DMA if requested
+      if ((attributeDMACnt | characterDMACnt) != uint8_t(0) && !evenCycle) {
+        if (attributeDMACnt) {
+          if (attributeDMACnt == 1) {
+            singleClockMode = true;
+          }
+          else if (attributeDMACnt == 2) {
+            M7501::setIsCPURunning(false);
+          }
+          else if (attributeDMACnt == 5) {
+            dmaWindow = true;
+            if (video_column >= 109 || video_column < 75) {
+              dma_position = ((character_position_reload + character_column)
+                              & 0x03FF) | (attr_base_addr & 0xF800);
+            }
+            else {
+              M7501::setIsCPURunning(true);
+              attributeDMACnt = uint8_t(0);
+              attributeDMACnt--;
+            }
+          }
+          attributeDMACnt++;
+        }
+        else {
+          if (characterDMACnt == 1) {
+            singleClockMode = true;
+          }
+          else if (characterDMACnt == 2) {
+            M7501::setIsCPURunning(false);
+          }
+          else if (characterDMACnt == 5) {
+            for (int j = 0; j < 40; j++)
+              attr_buf[j] = attr_buf_tmp[j];
+            dma_position = ((character_position_reload + character_column)
+                            & 0x03FF) | (attr_base_addr & 0xF800) | 0x0400;
+          }
+          characterDMACnt++;
+        }
+      }
+      // run CPU and render display
+      if (!M7501::haltFlag) {
+        if (!evenCycle || !(singleClockMode || !doubleClockModeEnabled)) {
+          if (((memory_ram[0xFF09] & memory_ram[0xFF0A]) & uint8_t(0x5E))
+              != uint8_t(0))
+            M7501::interruptRequest();
+          M7501::run(cpu_clock_multiplier);
+        }
+      }
+      else if (!evenCycle) {
+        if (attributeDMACnt >= 5) {
+          dataBusState = readMemory(uint16_t(dma_position));
+          attr_buf_tmp[character_column] = dataBusState;
+          dma_position = (dma_position & 0xFC00)
+                         | ((dma_position + 1) & 0x03FF);
+        }
+        else if (characterDMACnt >= 5) {
+          dataBusState = readMemory(uint16_t(dma_position));
+          char_buf[character_column] = dataBusState;
+          dma_position = (dma_position & 0xFC00)
+                         | ((dma_position + 1) & 0x03FF);
+        }
+      }
+      if (evenCycle) {
+        if (renderingDisplay) {
+          currentCharacter = char_buf[character_column];
+          currentAttribute = attr_buf[character_column];
+          // read bitmap data from memory
+          if (bitmapFetchWindow) {
+            uint16_t  addr_ = uint16_t(character_line);
+            if (bitmapMode)
+              addr_ |= uint16_t(bitmap_base_addr
+                                | (character_position << 3));
+            else
+              addr_ |= uint16_t(charset_base_addr
+                                | (int(currentCharacter
+                                       & characterMask) << 3));
+            if (rom_enabled_for_video) {
+              if (addr_ >= 0x8000) {
+                if (addr_ < 0xC000)
+                  dataBusState = memory_rom[rom_bank_low][addr_ & 0x7FFF];
+                else
+                  dataBusState = memory_rom[rom_bank_high][addr_ & 0x7FFF];
+              }
+            }
+            else
+              dataBusState = memory_ram[addr_];
+          }
+          else
+            dataBusState = readMemory(0xFFFF);
+          currentBitmap = dataBusState;
+          render_func(this);
+          pixelBufWritePos = (pixelBufWritePos + 8) & 0x38;
+          if (++character_column >= 40) {
+            character_column = 39;
+            attributeDMACnt = (attributeDMACnt < 5 ? attributeDMACnt : 0);
+            characterDMACnt = 0;
+            currentBitmap = uint8_t(0x00);
+            render_func(this);
+            pixelBufWritePos = (pixelBufWritePos + 8) & 0x38;
+            renderingDisplay = false;
+          }
+          if (bitmapFetchWindow)
+            character_position = (character_position + 1) & 0x03FF;
+          else
+            character_position = 0x03FF;
+        }
+      }
+      if (line_buf_pos < 365) {
+        unsigned int  ndx = (unsigned int) line_buf_pos >> 3;
+        ndx = ((ndx << 3) + ndx) + ((unsigned int) line_buf_pos & 7U) + 1U;
+        line_buf_pos += 4;
+        uint8_t *bufp = &(line_buf[ndx]);
+        if (horizontalBlanking || verticalBlanking) {
+          *(bufp++) = uint8_t(0x00);
+          *(bufp++) = uint8_t(0x00);
+          *(bufp++) = uint8_t(0x00);
+          *(bufp++) = uint8_t(0x00);
+        }
+        else if (!displayActive) {
+          *(bufp++) = oldColors[4];
+          oldColors = newColors;
+          *(bufp++) = oldColors[4];
+          *(bufp++) = oldColors[4];
+          *(bufp++) = oldColors[4];
+        }
+        else {
+          size_t  ndx2 = size_t(pixelBufReadPos) + size_t(8 - horiz_scroll);
+          pixelBufReadPos = (pixelBufReadPos + uint8_t(4)) & uint8_t(0x3C);
+          uint8_t c = pixel_buf[ndx2 & 0x3F];
+          ndx2++;
+          *(bufp++) = (c < uint8_t(0x80) ? c : oldColors[c & uint8_t(0x07)]);
+          oldColors = newColors;
+          c = pixel_buf[ndx2 & 0x3F];
+          ndx2++;
+          *(bufp++) = (c < uint8_t(0x80) ? c : oldColors[c & uint8_t(0x07)]);
+          c = pixel_buf[ndx2 & 0x3F];
+          ndx2++;
+          *(bufp++) = (c < uint8_t(0x80) ? c : oldColors[c & uint8_t(0x07)]);
+          c = pixel_buf[ndx2 & 0x3F];
+          *(bufp++) = (c < uint8_t(0x80) ? c : oldColors[c & uint8_t(0x07)]);
+        }
       }
       // update timers on even cycle count (884 kHz rate)
       if (!(cycle_count & 1UL)) {
@@ -451,6 +345,15 @@ namespace Plus4 {
           }
         }
       }
+      // check for video interrupt
+      if (video_line == videoInterruptLine) {
+        if (!prvVideoInterruptState) {
+          prvVideoInterruptState = true;
+          memory_ram[0xFF09] |= uint8_t(0x82);
+        }
+      }
+      else
+        prvVideoInterruptState = false;
       // update sound generators on every 8th cycle (221 kHz)
       if (!(cycle_count & 7UL)) {
         int     sound_output = 0;
@@ -500,19 +403,8 @@ namespace Plus4 {
         // send sound output signal (sample rate = 221 kHz)
         playSample((int16_t) sound_output);
       }
-      // update horizontal refresh of display
-      video_column = (video_column < 113 ? video_column + 1 : 0);
-      if (video_column == 97) {
-        // at end of line:
-        // flush line buffer
-        for (int j = 0; j < 456; j++)
-          line_buf[j] &= (uint8_t) 0x7F;
-        drawLine(&(line_buf[0]), 456);
-        for (int j = 0; j < 456; j++)
-          line_buf[j] = (uint8_t) 0;
-        // update line counter
-        set_video_line(video_line + 1, true);
-      }
+      // update horizontal position
+      video_column = (video_column == 113 ? 0 : ((video_column + 1) & 0x7F));
     }
   }
 

@@ -17,14 +17,106 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-#ifndef PLUS4_CPU_HPP
-#define PLUS4_CPU_HPP
+#ifndef EP128EMU_PLUS4_CPU_HPP
+#define EP128EMU_PLUS4_CPU_HPP
 
 #include "ep128emu.hpp"
 
 namespace Plus4 {
 
   class M7501 {
+   private:
+    static const unsigned char  CPU_OP_RD_OPCODE            =  0;
+    static const unsigned char  CPU_OP_RD_TMP               =  1;
+    static const unsigned char  CPU_OP_RD_L                 =  2;
+    static const unsigned char  CPU_OP_RD_H                 =  3;
+    static const unsigned char  CPU_OP_WAIT                 =  4;
+    static const unsigned char  CPU_OP_LD_TMP_MEM           =  5;
+    static const unsigned char  CPU_OP_LD_MEM_TMP           =  6;
+    static const unsigned char  CPU_OP_LD_H_MEM             =  7;
+    static const unsigned char  CPU_OP_PUSH_TMP             =  8;
+    static const unsigned char  CPU_OP_POP_TMP              =  9;
+    static const unsigned char  CPU_OP_PUSH_PCL             = 10;
+    static const unsigned char  CPU_OP_POP_PCL              = 11;
+    static const unsigned char  CPU_OP_PUSH_PCH             = 12;
+    static const unsigned char  CPU_OP_POP_PCH              = 13;
+    static const unsigned char  CPU_OP_LD_TMP_00            = 14;
+    static const unsigned char  CPU_OP_LD_TMP_FF            = 15;
+    static const unsigned char  CPU_OP_LD_HL_PC             = 16;
+    static const unsigned char  CPU_OP_LD_TMP_L             = 17;
+    static const unsigned char  CPU_OP_LD_TMP_H             = 18;
+    static const unsigned char  CPU_OP_LD_TMP_SR            = 19;
+    static const unsigned char  CPU_OP_LD_TMP_A             = 20;
+    static const unsigned char  CPU_OP_LD_TMP_X             = 21;
+    static const unsigned char  CPU_OP_LD_TMP_Y             = 22;
+    static const unsigned char  CPU_OP_LD_TMP_SP            = 23;
+    static const unsigned char  CPU_OP_LD_PC_HL             = 24;
+    static const unsigned char  CPU_OP_LD_L_TMP             = 25;
+    static const unsigned char  CPU_OP_LD_H_TMP             = 26;
+    static const unsigned char  CPU_OP_LD_SR_TMP            = 27;
+    static const unsigned char  CPU_OP_LD_A_TMP             = 28;
+    static const unsigned char  CPU_OP_LD_X_TMP             = 29;
+    static const unsigned char  CPU_OP_LD_Y_TMP             = 30;
+    static const unsigned char  CPU_OP_LD_SP_TMP            = 31;
+    static const unsigned char  CPU_OP_ADDR_ZEROPAGE        = 32;
+    static const unsigned char  CPU_OP_ADDR_X               = 33;
+    static const unsigned char  CPU_OP_ADDR_X_SLOW          = 34;
+    static const unsigned char  CPU_OP_ADDR_Y               = 35;
+    static const unsigned char  CPU_OP_ADDR_Y_SLOW          = 36;
+    static const unsigned char  CPU_OP_TEST_N               = 37;
+    static const unsigned char  CPU_OP_TEST_V               = 38;
+    static const unsigned char  CPU_OP_TEST_Z               = 39;
+    static const unsigned char  CPU_OP_TEST_C               = 40;
+    static const unsigned char  CPU_OP_SET_N                = 41;
+    static const unsigned char  CPU_OP_SET_V                = 42;
+    static const unsigned char  CPU_OP_SET_B                = 43;
+    static const unsigned char  CPU_OP_SET_D                = 44;
+    static const unsigned char  CPU_OP_SET_I                = 45;
+    static const unsigned char  CPU_OP_SET_Z                = 46;
+    static const unsigned char  CPU_OP_SET_C                = 47;
+    static const unsigned char  CPU_OP_SET_NZ               = 48;
+    static const unsigned char  CPU_OP_ADC                  = 49;
+    static const unsigned char  CPU_OP_AND                  = 50;
+    static const unsigned char  CPU_OP_ASL                  = 51;
+    static const unsigned char  CPU_OP_BIT                  = 52;
+    static const unsigned char  CPU_OP_BRANCH               = 53;
+    static const unsigned char  CPU_OP_BRK                  = 54;
+    static const unsigned char  CPU_OP_CMP                  = 55;
+    static const unsigned char  CPU_OP_CPX                  = 56;
+    static const unsigned char  CPU_OP_CPY                  = 57;
+    static const unsigned char  CPU_OP_DEC                  = 58;
+    static const unsigned char  CPU_OP_DEC_HL               = 59;
+    static const unsigned char  CPU_OP_EOR                  = 60;
+    static const unsigned char  CPU_OP_INC                  = 61;
+    static const unsigned char  CPU_OP_INC_L                = 62;
+    static const unsigned char  CPU_OP_INTERRUPT            = 63;
+    static const unsigned char  CPU_OP_JMP_RELATIVE         = 64;
+    static const unsigned char  CPU_OP_LSR                  = 65;
+    static const unsigned char  CPU_OP_ORA                  = 66;
+    static const unsigned char  CPU_OP_RESET                = 67;
+    static const unsigned char  CPU_OP_ROL                  = 68;
+    static const unsigned char  CPU_OP_ROR                  = 69;
+    static const unsigned char  CPU_OP_SAX                  = 70;
+    static const unsigned char  CPU_OP_SBC                  = 71;
+    static const unsigned char  CPU_OP_INVALID_OPCODE       = 72;
+    static const unsigned char  opcodeTable[4128];
+    const unsigned char *currentOpcode;
+    unsigned int  interruptDelayRegister;
+    bool        interruptFlag;
+    bool        resetFlag;
+    bool        haltRequestFlag;
+   protected:
+    bool        haltFlag;
+   private:
+    uint8_t     reg_TMP;
+    uint8_t     reg_L;
+    uint8_t     reg_H;
+    typedef uint8_t (*MemoryReadFunc)(void *userData, uint16_t addr);
+    typedef void (*MemoryWriteFunc)(void *userData,
+                                    uint16_t addr, uint8_t value);
+    MemoryReadFunc  *memoryReadCallbacks;
+    MemoryWriteFunc *memoryWriteCallbacks;
+    void        *memoryCallbackUserData;
    protected:
     uint16_t    reg_PC;
     uint8_t     reg_SR;
@@ -32,253 +124,56 @@ namespace Plus4 {
     uint8_t     reg_XR;
     uint8_t     reg_YR;
     uint8_t     reg_SP;
-    // -----------------------------------------------------------------
-    virtual uint8_t readMemory(uint16_t addr) const
+    inline uint8_t readMemory(uint16_t addr)
     {
-      (void) addr;
-      return (uint8_t) 0;
+      return (memoryReadCallbacks[addr](memoryCallbackUserData, addr));
     }
-    virtual void writeMemory(uint16_t addr, uint8_t value)
+    inline void writeMemory(uint16_t addr, uint8_t value)
     {
-      (void) addr;
-      (void) value;
+      memoryWriteCallbacks[addr](memoryCallbackUserData, addr, value);
     }
-   private:
-    static const unsigned char cpu_opcode_length[256];
-    void interruptRequest_();
-    void runOneOpcode_();
-    int   cyclesRemaining;
-    int   currentOpcode;
-    int   currentOperand;
-    inline void op_setnz(uint8_t value)
-    {
-      reg_SR = (reg_SR & (uint8_t) 0x7D) | (value & (uint8_t) 0x80);
-      reg_SR |= (value ? (uint8_t) 0 : (uint8_t) 2);
-    }
-    inline uint16_t op_addr_nn_X()
-    {
-      return (uint16_t) ((currentOperand + (int) reg_XR) & (int) 0xFF);
-    }
-    inline uint16_t op_addr_nn_Y()
-    {
-      return (uint16_t) ((currentOperand + (int) reg_YR) & (int) 0xFF);
-    }
-    inline uint16_t op_addr_nnnn_X()
-    {
-      return (uint16_t) ((unsigned int) currentOperand + (unsigned int) reg_XR);
-    }
-    inline uint16_t op_addr_nnnn_X_wait()
-    {
-      unsigned int  addr;
-      addr = (unsigned int) currentOperand + (unsigned int) reg_XR;
-      if ((addr ^ (unsigned int) currentOperand) & 0xFF00U)
-        cyclesRemaining++;
-      return (uint16_t) addr;
-    }
-    inline uint16_t op_addr_nnnn_Y()
-    {
-      return (uint16_t) ((unsigned int) currentOperand + (unsigned int) reg_YR);
-    }
-    inline uint16_t op_addr_nnnn_Y_wait()
-    {
-      unsigned int  addr;
-      addr = (unsigned int) currentOperand + (unsigned int) reg_YR;
-      if ((addr ^ (unsigned int) currentOperand) & 0xFF00U)
-        cyclesRemaining++;
-      return (uint16_t) addr;
-    }
-    inline uint16_t op_addr_nn_X_indirect()
-    {
-      uint16_t  addr;
-      uint8_t   ptr;
-      ptr = (uint8_t) ((unsigned int) currentOperand + (unsigned int) reg_XR);
-      addr = (uint16_t) readMemory((uint16_t) ptr);
-      ptr++;
-      addr += ((uint16_t) readMemory((uint16_t) ptr) << 8);
-      return addr;
-    }
-    inline uint16_t op_addr_nn_Y_indirect()
-    {
-      uint16_t  addr;
-      uint8_t   ptr;
-      ptr = (uint8_t) ((unsigned int) currentOperand);
-      addr = (uint16_t) readMemory((uint16_t) ptr);
-      ptr++;
-      addr += ((uint16_t) readMemory((uint16_t) ptr) << 8);
-      addr += (uint16_t) reg_YR;
-      return addr;
-    }
-    inline uint16_t op_addr_nn_Y_indirect_wait()
-    {
-      uint16_t  addr, addr_Y;
-      uint8_t   ptr;
-      ptr = (uint8_t) ((unsigned int) currentOperand);
-      addr = (uint16_t) readMemory((uint16_t) ptr);
-      ptr++;
-      addr += ((uint16_t) readMemory((uint16_t) ptr) << 8);
-      addr_Y = addr + (uint16_t) reg_YR;
-      if ((addr ^ addr_Y) & (uint16_t) 0xFF00)
-        cyclesRemaining++;
-      return addr_Y;
-    }
-    inline void op_adc(uint8_t &value, uint8_t arg)
-    {
-      unsigned int  result = (unsigned int) (reg_SR & (uint8_t) 0x01);
-      if (reg_SR & (uint8_t) 0x08) {
-        // add in BCD mode
-        result += (unsigned int) (value & (uint8_t) 0x0F);
-        result += (unsigned int) (arg & (uint8_t) 0x0F);
-        result += (result < 0x0AU ? 0x00U : 0x06U);
-        result += (unsigned int) (value & (uint8_t) 0xF0);
-        result += (unsigned int) (arg & (uint8_t) 0xF0);
-        result += (result < 0xA0U ? 0x00U : 0x60U);
-      }
-      else {
-        // add in binary mode
-        result += ((unsigned int) value + (unsigned int) arg);
-      }
-      reg_SR &= (uint8_t) 0x3C;
-      // carry
-      reg_SR |= (result >= (unsigned int) 0x0100 ? (uint8_t) 1 : (uint8_t) 0);
-      // overflow
-      reg_SR |= ((((value ^ ~arg) & (value ^ (uint8_t) result))
-                  & (uint8_t) 0x80) >> 1);
-      value = (uint8_t) result;
-      op_setnz(value);
-    }
-    inline void op_and(uint8_t &value, uint8_t arg)
-    {
-      value &= arg;
-      op_setnz(value);
-    }
-    inline void op_asl(uint8_t &value)
-    {
-      reg_SR = (reg_SR & (uint8_t) 0xFE) | ((value & (uint8_t) 0x80) >> 7);
-      value <<= 1;
-      op_setnz(value);
-    }
-    inline void op_bit(uint8_t value, uint8_t arg)
-    {
-      reg_SR &= (uint8_t) 0x3D;
-      reg_SR |= (arg & (uint8_t) 0xC0);
-      reg_SR |= ((value & arg) ? (uint8_t) 0x00 : (uint8_t) 0x02);
-    }
-    inline void op_branch(bool cond)
-    {
-      if (cond) {
-        uint16_t  old_PC = reg_PC;
-        reg_PC += (uint16_t) currentOperand;
-        reg_PC += (uint16_t) ((currentOperand & (int) 0x80) ? 0xFF00 : 0x0000);
-        cyclesRemaining = (((old_PC ^ reg_PC) & (uint16_t) 0xFF00) ? 2 : 1);
-      }
-    }
-    inline void op_cmp(uint8_t value, uint8_t arg)
-    {
-      unsigned int  tmp;
-      tmp = (unsigned int) value + (0x0100U - (unsigned int) arg);
-      reg_SR &= (uint8_t) 0x7C;
-      reg_SR |= ((uint8_t) tmp & (uint8_t) 0x80);
-      reg_SR |= (uint8_t) (tmp >> 8);
-      reg_SR |= ((uint8_t) tmp == (uint8_t) 0 ? (uint8_t) 2 : (uint8_t) 0);
-    }
-    inline void op_dec(uint8_t &value)
-    {
-      value--;
-      op_setnz(value);
-    }
-    inline void op_eor(uint8_t &value, uint8_t arg)
-    {
-      value ^= arg;
-      op_setnz(value);
-    }
-    inline void op_inc(uint8_t &value)
-    {
-      value++;
-      op_setnz(value);
-    }
-    inline void op_lsr(uint8_t &value)
-    {
-      reg_SR = (reg_SR & (uint8_t) 0xFE) | (value & (uint8_t) 0x01);
-      value >>= 1;
-      op_setnz(value);
-    }
-    inline void op_ora(uint8_t &value, uint8_t arg)
-    {
-      value |= arg;
-      op_setnz(value);
-    }
-    inline uint8_t op_pop()
-    {
-      reg_SP++;
-      return readMemory((uint16_t) 0x0100 + (uint16_t) reg_SP);
-    }
-    inline void op_push(uint8_t value)
-    {
-      writeMemory((uint16_t) 0x0100 + (uint16_t) reg_SP, value);
-      reg_SP--;
-    }
-    inline void op_rol(uint8_t &value)
-    {
-      uint8_t carryBit = ((value & (uint8_t) 0x80) >> 7);
-      value = (value << 1) | (reg_SR & (uint8_t) 0x01);
-      reg_SR = (reg_SR & (uint8_t) 0xFE) | carryBit;
-      op_setnz(value);
-    }
-    inline void op_ror(uint8_t &value)
-    {
-      uint8_t carryBit = (value & (uint8_t) 0x01);
-      value = (value >> 1) | ((reg_SR & (uint8_t) 0x01) << 7);
-      reg_SR = (reg_SR & (uint8_t) 0xFE) | carryBit;
-      op_setnz(value);
-    }
-    inline void op_sbc(uint8_t &value, uint8_t arg)
-    {
-      unsigned int  result = (unsigned int) (reg_SR & (uint8_t) 0x01);
-      arg ^= (uint8_t) 0xFF;
-      if (reg_SR & (uint8_t) 0x08) {
-        // subtract in BCD mode
-        result += (unsigned int) (value & (uint8_t) 0x0F);
-        result += (unsigned int) (arg & (uint8_t) 0x0F);
-        if (result < 0x10U)
-          result = (result + 0x0AU) & 0x0FU;
-        result += (unsigned int) (value & (uint8_t) 0xF0);
-        result += (unsigned int) (arg & (uint8_t) 0xF0);
-        if (result < 0x0100U)
-          result = (result + 0xA0U) & 0xFFU;
-      }
-      else {
-        // subtract in binary mode
-        result += ((unsigned int) value + (unsigned int) arg);
-      }
-      reg_SR &= (uint8_t) 0x3C;
-      // carry
-      reg_SR |= (result >= (unsigned int) 0x0100 ? (uint8_t) 1 : (uint8_t) 0);
-      // overflow
-      reg_SR |= ((((value ^ ~arg) & (value ^ (uint8_t) result))
-                  & (uint8_t) 0x80) >> 1);
-      value = (uint8_t) result;
-      op_setnz(value);
-    }
-    // -----------------------------------------------------------------
    public:
-    inline void runOneCycle()
-    {
-      if (!(--cyclesRemaining))
-        runOneOpcode_();
-    }
-    void interruptRequest()
-    {
-      if (!(reg_SR & (uint8_t) 0x04))
-        interruptRequest_();
-    }
-    virtual void reset(bool cold_reset);
     M7501();
-    virtual ~M7501()
+    virtual ~M7501();
+    inline void setMemoryReadCallback(uint16_t addr_,
+                                      uint8_t (*func)(void *userData,
+                                                      uint16_t addr))
     {
+      memoryReadCallbacks[addr_] = func;
+    }
+    inline void setMemoryWriteCallback(uint16_t addr_,
+                                       void (*func)(void *userData,
+                                                    uint16_t addr,
+                                                    uint8_t value))
+    {
+      memoryWriteCallbacks[addr_] = func;
+    }
+    inline void setMemoryCallbackUserData(void *userData)
+    {
+      memoryCallbackUserData = userData;
+    }
+    void run(int nCycles = 1);
+    inline void interruptRequest()
+    {
+      interruptDelayRegister |= 16U;    // delay interrupt requests by 4 cycles
+    }
+    inline void reset(bool isColdReset = false)
+    {
+      (void) isColdReset;
+      resetFlag = true;
+    }
+    inline void setIsCPURunning(bool n)
+    {
+      if (n) {
+        haltRequestFlag = false;
+        haltFlag = false;
+      }
+      else
+        haltRequestFlag = true;
     }
   };
 
 }       // namespace Plus4
 
-#endif  // PLUS4_CPU_HPP
+#endif  // EP128EMU_PLUS4_CPU_HPP
 
