@@ -124,9 +124,10 @@ namespace Plus4 {
   uint8_t TED7360::read_register_FF09(void *userData, uint16_t addr)
   {
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    uint8_t irq_state = ted.memory_ram[addr];
-    irq_state = irq_state | uint8_t(0xA1);
-    irq_state = (irq_state == uint8_t(0xA1) ? uint8_t(0x21) : irq_state);
+    uint8_t irq_state = ted.memory_ram[addr] & uint8_t(0x7F);
+    // bit 7 seems to be a copy of bit 1, regardless of what FF0A is set to
+    irq_state = irq_state | ((irq_state & uint8_t(0x02)) == uint8_t(0) ?
+                             uint8_t(0x25) : uint8_t(0xA5));
     ted.dataBusState = irq_state;
     return irq_state;
   }

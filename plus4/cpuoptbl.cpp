@@ -4376,6 +4376,8 @@ namespace Plus4 {
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
     // 0x100: INT
+    CPU_OP_WAIT,
+    CPU_OP_WAIT,
     CPU_OP_PUSH_PCH,
     CPU_OP_PUSH_PCL,
     CPU_OP_INTERRUPT,
@@ -4385,8 +4387,6 @@ namespace Plus4 {
     CPU_OP_LD_H_MEM,
     CPU_OP_LD_L_TMP,
     CPU_OP_LD_PC_HL,
-    CPU_OP_RD_OPCODE,
-    CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,

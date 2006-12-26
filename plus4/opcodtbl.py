@@ -169,6 +169,8 @@ def generateOpcode(f, opNum, opName_):
             print >> f, '    CPU_OP_LD_PC_HL,'
             cnt = cnt + 10
         elif opName == 'int':
+            print >> f, '    CPU_OP_WAIT,'
+            print >> f, '    CPU_OP_WAIT,'
             print >> f, '    CPU_OP_PUSH_PCH,'
             print >> f, '    CPU_OP_PUSH_PCL,'
             print >> f, '    CPU_OP_INTERRUPT,'
@@ -178,7 +180,7 @@ def generateOpcode(f, opNum, opName_):
             print >> f, '    CPU_OP_LD_H_MEM,'
             print >> f, '    CPU_OP_LD_L_TMP,'
             print >> f, '    CPU_OP_LD_PC_HL,'
-            cnt = cnt + 9
+            cnt = cnt + 11
         elif opName == 'rst':
             print >> f, '    CPU_OP_PUSH_PCH,'
             print >> f, '    CPU_OP_PUSH_PCL,'

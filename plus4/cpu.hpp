@@ -155,7 +155,7 @@ namespace Plus4 {
     void run(int nCycles = 1);
     inline void interruptRequest()
     {
-      interruptDelayRegister |= 16U;    // delay interrupt requests by 4 cycles
+      interruptDelayRegister |= 4U;     // delay interrupt requests by 2 cycles
     }
     inline void reset(bool isColdReset = false)
     {

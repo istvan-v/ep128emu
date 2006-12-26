@@ -171,7 +171,9 @@ namespace Plus4 {
   {
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
     ted.dataBusState = value;
-    ted.memory_ram[addr] &= (value ^ uint8_t(0xFF));
+    // bit 2 (light pen interrupt) is always set
+    ted.memory_ram[addr] = (ted.memory_ram[addr] & (value ^ uint8_t(0xFF)))
+                           | uint8_t(0x04);
   }
 
   void TED7360::write_register_FF0A(void *userData,
