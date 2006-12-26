@@ -40,16 +40,15 @@ namespace Plus4 {
           pixelBufReadPos = (pixelBufWritePos + 40) & 0x38;
         }
         break;
-      case 17:                          // update DMA read position
-        if (dmaWindow && character_line == 6)
-          dma_position = (dma_position + 40) & 0x03FF;
-        break;
       case 75:                          // DRAM refresh start
         singleClockMode = true;
         M7501::setIsCPURunning(true);
         break;
       case 76:                          // initialize character position
         character_position = character_position_reload;
+                                        // update DMA read position
+        if (dmaWindow && character_line == 6)
+          dma_position = (dma_position + 40) & 0x03FF;
         break;
       case 77:                          // end of display (38 column mode)
         if ((memory_ram[0xFF07] & uint8_t(0x08)) == uint8_t(0))

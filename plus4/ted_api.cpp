@@ -191,8 +191,10 @@ namespace Plus4 {
     if (len >= 0x00010000U ||
         size_t(len) != (buf.getDataSize() - buf.getPosition()))
       throw Ep128Emu::Exception("invalid plus4 program length");
+#if 0
     memory_ram[0x002B] = uint8_t(addr & 0xFF);
     memory_ram[0x002C] = uint8_t((addr >> 8) & 0xFF);
+#endif
     while (len) {
       writeMemory(uint16_t(addr), buf.readByte());
       addr = (addr + 1) & 0xFFFF;
@@ -231,8 +233,10 @@ namespace Plus4 {
     if (c == EOF)
       throw Ep128Emu::Exception("unexpected end of plus4 program file");
     addr |= uint16_t((c & 0xFF) << 8);
+#if 0
     memory_ram[0x002B] = uint8_t(addr & 0xFF);
     memory_ram[0x002C] = uint8_t((addr >> 8) & 0xFF);
+#endif
     size_t  len = 0;
     while (true) {
       c = std::fgetc(f);
