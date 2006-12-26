@@ -125,18 +125,22 @@ namespace Plus4 {
   {
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
     ted.dataBusState = value;
-    ted.memory_ram[addr] = value;
-    if (ted.renderWindow && !ted.dmaWindow &&
-        (ted.attributeDMACnt | ted.characterDMACnt) == uint8_t(0) &&
-        (ted.video_column < uint8_t(97) || ted.video_column >= uint8_t(101))) {
-      // check if DMA should be requested
-      uint8_t tmp = (uint8_t(ted.video_line) + (value ^ uint8_t(0xFF)))
-                    & uint8_t(0x07);
-      if (tmp == uint8_t(7) && ted.video_line != 203) {
-        ted.singleClockMode = true;
-        ted.attributeDMACnt = 1;
+    if (((ted.memory_ram[addr] ^ value) & uint8_t(0x07)) != uint8_t(0)) {
+      // if vertical scroll has changed:
+      if (ted.renderWindow && !ted.dmaWindow &&
+          (ted.attributeDMACnt | ted.characterDMACnt) == uint8_t(0) &&
+          (ted.video_column < uint8_t(97) ||
+           ted.video_column >= uint8_t(101))) {
+        // check if DMA should be requested
+        uint8_t tmp = (uint8_t(ted.video_line) + (value ^ uint8_t(0xFF)))
+                      & uint8_t(0x07);
+        if (tmp == uint8_t(7) && ted.video_line != 203) {
+          ted.singleClockMode = true;
+          ted.attributeDMACnt = 1;
+        }
       }
     }
+    ted.memory_ram[addr] = value;
     ted.selectRenderer();
   }
 
@@ -332,8 +336,10 @@ namespace Plus4 {
     (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
     ted.dataBusState = value;
+    // NOTE: values written to this register should be inverted
+    // FIXME: the two least significant bits are ignored
     ted.video_column = (ted.video_column & uint8_t(0x01))
-                       | ((value >> 1) & uint8_t(0x7E));
+                       | (((value ^ uint8_t(0xFF)) >> 1) & uint8_t(0x7E));
   }
 
   void TED7360::write_register_FF1F(void *userData,

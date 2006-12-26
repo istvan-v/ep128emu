@@ -40,6 +40,10 @@ namespace Plus4 {
           pixelBufReadPos = (pixelBufWritePos + 40) & 0x38;
         }
         break;
+      case 17:                          // update DMA read position
+        if (dmaWindow && character_line == 6)
+          dma_position = (dma_position + 40) & 0x03FF;
+        break;
       case 75:                          // DRAM refresh start
         singleClockMode = true;
         M7501::setIsCPURunning(true);
@@ -59,8 +63,8 @@ namespace Plus4 {
         singleClockMode = false;
         drawLine(&(line_buf[0]), 414);
         break;
-      case 87:                          // increment flash counter
-        if (video_line == 204) {
+      case 88:                          // increment flash counter
+        if (video_line == 205) {
           memory_ram[0xFF1F] =
               (memory_ram[0xFF1F] & uint8_t(0x7F)) + uint8_t(0x08);
           if (memory_ram[0xFF1F] & uint8_t(0x80))
@@ -119,22 +123,20 @@ namespace Plus4 {
             (video_line == 204 &&
              (memory_ram[0xFF06] & uint8_t(0x08)) != uint8_t(0)))
           displayWindow = false;
-        if (video_line == 204) {
-          renderWindow = false;
-          dmaWindow = false;
-          bitmapFetchWindow = false;
-        }
         break;
       case 99:                          // end of screen
         if (video_line == 0) {
-          character_line = 7;
           character_position_reload = 0x0000;
-        }
-        break;
-      case 100:                         // increment character sub-line
+          dma_position = 0x0000;
+        }                               // increment character sub-line
         if (dmaWindow || attributeDMACnt != uint8_t(0)) {
           character_line = (character_line + 1) & 7;
           bitmapFetchWindow = true;
+        }
+        if (video_line == 204) {        // end of display
+          renderWindow = false;
+          dmaWindow = false;
+          bitmapFetchWindow = false;
         }
         break;
       case 101:                         // external fetch single clock start
@@ -152,6 +154,8 @@ namespace Plus4 {
             if (video_line != 203)
               attributeDMACnt = 1;
           }
+          if (video_line == 0)          // initialize character sub-line
+            character_line = 7;
         }
         break;
       case 107:                         // horizontal blanking end
@@ -189,8 +193,7 @@ namespace Plus4 {
           else if (attributeDMACnt == 5) {
             dmaWindow = true;
             if (video_column >= 109 || video_column < 75) {
-              dma_position = ((character_position_reload + character_column)
-                              & 0x03FF) | (attr_base_addr & 0xF800);
+              M7501::haltFlag = true;
             }
             else {
               M7501::setIsCPURunning(true);
@@ -208,10 +211,9 @@ namespace Plus4 {
             M7501::setIsCPURunning(false);
           }
           else if (characterDMACnt == 5) {
+            M7501::haltFlag = true;
             for (int j = 0; j < 40; j++)
               attr_buf[j] = attr_buf_tmp[j];
-            dma_position = ((character_position_reload + character_column)
-                            & 0x03FF) | (attr_base_addr & 0xF800) | 0x0400;
           }
           characterDMACnt++;
         }
@@ -227,16 +229,16 @@ namespace Plus4 {
       }
       else if (!evenCycle) {
         if (attributeDMACnt >= 5) {
-          dataBusState = readMemory(uint16_t(dma_position));
+          dataBusState =
+              readMemory(uint16_t(((dma_position + character_column) & 0x03FF)
+                                  | (attr_base_addr & 0xF800)));
           attr_buf_tmp[character_column] = dataBusState;
-          dma_position = (dma_position & 0xFC00)
-                         | ((dma_position + 1) & 0x03FF);
         }
         else if (characterDMACnt >= 5) {
-          dataBusState = readMemory(uint16_t(dma_position));
+          dataBusState =
+              readMemory(uint16_t(((dma_position + character_column) & 0x03FF)
+                                  | (attr_base_addr | 0x0400)));
           char_buf[character_column] = dataBusState;
-          dma_position = (dma_position & 0xFC00)
-                         | ((dma_position + 1) & 0x03FF);
         }
       }
       if (evenCycle) {
