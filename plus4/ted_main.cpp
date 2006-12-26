@@ -74,7 +74,7 @@ namespace Plus4 {
       case 89:                          // horizontal blanking start
         horizontalBlanking = true;
         break;
-      case 97:                          // increment line number
+      case 98:                          // increment line number
         if ((memory_ram[0xFF07] & uint8_t(0x40)) == uint8_t(0)) {       // PAL
           video_line = (video_line != 311 ? ((video_line + 1) & 0x01FF) : 0);
           switch (video_line) {
@@ -218,6 +218,15 @@ namespace Plus4 {
           characterDMACnt++;
         }
       }
+      // check for video interrupt
+      if (video_line == videoInterruptLine) {
+        if (!prvVideoInterruptState) {
+          prvVideoInterruptState = true;
+          memory_ram[0xFF09] |= uint8_t(0x82);
+        }
+      }
+      else
+        prvVideoInterruptState = false;
       // run CPU and render display
       if (!M7501::haltFlag) {
         if (!evenCycle || !(singleClockMode || !doubleClockModeEnabled)) {
@@ -347,15 +356,6 @@ namespace Plus4 {
           }
         }
       }
-      // check for video interrupt
-      if (video_line == videoInterruptLine) {
-        if (!prvVideoInterruptState) {
-          prvVideoInterruptState = true;
-          memory_ram[0xFF09] |= uint8_t(0x82);
-        }
-      }
-      else
-        prvVideoInterruptState = false;
       // update sound generators on every 8th cycle (221 kHz)
       if (!(cycle_count & 7UL)) {
         int     sound_output = 0;
