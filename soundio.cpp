@@ -141,8 +141,10 @@ namespace Ep128Emu {
     // NOTE: AudioOutput::sendAudioData() should be called by derived classes
     // so that the sound file can be written
     if (soundFile) {
+      // need to cast away const qualification to work around compile
+      // error with old versions of libsndfile
       if (sf_writef_short(soundFile,
-                          reinterpret_cast<const short *>(buf),
+                          reinterpret_cast<short *>(const_cast<int16_t *>(buf)),
                           sf_count_t(nFrames))
           != sf_count_t(nFrames)) {
         sf_close(soundFile);

@@ -2,12 +2,12 @@
 
 compilerFlags = Split('''
     -Wall -W -ansi -pedantic -Wno-long-long -Wshadow -g -O2
-    -I/usr/local/include
 ''')
 
 ep128emuLibEnvironment = Environment()
 ep128emuLibEnvironment.Append(CCFLAGS = compilerFlags)
-ep128emuLibEnvironment.Append(CPPPATH = ['.'])
+ep128emuLibEnvironment.Append(CPPPATH = ['.', '/usr/local/include'])
+ep128emuLibEnvironment.Append(LINKFLAGS = ['-L.'])
 
 configure = ep128emuLibEnvironment.Configure()
 if not configure.CheckCHeader('sndfile.h'):
@@ -16,8 +16,15 @@ if not configure.CheckCHeader('sndfile.h'):
 if not configure.CheckCHeader('portaudio.h'):
     print ' *** error: PortAudio is not found'
     Exit(-1)
+elif not configure.CheckType('PaStreamCallbackTimeInfo',
+                             '#include <portaudio.h>'):
+    print ' *** error: PortAudio is found, but is too old (v19 is required)'
+    Exit(-1)
 if not configure.CheckCXXHeader('FL/Fl.H'):
-    print ' *** error: FLTK 1.1 is not found'
+    if configure.CheckCXXHeader('/usr/include/fltk-1.1/FL/Fl.H'):
+        ep128emuLibEnvironment.Append(CPPPATH = ['/usr/include/fltk-1.1'])
+    else:
+        print ' *** error: FLTK 1.1 is not found'
     Exit(-1)
 if not configure.CheckCHeader('GL/gl.h'):
     print ' *** error: OpenGL is not found'
@@ -26,7 +33,6 @@ haveDotconf = configure.CheckCHeader('dotconf.h')
 configure.Finish()
 
 if haveDotconf:
-    compilerFlags += ['-DHAVE_DOTCONF_H']
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_DOTCONF_H'])
 
 ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
@@ -46,9 +52,8 @@ ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
 
 # -----------------------------------------------------------------------------
 
-ep128LibEnvironment = Environment()
-ep128LibEnvironment.Append(CCFLAGS = compilerFlags)
-ep128LibEnvironment.Append(CPPPATH = ['.', './z80'])
+ep128LibEnvironment = ep128emuLibEnvironment.Copy()
+ep128LibEnvironment.Append(CPPPATH = ['./z80'])
 
 ep128Lib = ep128LibEnvironment.StaticLibrary('ep128', Split('''
     dave.cpp
@@ -58,9 +63,8 @@ ep128Lib = ep128LibEnvironment.StaticLibrary('ep128', Split('''
     nick.cpp
 '''))
 
-z80LibEnvironment = Environment()
-z80LibEnvironment.Append(CCFLAGS = compilerFlags)
-z80LibEnvironment.Append(CPPPATH = ['.', './z80'])
+z80LibEnvironment = ep128emuLibEnvironment.Copy()
+z80LibEnvironment.Append(CPPPATH = ['./z80'])
 
 z80Lib = z80LibEnvironment.StaticLibrary('z80', Split('''
     z80/z80.cpp
@@ -69,9 +73,8 @@ z80Lib = z80LibEnvironment.StaticLibrary('z80', Split('''
 
 # -----------------------------------------------------------------------------
 
-plus4LibEnvironment = Environment()
-plus4LibEnvironment.Append(CCFLAGS = compilerFlags)
-plus4LibEnvironment.Append(CPPPATH = ['.', './plus4'])
+plus4LibEnvironment = ep128emuLibEnvironment.Copy()
+plus4LibEnvironment.Append(CPPPATH = ['./plus4'])
 
 plus4Lib = plus4LibEnvironment.StaticLibrary('plus4', Split('''
     plus4/cpu.cpp
@@ -88,10 +91,8 @@ plus4Lib = plus4LibEnvironment.StaticLibrary('plus4', Split('''
 
 # -----------------------------------------------------------------------------
 
-ep128emuEnvironment = Environment()
-ep128emuEnvironment.Append(CCFLAGS = compilerFlags)
-ep128emuEnvironment.Append(CPPPATH = ['.', './z80'])
-ep128emuEnvironment.Append(LINKFLAGS = ['-L.'])
+ep128emuEnvironment = ep128emuLibEnvironment.Copy()
+ep128emuEnvironment.Append(CPPPATH = ['./z80'])
 ep128emuEnvironment.Append(LIBS = ['ep128', 'z80', 'plus4', 'ep128emu'])
 if haveDotconf:
     ep128emuEnvironment.Append(LIBS = ['dotconf'])
@@ -109,10 +110,8 @@ Depends(ep128emu, ep128emuLib)
 
 # -----------------------------------------------------------------------------
 
-tapeeditEnvironment = Environment()
-tapeeditEnvironment.Append(CCFLAGS = compilerFlags)
-tapeeditEnvironment.Append(CPPPATH = ['.', './tapeutil'])
-tapeeditEnvironment.Append(LINKFLAGS = ['-L.'])
+tapeeditEnvironment = ep128emuLibEnvironment.Copy()
+tapeeditEnvironment.Append(CPPPATH = ['./tapeutil'])
 tapeeditEnvironment.Append(LIBS = ['ep128emu'])
 if haveDotconf:
     tapeeditEnvironment.Append(LIBS = ['dotconf'])
