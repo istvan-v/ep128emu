@@ -2,6 +2,7 @@
 
 compilerFlags = Split('''
     -Wall -W -ansi -pedantic -Wno-long-long -Wshadow -g -O2
+    -I/usr/local/include
 ''')
 
 ep128emuLibEnvironment = Environment()
