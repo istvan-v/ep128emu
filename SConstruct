@@ -4,10 +4,32 @@ compilerFlags = Split('''
     -Wall -W -ansi -pedantic -Wno-long-long -Wshadow -g -O2
 ''')
 
+fltkConfig = 'fltk-config'
+
+# -----------------------------------------------------------------------------
+
 ep128emuLibEnvironment = Environment()
 ep128emuLibEnvironment.Append(CCFLAGS = compilerFlags)
 ep128emuLibEnvironment.Append(CPPPATH = ['.', '/usr/local/include'])
 ep128emuLibEnvironment.Append(LINKFLAGS = ['-L.'])
+
+ep128emuGUIEnvironment = ep128emuLibEnvironment.Copy()
+if not ep128emuGUIEnvironment.ParseConfig(
+        '%s --cxxflags --ldflags --libs' % fltkConfig):
+    print 'WARNING: could not run fltk-config'
+    ep128emuGUIEnvironment.Append(LIBS = ['fltk'])
+ep128emuGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
+ep128emuGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
+
+ep128emuGLGUIEnvironment = ep128emuLibEnvironment.Copy()
+if not ep128emuGLGUIEnvironment.ParseConfig(
+        '%s --use-gl --cxxflags --ldflags --libs' % fltkConfig):
+    print 'WARNING: could not run fltk-config'
+    ep128emuGLGUIEnvironment.Append(LIBS = ['fltk_gl', 'GL'])
+ep128emuGLGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
+ep128emuGLGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
+
+ep128emuLibEnvironment['CPPPATH'] = ep128emuGLGUIEnvironment['CPPPATH']
 
 configure = ep128emuLibEnvironment.Configure()
 if not configure.CheckCHeader('sndfile.h'):
@@ -91,13 +113,12 @@ plus4Lib = plus4LibEnvironment.StaticLibrary('plus4', Split('''
 
 # -----------------------------------------------------------------------------
 
-ep128emuEnvironment = ep128emuLibEnvironment.Copy()
+ep128emuEnvironment = ep128emuGLGUIEnvironment.Copy()
 ep128emuEnvironment.Append(CPPPATH = ['./z80'])
 ep128emuEnvironment.Append(LIBS = ['ep128', 'z80', 'plus4', 'ep128emu'])
 if haveDotconf:
     ep128emuEnvironment.Append(LIBS = ['dotconf'])
-ep128emuEnvironment.Append(LIBS = ['fltk_gl', 'GL',
-                                   'portaudio', 'sndfile', 'jack', 'asound',
+ep128emuEnvironment.Append(LIBS = ['portaudio', 'sndfile', 'jack', 'asound',
                                    'pthread'])
 
 ep128emu = ep128emuEnvironment.Program('ep128emu', Split('''
@@ -110,12 +131,12 @@ Depends(ep128emu, ep128emuLib)
 
 # -----------------------------------------------------------------------------
 
-tapeeditEnvironment = ep128emuLibEnvironment.Copy()
+tapeeditEnvironment = ep128emuGUIEnvironment.Copy()
 tapeeditEnvironment.Append(CPPPATH = ['./tapeutil'])
 tapeeditEnvironment.Append(LIBS = ['ep128emu'])
 if haveDotconf:
     tapeeditEnvironment.Append(LIBS = ['dotconf'])
-tapeeditEnvironment.Append(LIBS = ['fltk', 'sndfile', 'pthread'])
+tapeeditEnvironment.Append(LIBS = ['sndfile', 'pthread'])
 
 Command(['tapeutil/tapeedit.cpp', 'tapeutil/tapeedit.hpp'],
         'tapeutil/tapeedit.fl',
