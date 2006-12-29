@@ -8,6 +8,8 @@ def generateOpcode(f, opNum, opName_):
         operand = opName_[4:].lower()
     else:
         operand = ''
+    writeInstructions = ['inc', 'dec', 'asl', 'lsr', 'rol', 'ror', 'rla',
+                         'rra', 'slo', 'sre', 'sta']
     if operand == '#nn':
         print >> f, '    CPU_OP_RD_TMP,'
         if opName == 'nop':
@@ -62,7 +64,7 @@ def generateOpcode(f, opNum, opName_):
             elif operand == 'nnnn,x' or operand == 'nnnn, x':
                 print >> f, '    CPU_OP_RD_L,'
                 print >> f, '    CPU_OP_RD_H,'
-                if opName in ['inc', 'dec', 'asl', 'lsr', 'rol', 'ror', 'sta']:
+                if opName in writeInstructions:
                     print >> f, '    CPU_OP_ADDR_X_SLOW,'
                 else:
                     print >> f, '    CPU_OP_ADDR_X,'
@@ -70,7 +72,7 @@ def generateOpcode(f, opNum, opName_):
             elif operand == 'nnnn,y' or operand == 'nnnn, y':
                 print >> f, '    CPU_OP_RD_L,'
                 print >> f, '    CPU_OP_RD_H,'
-                if opName in ['inc', 'dec', 'asl', 'lsr', 'rol', 'ror', 'sta']:
+                if opName in writeInstructions:
                     print >> f, '    CPU_OP_ADDR_Y_SLOW,'
                 else:
                     print >> f, '    CPU_OP_ADDR_Y,'
@@ -82,7 +84,7 @@ def generateOpcode(f, opNum, opName_):
                 print >> f, '    CPU_OP_INC_L,'
                 print >> f, '    CPU_OP_LD_H_MEM,'
                 print >> f, '    CPU_OP_LD_L_TMP,'
-                if opName in ['inc', 'dec', 'asl', 'lsr', 'rol', 'ror', 'sta']:
+                if opName in writeInstructions:
                     print >> f, '    CPU_OP_ADDR_Y_SLOW,'
                 else:
                     print >> f, '    CPU_OP_ADDR_Y,'
@@ -109,22 +111,40 @@ def generateOpcode(f, opNum, opName_):
                 print >> f, '    CPU_OP_SET_NZ,'
                 print >> f, '    CPU_OP_LD_%s_TMP,' % opName[2].upper()
                 cnt = cnt + 2
-            elif opName[:2] == 'st':
-                print >> f, '    CPU_OP_LD_TMP_%s,' % opName[2].upper()
-                print >> f, '    CPU_OP_LD_MEM_TMP,'
-                cnt = cnt + 2
-            elif opName in ['inc', 'dec', 'asl', 'lsr', 'rol', 'ror']:
-                print >> f, '    CPU_OP_LD_MEM_TMP,'
-                print >> f, '    CPU_OP_%s,' % opName.upper()
-                print >> f, '    CPU_OP_LD_MEM_TMP,'
-                cnt = cnt + 3
             elif opName == 'lax':
                 print >> f, '    CPU_OP_SET_NZ,'
                 print >> f, '    CPU_OP_LD_A_TMP,'
                 print >> f, '    CPU_OP_LD_X_TMP,'
                 cnt = cnt + 3
+            elif opName[:2] == 'st':
+                print >> f, '    CPU_OP_LD_TMP_%s,' % opName[2].upper()
+                print >> f, '    CPU_OP_LD_MEM_TMP,'
+                cnt = cnt + 2
             elif opName == 'sax':
                 print >> f, '    CPU_OP_SAX,'
+                print >> f, '    CPU_OP_LD_MEM_TMP,'
+                cnt = cnt + 2
+            elif opName in writeInstructions:
+                print >> f, '    CPU_OP_LD_MEM_TMP,'
+                if opName == 'slo':
+                    print >> f, '    CPU_OP_ASL,'
+                    print >> f, '    CPU_OP_ORA,'
+                    cnt = cnt + 2
+                elif opName == 'rla':
+                    print >> f, '    CPU_OP_ROL,'
+                    print >> f, '    CPU_OP_AND,'
+                    cnt = cnt + 2
+                elif opName == 'sre':
+                    print >> f, '    CPU_OP_LSR,'
+                    print >> f, '    CPU_OP_EOR,'
+                    cnt = cnt + 2
+                elif opName == 'rra':
+                    print >> f, '    CPU_OP_ROR,'
+                    print >> f, '    CPU_OP_ADC,'
+                    cnt = cnt + 2
+                else:
+                    print >> f, '    CPU_OP_%s,' % opName.upper()
+                    cnt = cnt + 1
                 print >> f, '    CPU_OP_LD_MEM_TMP,'
                 cnt = cnt + 2
             else:
@@ -301,11 +321,11 @@ print >> f, '  const unsigned char M7501::opcodeTable[4128] = {'
 generateOpcode(f, 0x00, 'BRK')
 generateOpcode(f, 0x01, 'ORA (nn, X)')
 generateOpcode(f, 0x02, '???')
-generateOpcode(f, 0x03, '???')
+generateOpcode(f, 0x03, 'SLO (nn, X)')  # ???
 generateOpcode(f, 0x04, 'NOP nn')       # ???
 generateOpcode(f, 0x05, 'ORA nn')
 generateOpcode(f, 0x06, 'ASL nn')
-generateOpcode(f, 0x07, '???')
+generateOpcode(f, 0x07, 'SLO nn')       # ???
 generateOpcode(f, 0x08, 'PHP')
 generateOpcode(f, 0x09, 'ORA #nn')
 generateOpcode(f, 0x0A, 'ASL')
@@ -313,31 +333,31 @@ generateOpcode(f, 0x0B, '???')
 generateOpcode(f, 0x0C, 'NOP nnnn')     # ???
 generateOpcode(f, 0x0D, 'ORA nnnn')
 generateOpcode(f, 0x0E, 'ASL nnnn')
-generateOpcode(f, 0x0F, '???')
+generateOpcode(f, 0x0F, 'SLO nnnn')     # ???
 generateOpcode(f, 0x10, 'BPL nn')
 generateOpcode(f, 0x11, 'ORA (nn), Y')
 generateOpcode(f, 0x12, '???')
-generateOpcode(f, 0x13, '???')
+generateOpcode(f, 0x13, 'SLO (nn), Y')  # ???
 generateOpcode(f, 0x14, 'NOP nn, X')    # ???
 generateOpcode(f, 0x15, 'ORA nn, X')
 generateOpcode(f, 0x16, 'ASL nn, X')
-generateOpcode(f, 0x17, '???')
+generateOpcode(f, 0x17, 'SLO nn, X')    # ???
 generateOpcode(f, 0x18, 'CLC')
 generateOpcode(f, 0x19, 'ORA nnnn, Y')
 generateOpcode(f, 0x1A, 'NOP')          # ???
-generateOpcode(f, 0x1B, '???')
+generateOpcode(f, 0x1B, 'SLO nnnn, Y')  # ???
 generateOpcode(f, 0x1C, 'NOP nnnn, X')  # ???
 generateOpcode(f, 0x1D, 'ORA nnnn, X')
 generateOpcode(f, 0x1E, 'ASL nnnn, X')
-generateOpcode(f, 0x1F, '???')
+generateOpcode(f, 0x1F, 'SLO nnnn, X')  # ???
 generateOpcode(f, 0x20, 'JSR nnnn')
 generateOpcode(f, 0x21, 'AND (nn, X)')
 generateOpcode(f, 0x22, '???')
-generateOpcode(f, 0x23, '???')
+generateOpcode(f, 0x23, 'RLA (nn, X)')  # ???
 generateOpcode(f, 0x24, 'BIT nn')
 generateOpcode(f, 0x25, 'AND nn')
 generateOpcode(f, 0x26, 'ROL nn')
-generateOpcode(f, 0x27, '???')
+generateOpcode(f, 0x27, 'RLA nn')       # ???
 generateOpcode(f, 0x28, 'PLP')
 generateOpcode(f, 0x29, 'AND #nn')
 generateOpcode(f, 0x2A, 'ROL')
@@ -345,31 +365,31 @@ generateOpcode(f, 0x2B, '???')
 generateOpcode(f, 0x2C, 'BIT nnnn')
 generateOpcode(f, 0x2D, 'AND nnnn')
 generateOpcode(f, 0x2E, 'ROL nnnn')
-generateOpcode(f, 0x2F, '???')
+generateOpcode(f, 0x2F, 'RLA nnnn')     # ???
 generateOpcode(f, 0x30, 'BMI nn')
 generateOpcode(f, 0x31, 'AND (nn), Y')
 generateOpcode(f, 0x32, '???')
-generateOpcode(f, 0x33, '???')
+generateOpcode(f, 0x33, 'RLA (nn), Y')  # ???
 generateOpcode(f, 0x34, 'NOP nn, X')    # ???
 generateOpcode(f, 0x35, 'AND nn, X')
 generateOpcode(f, 0x36, 'ROL nn, X')
-generateOpcode(f, 0x37, '???')
+generateOpcode(f, 0x37, 'RLA nn, X')    # ???
 generateOpcode(f, 0x38, 'SEC')
 generateOpcode(f, 0x39, 'AND nnnn, Y')
 generateOpcode(f, 0x3A, 'NOP')          # ???
-generateOpcode(f, 0x3B, '???')
+generateOpcode(f, 0x3B, 'RLA nnnn, Y')  # ???
 generateOpcode(f, 0x3C, 'NOP nnnn, X')  # ???
 generateOpcode(f, 0x3D, 'AND nnnn, X')
 generateOpcode(f, 0x3E, 'ROL nnnn, X')
-generateOpcode(f, 0x3F, '???')
+generateOpcode(f, 0x3F, 'RLA nnnn, X')  # ???
 generateOpcode(f, 0x40, 'RTI')
 generateOpcode(f, 0x41, 'EOR (nn, X)')
 generateOpcode(f, 0x42, '???')
-generateOpcode(f, 0x43, '???')
+generateOpcode(f, 0x43, 'SRE (nn, X)')  # ???
 generateOpcode(f, 0x44, 'NOP nn')       # ???
 generateOpcode(f, 0x45, 'EOR nn')
 generateOpcode(f, 0x46, 'LSR nn')
-generateOpcode(f, 0x47, '???')
+generateOpcode(f, 0x47, 'SRE nn')       # ???
 generateOpcode(f, 0x48, 'PHA')
 generateOpcode(f, 0x49, 'EOR #nn')
 generateOpcode(f, 0x4A, 'LSR')
@@ -377,31 +397,31 @@ generateOpcode(f, 0x4B, '???')
 generateOpcode(f, 0x4C, 'JMP nnnn')
 generateOpcode(f, 0x4D, 'EOR nnnn')
 generateOpcode(f, 0x4E, 'LSR nnnn')
-generateOpcode(f, 0x4F, '???')
+generateOpcode(f, 0x4F, 'SRE nnnn')     # ???
 generateOpcode(f, 0x50, 'BVC nn')
 generateOpcode(f, 0x51, 'EOR (nn), Y')
 generateOpcode(f, 0x52, '???')
-generateOpcode(f, 0x53, '???')
+generateOpcode(f, 0x53, 'SRE (nn), Y')  # ???
 generateOpcode(f, 0x54, 'NOP nn, X')    # ???
 generateOpcode(f, 0x55, 'EOR nn, X')
 generateOpcode(f, 0x56, 'LSR nn, X')
-generateOpcode(f, 0x57, '???')
+generateOpcode(f, 0x57, 'SRE nn, X')    # ???
 generateOpcode(f, 0x58, 'CLI')
 generateOpcode(f, 0x59, 'EOR nnnn, Y')
 generateOpcode(f, 0x5A, 'NOP')          # ???
-generateOpcode(f, 0x5B, '???')
+generateOpcode(f, 0x5B, 'SRE nnnn, Y')  # ???
 generateOpcode(f, 0x5C, 'NOP nnnn, X')  # ???
 generateOpcode(f, 0x5D, 'EOR nnnn, X')
 generateOpcode(f, 0x5E, 'LSR nnnn, X')
-generateOpcode(f, 0x5F, '???')
+generateOpcode(f, 0x5F, 'SRE nnnn, X')  # ???
 generateOpcode(f, 0x60, 'RTS')
 generateOpcode(f, 0x61, 'ADC (nn, X)')
 generateOpcode(f, 0x62, '???')
-generateOpcode(f, 0x63, '???')
+generateOpcode(f, 0x63, 'RRA (nn, X)')  # ???
 generateOpcode(f, 0x64, 'NOP nn')       # ???
 generateOpcode(f, 0x65, 'ADC nn')
 generateOpcode(f, 0x66, 'ROR nn')
-generateOpcode(f, 0x67, '???')
+generateOpcode(f, 0x67, 'RRA nn')       # ???
 generateOpcode(f, 0x68, 'PLA')
 generateOpcode(f, 0x69, 'ADC #nn')
 generateOpcode(f, 0x6A, 'ROR')
@@ -409,26 +429,26 @@ generateOpcode(f, 0x6B, '???')
 generateOpcode(f, 0x6C, 'JMP (nnnn)')
 generateOpcode(f, 0x6D, 'ADC nnnn')
 generateOpcode(f, 0x6E, 'ROR nnnn')
-generateOpcode(f, 0x6F, '???')
+generateOpcode(f, 0x6F, 'RRA nnnn')     # ???
 generateOpcode(f, 0x70, 'BVS nn')
 generateOpcode(f, 0x71, 'ADC (nn), Y')
 generateOpcode(f, 0x72, '???')
-generateOpcode(f, 0x73, '???')
+generateOpcode(f, 0x73, 'RRA (nn), Y')  # ???
 generateOpcode(f, 0x74, 'NOP nn, X')    # ???
 generateOpcode(f, 0x75, 'ADC nn, X')
 generateOpcode(f, 0x76, 'ROR nn, X')
-generateOpcode(f, 0x77, '???')
+generateOpcode(f, 0x77, 'RRA nn, X')    # ???
 generateOpcode(f, 0x78, 'SEI')
 generateOpcode(f, 0x79, 'ADC nnnn, Y')
 generateOpcode(f, 0x7A, 'NOP')          # ???
-generateOpcode(f, 0x7B, '???')
+generateOpcode(f, 0x7B, 'RRA nnnn, Y')  # ???
 generateOpcode(f, 0x7C, 'NOP nnnn, X')  # ???
 generateOpcode(f, 0x7D, 'ADC nnnn, X')
 generateOpcode(f, 0x7E, 'ROR nnnn, X')
-generateOpcode(f, 0x7F, '???')
+generateOpcode(f, 0x7F, 'RRA nnnn, X')  # ???
 generateOpcode(f, 0x80, 'NOP #nn')      # ???
 generateOpcode(f, 0x81, 'STA (nn, X)')
-generateOpcode(f, 0x82, '???')
+generateOpcode(f, 0x82, 'NOP #nn')      # ???
 generateOpcode(f, 0x83, 'SAX (nn, X)')  # ???
 generateOpcode(f, 0x84, 'STY nn')
 generateOpcode(f, 0x85, 'STA nn')
