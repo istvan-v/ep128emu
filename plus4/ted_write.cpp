@@ -287,8 +287,10 @@ namespace Plus4 {
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
     ted.dataBusState = value;
     ted.memory_ram[addr] = value | uint8_t(0x80);
-    ted.oldColors[addr - 0xFF15] = uint8_t(0xFF);
-    ted.newColors[addr - 0xFF15] = value & uint8_t(0x7F);
+    addr -= uint16_t(0xFF15);
+    uint8_t   c = ted.oldColors[addr] | uint8_t(0xF0);
+    ted.oldColors[addr] = (c == uint8_t(0xF0) ? uint8_t(0xF1) : c);
+    ted.newColors[addr] = value;
   }
 
   void TED7360::write_register_FF1A(void *userData,

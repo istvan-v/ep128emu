@@ -209,6 +209,7 @@ namespace Plus4 {
     pixelBufWritePos = 0;
     attributeDMACnt = 0;
     characterDMACnt = 0;
+    savedCharacterLine = 0;
     videoInterruptLine = 0;
     prvVideoInterruptState = false;
     dataBusState = uint8_t(0xFF);

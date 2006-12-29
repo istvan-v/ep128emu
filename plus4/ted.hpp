@@ -248,6 +248,7 @@ namespace Plus4 {
     uint8_t     pixelBufWritePos;
     uint8_t     attributeDMACnt;
     uint8_t     characterDMACnt;
+    uint8_t     savedCharacterLine;
     int         videoInterruptLine;
     bool        prvVideoInterruptState;
     // for fetching bitmap data from invalid memory address

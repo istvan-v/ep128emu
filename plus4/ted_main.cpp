@@ -43,6 +43,8 @@ namespace Plus4 {
       case 75:                          // DRAM refresh start
         singleClockMode = true;
         M7501::setIsCPURunning(true);
+        if (bitmapFetchWindow && savedCharacterLine == uint8_t(7))
+          character_position_reload = (character_position_reload + 40) & 0x03FF;
         break;
       case 76:                          // initialize character position
         character_position = character_position_reload;
@@ -122,14 +124,16 @@ namespace Plus4 {
             (video_line == 204 &&
              (memory_ram[0xFF06] & uint8_t(0x08)) != uint8_t(0)))
           displayWindow = false;
-        break;
-      case 99:                          // end of screen
-        if (video_line == 0) {
+        if (video_line == 0)            // end of screen
           character_position_reload = 0x0000;
+        break;
+      case 99:
+        if (video_line == 0)
           dma_position = 0x0000;
-        }                               // increment character sub-line
+                                        // increment character sub-line
         if (dmaWindow || attributeDMACnt != uint8_t(0)) {
           character_line = (character_line + 1) & 7;
+          savedCharacterLine = uint8_t(character_line);
           bitmapFetchWindow = true;
         }
         if (video_line == 204) {        // end of display
@@ -153,8 +157,10 @@ namespace Plus4 {
             if (video_line != 203)
               attributeDMACnt = 1;
           }
-          if (video_line == 0)          // initialize character sub-line
+          if (video_line == 0) {        // initialize character sub-line
             character_line = 7;
+            savedCharacterLine = uint8_t(7);
+          }
         }
         break;
       case 107:                         // horizontal blanking end
@@ -166,10 +172,6 @@ namespace Plus4 {
           renderingDisplay = true;
           singleClockMode = true;
           character_column = 0;
-          if (dmaWindow && character_line == 7) {
-            character_position_reload =
-                (character_position_reload + 40) & 0x03FF;
-          }
         }
         break;
       case 113:                         // start display (40 column mode)
@@ -221,7 +223,7 @@ namespace Plus4 {
       if (video_line == videoInterruptLine) {
         if (!prvVideoInterruptState) {
           prvVideoInterruptState = true;
-          memory_ram[0xFF09] |= uint8_t(0x82);
+          memory_ram[0xFF09] |= uint8_t(0x02);
         }
       }
       else
@@ -360,49 +362,55 @@ namespace Plus4 {
         int     sound_output = 0;
         int     sound_volume;
         uint8_t sound_register = memory_ram[0xFF11];
-        sound_volume = (int) (sound_register & (uint8_t) 0x0F) << 10;
+        sound_volume = int(sound_register & uint8_t(0x0F)) << 10;
         sound_volume = (sound_volume < 8192 ? sound_volume : 8192);
-        if (sound_register & (uint8_t) 0x80) {
+        if (sound_register & uint8_t(0x80)) {
           // DAC mode
           sound_channel_1_cnt = sound_channel_1_reload;
           sound_channel_2_cnt = sound_channel_2_reload;
-          sound_channel_1_state = (uint8_t) 1;
-          sound_channel_2_state = (uint8_t) 1;
-          sound_channel_2_noise_state = (uint8_t) 0xFF;
-          sound_channel_2_noise_output = (uint8_t) 1;
+          sound_channel_1_state = uint8_t(1);
+          sound_channel_2_state = uint8_t(1);
+          sound_channel_2_noise_state = uint8_t(0xFF);
+          sound_channel_2_noise_output = uint8_t(1);
         }
         else {
-          if (++sound_channel_1_cnt >= 1024) {
+          sound_channel_1_cnt = (sound_channel_1_cnt + 1) & 1023;
+          if (sound_channel_1_cnt == 1023) {
             // channel 1 square wave
             sound_channel_1_cnt = sound_channel_1_reload;
-            sound_channel_1_state ^= (uint8_t) 1;
-            sound_channel_1_state &= (uint8_t) 1;
+            if (sound_channel_1_reload != 1022) {
+              sound_channel_1_state ^= uint8_t(1);
+              sound_channel_1_state &= uint8_t(1);
+            }
           }
-          if (++sound_channel_2_cnt >= 1024) {
+          sound_channel_2_cnt = (sound_channel_2_cnt + 1) & 1023;
+          if (sound_channel_2_cnt == 1023) {
             // channel 2 square wave
             sound_channel_2_cnt = sound_channel_2_reload;
-            sound_channel_2_state ^= (uint8_t) 1;
-            sound_channel_2_state &= (uint8_t) 1;
-            // channel 2 noise, 8 bit polycnt (10110011)
-            uint8_t tmp = sound_channel_2_noise_state & (uint8_t) 0xB3;
-            tmp = tmp ^ (tmp >> 1);
-            tmp = tmp ^ (tmp >> 2);
-            tmp = (tmp ^ (tmp >> 4)) & (uint8_t) 1;
-            sound_channel_2_noise_output ^= tmp;
-            sound_channel_2_noise_output &= (uint8_t) 1;
-            sound_channel_2_noise_state <<= 1;
-            sound_channel_2_noise_state |= sound_channel_2_noise_output;
+            if (sound_channel_2_reload != 1022) {
+              sound_channel_2_state ^= uint8_t(1);
+              sound_channel_2_state &= uint8_t(1);
+              // channel 2 noise, 8 bit polycnt (10110011)
+              uint8_t tmp = sound_channel_2_noise_state & uint8_t(0xB3);
+              tmp = tmp ^ (tmp >> 1);
+              tmp = tmp ^ (tmp >> 2);
+              tmp = (tmp ^ (tmp >> 4)) & uint8_t(1);
+              sound_channel_2_noise_output ^= tmp;
+              sound_channel_2_noise_output &= uint8_t(1);
+              sound_channel_2_noise_state <<= 1;
+              sound_channel_2_noise_state |= sound_channel_2_noise_output;
+            }
           }
         }
         // mix sound outputs
-        if (sound_register & (uint8_t) 0x10)
+        if (sound_register & uint8_t(0x10))
           sound_output += (sound_channel_1_state ? sound_volume : 0);
-        if (sound_register & (uint8_t) 0x20)
+        if (sound_register & uint8_t(0x20))
           sound_output += (sound_channel_2_state ? sound_volume : 0);
-        else if (sound_register & (uint8_t) 0x40)
+        else if (sound_register & uint8_t(0x40))
           sound_output += (sound_channel_2_noise_output ? 0 : sound_volume);
         // send sound output signal (sample rate = 221 kHz)
-        playSample((int16_t) sound_output);
+        playSample(int16_t(sound_output));
       }
       // update horizontal position
       video_column = (video_column == 113 ? 0 : ((video_column + 1) & 0x7F));
