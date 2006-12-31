@@ -129,6 +129,18 @@ namespace Plus4 {
     setMemoryWriteCallback(0xFF1F, &write_register_FF1F);
     setMemoryWriteCallback(0xFF3E, &write_register_FF3E);
     setMemoryWriteCallback(0xFF3F, &write_register_FF3F);
+    // set internal TED registers
+    this->initRegisters();
+    cpu_clock_multiplier = 1;
+    for (int i = 0; i < 16; i++)                // keyboard matrix
+      keyboard_matrix[i] = (uint8_t) 0xFF;
+    user_port_state = (uint8_t) 0xFF;           // external ports
+    tape_read_state = false;
+    tape_button_state = false;
+  }
+
+  void TED7360::initRegisters()
+  {
     // initialize memory paging
     rom_enabled = true;
     rom_enabled_for_video = true;
@@ -136,21 +148,20 @@ namespace Plus4 {
     rom_bank_high = (unsigned char) 0;
     render_func = &render_invalid_mode;
     // clear memory used by TED registers
-    memory_ram[0x0000] = (uint8_t) 0x0F;
-    memory_ram[0x0001] = (uint8_t) 0xC8;
+    memory_ram[0x0000] = uint8_t(0x0F);
+    memory_ram[0x0001] = uint8_t(0xC8);
     for (int i = 0xFD00; i < 0xFF00; i++)
-      memory_ram[i] = (uint8_t) 0xFF;
+      memory_ram[i] = uint8_t(0xFF);
     for (int i = 0xFF00; i < 0xFF20; i++)
-      memory_ram[i] = (uint8_t) 0;
-    memory_ram[0xFF08] = (uint8_t) 0xFF;
-    memory_ram[0xFF0C] = (uint8_t) 0xFF;
-    memory_ram[0xFF0D] = (uint8_t) 0xFF;
-    memory_ram[0xFF13] = (uint8_t) 0x01;
-    memory_ram[0xFF1D] = (uint8_t) 224;
-    memory_ram[0xFF1E] = (uint8_t) 192;
+      memory_ram[i] = uint8_t(0x00);
+    memory_ram[0xFF08] = uint8_t(0xFF);
+    memory_ram[0xFF0C] = uint8_t(0xFF);
+    memory_ram[0xFF0D] = uint8_t(0xFF);
+    memory_ram[0xFF13] = uint8_t(0x01);
+    memory_ram[0xFF1D] = uint8_t(0xE0);
+    memory_ram[0xFF1E] = uint8_t(0xC0);
     // set internal TED registers
     cycle_count = 0UL;
-    cpu_clock_multiplier = 1;
     video_column = 96;
     video_line = 224;
     character_line = 0;
@@ -186,10 +197,10 @@ namespace Plus4 {
     sound_channel_1_reload = 0;
     sound_channel_2_cnt = 0;
     sound_channel_2_reload = 0;
-    sound_channel_1_state = (uint8_t) 1;
-    sound_channel_2_state = (uint8_t) 1;
-    sound_channel_2_noise_state = (uint8_t) 0xFF;
-    sound_channel_2_noise_output = (uint8_t) 1;
+    sound_channel_1_state = uint8_t(1);
+    sound_channel_2_state = uint8_t(1);
+    sound_channel_2_noise_state = uint8_t(0xFF);
+    sound_channel_2_noise_output = uint8_t(1);
     for (int i = 0; i < 40; i++) {              // video buffers
       attr_buf[i] = uint8_t(0);
       attr_buf_tmp[i] = uint8_t(0);
@@ -213,36 +224,31 @@ namespace Plus4 {
     videoInterruptLine = 0;
     prvVideoInterruptState = false;
     dataBusState = uint8_t(0xFF);
-    keyboard_row_select_mask = 0xFFFF;          // keyboard matrix
-    for (int i = 0; i < 16; i++)
-      keyboard_matrix[i] = (uint8_t) 0xFF;
-    user_port_state = (uint8_t) 0xFF;           // external ports
+    keyboard_row_select_mask = 0xFFFF;
     tape_motor_state = false;
-    tape_read_state = false;
     tape_write_state = false;
-    tape_button_state = false;
-    // set start address for CPU
-    reg_PC = (uint16_t) memory_rom[0][0xFFFC];
-    reg_PC += ((uint16_t) memory_rom[0][0xFFFD] << 8);
   }
 
   void TED7360::reset(bool cold_reset)
   {
     if (cold_reset) {
       // reset TED registers
-      writeMemory((uint16_t) 0x0000, (uint8_t) 0x0F);
-      writeMemory((uint16_t) 0x0001, (uint8_t) 0xC8);
-      writeMemory((uint16_t) 0xFDD0, (uint8_t) 0);
-      for (int i = 0xFD00; i < 0xFF00; i++)
-        memory_ram[i] = (uint8_t) 0xFF;
-      for (int i = 0xFF00; i < 0xFF20; i++)
-        writeMemory((uint16_t) i, (uint8_t) 0);
-      writeMemory((uint16_t) 0xFF08, (uint8_t) 0xFF);
-      writeMemory((uint16_t) 0xFF0C, (uint8_t) 0xFF);
-      writeMemory((uint16_t) 0xFF0D, (uint8_t) 0xFF);
-      writeMemory((uint16_t) 0xFF13, (uint8_t) 0x01);
-      writeMemory((uint16_t) 0xFF1D, (uint8_t) 224);
-      writeMemory((uint16_t) 0xFF3E, (uint8_t) 0);
+      this->initRegisters();
+      // make sure that RAM size is detected correctly
+      for (uint16_t i = 0x3FFD; i > 0x3FF5; i--) {
+        if (memory_ram[i] != memory_ram[i | 0xC000])
+          break;
+        if (i == 0x3FF6)
+          memory_ram[i] = (memory_ram[i] + uint8_t(1)) & uint8_t(0xFF);
+      }
+      for (uint16_t i = 0x7FFD; i > 0x7FF5; i--) {
+        if (memory_ram[i] != memory_ram[i | 0xC000])
+          break;
+        if (i == 0x7FF6)
+          memory_ram[i] = (memory_ram[i] + uint8_t(1)) & uint8_t(0xFF);
+      }
+      // force RAM testing
+      memory_ram[0x0508] = 0x00;
     }
     // reset CPU
     M7501::reset(cold_reset);

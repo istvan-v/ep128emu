@@ -41,6 +41,9 @@ namespace Plus4 {
       virtual void playSample(int16_t sampleValue);
       virtual void drawLine(const uint8_t *buf, size_t nBytes);
       virtual void verticalSync(bool newState_, unsigned int currentSlot_);
+      virtual bool systemCallback(uint8_t n);
+      virtual void breakPointCallback(bool isWrite,
+                                      uint16_t addr, uint8_t value);
     };
     // ----------------
     TED7360_                *ted;
@@ -146,12 +149,19 @@ namespace Plus4 {
     // Set breakpoint priority threshold (0 to 4); breakpoints with a
     // priority less than this value will not trigger a break.
     virtual void setBreakPointPriorityThreshold(int n);
+    // Set if the breakpoint callback should be called whenever the first byte
+    // of a CPU instruction is read from memory. Breakpoints are ignored in
+    // this mode.
+    virtual void setSingleStepMode(bool isEnabled);
     // Returns the segment at page 'n' (0 to 3).
     virtual uint8_t getMemoryPage(int n) const;
     // Read a byte from memory; bits 14 to 21 of 'addr' define the segment
     // number, while bits 0 to 13 are the offset (0 to 0x3FFF) within the
     // segment.
     virtual uint8_t readMemory(uint32_t addr) const;
+    // Returns read-only reference to a structure containing all CPU
+    // registers; see plus4/cpu.hpp for more information.
+    virtual const M7501Registers& getCPURegisters() const;
     // ------------------------------- FILE I/O -------------------------------
     // Save snapshot of virtual machine state, including all ROM and RAM
     // segments, as well as all hardware registers. Note that the clock

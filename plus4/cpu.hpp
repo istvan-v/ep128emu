@@ -21,84 +21,108 @@
 #define EP128EMU_PLUS4_CPU_HPP
 
 #include "ep128emu.hpp"
+#include "bplist.hpp"
 
 namespace Plus4 {
 
-  class M7501 {
+  class M7501Registers {
+   public:
+    uint16_t  reg_PC;
+    uint8_t   reg_SR;
+    uint8_t   reg_AC;
+    uint8_t   reg_XR;
+    uint8_t   reg_YR;
+    uint8_t   reg_SP;
+    M7501Registers()
+      : reg_PC(0x0000),
+        reg_SR(uint8_t(0x24)),
+        reg_AC(0x00),
+        reg_XR(0x00),
+        reg_YR(0x00),
+        reg_SP(uint8_t(0xFF))
+    {
+    }
+  };
+
+  class M7501 : protected M7501Registers {
    private:
     static const unsigned char  CPU_OP_RD_OPCODE            =  0;
     static const unsigned char  CPU_OP_RD_TMP               =  1;
-    static const unsigned char  CPU_OP_RD_L                 =  2;
-    static const unsigned char  CPU_OP_RD_H                 =  3;
-    static const unsigned char  CPU_OP_WAIT                 =  4;
-    static const unsigned char  CPU_OP_LD_TMP_MEM           =  5;
-    static const unsigned char  CPU_OP_LD_MEM_TMP           =  6;
-    static const unsigned char  CPU_OP_LD_H_MEM             =  7;
-    static const unsigned char  CPU_OP_PUSH_TMP             =  8;
-    static const unsigned char  CPU_OP_POP_TMP              =  9;
-    static const unsigned char  CPU_OP_PUSH_PCL             = 10;
-    static const unsigned char  CPU_OP_POP_PCL              = 11;
-    static const unsigned char  CPU_OP_PUSH_PCH             = 12;
-    static const unsigned char  CPU_OP_POP_PCH              = 13;
-    static const unsigned char  CPU_OP_LD_TMP_00            = 14;
-    static const unsigned char  CPU_OP_LD_TMP_FF            = 15;
-    static const unsigned char  CPU_OP_LD_HL_PC             = 16;
-    static const unsigned char  CPU_OP_LD_TMP_L             = 17;
-    static const unsigned char  CPU_OP_LD_TMP_H             = 18;
-    static const unsigned char  CPU_OP_LD_TMP_SR            = 19;
-    static const unsigned char  CPU_OP_LD_TMP_A             = 20;
-    static const unsigned char  CPU_OP_LD_TMP_X             = 21;
-    static const unsigned char  CPU_OP_LD_TMP_Y             = 22;
-    static const unsigned char  CPU_OP_LD_TMP_SP            = 23;
-    static const unsigned char  CPU_OP_LD_PC_HL             = 24;
-    static const unsigned char  CPU_OP_LD_L_TMP             = 25;
-    static const unsigned char  CPU_OP_LD_H_TMP             = 26;
-    static const unsigned char  CPU_OP_LD_SR_TMP            = 27;
-    static const unsigned char  CPU_OP_LD_A_TMP             = 28;
-    static const unsigned char  CPU_OP_LD_X_TMP             = 29;
-    static const unsigned char  CPU_OP_LD_Y_TMP             = 30;
-    static const unsigned char  CPU_OP_LD_SP_TMP            = 31;
-    static const unsigned char  CPU_OP_ADDR_ZEROPAGE        = 32;
-    static const unsigned char  CPU_OP_ADDR_X               = 33;
-    static const unsigned char  CPU_OP_ADDR_X_SLOW          = 34;
-    static const unsigned char  CPU_OP_ADDR_Y               = 35;
-    static const unsigned char  CPU_OP_ADDR_Y_SLOW          = 36;
-    static const unsigned char  CPU_OP_TEST_N               = 37;
-    static const unsigned char  CPU_OP_TEST_V               = 38;
-    static const unsigned char  CPU_OP_TEST_Z               = 39;
-    static const unsigned char  CPU_OP_TEST_C               = 40;
-    static const unsigned char  CPU_OP_SET_N                = 41;
-    static const unsigned char  CPU_OP_SET_V                = 42;
-    static const unsigned char  CPU_OP_SET_B                = 43;
-    static const unsigned char  CPU_OP_SET_D                = 44;
-    static const unsigned char  CPU_OP_SET_I                = 45;
-    static const unsigned char  CPU_OP_SET_Z                = 46;
-    static const unsigned char  CPU_OP_SET_C                = 47;
-    static const unsigned char  CPU_OP_SET_NZ               = 48;
-    static const unsigned char  CPU_OP_ADC                  = 49;
-    static const unsigned char  CPU_OP_AND                  = 50;
-    static const unsigned char  CPU_OP_ASL                  = 51;
-    static const unsigned char  CPU_OP_BIT                  = 52;
-    static const unsigned char  CPU_OP_BRANCH               = 53;
-    static const unsigned char  CPU_OP_BRK                  = 54;
-    static const unsigned char  CPU_OP_CMP                  = 55;
-    static const unsigned char  CPU_OP_CPX                  = 56;
-    static const unsigned char  CPU_OP_CPY                  = 57;
-    static const unsigned char  CPU_OP_DEC                  = 58;
-    static const unsigned char  CPU_OP_DEC_HL               = 59;
-    static const unsigned char  CPU_OP_EOR                  = 60;
-    static const unsigned char  CPU_OP_INC                  = 61;
-    static const unsigned char  CPU_OP_INC_L                = 62;
-    static const unsigned char  CPU_OP_INTERRUPT            = 63;
-    static const unsigned char  CPU_OP_JMP_RELATIVE         = 64;
-    static const unsigned char  CPU_OP_LSR                  = 65;
-    static const unsigned char  CPU_OP_ORA                  = 66;
-    static const unsigned char  CPU_OP_RESET                = 67;
-    static const unsigned char  CPU_OP_ROL                  = 68;
-    static const unsigned char  CPU_OP_ROR                  = 69;
-    static const unsigned char  CPU_OP_SAX                  = 70;
-    static const unsigned char  CPU_OP_SBC                  = 71;
-    static const unsigned char  CPU_OP_INVALID_OPCODE       = 72;
+    static const unsigned char  CPU_OP_RD_TMP_NODEBUG       =  2;
+    static const unsigned char  CPU_OP_RD_L                 =  3;
+    static const unsigned char  CPU_OP_RD_H                 =  4;
+    static const unsigned char  CPU_OP_WAIT                 =  5;
+    static const unsigned char  CPU_OP_LD_TMP_MEM           =  6;
+    static const unsigned char  CPU_OP_LD_TMP_MEM_NODEBUG   =  7;
+    static const unsigned char  CPU_OP_LD_MEM_TMP           =  8;
+    static const unsigned char  CPU_OP_LD_MEM_TMP_NODEBUG   =  9;
+    static const unsigned char  CPU_OP_LD_H_MEM             = 10;
+    static const unsigned char  CPU_OP_PUSH_TMP             = 11;
+    static const unsigned char  CPU_OP_POP_TMP              = 12;
+    static const unsigned char  CPU_OP_PUSH_PCL             = 13;
+    static const unsigned char  CPU_OP_POP_PCL              = 14;
+    static const unsigned char  CPU_OP_PUSH_PCH             = 15;
+    static const unsigned char  CPU_OP_POP_PCH              = 16;
+    static const unsigned char  CPU_OP_LD_TMP_00            = 17;
+    static const unsigned char  CPU_OP_LD_TMP_FF            = 18;
+    static const unsigned char  CPU_OP_LD_HL_PC             = 19;
+    static const unsigned char  CPU_OP_LD_TMP_L             = 20;
+    static const unsigned char  CPU_OP_LD_TMP_H             = 21;
+    static const unsigned char  CPU_OP_LD_TMP_SR            = 22;
+    static const unsigned char  CPU_OP_LD_TMP_A             = 23;
+    static const unsigned char  CPU_OP_LD_TMP_X             = 24;
+    static const unsigned char  CPU_OP_LD_TMP_Y             = 25;
+    static const unsigned char  CPU_OP_LD_TMP_SP            = 26;
+    static const unsigned char  CPU_OP_LD_PC_HL             = 27;
+    static const unsigned char  CPU_OP_LD_L_TMP             = 28;
+    static const unsigned char  CPU_OP_LD_H_TMP             = 29;
+    static const unsigned char  CPU_OP_LD_SR_TMP            = 30;
+    static const unsigned char  CPU_OP_LD_A_TMP             = 31;
+    static const unsigned char  CPU_OP_LD_X_TMP             = 32;
+    static const unsigned char  CPU_OP_LD_Y_TMP             = 33;
+    static const unsigned char  CPU_OP_LD_SP_TMP            = 34;
+    static const unsigned char  CPU_OP_ADDR_ZEROPAGE        = 35;
+    static const unsigned char  CPU_OP_ADDR_X               = 36;
+    static const unsigned char  CPU_OP_ADDR_X_SLOW          = 37;
+    static const unsigned char  CPU_OP_ADDR_Y               = 38;
+    static const unsigned char  CPU_OP_ADDR_Y_SLOW          = 39;
+    static const unsigned char  CPU_OP_TEST_N               = 40;
+    static const unsigned char  CPU_OP_TEST_V               = 41;
+    static const unsigned char  CPU_OP_TEST_Z               = 42;
+    static const unsigned char  CPU_OP_TEST_C               = 43;
+    static const unsigned char  CPU_OP_SET_N                = 44;
+    static const unsigned char  CPU_OP_SET_V                = 45;
+    static const unsigned char  CPU_OP_SET_B                = 46;
+    static const unsigned char  CPU_OP_SET_D                = 47;
+    static const unsigned char  CPU_OP_SET_I                = 48;
+    static const unsigned char  CPU_OP_SET_Z                = 49;
+    static const unsigned char  CPU_OP_SET_C                = 50;
+    static const unsigned char  CPU_OP_SET_NZ               = 51;
+    static const unsigned char  CPU_OP_ADC                  = 52;
+    static const unsigned char  CPU_OP_AND                  = 53;
+    static const unsigned char  CPU_OP_ASL                  = 54;
+    static const unsigned char  CPU_OP_BIT                  = 55;
+    static const unsigned char  CPU_OP_BRANCH               = 56;
+    static const unsigned char  CPU_OP_BRK                  = 57;
+    static const unsigned char  CPU_OP_CMP                  = 58;
+    static const unsigned char  CPU_OP_CPX                  = 59;
+    static const unsigned char  CPU_OP_CPY                  = 60;
+    static const unsigned char  CPU_OP_DEC                  = 61;
+    static const unsigned char  CPU_OP_DEC_HL               = 62;
+    static const unsigned char  CPU_OP_EOR                  = 63;
+    static const unsigned char  CPU_OP_INC                  = 64;
+    static const unsigned char  CPU_OP_INC_L                = 65;
+    static const unsigned char  CPU_OP_INTERRUPT            = 66;
+    static const unsigned char  CPU_OP_JMP_RELATIVE         = 67;
+    static const unsigned char  CPU_OP_LSR                  = 68;
+    static const unsigned char  CPU_OP_ORA                  = 69;
+    static const unsigned char  CPU_OP_RESET                = 70;
+    static const unsigned char  CPU_OP_ROL                  = 71;
+    static const unsigned char  CPU_OP_ROR                  = 72;
+    static const unsigned char  CPU_OP_SAX                  = 73;
+    static const unsigned char  CPU_OP_SBC                  = 74;
+    static const unsigned char  CPU_OP_SYS                  = 75;
+    static const unsigned char  CPU_OP_INVALID_OPCODE       = 76;
     static const unsigned char  opcodeTable[4128];
     const unsigned char *currentOpcode;
     unsigned int  interruptDelayRegister;
@@ -117,13 +141,14 @@ namespace Plus4 {
     MemoryReadFunc  *memoryReadCallbacks;
     MemoryWriteFunc *memoryWriteCallbacks;
     void        *memoryCallbackUserData;
+    uint8_t     *breakPointTable;
+    size_t      breakPointCnt;
+    bool        singleStepModeEnabled;
+    bool        haveBreakPoints;
+    uint8_t     breakPointPriorityThreshold;
+    void checkReadBreakPoint(uint16_t addr, uint8_t value);
+    void checkWriteBreakPoint(uint16_t addr, uint8_t value);
    protected:
-    uint16_t    reg_PC;
-    uint8_t     reg_SR;
-    uint8_t     reg_AC;
-    uint8_t     reg_XR;
-    uint8_t     reg_YR;
-    uint8_t     reg_SP;
     inline uint8_t readMemory(uint16_t addr)
     {
       return (memoryReadCallbacks[addr](memoryCallbackUserData, addr));
@@ -157,11 +182,7 @@ namespace Plus4 {
     {
       interruptDelayRegister |= 4U;     // delay interrupt requests by 2 cycles
     }
-    inline void reset(bool isColdReset = false)
-    {
-      (void) isColdReset;
-      resetFlag = true;
-    }
+    virtual void reset(bool isColdReset = false);
     inline void setIsCPURunning(bool n)
     {
       if (n) {
@@ -171,6 +192,23 @@ namespace Plus4 {
       else
         haltRequestFlag = true;
     }
+    inline const M7501Registers& getRegisters() const
+    {
+      return *(static_cast<const M7501Registers *>(this));
+    }
+    void setBreakPoint(uint16_t addr, int priority, bool r, bool w);
+    void clearBreakPoints();
+    void setBreakPointPriorityThreshold(int n);
+    int getBreakPointPriorityThreshold() const;
+    Ep128Emu::BreakPointList getBreakPointList();
+    void setSingleStepMode(bool isEnabled);
+    void saveState(Ep128Emu::File::Buffer&);
+    void saveState(Ep128Emu::File&);
+    void loadState(Ep128Emu::File::Buffer&);
+    void registerChunkType(Ep128Emu::File&);
+   protected:
+    virtual bool systemCallback(uint8_t n);
+    virtual void breakPointCallback(bool isWrite, uint16_t addr, uint8_t value);
   };
 
 }       // namespace Plus4

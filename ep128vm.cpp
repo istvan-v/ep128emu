@@ -949,6 +949,7 @@ namespace Ep128 {
     isRemote1On = false;
     isRemote2On = false;
     setTapeMotorState(false);
+    dave.setTapeInput(0, 0);
     stopDemo();
     for (int i = 0; i < 128; i++)
       dave.setKeyboardState(i, 0);
@@ -1102,6 +1103,7 @@ namespace Ep128 {
     isRemote1On = false;
     isRemote2On = false;
     setTapeMotorState(false);
+    dave.setTapeInput(0, 0);
     stopDemo();
     for (int i = 0; i < 128; i++)
       dave.setKeyboardState(i, 0);
@@ -1195,11 +1197,14 @@ namespace Ep128 {
 
     try {
       p1 = new ChunkType_Ep128VMConfig(*this);
-      p2 = new ChunkType_Ep128VMSnapshot(*this);
-      p3 = new ChunkType_DemoStream(*this);
       f.registerChunkType(p1);
+      p1 = (ChunkType_Ep128VMConfig *) 0;
+      p2 = new ChunkType_Ep128VMSnapshot(*this);
       f.registerChunkType(p2);
+      p2 = (ChunkType_Ep128VMSnapshot *) 0;
+      p3 = new ChunkType_DemoStream(*this);
       f.registerChunkType(p3);
+      p3 = (ChunkType_DemoStream *) 0;
     }
     catch (...) {
       if (p1)

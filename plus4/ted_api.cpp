@@ -105,23 +105,240 @@ namespace Plus4 {
 
   // --------------------------------------------------------------------------
 
+  class ChunkType_TED7360Snapshot : public Ep128Emu::File::ChunkTypeHandler {
+   private:
+    TED7360&  ref;
+   public:
+    ChunkType_TED7360Snapshot(TED7360& ref_)
+      : Ep128Emu::File::ChunkTypeHandler(),
+        ref(ref_)
+    {
+    }
+    virtual ~ChunkType_TED7360Snapshot()
+    {
+    }
+    virtual Ep128Emu::File::ChunkType getChunkType() const
+    {
+      return Ep128Emu::File::EP128EMU_CHUNKTYPE_TED_STATE;
+    }
+    virtual void processChunk(Ep128Emu::File::Buffer& buf)
+    {
+      ref.loadState(buf);
+    }
+  };
+
+  class ChunkType_Plus4Program : public Ep128Emu::File::ChunkTypeHandler {
+   private:
+    TED7360&  ref;
+   public:
+    ChunkType_Plus4Program(TED7360& ref_)
+      : Ep128Emu::File::ChunkTypeHandler(),
+        ref(ref_)
+    {
+    }
+    virtual ~ChunkType_Plus4Program()
+    {
+    }
+    virtual Ep128Emu::File::ChunkType getChunkType() const
+    {
+      return Ep128Emu::File::EP128EMU_CHUNKTYPE_PLUS4_PRG;
+    }
+    virtual void processChunk(Ep128Emu::File::Buffer& buf)
+    {
+      ref.loadProgram(buf);
+    }
+  };
+
   void TED7360::saveState(Ep128Emu::File::Buffer& buf)
   {
-    // TODO: implement this
-    (void) buf;
+    buf.setPosition(0);
+    buf.writeUInt32(0x01000000);        // version number
+    uint8_t   romBitmap = 0;
+    for (int i = 0; i < 8; i++) {
+      // find non-empty ROM segments
+      romBitmap = romBitmap >> 1;
+      uint8_t *bufp = &(memory_rom[i >> 1][(i & 1) << 14]);
+      for (int j = 1; j < 16384; j++) {
+        if (bufp[j] != bufp[0]) {
+          romBitmap = romBitmap | uint8_t(0x80);
+          break;
+        }
+      }
+    }
+    buf.writeByte(romBitmap);
+    buf.writeByte(4);           // for now, RAM size is fixed to 64K
+    for (uint32_t i = 0x003F0000; i < 0x00400000; i++)
+      buf.writeByte(readMemoryRaw(i));
+    for (int i = 0; i < 8; i++) {
+      uint8_t *bufp = &(memory_rom[i >> 1][(i & 1) << 14]);
+      if ((int(romBitmap) & (1 << i)) != 0) {
+        for (int j = 0; j < 16384; j++)
+          buf.writeByte(*(bufp++));
+      }
+    }
+    buf.writeBoolean(rom_enabled);
+    buf.writeByte(rom_bank_low);
+    buf.writeByte(rom_bank_high);
+    buf.writeUInt32(uint32_t(cycle_count));
+    buf.writeByte(video_column);
+    buf.writeUInt32(uint32_t(video_line));
+    buf.writeByte(uint8_t(character_line));
+    buf.writeUInt32(uint32_t(character_position));
+    buf.writeUInt32(uint32_t(character_position_reload));
+    buf.writeByte(uint8_t(character_column));
+    buf.writeUInt32(uint32_t(dma_position));
+    buf.writeBoolean(flash_state);
+    buf.writeBoolean(renderWindow);
+    buf.writeBoolean(dmaWindow);
+    buf.writeBoolean(bitmapFetchWindow);
+    buf.writeBoolean(displayWindow);
+    buf.writeBoolean(renderingDisplay);
+    buf.writeBoolean(displayActive);
+    buf.writeBoolean(horizontalBlanking);
+    buf.writeBoolean(verticalBlanking);
+    buf.writeBoolean(singleClockMode);
+    buf.writeBoolean(timer1_run);
+    buf.writeBoolean(timer2_run);
+    buf.writeBoolean(timer3_run);
+    buf.writeUInt32(uint32_t(timer1_state));
+    buf.writeUInt32(uint32_t(timer1_reload_value));
+    buf.writeUInt32(uint32_t(timer2_state));
+    buf.writeUInt32(uint32_t(timer3_state));
+    buf.writeUInt32(uint32_t(sound_channel_1_cnt));
+    buf.writeUInt32(uint32_t(sound_channel_2_cnt));
+    buf.writeByte(sound_channel_1_state);
+    buf.writeByte(sound_channel_2_state);
+    buf.writeByte(sound_channel_2_noise_state);
+    buf.writeByte(sound_channel_2_noise_output);
+    buf.writeByte(currentCharacter);
+    buf.writeByte(currentAttribute);
+    buf.writeByte(currentBitmap);
+    buf.writeByte(pixelBufReadPos);
+    buf.writeByte(pixelBufWritePos);
+    buf.writeByte(attributeDMACnt);
+    buf.writeByte(characterDMACnt);
+    buf.writeByte(savedCharacterLine);
+    buf.writeBoolean(prvVideoInterruptState);
+    buf.writeByte(dataBusState);
+    buf.writeUInt32(uint32_t(keyboard_row_select_mask));
+    for (int i = 0; i < 16; i++)
+      buf.writeByte(keyboard_matrix[i]);
+    buf.writeByte(user_port_state);
   }
 
   void TED7360::saveState(Ep128Emu::File& f)
   {
-    Ep128Emu::File::Buffer  buf;
-    this->saveState(buf);
-    f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_TED_STATE, buf);
+    {
+      Ep128Emu::File::Buffer  buf;
+      this->saveState(buf);
+      f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_TED_STATE, buf);
+    }
+    M7501::saveState(f);
   }
 
   void TED7360::loadState(Ep128Emu::File::Buffer& buf)
   {
-    // TODO: implement this
-    (void) buf;
+    buf.setPosition(0);
+    // check version number
+    unsigned int  version = buf.readUInt32();
+    if (version != 0x01000000) {
+      buf.setPosition(buf.getDataSize());
+      throw Ep128Emu::Exception("incompatible Plus/4 snapshot format");
+    }
+    try {
+      // load saved state
+      uint8_t   romBitmap = buf.readByte();
+      uint8_t   ramSegments = buf.readByte();
+      if (ramSegments != 4)
+        throw Ep128Emu::Exception("incompatible Plus/4 snapshot data");
+      for (int i = 0; i < 65536; i++)
+        memory_ram[i] = buf.readByte();
+      for (int i = 0; i < 8; i++) {
+        uint8_t *bufp = &(memory_rom[i >> 1][(i & 1) << 14]);
+        if ((int(romBitmap) & (1 << i)) != 0) {
+          for (int j = 0; j < 16384; j++)
+            *(bufp++) = buf.readByte();
+        }
+        else {
+          for (int j = 0; j < 16384; j++)
+            *(bufp++) = uint8_t(0xFF);
+        }
+      }
+      // update internal registers according to the new RAM image loaded
+      writeMemory(0x0000, memory_ram[0x0000]);
+      writeMemory(0x0001, memory_ram[0x0001]);
+      writeMemory(0xFF06, memory_ram[0xFF06]);
+      writeMemory(0xFF07, memory_ram[0xFF07]);
+      for (uint16_t i = 0xFF0A; i < 0xFF11; i++)
+        writeMemory(i, memory_ram[i]);
+      for (uint16_t i = 0xFF12; i < 0xFF1A; i++)
+        writeMemory(i, memory_ram[i]);
+      // load remaining internal registers from snapshot data
+      rom_enabled = buf.readBoolean();
+      rom_bank_low = buf.readByte() & 3;
+      rom_bank_high = buf.readByte() & 3;
+      cycle_count = buf.readUInt32();
+      video_column = buf.readByte() & 0x7F;
+      cycle_count = (cycle_count & 0xFFFFFFFEUL)
+                    | (unsigned long) (video_column & uint8_t(0x01));
+      video_line = int(buf.readUInt32() & 0x01FF);
+      character_line = buf.readByte() & 7;
+      character_position = int(buf.readUInt32() & 0x03FF);
+      character_position_reload = int(buf.readUInt32() & 0x03FF);
+      character_column = buf.readByte();
+      character_column = (character_column < 39 ? character_column : 39);
+      dma_position = int(buf.readUInt32() & 0x03FF);
+      flash_state = buf.readBoolean();
+      renderWindow = buf.readBoolean();
+      dmaWindow = buf.readBoolean();
+      bitmapFetchWindow = buf.readBoolean();
+      displayWindow = buf.readBoolean();
+      renderingDisplay = buf.readBoolean();
+      displayActive = buf.readBoolean();
+      horizontalBlanking = buf.readBoolean();
+      verticalBlanking = buf.readBoolean();
+      singleClockMode = buf.readBoolean();
+      timer1_run = buf.readBoolean();
+      timer2_run = buf.readBoolean();
+      timer3_run = buf.readBoolean();
+      timer1_state = int(buf.readUInt32() & 0xFFFF);
+      timer1_reload_value = int(buf.readUInt32() & 0xFFFF);
+      timer2_state = int(buf.readUInt32() & 0xFFFF);
+      timer3_state = int(buf.readUInt32() & 0xFFFF);
+      sound_channel_1_cnt = int(buf.readUInt32() & 0x03FF);
+      sound_channel_2_cnt = int(buf.readUInt32() & 0x03FF);
+      sound_channel_1_state = uint8_t(buf.readByte() == uint8_t(0) ? 0 : 1);
+      sound_channel_2_state = uint8_t(buf.readByte() == uint8_t(0) ? 0 : 1);
+      sound_channel_2_noise_state = buf.readByte();
+      sound_channel_2_noise_output =
+          uint8_t(buf.readByte() == uint8_t(0) ? 0 : 1);
+      currentCharacter = buf.readByte();
+      currentAttribute = buf.readByte();
+      currentBitmap = buf.readByte();
+      pixelBufReadPos = buf.readByte() & 0x3C;
+      pixelBufWritePos = buf.readByte() & 0x38;
+      attributeDMACnt = buf.readByte();
+      characterDMACnt = buf.readByte();
+      savedCharacterLine = buf.readByte() & 7;
+      prvVideoInterruptState = buf.readBoolean();
+      dataBusState = buf.readByte();
+      keyboard_row_select_mask = int(buf.readUInt32() & 0xFFFF);
+      for (int i = 0; i < 16; i++)
+        keyboard_matrix[i] = buf.readByte();
+      user_port_state = buf.readByte();
+      selectRenderer();
+      if (buf.getPosition() != buf.getDataSize())
+        throw Ep128Emu::Exception("trailing garbage at end of "
+                                  "Plus/4 snapshot data");
+    }
+    catch (...) {
+      try {
+        this->reset(true);
+      }
+      catch (...) {
+      }
+      throw;
+    }
   }
 
   void TED7360::saveProgram(Ep128Emu::File::Buffer& buf)
@@ -268,8 +485,25 @@ namespace Plus4 {
 
   void TED7360::registerChunkTypes(Ep128Emu::File& f)
   {
-    // TODO: implement this
-    (void) f;
+    ChunkType_TED7360Snapshot *p1 = (ChunkType_TED7360Snapshot *) 0;
+    ChunkType_Plus4Program    *p2 = (ChunkType_Plus4Program *) 0;
+
+    try {
+      p1 = new ChunkType_TED7360Snapshot(*this);
+      f.registerChunkType(p1);
+      p1 = (ChunkType_TED7360Snapshot *) 0;
+      p2 = new ChunkType_Plus4Program(*this);
+      f.registerChunkType(p2);
+      p2 = (ChunkType_Plus4Program *) 0;
+    }
+    catch (...) {
+      if (p2)
+        delete p2;
+      if (p1)
+        delete p1;
+      throw;
+    }
+    M7501::registerChunkType(f);
   }
 
 }       // namespace Plus4

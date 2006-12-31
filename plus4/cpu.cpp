@@ -38,7 +38,8 @@ static void dummyMemoryWriteCallback(void *userData,
 namespace Plus4 {
 
   M7501::M7501()
-    : currentOpcode(&(opcodeTable[0x0FFF])),
+    : M7501Registers(),
+      currentOpcode(&(opcodeTable[0x0FFF])),
       interruptDelayRegister(0U),
       interruptFlag(false),
       resetFlag(true),
@@ -50,12 +51,11 @@ namespace Plus4 {
       memoryReadCallbacks((MemoryReadFunc *) 0),
       memoryWriteCallbacks((MemoryWriteFunc *) 0),
       memoryCallbackUserData((void *) 0),
-      reg_PC(0),
-      reg_SR(uint8_t(0x24)),
-      reg_AC(0),
-      reg_XR(0),
-      reg_YR(0),
-      reg_SP(uint8_t(0xFF))
+      breakPointTable((uint8_t *) 0),
+      breakPointCnt(0),
+      singleStepModeEnabled(false),
+      haveBreakPoints(false),
+      breakPointPriorityThreshold(0)
   {
     try {
       memoryReadCallbacks = new MemoryReadFunc[65536];
@@ -76,6 +76,8 @@ namespace Plus4 {
 
   M7501::~M7501()
   {
+    if (breakPointTable)
+      delete[] breakPointTable;
     if (memoryWriteCallbacks)
       delete[] memoryWriteCallbacks;
     if (memoryReadCallbacks)
@@ -96,26 +98,40 @@ namespace Plus4 {
         unsigned char n = *(currentOpcode++);
         switch (n) {
         case CPU_OP_RD_OPCODE:
-          {
-            size_t  opNum = 0;
-            if (resetFlag)
-              opNum = 0x0101;
-            else if (interruptFlag)
-              opNum = 0x0100;
-            else {
-              doneCycle = true;
-              if (haltRequestFlag) {
-                haltFlag = true;
-                currentOpcode--;
-                break;
-              }
-              opNum = size_t(readMemory(reg_PC));
-              reg_PC = (reg_PC + 1) & 0xFFFF;
+          if (!(interruptFlag | resetFlag)) {
+            doneCycle = true;
+            if (haltRequestFlag) {
+              haltFlag = true;
+              currentOpcode--;
+              break;
             }
-            currentOpcode = &(opcodeTable[opNum << 4]);
+            uint8_t opNum = readMemory(reg_PC);
+            if (singleStepModeEnabled)
+              breakPointCallback(false, reg_PC, opNum);
+            else if (haveBreakPoints)
+              checkReadBreakPoint(reg_PC, opNum);
+            reg_PC = (reg_PC + 1) & 0xFFFF;
+            currentOpcode = &(opcodeTable[size_t(opNum) << 4]);
           }
+          else if (resetFlag)
+            currentOpcode = &(opcodeTable[size_t(0x101) << 4]);
+          else
+            currentOpcode = &(opcodeTable[size_t(0x100) << 4]);
           break;
         case CPU_OP_RD_TMP:
+          doneCycle = true;
+          if (!haltRequestFlag) {
+            reg_TMP = readMemory(reg_PC);
+            if (haveBreakPoints)
+              checkReadBreakPoint(reg_PC, reg_TMP);
+            reg_PC = (reg_PC + 1) & 0xFFFF;
+          }
+          else {
+            haltFlag = true;
+            currentOpcode--;
+          }
+          break;
+        case CPU_OP_RD_TMP_NODEBUG:
           doneCycle = true;
           if (!haltRequestFlag) {
             reg_TMP = readMemory(reg_PC);
@@ -130,6 +146,8 @@ namespace Plus4 {
           doneCycle = true;
           if (!haltRequestFlag) {
             reg_L = readMemory(reg_PC);
+            if (haveBreakPoints)
+              checkReadBreakPoint(reg_PC, reg_L);
             reg_PC = (reg_PC + 1) & 0xFFFF;
           }
           else {
@@ -141,6 +159,8 @@ namespace Plus4 {
           doneCycle = true;
           if (!haltRequestFlag) {
             reg_H = readMemory(reg_PC);
+            if (haveBreakPoints)
+              checkReadBreakPoint(reg_PC, reg_H);
             reg_PC = (reg_PC + 1) & 0xFFFF;
           }
           else {
@@ -157,6 +177,19 @@ namespace Plus4 {
           break;
         case CPU_OP_LD_TMP_MEM:
           doneCycle = true;
+          if (!haltRequestFlag) {
+            uint16_t  addr = uint16_t(reg_L) | (uint16_t(reg_H) << 8);
+            reg_TMP = readMemory(addr);
+            if (haveBreakPoints)
+              checkReadBreakPoint(addr, reg_TMP);
+          }
+          else {
+            haltFlag = true;
+            currentOpcode--;
+          }
+          break;
+        case CPU_OP_LD_TMP_MEM_NODEBUG:
+          doneCycle = true;
           if (!haltRequestFlag)
             reg_TMP = readMemory(uint16_t(reg_L) | (uint16_t(reg_H) << 8));
           else {
@@ -165,24 +198,39 @@ namespace Plus4 {
           }
           break;
         case CPU_OP_LD_MEM_TMP:
+          {
+            uint16_t  addr = uint16_t(reg_L) | (uint16_t(reg_H) << 8);
+            if (haveBreakPoints)
+              checkWriteBreakPoint(addr, reg_TMP);
+            writeMemory(addr, reg_TMP);
+            doneCycle = true;
+          }
+          break;
+        case CPU_OP_LD_MEM_TMP_NODEBUG:
           writeMemory(uint16_t(reg_L) | (uint16_t(reg_H) << 8), reg_TMP);
           doneCycle = true;
           break;
         case CPU_OP_LD_H_MEM:
           doneCycle = true;
-          if (!haltRequestFlag)
-            reg_H = readMemory(uint16_t(reg_L) | (uint16_t(reg_H) << 8));
+          if (!haltRequestFlag) {
+            uint16_t  addr = uint16_t(reg_L) | (uint16_t(reg_H) << 8);
+            reg_H = readMemory(addr);
+            if (haveBreakPoints)
+              checkReadBreakPoint(addr, reg_H);
+          }
           else {
             haltFlag = true;
             currentOpcode--;
           }
           break;
         case CPU_OP_PUSH_TMP:
+          // FIXME: should check breakpoints ?
           writeMemory(uint16_t(0x0100) | uint16_t(reg_SP), reg_TMP);
           reg_SP = (reg_SP - uint8_t(1)) & uint8_t(0xFF);
           doneCycle = true;
           break;
         case CPU_OP_POP_TMP:
+          // FIXME: should check breakpoints ?
           doneCycle = true;
           if (!haltRequestFlag) {
             reg_SP = (reg_SP + uint8_t(1)) & uint8_t(0xFF);
@@ -194,12 +242,14 @@ namespace Plus4 {
           }
           break;
         case CPU_OP_PUSH_PCL:
+          // FIXME: should check breakpoints ?
           writeMemory(uint16_t(0x0100) | uint16_t(reg_SP),
                       uint8_t(reg_PC) & uint8_t(0xFF));
           reg_SP = (reg_SP - uint8_t(1)) & uint8_t(0xFF);
           doneCycle = true;
           break;
         case CPU_OP_POP_PCL:
+          // FIXME: should check breakpoints ?
           doneCycle = true;
           if (!haltRequestFlag) {
             reg_SP = (reg_SP + uint8_t(1)) & uint8_t(0xFF);
@@ -213,12 +263,14 @@ namespace Plus4 {
           }
           break;
         case CPU_OP_PUSH_PCH:
+          // FIXME: should check breakpoints ?
           writeMemory(uint16_t(0x0100) | uint16_t(reg_SP),
                       uint8_t(reg_PC >> 8) & uint8_t(0xFF));
           reg_SP = (reg_SP - uint8_t(1)) & uint8_t(0xFF);
           doneCycle = true;
           break;
         case CPU_OP_POP_PCH:
+          // FIXME: should check breakpoints ?
           doneCycle = true;
           if (!haltRequestFlag) {
             reg_SP = (reg_SP + uint8_t(1)) & uint8_t(0xFF);
@@ -622,11 +674,34 @@ namespace Plus4 {
           reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
                              uint8_t(0x02) : uint8_t(0x00));
           break;
+        case CPU_OP_SYS:
+          doneCycle = true;
+          if (!haltRequestFlag) {
+            uint32_t  nn = uint32_t(currentOpcode - &(opcodeTable[0])) >> 4;
+            uint16_t  addr = (reg_PC + 0xFFFC) & 0xFFFF;
+            nn = (nn << 8) | uint32_t(reg_TMP);
+            nn = (nn << 8) | uint32_t(addr >> 8);
+            nn = (nn << 8) | uint32_t(addr & 0xFF);
+            uint64_t  tmp = nn * uint64_t(0xC2B0C3CCU);
+            nn = (uint32_t(tmp) ^ uint32_t(tmp >> 32)) & 0xFFFFU;
+            nn ^= uint32_t(reg_L);
+            nn ^= (uint32_t(reg_H) << 8);
+            if (!nn) {
+              if (!this->systemCallback(reg_TMP))
+                nn++;
+            }
+            if (nn)
+              this->reset();
+          }
+          else {
+            haltFlag = true;
+            currentOpcode--;
+          }
+          break;
         case CPU_OP_INVALID_OPCODE:
           doneCycle = true;
           if (!haltRequestFlag) {
-            reg_L = uint8_t(0x3E);
-            reg_H = uint8_t(0xFF);
+            this->reset();
           }
           else {
             haltFlag = true;
@@ -636,6 +711,229 @@ namespace Plus4 {
         }
       } while (!doneCycle);
     } while (--nCycles > 0);
+  }
+
+  void M7501::reset(bool isColdReset)
+  {
+    resetFlag = true;
+    if (isColdReset) {
+      reg_SR = uint8_t(0x24);
+      reg_SP = uint8_t(0xFF);
+      currentOpcode = &(opcodeTable[0x0FFF]);
+      interruptDelayRegister = 0U;
+      interruptFlag = false;
+      haltRequestFlag = false;
+      haltFlag = false;
+    }
+  }
+
+  bool M7501::systemCallback(uint8_t n)
+  {
+    (void) n;
+    return false;
+  }
+
+  // --------------------------------------------------------------------------
+
+  void M7501::checkReadBreakPoint(uint16_t addr, uint8_t value)
+  {
+    if (!singleStepModeEnabled) {
+      uint8_t *tbl = breakPointTable;
+      if (tbl[addr] >= breakPointPriorityThreshold && (tbl[addr] & 1) != 0)
+        breakPointCallback(false, addr, value);
+    }
+  }
+
+  void M7501::checkWriteBreakPoint(uint16_t addr, uint8_t value)
+  {
+    if (!singleStepModeEnabled) {
+      uint8_t *tbl = breakPointTable;
+      if (tbl[addr] >= breakPointPriorityThreshold && (tbl[addr] & 2) != 0)
+        breakPointCallback(true, addr, value);
+    }
+  }
+
+  void M7501::setBreakPoint(uint16_t addr, int priority, bool r, bool w)
+  {
+    uint8_t mode = (r ? 1 : 0) + (w ? 2 : 0);
+    if (mode) {
+      // create new breakpoint, or change existing one
+      mode += uint8_t((priority > 0 ? (priority < 3 ? priority : 3) : 0) << 2);
+      if (!breakPointTable) {
+        breakPointTable = new uint8_t[65536];
+        for (int i = 0; i < 65536; i++)
+          breakPointTable[i] = 0;
+      }
+      haveBreakPoints = true;
+      uint8_t&  bp = breakPointTable[addr];
+      if (!bp)
+        breakPointCnt++;
+      if (bp > mode)
+        mode = (bp & 12) + (mode & 3);
+      mode |= (bp & 3);
+      bp = mode;
+    }
+    else if (breakPointTable) {
+      if (breakPointTable[addr]) {
+        // remove a previously existing breakpoint
+        breakPointCnt--;
+        if (!breakPointCnt)
+          haveBreakPoints = false;
+      }
+    }
+  }
+
+  void M7501::clearBreakPoints()
+  {
+    for (unsigned int addr = 0; addr < 65536; addr++)
+      setBreakPoint(uint16_t(addr), 0, false, false);
+  }
+
+  void M7501::setBreakPointPriorityThreshold(int n)
+  {
+    breakPointPriorityThreshold = uint8_t((n > 0 ? (n < 4 ? n : 4) : 0) << 2);
+  }
+
+  int M7501::getBreakPointPriorityThreshold() const
+  {
+    return int(breakPointPriorityThreshold >> 2);
+  }
+
+  Ep128Emu::BreakPointList M7501::getBreakPointList()
+  {
+    Ep128Emu::BreakPointList  bplst;
+    if (breakPointTable) {
+      for (size_t i = 0; i < 65536; i++) {
+        uint8_t bp = breakPointTable[i];
+        if (bp)
+          bplst.addMemoryBreakPoint(uint16_t(i),
+                                    !!(bp & 1), !!(bp & 2), bp >> 2);
+      }
+    }
+    return bplst;
+  }
+
+  void M7501::setSingleStepMode(bool isEnabled)
+  {
+    singleStepModeEnabled = isEnabled;
+  }
+
+  void M7501::breakPointCallback(bool isWrite, uint16_t addr, uint8_t value)
+  {
+    (void) isWrite;
+    (void) addr;
+    (void) value;
+  }
+
+  // --------------------------------------------------------------------------
+
+  class ChunkType_M7501Snapshot : public Ep128Emu::File::ChunkTypeHandler {
+   private:
+    M7501&  ref;
+   public:
+    ChunkType_M7501Snapshot(M7501& ref_)
+      : Ep128Emu::File::ChunkTypeHandler(),
+        ref(ref_)
+    {
+    }
+    virtual ~ChunkType_M7501Snapshot()
+    {
+    }
+    virtual Ep128Emu::File::ChunkType getChunkType() const
+    {
+      return Ep128Emu::File::EP128EMU_CHUNKTYPE_M7501_STATE;
+    }
+    virtual void processChunk(Ep128Emu::File::Buffer& buf)
+    {
+      ref.loadState(buf);
+    }
+  };
+
+  void M7501::saveState(Ep128Emu::File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    buf.writeUInt32(0x01000000);        // version number
+    buf.writeByte(uint8_t(reg_PC) & 0xFF);
+    buf.writeByte(uint8_t(reg_PC >> 8));
+    buf.writeByte(reg_SR);
+    buf.writeByte(reg_AC);
+    buf.writeByte(reg_XR);
+    buf.writeByte(reg_YR);
+    buf.writeByte(reg_SP);
+    buf.writeByte(reg_TMP);
+    buf.writeByte(reg_L);
+    buf.writeByte(reg_H);
+    buf.writeUInt32(uint32_t(currentOpcode - &(opcodeTable[0])));
+    buf.writeUInt32(interruptDelayRegister);
+    buf.writeBoolean(interruptFlag);
+    buf.writeBoolean(resetFlag);
+    buf.writeBoolean(haltRequestFlag);
+    buf.writeBoolean(haltFlag);
+  }
+
+  void M7501::saveState(Ep128Emu::File& f)
+  {
+    Ep128Emu::File::Buffer  buf;
+    this->saveState(buf);
+    f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_M7501_STATE, buf);
+  }
+
+  void M7501::loadState(Ep128Emu::File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    // check version number
+    unsigned int  version = buf.readUInt32();
+    if (version != 0x01000000) {
+      buf.setPosition(buf.getDataSize());
+      throw Ep128Emu::Exception("incompatible M7501 snapshot format");
+    }
+    try {
+      // load saved state
+      reg_PC = (reg_PC & uint16_t(0xFF00)) | uint16_t(buf.readByte());
+      reg_PC = (reg_PC & uint16_t(0x00FF)) | (uint16_t(buf.readByte()) << 8);
+      reg_SR = buf.readByte();
+      reg_AC = buf.readByte();
+      reg_XR = buf.readByte();
+      reg_YR = buf.readByte();
+      reg_SP = buf.readByte();
+      reg_TMP = buf.readByte();
+      reg_L = buf.readByte();
+      reg_H = buf.readByte();
+      uint32_t  currentOpcodeIndex = buf.readUInt32();
+      interruptDelayRegister = buf.readUInt32();
+      interruptFlag = buf.readBoolean();
+      resetFlag = buf.readBoolean();
+      haltRequestFlag = buf.readBoolean();
+      haltFlag = buf.readBoolean();
+      if (currentOpcodeIndex < 4128U)
+        currentOpcode = &(opcodeTable[currentOpcodeIndex]);
+      else
+        this->reset(true);
+      if (buf.getPosition() != buf.getDataSize())
+        throw Ep128Emu::Exception("trailing garbage at end of "
+                                  "M7501 snapshot data");
+    }
+    catch (...) {
+      try {
+        this->reset(true);
+      }
+      catch (...) {
+      }
+      throw;
+    }
+  }
+
+  void M7501::registerChunkType(Ep128Emu::File& f)
+  {
+    ChunkType_M7501Snapshot *p;
+    p = new ChunkType_M7501Snapshot(*this);
+    try {
+      f.registerChunkType(p);
+    }
+    catch (...) {
+      delete p;
+      throw;
+    }
   }
 
 }       // namespace Plus4

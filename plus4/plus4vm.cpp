@@ -85,6 +85,34 @@ namespace Plus4 {
       vm.display.vsyncStateChange(newState_, currentSlot_);
   }
 
+  bool Plus4VM::TED7360_::systemCallback(uint8_t n)
+  {
+    switch (n) {
+    case 0x01:                          // load file
+      {
+        // TODO: implement this
+        std::cerr << "system call: load" << std::endl;
+        return true;
+      }
+      break;
+    case 0x02:                          // save file
+      {
+        // TODO: implement this
+        std::cerr << "system call: save" << std::endl;
+        return true;
+      }
+      break;
+    }
+    return false;
+  }
+
+  void Plus4VM::TED7360_::breakPointCallback(bool isWrite,
+                                             uint16_t addr, uint8_t value)
+  {
+    vm.breakPointCallback(vm.breakPointCallbackUserData,
+                          false, isWrite, addr, value);
+  }
+
   // --------------------------------------------------------------------------
 
   void Plus4VM::stopDemoPlayback()
@@ -93,6 +121,8 @@ namespace Plus4 {
       isPlayingDemo = false;
       demoTimeCnt = 0U;
       demoBuffer.clear();
+      // tape button state sensing is disabled while recording or playing demo
+      ted->setTapeButtonState(!isRecordingDemo && getTapeButtonState() != 0);
       // clear keyboard state at end of playback
       for (int i = 0; i < 128; i++)
         ted->setKeyState(i, false);
@@ -102,7 +132,10 @@ namespace Plus4 {
   void Plus4VM::stopDemoRecording(bool writeFile_)
   {
     isRecordingDemo = false;
+    // tape button state sensing is disabled while recording or playing demo
+    ted->setTapeButtonState(!isPlayingDemo && getTapeButtonState() != 0);
     if (writeFile_ && demoFile != (Ep128Emu::File *) 0) {
+      // if file object is still open:
       try {
         // put end of demo event
         writeDemoTimeCnt(demoBuffer, demoTimeCnt);
@@ -350,7 +383,9 @@ namespace Plus4 {
   void Plus4VM::tapePlay()
   {
     Ep128Emu::VirtualMachine::tapePlay();
-    ted->setTapeButtonState(getTapeButtonState() != 0);
+    // tape button state sensing is disabled while recording or playing demo
+    ted->setTapeButtonState(!(isRecordingDemo || isPlayingDemo) &&
+                            getTapeButtonState() != 0);
     if (haveTape() && getIsTapeMotorOn() && getTapeButtonState() != 0)
       stopDemo();
   }
@@ -358,7 +393,9 @@ namespace Plus4 {
   void Plus4VM::tapeRecord()
   {
     Ep128Emu::VirtualMachine::tapeRecord();
-    ted->setTapeButtonState(getTapeButtonState() != 0);
+    // tape button state sensing is disabled while recording or playing demo
+    ted->setTapeButtonState(!(isRecordingDemo || isPlayingDemo) &&
+                            getTapeButtonState() != 0);
     if (haveTape() && getIsTapeMotorOn() && getTapeButtonState() != 0)
       stopDemo();
   }
@@ -371,25 +408,40 @@ namespace Plus4 {
 
   void Plus4VM::setBreakPoints(const std::string& bpList)
   {
-    // TODO: implement this
-    (void) bpList;
+    Ep128Emu::BreakPointList  bpl(bpList);
+    for (size_t i = 0; i < bpl.getBreakPointCnt(); i++) {
+      const Ep128Emu::BreakPoint& bp = bpl.getBreakPoint(i);
+      if (bp.isIO())
+        throw Ep128Emu::Exception("setting breakpoints on I/O ports is not "
+                                  "supported on this machine");
+      if (bp.haveSegment())
+        throw Ep128Emu::Exception("segment:offset format breakpoints are not "
+                                  "supported on this machine");
+    }
+    for (size_t i = 0; i < bpl.getBreakPointCnt(); i++) {
+      const Ep128Emu::BreakPoint& bp = bpl.getBreakPoint(i);
+      ted->setBreakPoint(bp.addr(), bp.priority(), bp.isRead(), bp.isWrite());
+    }
   }
 
   std::string Plus4VM::getBreakPoints()
   {
-    // TODO: implement this
-    return std::string("");
+    return (ted->getBreakPointList().getBreakPointList());
   }
 
   void Plus4VM::clearBreakPoints()
   {
-    // TODO: implement this
+    ted->clearBreakPoints();
   }
 
   void Plus4VM::setBreakPointPriorityThreshold(int n)
   {
-    // TODO: implement this
-    (void) n;
+    ted->setBreakPointPriorityThreshold(n);
+  }
+
+  void Plus4VM::setSingleStepMode(bool isEnabled)
+  {
+    ted->setSingleStepMode(isEnabled);
   }
 
   uint8_t Plus4VM::getMemoryPage(int n) const
@@ -402,16 +454,34 @@ namespace Plus4 {
     return ted->readMemoryRaw(addr);
   }
 
+  const M7501Registers& Plus4VM::getCPURegisters() const
+  {
+    return ted->getRegisters();
+  }
+
   void Plus4VM::saveState(Ep128Emu::File& f)
   {
-    // TODO: implement this
-    (void) f;
+    ted->saveState(f);
+    {
+      Ep128Emu::File::Buffer  buf;
+      buf.setPosition(0);
+      buf.writeUInt32(0x01000000);      // version number
+      buf.writeUInt32(uint32_t(cpuFrequencyMultiplier));
+      buf.writeUInt32(uint32_t(tedFrequency));
+      buf.writeUInt32(uint32_t(soundClockFrequency));
+      f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_P4VM_STATE, buf);
+    }
   }
 
   void Plus4VM::saveMachineConfiguration(Ep128Emu::File& f)
   {
-    // TODO: implement this
-    (void) f;
+    Ep128Emu::File::Buffer  buf;
+    buf.setPosition(0);
+    buf.writeUInt32(0x01000000);        // version number
+    buf.writeUInt32(uint32_t(cpuFrequencyMultiplier));
+    buf.writeUInt32(uint32_t(tedFrequency));
+    buf.writeUInt32(uint32_t(soundClockFrequency));
+    f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_P4VM_CONFIG, buf);
   }
 
   void Plus4VM::saveProgram(Ep128Emu::File& f)
@@ -434,6 +504,7 @@ namespace Plus4 {
     // turn off tape motor, stop any previous demo recording or playback,
     // and reset keyboard state
     ted->setTapeMotorState(false);
+    ted->setTapeInput(false);
     setTapeMotorState(false);
     stopDemo();
     for (int i = 0; i < 128; i++)
@@ -446,6 +517,8 @@ namespace Plus4 {
     demoFile = &f;
     isRecordingDemo = true;
     demoTimeCnt = 0U;
+    // tape button state sensing is disabled while recording or playing demo
+    ted->setTapeButtonState(false);
   }
 
   void Plus4VM::stopDemo()
@@ -470,14 +543,67 @@ namespace Plus4 {
 
   void Plus4VM::loadState(Ep128Emu::File::Buffer& buf)
   {
-    // TODO: implement this
-    (void) buf;
+    buf.setPosition(0);
+    // check version number
+    unsigned int  version = buf.readUInt32();
+    if (version != 0x01000000) {
+      buf.setPosition(buf.getDataSize());
+      throw Ep128Emu::Exception("incompatible plus4 snapshot format");
+    }
+    ted->setTapeMotorState(false);
+    setTapeMotorState(false);
+    stopDemo();
+    snapshotLoadFlag = true;
+    try {
+      uint32_t  tmpCPUFrequencyMultiplier = buf.readUInt32();
+      if (tmpCPUFrequencyMultiplier < 1U)
+        tmpCPUFrequencyMultiplier = 1U;
+      else if (tmpCPUFrequencyMultiplier > 100U)
+        tmpCPUFrequencyMultiplier = 100U;
+      uint32_t  tmpTEDFrequency = buf.readUInt32();
+      uint32_t  tmpSoundClockFrequency = buf.readUInt32();
+      (void) tmpCPUFrequencyMultiplier;
+      (void) tmpTEDFrequency;
+      (void) tmpSoundClockFrequency;
+      if (buf.getPosition() != buf.getDataSize())
+        throw Ep128Emu::Exception("trailing garbage at end of "
+                                  "plus4 snapshot data");
+    }
+    catch (...) {
+      this->reset(true);
+      throw;
+    }
   }
 
   void Plus4VM::loadMachineConfiguration(Ep128Emu::File::Buffer& buf)
   {
-    // TODO: implement this
-    (void) buf;
+    buf.setPosition(0);
+    // check version number
+    unsigned int  version = buf.readUInt32();
+    if (version != 0x01000000) {
+      buf.setPosition(buf.getDataSize());
+      throw Ep128Emu::Exception("incompatible plus4 "
+                                "machine configuration format");
+    }
+    try {
+      uint32_t  tmpCPUFrequencyMultiplier = buf.readUInt32();
+      if (tmpCPUFrequencyMultiplier < 1U)
+        tmpCPUFrequencyMultiplier = 1U;
+      else if (tmpCPUFrequencyMultiplier > 100U)
+        tmpCPUFrequencyMultiplier = 100U;
+      uint32_t  tmpTEDFrequency = buf.readUInt32();
+      uint32_t  tmpSoundClockFrequency = buf.readUInt32();
+      (void) tmpSoundClockFrequency;
+      setVideoFrequency(tmpTEDFrequency);
+      setCPUFrequency(tmpCPUFrequencyMultiplier * (tedFrequency * 2));
+      if (buf.getPosition() != buf.getDataSize())
+        throw Ep128Emu::Exception("trailing garbage at end of "
+                                  "plus4 machine configuration data");
+    }
+    catch (...) {
+      this->reset(true);
+      throw;
+    }
   }
 
   void Plus4VM::loadDemo(Ep128Emu::File::Buffer& buf)
@@ -488,13 +614,14 @@ namespace Plus4 {
 #if 0
     if (version != 0x00010900) {
       buf.setPosition(buf.getDataSize());
-      throw Ep128Emu::Exception("incompatible ep128 demo format");
+      throw Ep128Emu::Exception("incompatible plus4 demo format");
     }
 #endif
     (void) version;
     // turn off tape motor, stop any previous demo recording or playback,
     // and reset keyboard state
     ted->setTapeMotorState(false);
+    ted->setTapeInput(false);
     setTapeMotorState(false);
     stopDemo();
     for (int i = 0; i < 128; i++)
@@ -502,6 +629,8 @@ namespace Plus4 {
     // initialize time counter with first delta time
     demoTimeCnt = readDemoTimeCnt(buf);
     isPlayingDemo = true;
+    // tape button state sensing is disabled while recording or playing demo
+    ted->setTapeButtonState(false);
     // copy any remaining demo data to local buffer
     demoBuffer.clear();
     demoBuffer.writeData(buf.getData() + buf.getPosition(),
@@ -583,11 +712,14 @@ namespace Plus4 {
 
     try {
       p1 = new ChunkType_Plus4VMConfig(*this);
-      p2 = new ChunkType_Plus4VMSnapshot(*this);
-      p3 = new ChunkType_Plus4DemoStream(*this);
       f.registerChunkType(p1);
+      p1 = (ChunkType_Plus4VMConfig *) 0;
+      p2 = new ChunkType_Plus4VMSnapshot(*this);
       f.registerChunkType(p2);
+      p2 = (ChunkType_Plus4VMSnapshot *) 0;
+      p3 = new ChunkType_Plus4DemoStream(*this);
       f.registerChunkType(p3);
+      p3 = (ChunkType_Plus4DemoStream *) 0;
     }
     catch (...) {
       if (p1)

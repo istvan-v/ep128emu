@@ -153,7 +153,7 @@ namespace Plus4 {
                                         uint16_t addr, uint8_t value);
     static void     write_register_FF3F(void *userData,
                                         uint16_t addr, uint8_t value);
-    // render functions (called by run_*() above)
+    // render functions
     static void render_BMM_hires(void *ted_);
     static void render_BMM_multicolor(void *ted_);
     static void render_char_128(void *ted_);
@@ -264,6 +264,7 @@ namespace Plus4 {
     bool        tape_button_state;
     // -----------------------------------------------------------------
     void selectRenderer();
+    void initRegisters();
    protected:
     virtual void playSample(int16_t sampleValue)
     {
@@ -284,7 +285,7 @@ namespace Plus4 {
     virtual ~TED7360();
     void loadROM(int bankNum, int offs, int cnt, const uint8_t *buf);
     void run(int nCycles = 1);
-    void reset(bool cold_reset);
+    virtual void reset(bool cold_reset = false);
     void setCPUClockMultiplier(int clk);
     void setKeyState(int keyNum, bool isPressed);
     // Returns memory segment at page 'n' (0 to 3). Segments 0x00 to 0x07 are

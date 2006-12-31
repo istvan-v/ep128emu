@@ -125,7 +125,7 @@ def generateOpcode(f, opNum, opName_):
                 print >> f, '    CPU_OP_LD_MEM_TMP,'
                 cnt = cnt + 2
             elif opName in writeInstructions:
-                print >> f, '    CPU_OP_LD_MEM_TMP,'
+                print >> f, '    CPU_OP_LD_MEM_TMP_NODEBUG,'
                 if opName == 'slo':
                     print >> f, '    CPU_OP_ASL,'
                     print >> f, '    CPU_OP_ORA,'
@@ -177,7 +177,7 @@ def generateOpcode(f, opNum, opName_):
             raise SystemExit(-1)
     else:
         if opName == 'brk':
-            print >> f, '    CPU_OP_RD_TMP,'
+            print >> f, '    CPU_OP_RD_TMP_NODEBUG,'
             print >> f, '    CPU_OP_PUSH_PCH,'
             print >> f, '    CPU_OP_PUSH_PCL,'
             print >> f, '    CPU_OP_BRK,'
@@ -212,6 +212,12 @@ def generateOpcode(f, opNum, opName_):
             print >> f, '    CPU_OP_LD_L_TMP,'
             print >> f, '    CPU_OP_LD_PC_HL,'
             cnt = cnt + 9
+        elif opName == 'sys':
+            print >> f, '    CPU_OP_RD_TMP,'
+            print >> f, '    CPU_OP_RD_L,'
+            print >> f, '    CPU_OP_RD_H,'
+            print >> f, '    CPU_OP_SYS,'
+            cnt = cnt + 4
         elif opName[:2] == 'se' or opName[:2] == 'cl':
             if opName[:2] == 'cl':
                 print >> f, '    CPU_OP_LD_TMP_00,'
@@ -246,14 +252,14 @@ def generateOpcode(f, opNum, opName_):
             print >> f, '    CPU_OP_WAIT,'
             cnt = cnt + 4
         elif opName == 'rts':
-            print >> f, '    CPU_OP_RD_TMP,'
+            print >> f, '    CPU_OP_RD_TMP_NODEBUG,'
             print >> f, '    CPU_OP_WAIT,'
             print >> f, '    CPU_OP_POP_PCL,'
             print >> f, '    CPU_OP_POP_PCH,'
-            print >> f, '    CPU_OP_RD_TMP,'
+            print >> f, '    CPU_OP_RD_TMP_NODEBUG,'
             cnt = cnt + 5
         elif opName == 'rti':
-            print >> f, '    CPU_OP_RD_TMP,'
+            print >> f, '    CPU_OP_RD_TMP_NODEBUG,'
             print >> f, '    CPU_OP_WAIT,'
             print >> f, '    CPU_OP_POP_TMP,'
             print >> f, '    CPU_OP_LD_SR_TMP,'
@@ -288,18 +294,7 @@ def generateOpcode(f, opNum, opName_):
             cnt = cnt + 1
         elif opName == '???':
             print >> f, '    CPU_OP_INVALID_OPCODE,'
-            print >> f, '    CPU_OP_LD_TMP_MEM,'
-            print >> f, '    CPU_OP_LD_MEM_TMP,'
-            print >> f, '    CPU_OP_PUSH_PCH,'
-            print >> f, '    CPU_OP_PUSH_PCL,'
-            print >> f, '    CPU_OP_RESET,'
-            print >> f, '    CPU_OP_PUSH_TMP,'
-            print >> f, '    CPU_OP_LD_TMP_MEM,'
-            print >> f, '    CPU_OP_INC_L,'
-            print >> f, '    CPU_OP_LD_H_MEM,'
-            print >> f, '    CPU_OP_LD_L_TMP,'
-            print >> f, '    CPU_OP_LD_PC_HL,'
-            cnt = cnt + 12
+            cnt = cnt + 1
         else:
             print ' *** invalid instruction'
             raise SystemExit(-1)
@@ -560,7 +555,7 @@ generateOpcode(f, 0xEE, 'INC nnnn')
 generateOpcode(f, 0xEF, '???')
 generateOpcode(f, 0xF0, 'BEQ nn')
 generateOpcode(f, 0xF1, 'SBC (nn), Y')
-generateOpcode(f, 0xF2, '???')
+generateOpcode(f, 0xF2, 'SYS')
 generateOpcode(f, 0xF3, '???')
 generateOpcode(f, 0xF4, 'NOP nn, X')    # ???
 generateOpcode(f, 0xF5, 'SBC nn, X')
