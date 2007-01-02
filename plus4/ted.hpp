@@ -1,6 +1,6 @@
 
 // plus4 -- portable Commodore PLUS/4 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -294,6 +294,9 @@ namespace Plus4 {
     // Read memory directly without paging. Valid address ranges are
     // 0x00000000 to 0x0001FFFF for ROM, and 0x003F0000 to 0x003FFFFF for RAM.
     uint8_t readMemoryRaw(uint32_t addr) const;
+    // Write memory directly without paging. Valid addresses are in the
+    // range 0x003F0000 to 0x003FFFFF (i.e. 64K RAM).
+    void writeMemoryRaw(uint32_t addr, uint8_t value);
     inline void setUserPort(uint8_t value)
     {
       user_port_state = value;

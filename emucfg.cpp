@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -283,6 +283,9 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "debug.bpPriorityThreshold",
                                 debug.bpPriorityThreshold, int(0),
                                 debugSettingsChanged, 0.0, 4.0);
+    defineConfigurationVariable(*this, "debug.noBreakOnDataRead",
+                                debug.noBreakOnDataRead, false,
+                                debugSettingsChanged);
   }
 
   EmulatorConfiguration::~EmulatorConfiguration()
@@ -481,6 +484,7 @@ namespace Ep128Emu {
     }
     if (debugSettingsChanged) {
       vm_.setBreakPointPriorityThreshold(debug.bpPriorityThreshold);
+      vm_.setNoBreakOnDataRead(debug.noBreakOnDataRead);
       debugSettingsChanged = false;
     }
   }

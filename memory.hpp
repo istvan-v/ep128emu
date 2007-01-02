@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -62,6 +62,7 @@ namespace Ep128 {
     inline uint8_t readNoDebug(uint16_t addr) const;
     inline uint8_t readRaw(uint32_t addr) const;
     inline void write(uint16_t addr, uint8_t value);
+    inline void writeRaw(uint32_t addr, uint8_t value);
     void setPage(uint8_t page, uint8_t segment);
     inline uint8_t getPage(uint8_t page) const;
     inline const uint8_t * getVideoMemory() const;
@@ -96,7 +97,7 @@ namespace Ep128 {
   {
     uint8_t segment, value;
 
-    segment = (uint8_t) (addr >> 14);
+    segment = uint8_t(addr >> 14);
     if (segmentTable[segment])
       value = segmentTable[segment][addr & 0x3FFF];
     else
@@ -110,6 +111,13 @@ namespace Ep128 {
     if (haveBreakPoints)
       checkWriteBreakPoint(addr, page, value);
     pageAddressTableW[page][addr] = value;
+  }
+
+  inline void Memory::writeRaw(uint32_t addr, uint8_t value)
+  {
+    uint8_t segment = uint8_t(addr >> 14);
+    if (!segmentROMTable[segment])
+      segmentTable[segment][addr & 0x3FFF] = value;
   }
 
   inline uint8_t Memory::getPage(uint8_t page) const

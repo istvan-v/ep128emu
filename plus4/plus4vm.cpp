@@ -1,6 +1,6 @@
 
 // plus4 -- portable Commodore PLUS/4 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -21,6 +21,7 @@
 #include "display.hpp"
 #include "soundio.hpp"
 #include "plus4vm.hpp"
+#include "disasm.hpp"
 
 #include <cstdio>
 #include <vector>
@@ -109,6 +110,10 @@ namespace Plus4 {
   void Plus4VM::TED7360_::breakPointCallback(bool isWrite,
                                              uint16_t addr, uint8_t value)
   {
+    if (vm.noBreakOnDataRead && !isWrite) {
+      if (vm.ted->getRegisters().reg_PC != addr)
+        return;
+    }
     vm.breakPointCallback(vm.breakPointCallbackUserData,
                           false, isWrite, addr, value);
   }
@@ -406,11 +411,10 @@ namespace Plus4 {
     ted->setTapeButtonState(false);
   }
 
-  void Plus4VM::setBreakPoints(const std::string& bpList)
+  void Plus4VM::setBreakPoints(const Ep128Emu::BreakPointList& bpList)
   {
-    Ep128Emu::BreakPointList  bpl(bpList);
-    for (size_t i = 0; i < bpl.getBreakPointCnt(); i++) {
-      const Ep128Emu::BreakPoint& bp = bpl.getBreakPoint(i);
+    for (size_t i = 0; i < bpList.getBreakPointCnt(); i++) {
+      const Ep128Emu::BreakPoint& bp = bpList.getBreakPoint(i);
       if (bp.isIO())
         throw Ep128Emu::Exception("setting breakpoints on I/O ports is not "
                                   "supported on this machine");
@@ -418,15 +422,15 @@ namespace Plus4 {
         throw Ep128Emu::Exception("segment:offset format breakpoints are not "
                                   "supported on this machine");
     }
-    for (size_t i = 0; i < bpl.getBreakPointCnt(); i++) {
-      const Ep128Emu::BreakPoint& bp = bpl.getBreakPoint(i);
+    for (size_t i = 0; i < bpList.getBreakPointCnt(); i++) {
+      const Ep128Emu::BreakPoint& bp = bpList.getBreakPoint(i);
       ted->setBreakPoint(bp.addr(), bp.priority(), bp.isRead(), bp.isWrite());
     }
   }
 
-  std::string Plus4VM::getBreakPoints()
+  Ep128Emu::BreakPointList Plus4VM::getBreakPoints()
   {
-    return (ted->getBreakPointList().getBreakPointList());
+    return (ted->getBreakPointList());
   }
 
   void Plus4VM::clearBreakPoints()
@@ -449,9 +453,77 @@ namespace Plus4 {
     return ted->getMemoryPage(n);
   }
 
-  uint8_t Plus4VM::readMemory(uint32_t addr) const
+  uint8_t Plus4VM::readMemory(uint32_t addr, bool isCPUAddress) const
   {
+    if (isCPUAddress) {
+      addr &= uint32_t(0x0000FFFF);
+      uint8_t   segment = ted->getMemoryPage(uint8_t(addr >> 14));
+      if (addr <= 0x0001U)
+        segment = 0xFC;
+      else if (addr >= 0xFD00U && addr < 0xFF40U)
+        segment = 0xFF;
+      else if (segment < 0x08 && (addr >= 0xFC00U && addr < 0xFD00U))
+        segment = 0x01;
+      addr = (addr & uint32_t(0x3FFF)) | (uint32_t(segment) << 14);
+    }
+    else
+      addr &= uint32_t(0x003FFFFF);
     return ted->readMemoryRaw(addr);
+  }
+
+  void Plus4VM::writeMemory(uint32_t addr, uint8_t value, bool isCPUAddress)
+  {
+    if (isRecordingDemo || isPlayingDemo) {
+      stopDemoPlayback();
+      stopDemoRecording(false);
+    }
+    if (isCPUAddress) {
+      addr &= uint32_t(0x0000FFFF);
+      uint8_t   segment = ted->getMemoryPage(uint8_t(addr >> 14));
+      if (addr <= 0x0001U)
+        segment = 0xFC;
+      else if (addr >= 0xFD00U && addr < 0xFF40U)
+        segment = 0xFF;
+      else if (segment < 0x08 && (addr >= 0xFC00U && addr < 0xFD00U))
+        segment = 0x01;
+      addr = (addr & uint32_t(0x3FFF)) | (uint32_t(segment) << 14);
+    }
+    else
+      addr &= uint32_t(0x003FFFFF);
+    ted->writeMemoryRaw(addr, value);
+  }
+
+  uint16_t Plus4VM::getProgramCounter() const
+  {
+    return ted->getRegisters().reg_PC;
+  }
+
+  uint16_t Plus4VM::getStackPointer() const
+  {
+    return (uint16_t(0x0100)
+            | uint16_t((ted->getRegisters().reg_SP + uint8_t(1))
+                       & uint8_t(0xFF)));
+  }
+
+  void Plus4VM::listCPURegisters(std::string& buf) const
+  {
+    char    tmpBuf[96];
+    const M7501Registers& r = ted->getRegisters();
+    std::sprintf(&(tmpBuf[0]),
+                 " PC  SR AC XR YR SP\n"
+                 "%04X %02X %02X %02X %02X %02X",
+                 (unsigned int) r.reg_PC, (unsigned int) r.reg_SR,
+                 (unsigned int) r.reg_AC, (unsigned int) r.reg_XR,
+                 (unsigned int) r.reg_YR, (unsigned int) r.reg_SP);
+    buf = &(tmpBuf[0]);
+  }
+
+  uint32_t Plus4VM::disassembleInstruction(std::string& buf,
+                                           uint32_t addr, bool isCPUAddress,
+                                           int32_t offs) const
+  {
+    return M7501Disassembler::disassembleInstruction(buf, (*this),
+                                                     addr, isCPUAddress, offs);
   }
 
   const M7501Registers& Plus4VM::getCPURegisters() const

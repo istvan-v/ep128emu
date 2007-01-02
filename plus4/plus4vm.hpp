@@ -1,6 +1,6 @@
 
 // plus4 -- portable Commodore PLUS/4 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -114,36 +114,11 @@ namespace Plus4 {
     // stop tape playback and recording
     virtual void tapeStop();
     // ------------------------------ DEBUGGING -------------------------------
-    // Add breakpoints from the specified ASCII format breakpoint list.
-    // The breakpoint list is a sequence of breakpoint definitions, separated
-    // by any whitespace characters (space, tab, or newline). A breakpoint
-    // definition consists of an address or address range in one of the
-    // following formats (each 'n' is a hexadecimal digit):
-    //   nn             a single I/O port address
-    //   nn-nn          all I/O port addresses in the specified range
-    //   nnnn           a single CPU memory address
-    //   nnnn-nnnn      all CPU memory addresses in the specified range
-    //   nn:nnnn        a single raw memory address, as segment:offset
-    //   nn:nnnn-nnnn   range of raw memory addresses
-    //                  (segment:first_offset-last_offset)
-    // and these optional modifiers:
-    //   r              the breakpoint is triggered on reads
-    //   w              the breakpoint is triggered on writes
-    //   p0             the breakpoint has a priority of 0
-    //   p1             the breakpoint has a priority of 1
-    //   p2             the breakpoint has a priority of 2
-    //   p3             the breakpoint has a priority of 3
-    // by default, the breakpoint is triggered on both reads and writes if
-    // 'r' or 'w' is not used, and has a priority of 2.
-    // Example: 8000-8003rp1 means break on reading CPU addresses 0x8000,
-    // 0x8001, 0x8002, and 0x8003, if the breakpoint priority threshold is
-    // less than or equal to 1.
-    // If there are any syntax errors in the list, Ep128Emu::Exception is
-    // thrown, and no breakpoints are added.
-    virtual void setBreakPoints(const std::string& bpList);
-    // Returns currently defined breakpoints in the same format as described
-    // above.
-    virtual std::string getBreakPoints();
+    // Add breakpoints from the specified breakpoint list (see also
+    // bplist.hpp).
+    virtual void setBreakPoints(const Ep128Emu::BreakPointList& bpList);
+    // Returns the currently defined breakpoints.
+    virtual Ep128Emu::BreakPointList getBreakPoints();
     // Clear all breakpoints.
     virtual void clearBreakPoints();
     // Set breakpoint priority threshold (0 to 4); breakpoints with a
@@ -155,10 +130,38 @@ namespace Plus4 {
     virtual void setSingleStepMode(bool isEnabled);
     // Returns the segment at page 'n' (0 to 3).
     virtual uint8_t getMemoryPage(int n) const;
-    // Read a byte from memory; bits 14 to 21 of 'addr' define the segment
-    // number, while bits 0 to 13 are the offset (0 to 0x3FFF) within the
-    // segment.
-    virtual uint8_t readMemory(uint32_t addr) const;
+    // Read a byte from memory. If 'isCPUAddress' is false, bits 14 to 21 of
+    // 'addr' define the segment number, while bits 0 to 13 are the offset
+    // (0 to 0x3FFF) within the segment; otherwise, 'addr' is interpreted as
+    // a 16-bit CPU address.
+    virtual uint8_t readMemory(uint32_t addr, bool isCPUAddress = false) const;
+    // Write a byte to memory. If 'isCPUAddress' is false, bits 14 to 21 of
+    // 'addr' define the segment number, while bits 0 to 13 are the offset
+    // (0 to 0x3FFF) within the segment; otherwise, 'addr' is interpreted as
+    // a 16-bit CPU address.
+    // NOTE: calling this function will stop any demo recording or playback.
+    virtual void writeMemory(uint32_t addr, uint8_t value,
+                             bool isCPUAddress = false);
+    // Returns the current value of the CPU program counter (PC).
+    virtual uint16_t getProgramCounter() const;
+    // Returns the CPU address of the last byte pushed to the stack.
+    virtual uint16_t getStackPointer() const;
+    // Dumps the current values of all CPU registers to 'buf' in ASCII format.
+    // The register list may be written as multiple lines separated by '\n'
+    // characters, however, there is no newline character at the end of the
+    // buffer. The maximum line width is 40 characters.
+    virtual void listCPURegisters(std::string& buf) const;
+    // Disassemble one CPU instruction, starting from memory address 'addr',
+    // and write the result to 'buf' (not including a newline character).
+    // 'offs' is added to the instruction address that is printed.
+    // The maximum line width is 40 characters.
+    // Returns the address of the next instruction. If 'isCPUAddress' is
+    // true, 'addr' is interpreted as a 16-bit CPU address, otherwise it
+    // is assumed to be a 22-bit physical address (8 bit segment + 14 bit
+    // offset).
+    virtual uint32_t disassembleInstruction(std::string& buf, uint32_t addr,
+                                            bool isCPUAddress = false,
+                                            int32_t offs = 0) const;
     // Returns read-only reference to a structure containing all CPU
     // registers; see plus4/cpu.hpp for more information.
     virtual const M7501Registers& getCPURegisters() const;

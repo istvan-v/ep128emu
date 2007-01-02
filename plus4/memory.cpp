@@ -1,6 +1,6 @@
 
 // plus4 -- portable Commodore PLUS/4 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -84,7 +84,7 @@ namespace Plus4 {
     uint8_t   segment = uint8_t((addr >> 14) & 0xFF);
     if (segment >= 0xFC) {
       uint16_t  offs = uint16_t(addr & 0xFFFF);
-      if ((offs > 0x0001 && offs < 0xFD00) || offs >= 0xFF40)
+      if ((offs >= 0x0002 && offs < 0xFD00) || offs >= 0xFF40)
         return memory_ram[offs];
       else {
         // FIXME: this is an ugly hack to work around const declaration
@@ -97,17 +97,7 @@ namespace Plus4 {
     }
     else if (segment < 0x08) {
       uint16_t  offs = uint16_t(addr & 0x7FFF);
-      if (segment == ((rom_bank_high << 1) + 1) &&
-          (offs >= 0x7D00 && offs < 0x7F40)) {
-        // FIXME: this is an ugly hack to work around const declaration
-        TED7360&  ted = *(const_cast<TED7360 *>(this));
-        uint8_t savedDataBusState = dataBusState;
-        uint8_t retval = ted.readMemory(offs | uint16_t(0x8000));
-        ted.dataBusState = savedDataBusState;
-        return retval;
-      }
-      else
-        return memory_rom[segment >> 1][offs];
+      return memory_rom[segment >> 1][offs];
     }
     return 0xFF;
   }
@@ -144,6 +134,18 @@ namespace Plus4 {
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
     ted.dataBusState = value;
     ted.rom_enabled = false;
+  }
+
+  void TED7360::writeMemoryRaw(uint32_t addr, uint8_t value)
+  {
+    uint8_t   segment = uint8_t((addr >> 14) & 0xFF);
+    if (segment >= 0xFC) {
+      uint16_t  offs = uint16_t(addr & 0xFFFF);
+      if ((offs >= 0x0002 && offs < 0xFD00) || offs >= 0xFF40)
+        memory_ram[offs] = value;
+      else
+        writeMemory(offs, value);
+    }
   }
 
   void TED7360::loadROM(int bankNum, int offs, int cnt, const uint8_t *buf)

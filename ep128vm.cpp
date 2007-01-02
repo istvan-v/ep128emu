@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -224,6 +224,10 @@ namespace Ep128 {
   void Ep128VM::Memory_::breakPointCallback(bool isWrite,
                                             uint16_t addr, uint8_t value)
   {
+    if (vm.noBreakOnDataRead && !isWrite) {
+      if (uint16_t(vm.z80.getReg().PC.W.l) != addr)
+        return;
+    }
     vm.breakPointCallback(vm.breakPointCallbackUserData,
                           false, isWrite, addr, value);
   }
@@ -833,11 +837,10 @@ namespace Ep128 {
       stopDemo();
   }
 
-  void Ep128VM::setBreakPoints(const std::string& bpList)
+  void Ep128VM::setBreakPoints(const Ep128Emu::BreakPointList& bpList)
   {
-    Ep128Emu::BreakPointList  bpl(bpList);
-    for (size_t i = 0; i < bpl.getBreakPointCnt(); i++) {
-      const Ep128Emu::BreakPoint& bp = bpl.getBreakPoint(i);
+    for (size_t i = 0; i < bpList.getBreakPointCnt(); i++) {
+      const Ep128Emu::BreakPoint& bp = bpList.getBreakPoint(i);
       if (bp.isIO())
         ioPorts.setBreakPoint(bp.addr(),
                               bp.priority(), bp.isRead(), bp.isWrite());
@@ -850,10 +853,15 @@ namespace Ep128 {
     }
   }
 
-  std::string Ep128VM::getBreakPoints()
+  Ep128Emu::BreakPointList Ep128VM::getBreakPoints()
   {
-    return (ioPorts.getBreakPointList().getBreakPointList()
-            + memory.getBreakPointList().getBreakPointList());
+    Ep128Emu::BreakPointList  bpl1(ioPorts.getBreakPointList());
+    Ep128Emu::BreakPointList  bpl2(memory.getBreakPointList());
+    for (size_t i = 0; i < bpl1.getBreakPointCnt(); i++) {
+      const Ep128Emu::BreakPoint& bp = bpl1.getBreakPoint(i);
+      bpl2.addIOBreakPoint(bp.addr(), bp.isRead(), bp.isWrite(), bp.priority());
+    }
+    return bpl2;
   }
 
   void Ep128VM::clearBreakPoints()
@@ -884,9 +892,66 @@ namespace Ep128 {
     return memory.getPage(uint8_t(n & 3));
   }
 
-  uint8_t Ep128VM::readMemory(uint32_t addr) const
+  uint8_t Ep128VM::readMemory(uint32_t addr, bool isCPUAddress) const
   {
-    return memory.readRaw(addr & uint32_t(0x003FFFFF));
+    if (isCPUAddress)
+      addr = ((uint32_t(memory.getPage(uint8_t(addr >> 14) & uint8_t(3))) << 14)
+              | (addr & uint32_t(0x3FFF)));
+    else
+      addr &= uint32_t(0x003FFFFF);
+    return memory.readRaw(addr);
+  }
+
+  void Ep128VM::writeMemory(uint32_t addr, uint8_t value, bool isCPUAddress)
+  {
+    if (isRecordingDemo || isPlayingDemo) {
+      stopDemoPlayback();
+      stopDemoRecording(false);
+    }
+    if (isCPUAddress)
+      addr = ((uint32_t(memory.getPage(uint8_t(addr >> 14) & uint8_t(3))) << 14)
+              | (addr & uint32_t(0x3FFF)));
+    else
+      addr &= uint32_t(0x003FFFFF);
+    memory.writeRaw(addr, value);
+  }
+
+  uint16_t Ep128VM::getProgramCounter() const
+  {
+    return uint16_t(z80.getReg().PC.W.l);
+  }
+
+  uint16_t Ep128VM::getStackPointer() const
+  {
+    return uint16_t(z80.getReg().SP.W);
+  }
+
+  void Ep128VM::listCPURegisters(std::string& buf) const
+  {
+    char    tmpBuf[192];
+    const Z80_REGISTERS&  r = z80.getReg();
+    std::sprintf(&(tmpBuf[0]),
+                 " PC   AF   BC   DE   HL   SP   IX   IY\n"
+                 "%04X %04X %04X %04X %04X %04X %04X %04X\n"
+                 "      AF'  BC'  DE'  HL'  IM    I    R\n"
+                 "     %04X %04X %04X %04X  %02X   %02X   %02X",
+                 (unsigned int) r.PC.W.l, (unsigned int) r.AF.W,
+                 (unsigned int) r.BC.W, (unsigned int) r.DE.W,
+                 (unsigned int) r.HL.W, (unsigned int) r.SP.W,
+                 (unsigned int) r.IX.W, (unsigned int) r.IY.W,
+                 (unsigned int) r.altAF.W, (unsigned int) r.altBC.W,
+                 (unsigned int) r.altDE.W, (unsigned int) r.altHL.W,
+                 (unsigned int) r.IM, (unsigned int) r.I, (unsigned int) r.R);
+    buf = &(tmpBuf[0]);
+  }
+
+  uint32_t Ep128VM::disassembleInstruction(std::string& buf,
+                                           uint32_t addr, bool isCPUAddress,
+                                           int32_t offs) const
+  {
+    // TODO: implement this
+    return Ep128Emu::VirtualMachine::disassembleInstruction(buf, addr,
+                                                            isCPUAddress, offs);
   }
 
   const Z80_REGISTERS& Ep128VM::getZ80Registers() const

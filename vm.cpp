@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -100,7 +100,8 @@ namespace Ep128Emu {
       breakPointCallback(&defaultBreakPointCallback),
       breakPointCallbackUserData((void *) 0),
       fileNameCallback(&defaultFileNameCallback),
-      fileNameCallbackUserData((void *) 0)
+      fileNameCallbackUserData((void *) 0),
+      noBreakOnDataRead(false)
   {
   }
 
@@ -384,14 +385,14 @@ namespace Ep128Emu {
     fastTapeModeEnabled = isEnabled;
   }
 
-  void VirtualMachine::setBreakPoints(const std::string& bpList)
+  void VirtualMachine::setBreakPoints(const BreakPointList& bpList)
   {
     (void) bpList;
   }
 
-  std::string VirtualMachine::getBreakPoints()
+  BreakPointList VirtualMachine::getBreakPoints()
   {
-    return std::string("");
+    return BreakPointList();
   }
 
   void VirtualMachine::clearBreakPoints()
@@ -401,6 +402,11 @@ namespace Ep128Emu {
   void VirtualMachine::setBreakPointPriorityThreshold(int n)
   {
     (void) n;
+  }
+
+  void VirtualMachine::setNoBreakOnDataRead(bool n)
+  {
+    noBreakOnDataRead = n;
   }
 
   void VirtualMachine::setSingleStepMode(bool isEnabled)
@@ -427,10 +433,55 @@ namespace Ep128Emu {
     return 0x00;
   }
 
-  uint8_t VirtualMachine::readMemory(uint32_t addr) const
+  uint8_t VirtualMachine::readMemory(uint32_t addr, bool isCPUAddress) const
   {
     (void) addr;
+    (void) isCPUAddress;
     return 0xFF;
+  }
+
+  void VirtualMachine::writeMemory(uint32_t addr, uint8_t value,
+                                   bool isCPUAddress)
+  {
+    (void) addr;
+    (void) value;
+    (void) isCPUAddress;
+  }
+
+  uint16_t VirtualMachine::getProgramCounter() const
+  {
+    return uint16_t(0x0000);
+  }
+
+  uint16_t VirtualMachine::getStackPointer() const
+  {
+    return uint16_t(0x0000);
+  }
+
+  void VirtualMachine::listCPURegisters(std::string& buf) const
+  {
+    buf = "";
+  }
+
+  uint32_t VirtualMachine::disassembleInstruction(std::string& buf,
+                                                  uint32_t addr,
+                                                  bool isCPUAddress,
+                                                  int32_t offs) const
+  {
+    uint32_t  addrMask = (isCPUAddress ? 0x0000FFFFU : 0x003FFFFFU);
+    addr &= addrMask;
+    uint32_t  baseAddr = (addr + uint32_t(offs)) & addrMask;
+    uint8_t   opNum = readMemory(addr, isCPUAddress);
+    char      tmpBuf[40];
+    if (isCPUAddress)
+      std::sprintf(&(tmpBuf[0]), "  %04X  %02X            ???",
+                   (unsigned int) baseAddr, (unsigned int) opNum);
+    else
+      std::sprintf(&(tmpBuf[0]), "%06X  %02X            ???",
+                   (unsigned int) baseAddr, (unsigned int) opNum);
+    buf = &(tmpBuf[0]);
+    addr = (addr + 1U) & addrMask;
+    return addr;
   }
 
   void VirtualMachine::saveState(File& f)
