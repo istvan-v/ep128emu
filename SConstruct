@@ -18,16 +18,12 @@ if not ep128emuGUIEnvironment.ParseConfig(
         '%s --cxxflags --ldflags --libs' % fltkConfig):
     print 'WARNING: could not run fltk-config'
     ep128emuGUIEnvironment.Append(LIBS = ['fltk'])
-ep128emuGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
-ep128emuGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
 
 ep128emuGLGUIEnvironment = ep128emuLibEnvironment.Copy()
 if not ep128emuGLGUIEnvironment.ParseConfig(
         '%s --use-gl --cxxflags --ldflags --libs' % fltkConfig):
     print 'WARNING: could not run fltk-config'
     ep128emuGLGUIEnvironment.Append(LIBS = ['fltk_gl', 'GL'])
-ep128emuGLGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
-ep128emuGLGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
 
 ep128emuLibEnvironment['CPPPATH'] = ep128emuGLGUIEnvironment['CPPPATH']
 
@@ -38,10 +34,11 @@ if not configure.CheckCHeader('sndfile.h'):
 if not configure.CheckCHeader('portaudio.h'):
     print ' *** error: PortAudio is not found'
     Exit(-1)
-elif not configure.CheckType('PaStreamCallbackTimeInfo',
-                             '#include <portaudio.h>'):
-    print ' *** error: PortAudio is found, but is too old (v19 is required)'
-    Exit(-1)
+elif configure.CheckType('PaStreamCallbackTimeInfo', '#include <portaudio.h>'):
+    havePortAudioV19 = 1
+else:
+    havePortAudioV19 = 0
+    print 'WARNING: using old v18 PortAudio interface'
 if not configure.CheckCXXHeader('FL/Fl.H'):
     if configure.CheckCXXHeader('/usr/include/fltk-1.1/FL/Fl.H'):
         ep128emuLibEnvironment.Append(CPPPATH = ['/usr/include/fltk-1.1'])
@@ -54,8 +51,15 @@ if not configure.CheckCHeader('GL/gl.h'):
 haveDotconf = configure.CheckCHeader('dotconf.h')
 configure.Finish()
 
+if not havePortAudioV19:
+    ep128emuLibEnvironment.Append(CCFLAGS = ['-DUSING_OLD_PORTAUDIO_API'])
 if haveDotconf:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_DOTCONF_H'])
+
+ep128emuGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
+ep128emuGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
+ep128emuGLGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
+ep128emuGLGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
 
 ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
     bplist.cpp

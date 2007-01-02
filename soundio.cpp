@@ -242,14 +242,21 @@ namespace Ep128Emu {
   {
     std::vector< std::string >  tmp;
     if (paInitialized) {
+#ifndef USING_OLD_PORTAUDIO_API
       PaDeviceIndex devCnt = Pa_GetDeviceCount();
-      for (PaDeviceIndex i = 0; i < devCnt; i++) {
+      PaDeviceIndex i;
+#else
+      PaDeviceID    devCnt = PaDeviceID(Pa_CountDevices());
+      PaDeviceID    i;
+#endif
+      for (i = 0; i < devCnt; i++) {
         const PaDeviceInfo  *devInfo = Pa_GetDeviceInfo(i);
         if (devInfo) {
           if (devInfo->maxOutputChannels >= 2) {
             std::string s("");
             if (devInfo->name)
               s = devInfo->name;
+#ifndef USING_OLD_PORTAUDIO_API
             const PaHostApiInfo *apiInfo = Pa_GetHostApiInfo(devInfo->hostApi);
             if (apiInfo) {
               s += " (";
@@ -257,6 +264,7 @@ namespace Ep128Emu {
                 s += apiInfo->name;
               s += ")";
             }
+#endif
             tmp.push_back(s);
           }
         }
@@ -265,6 +273,7 @@ namespace Ep128Emu {
     return tmp;
   }
 
+#ifndef USING_OLD_PORTAUDIO_API
   int AudioOutput_PortAudio::portAudioCallback(const void *input, void *output,
                                                unsigned long frameCount,
                                                const PaStreamCallbackTimeInfo
@@ -272,14 +281,24 @@ namespace Ep128Emu {
                                                PaStreamCallbackFlags
                                                    statusFlags,
                                                void *userData)
+#else
+  int AudioOutput_PortAudio::portAudioCallback(void *input, void *output,
+                                               unsigned long frameCount,
+                                               PaTimestamp outTime,
+                                               void *userData)
+#endif
   {
     AudioOutput_PortAudio *p =
         reinterpret_cast<AudioOutput_PortAudio *>(userData);
     int16_t *buf = reinterpret_cast<int16_t *>(output);
     size_t  i = 0, nFrames = frameCount;
     (void) input;
+#ifndef USING_OLD_PORTAUDIO_API
     (void) timeInfo;
     (void) statusFlags;
+#else
+    (void) outTime;
+#endif
     if (nFrames > (p->buffers[p->readBufIndex].audioData.size() >> 1))
       nFrames = p->buffers[p->readBufIndex].audioData.size() >> 1;
     nFrames <<= 1;
@@ -292,7 +311,11 @@ namespace Ep128Emu {
       p->readBufIndex = 0;
     for ( ; i < (frameCount << 1); i++)
       buf[i] = 0;
+#ifndef USING_OLD_PORTAUDIO_API
     return int(paContinue);
+#else
+    return 0;
+#endif
   }
 
   void AudioOutput_PortAudio::openDevice()
@@ -319,14 +342,22 @@ namespace Ep128Emu {
         buffers[i].audioData[j] = 0;
     }
     // find audio device
+#ifndef USING_OLD_PORTAUDIO_API
     int     devCnt = int(Pa_GetDeviceCount());
+#else
+    int     devCnt = int(Pa_CountDevices());
+#endif
     if (devCnt < 1)
       throw Exception("no audio device is available");
     int     devIndex;
     int     devNum = deviceNumber;
     for (devIndex = 0; devIndex < devCnt; devIndex++) {
       const PaDeviceInfo  *devInfo;
+#ifndef USING_OLD_PORTAUDIO_API
       devInfo = Pa_GetDeviceInfo(PaDeviceIndex(devIndex));
+#else
+      devInfo = Pa_GetDeviceInfo(PaDeviceID(devIndex));
+#endif
       if (!devInfo)
         throw Exception("error querying audio device information");
       if (devInfo->maxOutputChannels >= 2) {
@@ -339,6 +370,7 @@ namespace Ep128Emu {
     if (devIndex >= devCnt)
       throw Exception("device number is out of range");
     // open audio stream
+#ifndef USING_OLD_PORTAUDIO_API
     PaStreamParameters  streamParams;
     std::memset(&streamParams, 0, sizeof(PaStreamParameters));
     streamParams.device = PaDeviceIndex(devNum);
@@ -347,10 +379,19 @@ namespace Ep128Emu {
     streamParams.suggestedLatency = PaTime(double(periodSize) * nPeriodsHW
                                            / sampleRate);
     streamParams.hostApiSpecificStreamInfo = (void *) 0;
-    if (Pa_OpenStream(&paStream, (PaStreamParameters *) 0, &streamParams,
+    PaError err =
+        Pa_OpenStream(&paStream, (PaStreamParameters *) 0, &streamParams,
                       sampleRate, unsigned(periodSize),
-                      paNoFlag, &portAudioCallback, (void *) this)
-        != paNoError) {
+                      paNoFlag, &portAudioCallback, (void *) this);
+#else
+    PaError err =
+        Pa_OpenStream(&paStream,
+                      paNoDevice, 0, paInt16, (void *) 0,
+                      PaDeviceID(devNum), 2, paInt16, (void *) 0,
+                      sampleRate, unsigned(periodSize), unsigned(nPeriodsHW),
+                      paNoFlag, &portAudioCallback, (void *) this);
+#endif
+    if (err != paNoError) {
       paStream = (PaStream *) 0;
       throw Exception("error opening audio device");
     }
