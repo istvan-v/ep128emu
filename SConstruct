@@ -93,6 +93,7 @@ z80LibEnvironment = ep128emuLibEnvironment.Copy()
 z80LibEnvironment.Append(CPPPATH = ['./z80'])
 
 z80Lib = z80LibEnvironment.StaticLibrary('z80', Split('''
+    z80/disasm.cpp
     z80/z80.cpp
     z80/z80funcs2.cpp
 '''))

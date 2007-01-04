@@ -27,6 +27,7 @@
 #include "display.hpp"
 #include "vm.hpp"
 #include "ep128vm.hpp"
+#include "z80/disasm.hpp"
 
 #include <cstdio>
 #include <vector>
@@ -933,7 +934,7 @@ namespace Ep128 {
     std::sprintf(&(tmpBuf[0]),
                  " PC   AF   BC   DE   HL   SP   IX   IY\n"
                  "%04X %04X %04X %04X %04X %04X %04X %04X\n"
-                 "      AF'  BC'  DE'  HL'  IM    I    R\n"
+                 "      AF'  BC'  DE'  HL'  IM   I    R\n"
                  "     %04X %04X %04X %04X  %02X   %02X   %02X",
                  (unsigned int) r.PC.W.l, (unsigned int) r.AF.W,
                  (unsigned int) r.BC.W, (unsigned int) r.DE.W,
@@ -949,9 +950,8 @@ namespace Ep128 {
                                            uint32_t addr, bool isCPUAddress,
                                            int32_t offs) const
   {
-    // TODO: implement this
-    return Ep128Emu::VirtualMachine::disassembleInstruction(buf, addr,
-                                                            isCPUAddress, offs);
+    return Z80Disassembler::disassembleInstruction(buf, (*this),
+                                                   addr, isCPUAddress, offs);
   }
 
   const Z80_REGISTERS& Ep128VM::getZ80Registers() const
