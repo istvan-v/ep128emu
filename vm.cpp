@@ -25,6 +25,23 @@
 #include "tape.hpp"
 #include "vm.hpp"
 
+#ifdef WIN32
+#  undef WIN32
+#endif
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#  define WIN32 1
+#endif
+
+#ifndef WIN32
+#  include <sys/types.h>
+#  include <sys/stat.h>
+#  include <unistd.h>
+#  include <dirent.h>
+#else
+#  include <sys/types.h>
+#  include <sys/stat.h>
+#endif
+
 static void defaultBreakPointCallback(void *userData,
                                       bool isIO, bool isWrite,
                                       uint16_t addr, uint8_t value)
@@ -99,9 +116,14 @@ namespace Ep128Emu {
       tapeFileName(""),
       breakPointCallback(&defaultBreakPointCallback),
       breakPointCallbackUserData((void *) 0),
+      noBreakOnDataRead(false),
+#ifndef WIN32
+      fileIOWorkingDirectory("./"),
+#else
+      fileIOWorkingDirectory(".\\"),
+#endif
       fileNameCallback(&defaultFileNameCallback),
-      fileNameCallbackUserData((void *) 0),
-      noBreakOnDataRead(false)
+      fileNameCallbackUserData((void *) 0)
   {
   }
 
@@ -277,7 +299,31 @@ namespace Ep128Emu {
 
   void VirtualMachine::setWorkingDirectory(const std::string& dirName_)
   {
-    (void) dirName_;
+#ifndef WIN32
+    if (dirName_.length() == 0)
+      fileIOWorkingDirectory = "./";
+    else {
+      fileIOWorkingDirectory = dirName_;
+      for (size_t i = 0; i < dirName_.length(); i++) {
+        if (dirName_[i] == '\\')
+          fileIOWorkingDirectory[i] = '/';
+      }
+      if (dirName_[dirName_.length() - 1] != '/')
+        fileIOWorkingDirectory += '/';
+    }
+#else
+    if (dirName_.length() == 0)
+      fileIOWorkingDirectory = ".\\";
+    else {
+      fileIOWorkingDirectory = dirName_;
+      for (size_t i = 0; i < dirName_.length(); i++) {
+        if (dirName_[i] == '/')
+          fileIOWorkingDirectory[i] = '\\';
+      }
+      if (dirName_[dirName_.length() - 1] != '\\')
+        fileIOWorkingDirectory += '\\';
+    }
+#endif
   }
 
   void VirtualMachine::setFileNameCallback(void (*fileNameCallback_)(
@@ -573,6 +619,106 @@ namespace Ep128Emu {
            !(tape != (Tape *) 0 && fastTapeModeEnabled &&
              tapeMotorOn && tapePlaybackOn));
     }
+  }
+
+  int VirtualMachine::openFileInWorkingDirectory(std::FILE*& f,
+                                                 const std::string& baseName_,
+                                                 const char *mode)
+  {
+    f = (std::FILE *) 0;
+    try {
+      std::string fullName(fileIOWorkingDirectory);
+      if (baseName_.length() > 0) {
+        // convert file name to lower case, replace invalid characters with '_'
+        std::string baseName(baseName_);
+        stringToLowerCase(baseName);
+        for (size_t i = 0; i < baseName.length(); i++) {
+          const std::string&  s = baseName;
+          if (!((s[i] >= 'a' && s[i] <= 'z') || (s[i] >= '0' && s[i] <= '9') ||
+                s[i] == '.' || s[i] == '+' || s[i] == '-' || s[i] == '_'))
+            baseName[i] = '_';
+        }
+        fullName += baseName;
+      }
+      else {
+        fullName = "";
+        if (fileNameCallback)
+          fileNameCallback(fileNameCallbackUserData, fullName);
+        if (fullName.length() == 0)
+          return -2;                    // error: invalid file name
+      }
+      // attempt to stat() file
+#ifndef WIN32
+      struct stat   st;
+      std::memset(&st, 0, sizeof(struct stat));
+      int   err = stat(fullName.c_str(), &st);
+      if (err != 0 && baseName_.length() > 0) {
+        // not found, try case insensitive file search
+        std::string tmpName(fullName);
+        tmpName[0] = tmpName.c_str()[0];    // unshare string
+        DIR   *dir_;
+        dir_ = opendir(fileIOWorkingDirectory.c_str());
+        if (dir_) {
+          do {
+            struct dirent *ent_ = readdir(dir_);
+            if (!ent_)
+              break;
+            bool        foundMatch = true;
+            size_t      offs = fileIOWorkingDirectory.length();
+            const char  *s1 = fullName.c_str() + offs;
+            const char  *s2 = &(ent_->d_name[0]);
+            size_t      i = 0;
+            while (!(s1[i] == '\0' && s2[i] == '\0')) {
+              if (s1[i] != s2[i]) {
+                if (!(s2[i] >= 'A' && s2[i] <= 'Z' &&
+                      s1[i] == (s2[i] + ('a' - 'A')))) {
+                  foundMatch = false;
+                  break;
+                }
+              }
+              tmpName[offs + i] = s2[i];
+              i++;
+            }
+            if (foundMatch) {
+              std::memset(&st, 0, sizeof(struct stat));
+              err = stat(tmpName.c_str(), &st);
+            }
+          } while (err != 0);
+          closedir(dir_);
+        }
+        if (err == 0)
+          fullName = tmpName;
+      }
+#else
+      struct _stat  st;
+      std::memset(&st, 0, sizeof(struct _stat));
+      int   err = _stat(fullName.c_str(), &st);
+#endif
+      if (err != 0) {
+        if (mode == (char *) 0 || mode[0] != 'w')
+          return -3;                    // error: cannot find file
+      }
+      else {
+#ifndef WIN32
+        if (!(S_ISREG(st.st_mode)))
+          return -4;                    // error: not a regular file
+#else
+        if (!(st.st_mode & _S_IFREG))
+          return -4;                    // error: not a regular file
+#endif
+      }
+      f = std::fopen(fullName.c_str(), mode);
+      if (!f)
+        return -5;                      // error: cannot open file
+    }
+    catch (...) {
+      if (f) {
+        std::fclose(f);
+        f = (std::FILE *) 0;
+      }
+      return -1;
+    }
+    return 0;
   }
 
 }       // namespace Ep128Emu

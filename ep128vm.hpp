@@ -216,8 +216,6 @@ namespace Ep128 {
     virtual void setDiskImageFile(int n, const std::string& fileName_,
                                   int nTracks_ = -1, int nSides_ = 2,
                                   int nSectorsPerTrack_ = 9);
-    // Set directory for files to be saved and loaded by the emulated machine.
-    virtual void setWorkingDirectory(const std::string& dirName_);
     // ---------------------------- TAPE EMULATION ----------------------------
     // Set tape image file name (if the file name is NULL or empty, tape
     // emulation is disabled).

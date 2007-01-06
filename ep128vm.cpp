@@ -807,12 +807,6 @@ namespace Ep128 {
                                      nTracks_, nSides_, nSectorsPerTrack_);
   }
 
-  void Ep128VM::setWorkingDirectory(const std::string& dirName_)
-  {
-    // TODO: implement this
-    (void) dirName_;
-  }
-
   void Ep128VM::setTapeFileName(const std::string& fileName)
   {
     Ep128Emu::VirtualMachine::setTapeFileName(fileName);

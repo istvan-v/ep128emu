@@ -56,9 +56,11 @@ namespace Ep128Emu {
                                           bool isIO, bool isWrite,
                                           uint16_t addr, uint8_t value);
     void            *breakPointCallbackUserData;
+    bool            noBreakOnDataRead;
+   private:
+    std::string     fileIOWorkingDirectory;
     void            (*fileNameCallback)(void *userData, std::string& fileName);
     void            *fileNameCallbackUserData;
-    bool            noBreakOnDataRead;
    public:
     VirtualMachine(VideoDisplay& display_, AudioOutput& audioOutput_);
     virtual ~VirtualMachine();
@@ -295,6 +297,25 @@ namespace Ep128Emu {
       return this->displayEnabled;
     }
     void setAudioConverterSampleRate(float sampleRate_);
+    // Open a file in the user specified working directory. 'baseName_' is the
+    // file name without any leading directory components; it is converted to
+    // lower case, invalid characters are replaced with underscores, and the
+    // file is searched case-insensitively. If 'baseName_' is empty, the file
+    // name callback (if any) is called, which should return either a full path
+    // file name, or an empty string in which case this function fails and
+    // returns -2 (invalid file name). 'mode' is the mode parameter to be
+    // passed to std::fopen().
+    // On success, the file handle is stored in 'f', and zero is returned.
+    // Otherwise, 'f' is set to NULL, and the return value is one of the
+    // following error codes:
+    //   -1: unknown error
+    //   -2: invalid (empty) file name
+    //   -3: the file is not found
+    //   -4: the file is not a regular file
+    //   -5: the file is found, but cannot be opened (e.g. permission is
+    //       denied)
+    int openFileInWorkingDirectory(std::FILE*& f, const std::string& baseName_,
+                                   const char *mode);
   };
 
 }       // namespace Ep128Emu

@@ -90,16 +90,105 @@ namespace Plus4 {
   {
     switch (n) {
     case 0x01:                          // load file
+    case 0x02:                          // verify file
+      vm.stopDemoPlayback();
+      vm.stopDemoRecording(false);
       {
-        // TODO: implement this
-        std::cerr << "system call: load" << std::endl;
+        std::string fileName;
+        uint8_t   nameLen = vm.readMemory(0x003F00AB);
+        uint16_t  nameAddr = uint16_t(vm.readMemory(0x003F00AF))
+                             | (uint16_t(vm.readMemory(0x003F00B0)) << 8);
+        while (nameLen) {
+          char    c = vm.readMemory(0x003F0000U | uint32_t(nameAddr));
+          if (c == '\0')
+            break;
+          fileName += c;
+          nameLen--;
+          nameAddr = (nameAddr + 1) & 0xFFFF;
+        }
+        std::FILE *f = (std::FILE *) 0;
+        int       err = vm.openFileInWorkingDirectory(f, fileName, "rb");
+        if (!err) {
+          reg_AC = 0xF9;
+          int     c;
+          c = std::fgetc(f);
+          if (c != EOF) {
+            uint16_t  addr = uint16_t(c & 0xFF);
+            c = std::fgetc(f);
+            if (c != EOF) {
+              addr |= (uint16_t(c & 0xFF) << 8);
+              reg_AC = 0x00;
+              if (vm.readMemory(0x003F00AD) == 0x00)
+                addr = uint16_t(vm.readMemory(0x003F00B4))
+                       | (uint16_t(vm.readMemory(0x003F00B5)) << 8);
+              unsigned int  nBytes = 0U;
+              do {
+                c = std::fgetc(f);
+                if (c == EOF)
+                  break;
+                if (n == 0x01)          // load
+                  vm.writeMemory(addr, uint8_t(c & 0xFF), true);
+                else if (uint8_t(c & 0xFF)
+                         != vm.readMemory(0x003F0000U | uint32_t(addr))) {
+                  reg_AC = 0xF8;        // verify error
+                  break;
+                }
+                addr = (addr + 1) & 0xFFFF;
+              } while (++nBytes < 0xFFFFU);
+              vm.writeMemory(0x009D, uint8_t(addr) & 0xFF, true);
+              vm.writeMemory(0x009E, uint8_t(addr >> 8) & 0xFF, true);
+            }
+          }
+          std::fclose(f);
+        }
+        else
+          reg_AC = uint8_t(err + 256);
         return true;
       }
       break;
-    case 0x02:                          // save file
+    case 0x03:                          // save file
+      vm.stopDemoPlayback();
+      vm.stopDemoRecording(false);
       {
-        // TODO: implement this
-        std::cerr << "system call: save" << std::endl;
+        std::string fileName;
+        uint8_t   nameLen = vm.readMemory(0x003F00AB);
+        uint16_t  nameAddr = uint16_t(vm.readMemory(0x003F00AF))
+                             | (uint16_t(vm.readMemory(0x003F00B0)) << 8);
+        while (nameLen) {
+          char    c = vm.readMemory(0x003F0000U | uint32_t(nameAddr));
+          if (c == '\0')
+            break;
+          fileName += c;
+          nameLen--;
+          nameAddr = (nameAddr + 1) & 0xFFFF;
+        }
+        std::FILE *f = (std::FILE *) 0;
+        int       err = vm.openFileInWorkingDirectory(f, fileName, "wb");
+        if (!err) {
+          reg_AC = 0xFA;
+          uint8_t   c = vm.readMemory(0x003F00B2);;
+          uint16_t  addr = uint16_t(c);
+          if (std::fputc(c, f) != EOF) {
+            c = vm.readMemory(0x003F00B3);;
+            addr |= (uint16_t(c) << 8);
+            if (std::fputc(c, f) != EOF) {
+              uint16_t  endAddr = uint16_t(vm.readMemory(0x003F009D))
+                                  | (uint16_t(vm.readMemory(0x003F009E)) << 8);
+              endAddr = endAddr & 0xFFFF;
+              while (addr != endAddr) {
+                c = vm.readMemory(0x003F0000U | uint32_t(addr));
+                if (std::fputc(c, f) == EOF)
+                  break;
+                addr = (addr + 1) & 0xFFFF;
+              }
+              if (addr == endAddr)
+                reg_AC = 0x00;
+            }
+          }
+          std::fclose(f);
+        }
+        else
+          reg_AC = uint8_t(err + 256);
         return true;
       }
       break;
@@ -477,19 +566,9 @@ namespace Plus4 {
       stopDemoPlayback();
       stopDemoRecording(false);
     }
-    if (isCPUAddress) {
-      addr &= uint32_t(0x0000FFFF);
-      uint8_t   segment = ted->getMemoryPage(uint8_t(addr >> 14));
-      if (addr <= 0x0001U)
-        segment = 0xFC;
-      else if (addr >= 0xFD00U && addr < 0xFF40U)
-        segment = 0xFF;
-      else if (segment < 0x08 && (addr >= 0xFC00U && addr < 0xFD00U))
-        segment = 0x01;
-      addr = (addr & uint32_t(0x3FFF)) | (uint32_t(segment) << 14);
-    }
-    else
-      addr &= uint32_t(0x003FFFFF);
+    if (isCPUAddress)
+      addr |= uint32_t(0x003F0000);
+    addr &= uint32_t(0x003FFFFF);
     ted->writeMemoryRaw(addr, value);
   }
 
