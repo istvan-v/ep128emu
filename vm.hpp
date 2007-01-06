@@ -314,8 +314,9 @@ namespace Ep128Emu {
     //   -4: the file is not a regular file
     //   -5: the file is found, but cannot be opened (e.g. permission is
     //       denied)
+    //   -6: the file already exists (if 'createOnly_' is true)
     int openFileInWorkingDirectory(std::FILE*& f, const std::string& baseName_,
-                                   const char *mode);
+                                   const char *mode, bool createOnly_ = false);
   };
 
 }       // namespace Ep128Emu

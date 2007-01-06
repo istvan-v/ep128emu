@@ -32,14 +32,11 @@
 #  define WIN32 1
 #endif
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #ifndef WIN32
-#  include <sys/types.h>
-#  include <sys/stat.h>
 #  include <unistd.h>
 #  include <dirent.h>
-#else
-#  include <sys/types.h>
-#  include <sys/stat.h>
 #endif
 
 static void defaultBreakPointCallback(void *userData,
@@ -304,11 +301,12 @@ namespace Ep128Emu {
       fileIOWorkingDirectory = "./";
     else {
       fileIOWorkingDirectory = dirName_;
-      for (size_t i = 0; i < dirName_.length(); i++) {
-        if (dirName_[i] == '\\')
+      const std::string&  s = fileIOWorkingDirectory;
+      for (size_t i = 0; i < s.length(); i++) {
+        if (s[i] == '\\')
           fileIOWorkingDirectory[i] = '/';
       }
-      if (dirName_[dirName_.length() - 1] != '/')
+      if (s[s.length() - 1] != '/')
         fileIOWorkingDirectory += '/';
     }
 #else
@@ -316,11 +314,12 @@ namespace Ep128Emu {
       fileIOWorkingDirectory = ".\\";
     else {
       fileIOWorkingDirectory = dirName_;
-      for (size_t i = 0; i < dirName_.length(); i++) {
-        if (dirName_[i] == '/')
+      const std::string&  s = fileIOWorkingDirectory;
+      for (size_t i = 0; i < s.length(); i++) {
+        if (s[i] == '/')
           fileIOWorkingDirectory[i] = '\\';
       }
-      if (dirName_[dirName_.length() - 1] != '\\')
+      if (s[s.length() - 1] != '\\')
         fileIOWorkingDirectory += '\\';
     }
 #endif
@@ -623,7 +622,8 @@ namespace Ep128Emu {
 
   int VirtualMachine::openFileInWorkingDirectory(std::FILE*& f,
                                                  const std::string& baseName_,
-                                                 const char *mode)
+                                                 const char *mode,
+                                                 bool createOnly_)
   {
     f = (std::FILE *) 0;
     try {
@@ -706,7 +706,11 @@ namespace Ep128Emu {
         if (!(st.st_mode & _S_IFREG))
           return -4;                    // error: not a regular file
 #endif
+        if (createOnly_)
+          return -6;                    // error: the file already exists
       }
+      // FIXME: the file may possibly be created, changed, or removed between
+      // calling stat() and fopen()
       f = std::fopen(fullName.c_str(), mode);
       if (!f)
         return -5;                      // error: cannot open file

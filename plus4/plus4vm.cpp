@@ -99,7 +99,7 @@ namespace Plus4 {
         uint16_t  nameAddr = uint16_t(vm.readMemory(0x003F00AF))
                              | (uint16_t(vm.readMemory(0x003F00B0)) << 8);
         while (nameLen) {
-          char    c = vm.readMemory(0x003F0000U | uint32_t(nameAddr));
+          char    c = char(vm.readMemory(0x003F0000U | uint32_t(nameAddr)));
           if (c == '\0')
             break;
           fileName += c;
@@ -135,8 +135,8 @@ namespace Plus4 {
                 }
                 addr = (addr + 1) & 0xFFFF;
               } while (++nBytes < 0xFFFFU);
-              vm.writeMemory(0x009D, uint8_t(addr) & 0xFF, true);
-              vm.writeMemory(0x009E, uint8_t(addr >> 8) & 0xFF, true);
+              vm.writeMemory(0x003F009D, uint8_t(addr) & 0xFF);
+              vm.writeMemory(0x003F009E, uint8_t(addr >> 8) & 0xFF);
             }
           }
           std::fclose(f);
@@ -155,7 +155,7 @@ namespace Plus4 {
         uint16_t  nameAddr = uint16_t(vm.readMemory(0x003F00AF))
                              | (uint16_t(vm.readMemory(0x003F00B0)) << 8);
         while (nameLen) {
-          char    c = vm.readMemory(0x003F0000U | uint32_t(nameAddr));
+          char    c = char(vm.readMemory(0x003F0000U | uint32_t(nameAddr)));
           if (c == '\0')
             break;
           fileName += c;
@@ -166,10 +166,10 @@ namespace Plus4 {
         int       err = vm.openFileInWorkingDirectory(f, fileName, "wb");
         if (!err) {
           reg_AC = 0xFA;
-          uint8_t   c = vm.readMemory(0x003F00B2);;
+          uint8_t   c = vm.readMemory(0x003F00B2);
           uint16_t  addr = uint16_t(c);
           if (std::fputc(c, f) != EOF) {
-            c = vm.readMemory(0x003F00B3);;
+            c = vm.readMemory(0x003F00B3);
             addr |= (uint16_t(c) << 8);
             if (std::fputc(c, f) != EOF) {
               uint16_t  endAddr = uint16_t(vm.readMemory(0x003F009D))
