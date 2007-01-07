@@ -210,6 +210,230 @@ namespace Ep128 {
     vm.updateCPUCycles(cycles);
   }
 
+  void Ep128VM::Z80_::tapePatch()
+  {
+    if (vm.readMemory((uint16_t(R.PC.W.l) + 2) & 0xFFFF, true) != 0xFE)
+      return;
+    uint8_t n = vm.readMemory((uint16_t(R.PC.W.l) + 3) & 0xFFFF, true);
+    if (n > 0x0F)
+      return;
+    if (vm.isRecordingDemo || vm.isPlayingDemo) {
+      if (n >= 0x01 && n <= 0x0B) {
+        // file I/O is disabled while recording or playing demo
+        R.AF.B.h = 0xE7;
+        return;
+      }
+    }
+    std::map< uint8_t, std::FILE * >::iterator  i_;
+    i_ = fileChannels.find(uint8_t(R.AF.B.h));
+    if ((n >= 0x01 && n <= 0x02) && i_ != fileChannels.end()) {
+      R.AF.B.h = 0xF9;          // channel already exists
+      return;
+    }
+    if ((n >= 0x03 && n <= 0x0B) && i_ == fileChannels.end()) {
+      R.AF.B.h = 0xFB;          // channel does not exist
+      return;
+    }
+    switch (n) {
+    case 0x00:                          // INTERRUPT
+      R.AF.B.h = 0x00;
+      break;
+    case 0x01:                          // OPEN CHANNEL
+      {
+        std::string fileName;
+        uint16_t    nameAddr = uint16_t(R.DE.W);
+        uint8_t     nameLen = vm.readMemory(nameAddr, true);
+        while (nameLen) {
+          nameAddr = (nameAddr + 1) & 0xFFFF;
+          char  c = char(vm.readMemory(nameAddr, true));
+          if (c == '\0')
+            break;
+          nameLen--;
+          fileName += c;
+        }
+        uint8_t   chn = uint8_t(R.AF.B.h);
+        std::FILE *f = (std::FILE *) 0;
+        R.AF.B.h = 0x00;
+        try {
+          int   err = vm.openFileInWorkingDirectory(f, fileName, "rb");
+          if (err == 0)
+            fileChannels.insert(std::pair< uint8_t, std::FILE * >(chn, f));
+          else {
+            switch (err) {
+            case -2:
+              R.AF.B.h = 0xA6;
+              break;
+            case -3:
+              R.AF.B.h = 0xCF;
+              break;
+            case -4:
+            case -5:
+              R.AF.B.h = 0xA1;
+              break;
+            default:
+              R.AF.B.h = 0xBA;
+            }
+          }
+        }
+        catch (...) {
+          if (f)
+            std::fclose(f);
+          R.AF.B.h = 0xBA;
+        }
+      }
+      break;
+    case 0x02:                          // CREATE CHANNEL
+      {
+        std::string fileName;
+        uint16_t    nameAddr = uint16_t(R.DE.W);
+        uint8_t     nameLen = vm.readMemory(nameAddr, true);
+        while (nameLen) {
+          nameAddr = (nameAddr + 1) & 0xFFFF;
+          char  c = char(vm.readMemory(nameAddr, true));
+          if (c == '\0')
+            break;
+          nameLen--;
+          fileName += c;
+        }
+        uint8_t   chn = uint8_t(R.AF.B.h);
+        std::FILE *f = (std::FILE *) 0;
+        R.AF.B.h = 0x00;
+        try {
+          int   err = vm.openFileInWorkingDirectory(f, fileName, "wb");
+          if (err == 0)
+            fileChannels.insert(std::pair< uint8_t, std::FILE * >(chn, f));
+          else {
+            switch (err) {
+            case -2:
+              R.AF.B.h = 0xA6;
+              break;
+            case -3:
+              R.AF.B.h = 0xCF;
+              break;
+            case -4:
+            case -5:
+              R.AF.B.h = 0xA1;
+              break;
+            default:
+              R.AF.B.h = 0xBA;
+            }
+          }
+        }
+        catch (...) {
+          if (f)
+            std::fclose(f);
+          R.AF.B.h = 0xBA;
+        }
+      }
+      break;
+    case 0x03:                          // CLOSE CHANNEL
+      if (std::fclose((*i_).second) == 0)
+        R.AF.B.h = 0x00;
+      else
+        R.AF.B.h = 0xE4;
+      (*i_).second = (std::FILE *) 0;
+      fileChannels.erase(i_);
+      break;
+    case 0x04:                          // DESTROY CHANNEL
+      // FIXME: this should remove the file;
+      // for now, it is the same as "close channel"
+      if (std::fclose((*i_).second) == 0)
+        R.AF.B.h = 0x00;
+      else
+        R.AF.B.h = 0xE4;
+      (*i_).second = (std::FILE *) 0;
+      fileChannels.erase(i_);
+      break;
+    case 0x05:                          // READ CHARACTER
+      {
+        int   c = std::fgetc((*i_).second);
+        R.AF.B.h = uint8_t(c == EOF ? 0xE4 : 0x00);
+        R.BC.B.h = uint8_t(c & 0xFF);
+      }
+      break;
+    case 0x06:                          // READ BLOCK
+      R.AF.B.h = 0x00;
+      while (R.BC.W != 0x0000) {
+        int     c = std::fgetc((*i_).second);
+        if (c == EOF) {
+          R.AF.B.h = 0xE4;
+          break;
+        }
+        writeUserMemory(uint16_t(R.DE.W), uint8_t(c & 0xFF));
+        R.DE.W = (R.DE.W + 1) & 0xFFFF;
+        R.BC.W = (R.BC.W - 1) & 0xFFFF;
+      }
+      break;
+    case 0x07:                          // WRITE CHARACTER
+      if (std::fputc(R.BC.B.h, (*i_).second) != EOF)
+        R.AF.B.h = 0x00;
+      else
+        R.AF.B.h = 0xE4;
+      std::fseek((*i_).second, 0L, SEEK_CUR);
+      break;
+    case 0x08:                          // WRITE BLOCK
+      R.AF.B.h = 0x00;
+      while (R.BC.W != 0x0000) {
+        uint8_t c = readUserMemory(uint16_t(R.DE.W));
+        if (std::fputc(c, (*i_).second) == EOF) {
+          R.AF.B.h = 0xE4;
+          break;
+        }
+        R.DE.W = (R.DE.W + 1) & 0xFFFF;
+        R.BC.W = (R.BC.W - 1) & 0xFFFF;
+      }
+      std::fseek((*i_).second, 0L, SEEK_CUR);
+      break;
+    case 0x09:                          // CHANNEL READ STATUS
+      R.BC.B.l = uint8_t(std::feof((*i_).second) == 0 ? 0x00 : 0xFF);
+      R.AF.B.h = 0x00;
+      break;
+    case 0x0A:                          // SET/GET CHANNEL STATUS
+      // TODO: implement this
+      R.AF.B.h = 0xE7;
+      R.BC.B.l = 0x00;
+      break;
+    case 0x0B:                          // SPECIAL FUNCTION
+      R.AF.B.h = 0xE7;
+      break;
+    case 0x0C:                          // INITIALIZATION
+      closeAllFiles();
+      R.AF.B.h = 0x00;
+      break;
+    case 0x0D:                          // BUFFER MOVED
+      R.AF.B.h = 0x00;
+      break;
+    default:
+      R.AF.B.h = 0xE7;
+    }
+  }
+
+  uint8_t Ep128VM::Z80_::readUserMemory(uint16_t addr)
+  {
+    uint8_t   segment = vm.memory.readRaw(0x003FFFFCU | uint32_t(addr >> 14));
+    uint32_t  addr_ = (uint32_t(segment) << 14) | uint32_t(addr & 0x3FFF);
+    return vm.memory.readRaw(addr_);
+  }
+
+  void Ep128VM::Z80_::writeUserMemory(uint16_t addr, uint8_t value)
+  {
+    uint8_t   segment = vm.memory.readRaw(0x003FFFFCU | uint32_t(addr >> 14));
+    uint32_t  addr_ = (uint32_t(segment) << 14) | uint32_t(addr & 0x3FFF);
+    vm.memory.writeRaw(addr_, value);
+  }
+
+  void Ep128VM::Z80_::closeAllFiles()
+  {
+    std::map< uint8_t, std::FILE * >::iterator  i;
+    for (i = fileChannels.begin(); i != fileChannels.end(); i++) {
+      if ((*i).second != (std::FILE *) 0) {
+        std::fclose((*i).second);
+        (*i).second = (std::FILE *) 0;
+      }
+    }
+    fileChannels.clear();
+  }
+
   // --------------------------------------------------------------------------
 
   Ep128VM::Memory_::Memory_(Ep128VM& vm_)
@@ -1026,6 +1250,7 @@ namespace Ep128 {
     demoFile = &f;
     isRecordingDemo = true;
     demoTimeCnt = 0U;
+    z80.closeAllFiles();
   }
 
   void Ep128VM::stopDemo()
@@ -1068,6 +1293,7 @@ namespace Ep128 {
     floppyDrives[1].reset();
     floppyDrives[2].reset();
     floppyDrives[3].reset();
+    z80.closeAllFiles();
     try {
       uint8_t   p0, p1, p2, p3;
       p0 = buf.readByte();

@@ -32,6 +32,8 @@
 #include "vm.hpp"
 #include "wd177x.hpp"
 
+#include <map>
+
 namespace Ep128 {
 
   class Ep128VM : public Ep128Emu::VirtualMachine {
@@ -39,6 +41,7 @@ namespace Ep128 {
     class Z80_ : public Z80 {
      private:
       Ep128VM&  vm;
+      std::map< uint8_t, std::FILE * >  fileChannels;
      public:
       Z80_(Ep128VM& vm_);
       virtual ~Z80_();
@@ -53,6 +56,12 @@ namespace Ep128 {
       virtual void doOut(uint16_t addr, uint8_t value);
       virtual uint8_t doIn(uint16_t addr);
       virtual void updateCycles(int cycles);
+      virtual void tapePatch();
+     private:
+      uint8_t readUserMemory(uint16_t addr);
+      void writeUserMemory(uint16_t addr, uint8_t value);
+     public:
+      void closeAllFiles();
     };
     class Memory_ : public Memory {
      private:
