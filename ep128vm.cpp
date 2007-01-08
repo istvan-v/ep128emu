@@ -64,12 +64,14 @@ namespace Ep128 {
 
   Ep128VM::Z80_::Z80_(Ep128VM& vm_)
     : Z80(),
-      vm(vm_)
+      vm(vm_),
+      defaultDeviceIsFILE(false)
   {
   }
 
   Ep128VM::Z80_::~Z80_()
   {
+    closeAllFiles();
   }
 
   uint8_t Ep128VM::Z80_::readMemory(uint16_t addr)
@@ -248,8 +250,8 @@ namespace Ep128 {
           char  c = char(vm.readMemory(nameAddr, true));
           if (c == '\0')
             break;
-          nameLen--;
           fileName += c;
+          nameLen--;
         }
         uint8_t   chn = uint8_t(R.AF.B.h);
         std::FILE *f = (std::FILE *) 0;
@@ -292,8 +294,8 @@ namespace Ep128 {
           char  c = char(vm.readMemory(nameAddr, true));
           if (c == '\0')
             break;
-          nameLen--;
           fileName += c;
+          nameLen--;
         }
         uint8_t   chn = uint8_t(R.AF.B.h);
         std::FILE *f = (std::FILE *) 0;
@@ -347,7 +349,7 @@ namespace Ep128 {
     case 0x05:                          // READ CHARACTER
       {
         int   c = std::fgetc((*i_).second);
-        R.AF.B.h = uint8_t(c == EOF ? 0xE4 : 0x00);
+        R.AF.B.h = uint8_t(c != EOF ? 0x00 : 0xE4);
         R.BC.B.h = uint8_t(c & 0xFF);
       }
       break;
@@ -369,7 +371,8 @@ namespace Ep128 {
         R.AF.B.h = 0x00;
       else
         R.AF.B.h = 0xE4;
-      std::fseek((*i_).second, 0L, SEEK_CUR);
+      if (std::fseek((*i_).second, 0L, SEEK_CUR) < 0)
+        R.AF.B.h = 0xE4;
       break;
     case 0x08:                          // WRITE BLOCK
       R.AF.B.h = 0x00;
@@ -382,7 +385,8 @@ namespace Ep128 {
         R.DE.W = (R.DE.W + 1) & 0xFFFF;
         R.BC.W = (R.BC.W - 1) & 0xFFFF;
       }
-      std::fseek((*i_).second, 0L, SEEK_CUR);
+      if (std::fseek((*i_).second, 0L, SEEK_CUR) < 0)
+        R.AF.B.h = 0xE4;
       break;
     case 0x09:                          // CHANNEL READ STATUS
       R.BC.B.l = uint8_t(std::feof((*i_).second) == 0 ? 0x00 : 0xFF);
@@ -402,6 +406,15 @@ namespace Ep128 {
       break;
     case 0x0D:                          // BUFFER MOVED
       R.AF.B.h = 0x00;
+      break;
+    case 0x0E:                          // get if default device is 'FILE:'
+      R.AF.B.h = uint8_t(defaultDeviceIsFILE &&
+                         !(vm.isRecordingDemo ||
+                           vm.isPlayingDemo) ? 0x01 : 0x00);
+      break;
+    case 0x0F:                          // set if default device is 'FILE:'
+      if (!(vm.isRecordingDemo || vm.isPlayingDemo))
+        defaultDeviceIsFILE = (R.AF.B.h != 0x00);
       break;
     default:
       R.AF.B.h = 0xE7;
@@ -1242,6 +1255,7 @@ namespace Ep128 {
     floppyDrives[1].reset();
     floppyDrives[2].reset();
     floppyDrives[3].reset();
+    z80.closeAllFiles();
     // save full snapshot, including timing and clock frequency settings
     saveMachineConfiguration(f);
     saveState(f);
@@ -1250,7 +1264,6 @@ namespace Ep128 {
     demoFile = &f;
     isRecordingDemo = true;
     demoTimeCnt = 0U;
-    z80.closeAllFiles();
   }
 
   void Ep128VM::stopDemo()

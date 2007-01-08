@@ -42,6 +42,7 @@ namespace Ep128 {
      private:
       Ep128VM&  vm;
       std::map< uint8_t, std::FILE * >  fileChannels;
+      bool      defaultDeviceIsFILE;
      public:
       Z80_(Ep128VM& vm_);
       virtual ~Z80_();
