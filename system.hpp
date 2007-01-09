@@ -119,7 +119,7 @@ namespace Ep128Emu {
   class Timer {
    private:
     uint64_t  startTime;
-    double    secondsPerCount;
+    double    secondsPerTick;
     static uint64_t getRealTime_();
    public:
     Timer();

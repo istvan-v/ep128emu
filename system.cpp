@@ -296,10 +296,10 @@ namespace Ep128Emu {
 #ifdef WIN32
     LARGE_INTEGER   tmp;
     QueryPerformanceFrequency(&tmp);
-    secondsPerCount = 1.0 / double(int64_t(tmp.u.LowPart)
-                                   + (int64_t(tmp.u.HighPart) << 32));
+    secondsPerTick = 1.0 / double(int64_t(tmp.u.LowPart)
+                                  + (int64_t(tmp.u.HighPart) << 32));
 #else
-    secondsPerCount = 0.000001;
+    secondsPerTick = 0.000001;
 #endif
     startTime = getRealTime_();
   }
@@ -311,7 +311,7 @@ namespace Ep128Emu {
   double Timer::getRealTime()
   {
     uint64_t  t = getRealTime_();
-    return (double(int64_t(t - startTime)) * secondsPerCount);
+    return (double(int64_t(t - startTime)) * secondsPerTick);
   }
 
   void Timer::reset()

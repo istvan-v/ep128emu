@@ -691,7 +691,7 @@ namespace Ep128Emu {
     }
 
     messageQueueMutex.lock();
-    framesPending--;
+    framesPending = (framesPending > 0 ? (framesPending - 1) : 0);
     messageQueueMutex.unlock();
   }
 
@@ -874,7 +874,7 @@ namespace Ep128Emu {
     bool    skippedFrame = skippingFrame;
     if (!skippedFrame)
       framesPending++;
-    skippingFrame = (framesPending > 3);
+    skippingFrame = (framesPending > 3);    // should this be configurable ?
     messageQueueMutex.unlock();
     if (skippedFrame)
       return;
