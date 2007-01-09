@@ -116,6 +116,19 @@ namespace Ep128Emu {
     void unlock();
   };
 
+  class Timer {
+   private:
+    uint64_t  startTime;
+    double    secondsPerCount;
+    static uint64_t getRealTime_();
+   public:
+    Timer();
+    ~Timer();
+    double getRealTime();
+    void reset();
+    static void wait(double t);
+  };
+
   // remove leading and trailing whitespace from string
   void stripString(std::string& s);
 

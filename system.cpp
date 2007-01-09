@@ -278,6 +278,56 @@ namespace Ep128Emu {
 #endif
   }
 
+  uint64_t Timer::getRealTime_()
+  {
+#ifdef WIN32
+    LARGE_INTEGER   tmp;
+    QueryPerformanceCounter(&tmp);
+    return (uint64_t(tmp.u.LowPart) + (uint64_t(tmp.u.HighPart) << 32));
+#else
+    struct timeval  tv;
+    gettimeofday(&tv, NULL);
+    return (uint64_t(tv.tv_usec) + (uint64_t(tv.tv_sec) * 1000000U));
+#endif
+  }
+
+  Timer::Timer()
+  {
+#ifdef WIN32
+    LARGE_INTEGER   tmp;
+    QueryPerformanceFrequency(&tmp);
+    secondsPerCount = 1.0 / double(int64_t(tmp.u.LowPart)
+                                   + (int64_t(tmp.u.HighPart) << 32));
+#else
+    secondsPerCount = 0.000001;
+#endif
+    startTime = getRealTime_();
+  }
+
+  Timer::~Timer()
+  {
+  }
+
+  double Timer::getRealTime()
+  {
+    uint64_t  t = getRealTime_();
+    return (double(int64_t(t - startTime)) * secondsPerCount);
+  }
+
+  void Timer::reset()
+  {
+    startTime = getRealTime_();
+  }
+
+  void Timer::wait(double t)
+  {
+#ifdef WIN32
+    Sleep((unsigned int) (t * 1000.0 + 0.5));
+#else
+    usleep((unsigned int) (t * 1000000.0 + 0.5));
+#endif
+  }
+
   // --------------------------------------------------------------------------
 
   void stripString(std::string& s)
