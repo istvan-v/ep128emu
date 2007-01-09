@@ -88,6 +88,8 @@ namespace Ep128Emu {
     size_t  writeBufIndex;
     size_t  readBufIndex;
     PaStream  *paStream;
+    Timer   timer_;
+    double  nextTime;
 #ifndef USING_OLD_PORTAUDIO_API
     static int portAudioCallback(const void *input, void *output,
                                  unsigned long frameCount,

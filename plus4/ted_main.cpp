@@ -29,6 +29,8 @@ namespace Plus4 {
       if (ted_disabled) {
         if (cycle_count & 1UL)
           M7501::run(cpu_clock_multiplier);
+        if (!(cycle_count & 7UL))
+          playSample(0);
         continue;
       }
       bool  evenCycle = !(video_column & uint8_t(0x01));

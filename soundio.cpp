@@ -179,7 +179,8 @@ namespace Ep128Emu {
       paInitialized(false),
       writeBufIndex(0),
       readBufIndex(0),
-      paStream((PaStream *) 0)
+      paStream((PaStream *) 0),
+      nextTime(0.0)
   {
     // initialize PortAudio
     if (Pa_Initialize() != paNoError)
@@ -219,6 +220,18 @@ namespace Ep128Emu {
           }
         }
       }
+    }
+    else {
+      // if there is no audio device, only synchronize to real time
+      double  curTime = timer_.getRealTime();
+      double  waitTime = nextTime - curTime;
+      if (waitTime > 0.0)
+        Timer::wait(waitTime);
+      if (waitTime < double(-totalLatency)) {
+        timer_.reset();
+        nextTime = 0.0;
+      }
+      nextTime += (double(long(nFrames)) / sampleRate);
     }
     // call base class to write sound file
     AudioOutput::sendAudioData(buf, nFrames);

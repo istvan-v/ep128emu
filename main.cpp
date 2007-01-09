@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -50,8 +50,9 @@ class Display : public Ep128Emu::OpenGLDisplay {
   Ep128Emu::Mutex keyboardQueueMutex;
   std::map< int, bool > keyboardState;
  public:
-  Display(int xx, int yy, int ww, int hh, const char *lbl = 0)
-    : Ep128Emu::OpenGLDisplay(xx, yy, ww, hh, lbl)
+  Display(int xx, int yy, int ww, int hh, const char *lbl = 0,
+          bool isDoubleBuffered = false)
+    : Ep128Emu::OpenGLDisplay(xx, yy, ww, hh, lbl, isDoubleBuffered)
   {
   }
   virtual ~Display()
@@ -332,6 +333,7 @@ int main(int argc, char **argv)
     w->size(config->display.width, config->display.height);
     basew->size_range(352, 288, 1408, 1152);
     basew->show();
+    w->setIsDoubleBuffered(config->display.doubleBuffered);
     w->show();
     w->cursor(FL_CURSOR_NONE);
     vmThread = new VMThread(*vm, *w, *audioOutput, *config);

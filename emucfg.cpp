@@ -121,6 +121,9 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "display.enabled",
                                 display.enabled, true,
                                 displaySettingsChanged);
+    defineConfigurationVariable(*this, "display.doubleBuffered",
+                                display.doubleBuffered, false,
+                                displaySettingsChanged);
     defineConfigurationVariable(*this, "display.quality",
                                 display.quality, int(2),
                                 displaySettingsChanged, 0.0, 3.0);

@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -85,6 +85,17 @@ namespace Ep128Emu {
         buf = reinterpret_cast<unsigned char *>(&(buf_[0]));
         nBytes = nBytes_;
       }
+      bool operator==(const Message_LineData& r) const
+      {
+        if (r.nBytes_ != nBytes_)
+          return false;
+        size_t  n = (nBytes_ + 3) >> 2;
+        for (size_t i = 0; i < n; i++) {
+          if (r.buf_[i] != buf_[i])
+            return false;
+        }
+        return true;
+      }
     };
     class Message_FrameDone : public Message {
      public:
@@ -144,6 +155,7 @@ namespace Ep128Emu {
     Colormap      colormap;
     // for 578 lines (576 + 2 border)
     Message_LineData  **lineBuffers;
+    bool          *linesChanged;
     // 1024x1024 texture in 16-bit (R5G6B5) format
     uint16_t      *textureBuffer;
     unsigned long textureID;
@@ -155,14 +167,19 @@ namespace Ep128Emu {
     DisplayParameters   displayParameters;
     DisplayParameters   savedDisplayParameters;
     volatile bool exitFlag;
+    uint8_t       forceUpdateLineCnt;
+    uint8_t       forceUpdateLineMask;
+    Timer         noInputTimer;
+    Timer         forceUpdateTimer;
    public:
     OpenGLDisplay(int xx = 0, int yy = 0, int ww = 704, int hh = 576,
-                  const char *lbl = (char *) 0);
+                  const char *lbl = (char *) 0, bool isDoubleBuffered = false);
     virtual ~OpenGLDisplay();
     // set color correction and other display parameters
     // (see 'struct DisplayParameters' above for more information)
     virtual void setDisplayParameters(const DisplayParameters& dp);
     virtual const DisplayParameters& getDisplayParameters() const;
+    void setIsDoubleBuffered(bool n);
     // Draw next line of display.
     // 'buf' defines a line of 736 pixels, as 46 groups of 16 pixels each,
     // in the following format: the first byte defines the number of

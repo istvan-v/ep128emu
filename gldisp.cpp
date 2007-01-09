@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -282,6 +282,7 @@ namespace Ep128Emu {
 
   void OpenGLDisplay::deleteMessage(Message *m)
   {
+    m->~Message();
     m->prv = (Message *) 0;
     messageQueueMutex.lock();
     m->nxt = freeMessageStack;
@@ -289,7 +290,6 @@ namespace Ep128Emu {
       freeMessageStack->prv = m;
     freeMessageStack = m;
     messageQueueMutex.unlock();
-    m->~Message();
   }
 
   void OpenGLDisplay::queueMessage(Message *m)
@@ -316,7 +316,7 @@ namespace Ep128Emu {
   // --------------------------------------------------------------------------
 
   OpenGLDisplay::OpenGLDisplay(int xx, int yy, int ww, int hh,
-                               const char *lbl)
+                               const char *lbl, bool isDoubleBuffered)
     : Fl_Gl_Window(xx, yy, ww, hh, lbl),
       messageQueue((Message *) 0),
       lastMessage((Message *) 0),
@@ -324,6 +324,7 @@ namespace Ep128Emu {
       messageQueueMutex(),
       colormap(),
       lineBuffers((Message_LineData **) 0),
+      linesChanged((bool *) 0),
       textureBuffer((uint16_t *) 0),
       textureID(0UL),
       curLine(0),
@@ -333,23 +334,30 @@ namespace Ep128Emu {
       skippingFrame(false),
       displayParameters(),
       savedDisplayParameters(),
-      exitFlag(false)
+      exitFlag(false),
+      forceUpdateLineCnt(0),
+      forceUpdateLineMask(0)
   {
     try {
       lineBuffers = new Message_LineData*[578];
       for (size_t n = 0; n < 578; n++)
         lineBuffers[n] = (Message_LineData *) 0;
+      linesChanged = new bool[289];
+      for (size_t n = 0; n < 289; n++)
+        linesChanged[n] = false;
       textureBuffer = new uint16_t[1024 * 1024];    // texture size = 1024x1024
       std::memset(textureBuffer, 0, sizeof(uint16_t) * 1024 * 1024);
     }
     catch (...) {
       if (lineBuffers)
         delete[] lineBuffers;
+      if (linesChanged)
+        delete[] linesChanged;
       if (textureBuffer)
         delete[] textureBuffer;
       throw;
     }
-    this->mode(FL_RGB | FL_SINGLE);
+    this->mode(FL_RGB | (isDoubleBuffered ? FL_DOUBLE : FL_SINGLE));
   }
 
   OpenGLDisplay::~OpenGLDisplay()
@@ -379,6 +387,7 @@ namespace Ep128Emu {
       glDeleteTextures(1, &tmp);
     }
     delete[] textureBuffer;
+    delete[] linesChanged;
     for (size_t n = 0; n < 578; n++) {
       Message *m = lineBuffers[n];
       if (m) {
@@ -487,7 +496,8 @@ namespace Ep128Emu {
         }
       }
     }
-    else {
+    else if (!(displayParameters.displayQuality == 0 &&
+               (this->mode() & FL_DOUBLE) == 0)) {
       for (size_t yc = 0; yc < 289; yc++) {
         // decode video data
         const unsigned char *bufp = (unsigned char *) 0;
@@ -517,83 +527,169 @@ namespace Ep128Emu {
         }
       }
     }
-
-    // load texture
-    GLuint  textureID_ = GLuint(textureID);
-    GLint   savedTextureID = 0;
-    glEnable(GL_TEXTURE_2D);
-    glGetIntegerv(GL_TEXTURE_BINDING_2D, &savedTextureID);
-    glBindTexture(GL_TEXTURE_2D, textureID_);
-    setTextureParameters(displayParameters.displayQuality);
-    if (displayParameters.displayQuality > 2)
-      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 704, 578,
-                      GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
-                      (GLvoid *) textureBuffer);
-    else if (displayParameters.displayQuality < 2)
-      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 352, 289,
-                      GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
-                      (GLvoid *) textureBuffer);
-    else
-      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 704, 289,
-                      GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
-                      (GLvoid *) textureBuffer);
-
-    // update display
-    glEnable(GL_TEXTURE_2D);
-    if (displayParameters.displayQuality > 0) {
-      glEnable(GL_BLEND);
-      glBlendColor(GLclampf(displayParameters.blendScale2),
-                   GLclampf(displayParameters.blendScale2),
-                   GLclampf(displayParameters.blendScale2),
-                   GLclampf(1.0 - displayParameters.blendScale3));
-      glBlendFunc(GL_CONSTANT_COLOR, GL_ONE_MINUS_CONSTANT_ALPHA);
-    }
-    else
-      glDisable(GL_BLEND);
-    glBegin(GL_QUADS);
-    if (displayParameters.displayQuality > 2) {
-      glTexCoord2f(GLfloat(0.0), GLfloat(1.0 / 1024.0));
-      glVertex2f(GLfloat(x0), GLfloat(y0));
-      glTexCoord2f(GLfloat(704.0 / 1024.0), GLfloat(1.0 / 1024));
-      glVertex2f(GLfloat(x1), GLfloat(y0));
-      glTexCoord2f(GLfloat(704.0 / 1024.0), GLfloat(577.0 / 1024.0));
-      glVertex2f(GLfloat(x1), GLfloat(y1));
-      glTexCoord2f(GLfloat(0.0), GLfloat(577.0 / 1024.0));
-      glVertex2f(GLfloat(x0), GLfloat(y1));
-    }
-    else if (displayParameters.displayQuality < 2) {
-      glTexCoord2f(GLfloat(0.0), GLfloat(0.0));
-      glVertex2f(GLfloat(x0), GLfloat(y0));
-      glTexCoord2f(GLfloat(352.0 / 1024.0), GLfloat(0.0));
-      glVertex2f(GLfloat(x1), GLfloat(y0));
-      glTexCoord2f(GLfloat(352.0 / 1024.0), GLfloat(288.0 / 1024.0));
-      glVertex2f(GLfloat(x1), GLfloat(y1));
-      glTexCoord2f(GLfloat(0.0), GLfloat(288.0 / 1024.0));
-      glVertex2f(GLfloat(x0), GLfloat(y1));
-    }
     else {
-      glTexCoord2f(GLfloat(0.0), GLfloat(0.0));
-      glVertex2f(GLfloat(x0), GLfloat(y0));
-      glTexCoord2f(GLfloat(704.0 / 1024.0), GLfloat(0.0));
-      glVertex2f(GLfloat(x1), GLfloat(y0));
-      glTexCoord2f(GLfloat(704.0 / 1024.0), GLfloat(288.0 / 1024.0));
-      glVertex2f(GLfloat(x1), GLfloat(y1));
-      glTexCoord2f(GLfloat(0.0), GLfloat(288.0 / 1024.0));
-      glVertex2f(GLfloat(x0), GLfloat(y1));
-    }
-    glEnd();
-
-    // clean up
-    glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
-    glPopMatrix();
-    glFinish();
-    for (size_t n = 0; n < 578; n++) {
-      if (lineBuffers[n] != (Message_LineData *) 0) {
-        Message *m = lineBuffers[n];
-        lineBuffers[n] = (Message_LineData *) 0;
-        deleteMessage(m);
+      // quality=0 with single buffered display is special case: only those
+      // lines are updated that have changed since the last frame
+      GLuint  textureID_ = GLuint(textureID);
+      GLint   savedTextureID = 0;
+      glEnable(GL_TEXTURE_2D);
+      glDisable(GL_BLEND);
+      glGetIntegerv(GL_TEXTURE_BINDING_2D, &savedTextureID);
+      glBindTexture(GL_TEXTURE_2D, textureID_);
+      setTextureParameters(displayParameters.displayQuality);
+      for (size_t yc = 0; yc < 288; yc += 8) {
+        size_t  offs;
+        for (offs = 0; offs < 8; offs++) {
+          if (linesChanged[yc + offs])
+            break;
+        }
+        if (offs == 8)
+          continue;
+        for (offs = 0; offs < 8; offs++) {
+          linesChanged[yc + offs] = false;
+          // decode video data
+          const unsigned char *bufp = (unsigned char *) 0;
+          size_t  nBytes = 0;
+          size_t  lineNum = (yc + offs) << 1;
+          if (lineBuffers[lineNum + 0] != (Message_LineData *) 0) {
+            lineBuffers[lineNum + 0]->getLineData(bufp, nBytes);
+            decodeLine(curLine_, bufp, nBytes);
+          }
+          else if (lineBuffers[lineNum + 1] != (Message_LineData *) 0) {
+            lineBuffers[lineNum + 1]->getLineData(bufp, nBytes);
+            decodeLine(curLine_, bufp, nBytes);
+          }
+          else
+            std::memset(curLine_, 0, 704);
+          // build 16-bit texture:
+          // half horizontal resolution, no interlace (352x8)
+          uint16_t  *txtp = &(textureBuffer[offs * 352]);
+          for (size_t xc = 0; xc < 704; xc += 2)
+            txtp[xc >> 1] = colormap(curLine_[xc], curLine_[xc + 1]);
+        }
+        // load texture
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 352, 8,
+                        GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
+                        (GLvoid *) textureBuffer);
+        // update display
+        double  ycf0 = y0 + ((double(int(yc << 1)) * (1.0 / 576.0))
+                             * (y1 - y0));
+        double  ycf1 = y0 + ((double(int(yc << 1) + 16) * (1.0 / 576.0))
+                             * (y1 - y0));
+        glBegin(GL_QUADS);
+        glTexCoord2f(GLfloat(0.0), GLfloat(0.001 / 1024.0));
+        glVertex2f(GLfloat(x0), GLfloat(ycf0));
+        glTexCoord2f(GLfloat(352.0 / 1024.0), GLfloat(0.001 / 1024.0));
+        glVertex2f(GLfloat(x1), GLfloat(ycf0));
+        glTexCoord2f(GLfloat(352.0 / 1024.0), GLfloat(7.999 / 1024.0));
+        glVertex2f(GLfloat(x1), GLfloat(ycf1));
+        glTexCoord2f(GLfloat(0.0), GLfloat(7.999 / 1024.0));
+        glVertex2f(GLfloat(x0), GLfloat(ycf1));
+        glEnd();
+      }
+      // clean up
+      glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
+      glPopMatrix();
+      glFinish();
+      // make sure that all lines are updated at a slow rate
+      if (forceUpdateLineMask) {
+        for (size_t yc = 0; yc < 289; yc++) {
+          if (!(forceUpdateLineMask & (uint8_t(1) << uint8_t((yc >> 3) & 7))))
+            continue;
+          for (size_t tmp = (yc << 1); tmp < ((yc + 1) << 1); tmp++) {
+            if (lineBuffers[tmp] != (Message_LineData *) 0) {
+              Message *m = lineBuffers[tmp];
+              lineBuffers[tmp] = (Message_LineData *) 0;
+              deleteMessage(m);
+            }
+          }
+          linesChanged[yc] = true;
+        }
+        forceUpdateLineMask = 0;
       }
     }
+
+    if (!(displayParameters.displayQuality == 0 &&
+          (this->mode() & FL_DOUBLE) == 0)) {
+      // load texture
+      GLuint  textureID_ = GLuint(textureID);
+      GLint   savedTextureID = 0;
+      glEnable(GL_TEXTURE_2D);
+      glGetIntegerv(GL_TEXTURE_BINDING_2D, &savedTextureID);
+      glBindTexture(GL_TEXTURE_2D, textureID_);
+      setTextureParameters(displayParameters.displayQuality);
+      if (displayParameters.displayQuality > 2)
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 704, 578,
+                        GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
+                        (GLvoid *) textureBuffer);
+      else if (displayParameters.displayQuality < 2)
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 352, 289,
+                        GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
+                        (GLvoid *) textureBuffer);
+      else
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 704, 289,
+                        GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
+                        (GLvoid *) textureBuffer);
+      // update display
+      glEnable(GL_TEXTURE_2D);
+      if (displayParameters.displayQuality > 0 &&
+          (this->mode() & FL_DOUBLE) == 0 &&
+          !(displayParameters.blendScale2 > 0.99 &&
+            displayParameters.blendScale3 < 0.01)) {
+        glEnable(GL_BLEND);
+        glBlendColor(GLclampf(displayParameters.blendScale2),
+                     GLclampf(displayParameters.blendScale2),
+                     GLclampf(displayParameters.blendScale2),
+                     GLclampf(1.0 - displayParameters.blendScale3));
+        glBlendFunc(GL_CONSTANT_COLOR, GL_ONE_MINUS_CONSTANT_ALPHA);
+      }
+      else
+        glDisable(GL_BLEND);
+      glBegin(GL_QUADS);
+      if (displayParameters.displayQuality > 2) {
+        glTexCoord2f(GLfloat(0.0), GLfloat(1.0 / 1024.0));
+        glVertex2f(GLfloat(x0), GLfloat(y0));
+        glTexCoord2f(GLfloat(704.0 / 1024.0), GLfloat(1.0 / 1024.0));
+        glVertex2f(GLfloat(x1), GLfloat(y0));
+        glTexCoord2f(GLfloat(704.0 / 1024.0), GLfloat(577.0 / 1024.0));
+        glVertex2f(GLfloat(x1), GLfloat(y1));
+        glTexCoord2f(GLfloat(0.0), GLfloat(577.0 / 1024.0));
+        glVertex2f(GLfloat(x0), GLfloat(y1));
+      }
+      else if (displayParameters.displayQuality < 2) {
+        glTexCoord2f(GLfloat(0.0), GLfloat(0.0));
+        glVertex2f(GLfloat(x0), GLfloat(y0));
+        glTexCoord2f(GLfloat(352.0 / 1024.0), GLfloat(0.0));
+        glVertex2f(GLfloat(x1), GLfloat(y0));
+        glTexCoord2f(GLfloat(352.0 / 1024.0), GLfloat(288.0 / 1024.0));
+        glVertex2f(GLfloat(x1), GLfloat(y1));
+        glTexCoord2f(GLfloat(0.0), GLfloat(288.0 / 1024.0));
+        glVertex2f(GLfloat(x0), GLfloat(y1));
+      }
+      else {
+        glTexCoord2f(GLfloat(0.0), GLfloat(0.0));
+        glVertex2f(GLfloat(x0), GLfloat(y0));
+        glTexCoord2f(GLfloat(704.0 / 1024.0), GLfloat(0.0));
+        glVertex2f(GLfloat(x1), GLfloat(y0));
+        glTexCoord2f(GLfloat(704.0 / 1024.0), GLfloat(288.0 / 1024.0));
+        glVertex2f(GLfloat(x1), GLfloat(y1));
+        glTexCoord2f(GLfloat(0.0), GLfloat(288.0 / 1024.0));
+        glVertex2f(GLfloat(x0), GLfloat(y1));
+      }
+      glEnd();
+      // clean up
+      glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
+      glPopMatrix();
+      glFinish();
+      for (size_t n = 0; n < 578; n++) {
+        if (lineBuffers[n] != (Message_LineData *) 0) {
+          Message *m = lineBuffers[n];
+          lineBuffers[n] = (Message_LineData *) 0;
+          deleteMessage(m);
+        }
+      }
+    }
+
     messageQueueMutex.lock();
     framesPending--;
     messageQueueMutex.unlock();
@@ -647,8 +743,21 @@ namespace Ep128Emu {
         break;
       if (typeid(*m) == typeid(Message_LineData)) {
         Message_LineData  *msg;
-        msg = dynamic_cast<Message_LineData *>(m);
+        msg = static_cast<Message_LineData *>(m);
         if (msg->lineNum >= 0 && msg->lineNum < 578) {
+          if (displayParameters.displayQuality == 0) {
+            msg->lineNum = msg->lineNum & (~(int(1)));
+            if ((this->mode() & FL_DOUBLE) == 0) {
+              // check if this line has changed
+              if (lineBuffers[msg->lineNum] != (Message_LineData *) 0) {
+                if (*(lineBuffers[msg->lineNum]) == *msg) {
+                  deleteMessage(m);
+                  continue;
+                }
+              }
+              linesChanged[msg->lineNum >> 1] = true;
+            }
+          }
           if (lineBuffers[msg->lineNum] != (Message_LineData *) 0)
             deleteMessage(lineBuffers[msg->lineNum]);
           lineBuffers[msg->lineNum] = msg;
@@ -657,13 +766,14 @@ namespace Ep128Emu {
       }
       else if (typeid(*m) == typeid(Message_FrameDone)) {
         displayFrame();
+        noInputTimer.reset();
         // do not display more than one frame per draw() call
         deleteMessage(m);
         break;
       }
       else if (typeid(*m) == typeid(Message_SetParameters)) {
         Message_SetParameters *msg;
-        msg = dynamic_cast<Message_SetParameters *>(m);
+        msg = static_cast<Message_SetParameters *>(m);
         if (displayParameters.displayQuality != msg->dp.displayQuality) {
           // reset texture
           std::memset(textureBuffer, 0, sizeof(uint16_t) * 1024 * 1024);
@@ -676,6 +786,8 @@ namespace Ep128Emu {
                        GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
                        (GLvoid *) textureBuffer);
           glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
+          for (size_t yc = 0; yc < 289; yc++)
+            linesChanged[yc] = true;
         }
         displayParameters = msg->dp;
         if (displayParameters.displayQuality > 1)
@@ -687,6 +799,16 @@ namespace Ep128Emu {
         }
       }
       deleteMessage(m);
+    }
+    if (noInputTimer.getRealTime() > 0.33) {
+      displayFrame();
+      noInputTimer.reset();
+    }
+    if (forceUpdateTimer.getRealTime() >= 0.125) {
+      forceUpdateLineMask |= (uint8_t(1) << forceUpdateLineCnt);
+      forceUpdateLineCnt++;
+      forceUpdateLineCnt &= uint8_t(7);
+      forceUpdateTimer.reset();
     }
   }
 
@@ -710,6 +832,16 @@ namespace Ep128Emu {
       OpenGLDisplay::getDisplayParameters() const
   {
     return savedDisplayParameters;
+  }
+
+  void OpenGLDisplay::setIsDoubleBuffered(bool n)
+  {
+    int   newMode = int(n ? FL_DOUBLE : FL_SINGLE);
+    Fl::lock();
+    int   oldMode = int(this->mode());
+    if (((newMode ^ oldMode) & int(FL_DOUBLE)) != 0)
+      this->mode(Fl_Mode(oldMode ^ int(FL_DOUBLE)));
+    Fl::unlock();
   }
 
   void OpenGLDisplay::drawLine(const uint8_t *buf, size_t nBytes)
@@ -742,7 +874,7 @@ namespace Ep128Emu {
     bool    skippedFrame = skippingFrame;
     if (!skippedFrame)
       framesPending++;
-    skippingFrame = (framesPending > 2);
+    skippingFrame = (framesPending > 3);
     messageQueueMutex.unlock();
     if (skippedFrame)
       return;
