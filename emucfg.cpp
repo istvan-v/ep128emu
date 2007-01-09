@@ -388,7 +388,7 @@ namespace Ep128Emu {
     if (keyboardMapChanged) {
       keyboardMap.clear();
       for (int i = 0; i < 128; i++) {
-        for (int j = 0; j < 128; j++) {
+        for (int j = 0; j < 2; j++) {
           if (keyboard[i][j] >= 0)
             keyboardMap[keyboard[i][j]] = i;
         }
