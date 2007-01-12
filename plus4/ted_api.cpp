@@ -1,6 +1,6 @@
 
 // plus4 -- portable Commodore PLUS/4 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -154,31 +154,38 @@ namespace Plus4 {
     buf.setPosition(0);
     buf.writeUInt32(0x01000000);        // version number
     uint8_t   romBitmap = 0;
-    for (int i = 0; i < 8; i++) {
+    for (uint8_t i = 0; i < 8; i++) {
       // find non-empty ROM segments
       romBitmap = romBitmap >> 1;
-      uint8_t *bufp = &(memory_rom[i >> 1][(i & 1) << 14]);
-      for (int j = 1; j < 16384; j++) {
-        if (bufp[j] != bufp[0]) {
-          romBitmap = romBitmap | uint8_t(0x80);
-          break;
-        }
-      }
+      if (segmentTable[i] != (uint8_t *) 0)
+        romBitmap = romBitmap | uint8_t(0x80);
     }
     buf.writeByte(romBitmap);
-    buf.writeByte(4);           // for now, RAM size is fixed to 64K
-    for (uint32_t i = 0x003F0000; i < 0x00400000; i++)
-      buf.writeByte(readMemoryRaw(i));
-    for (int i = 0; i < 8; i++) {
-      uint8_t *bufp = &(memory_rom[i >> 1][(i & 1) << 14]);
-      if ((int(romBitmap) & (1 << i)) != 0) {
-        for (int j = 0; j < 16384; j++)
-          buf.writeByte(*(bufp++));
+    buf.writeByte(ramSegments);
+    // save RAM segments
+    for (size_t i = 0x08; i <= 0xFF; i++) {
+      if (segmentTable[i] != (uint8_t *) 0) {
+        for (size_t j = 0; j < 16384; j++)
+          buf.writeByte(segmentTable[i][j]);
       }
     }
-    buf.writeBoolean(rom_enabled);
-    buf.writeByte(rom_bank_low);
-    buf.writeByte(rom_bank_high);
+    // save ROM segments
+    for (size_t i = 0x00; i < 0x08; i++) {
+      if (segmentTable[i] != (uint8_t *) 0) {
+        for (size_t j = 0; j < 16384; j++)
+          buf.writeByte(segmentTable[i][j]);
+      }
+    }
+    // save I/O and TED registers
+    buf.writeByte(ioRegister_0000);
+    buf.writeByte(ioRegister_0001);
+    for (uint8_t i = 0x00; i <= 0x1F; i++)
+      buf.writeByte(readMemoryCPU(uint16_t(0xFF00) | uint16_t(i)));
+    // save memory paging
+    buf.writeByte(hannesRegister);
+    buf.writeByte((uint8_t(cpuMemoryReadMap) & uint8_t(0x80))
+                  | (uint8_t(cpuMemoryReadMap >> 11) & uint8_t(0x0F)));
+    // save internal registers
     buf.writeUInt32(uint32_t(cycle_count));
     buf.writeByte(video_column);
     buf.writeUInt32(uint32_t(video_line));
@@ -246,37 +253,54 @@ namespace Plus4 {
       throw Ep128Emu::Exception("incompatible Plus/4 snapshot format");
     }
     try {
+      this->reset(true);
       // load saved state
       uint8_t   romBitmap = buf.readByte();
-      uint8_t   ramSegments = buf.readByte();
-      if (ramSegments != 4)
+      ramSegments = buf.readByte();
+      if (!(ramSegments == 1 || ramSegments == 2 || ramSegments == 4 ||
+            ramSegments == 16 || ramSegments == 64))
         throw Ep128Emu::Exception("incompatible Plus/4 snapshot data");
-      for (int i = 0; i < 65536; i++)
-        memory_ram[i] = buf.readByte();
-      for (int i = 0; i < 8; i++) {
-        uint8_t *bufp = &(memory_rom[i >> 1][(i & 1) << 14]);
-        if ((int(romBitmap) & (1 << i)) != 0) {
-          for (int j = 0; j < 16384; j++)
-            *(bufp++) = buf.readByte();
-        }
-        else {
-          for (int j = 0; j < 16384; j++)
-            *(bufp++) = uint8_t(0xFF);
+      // load RAM segments
+      setRAMSize(size_t(ramSegments) << 4);
+      for (size_t i = 0x08; i <= 0xFF; i++) {
+        if (segmentTable[i] != (uint8_t *) 0) {
+          for (size_t j = 0; j < 16384; j++)
+            segmentTable[i][j] = buf.readByte();
         }
       }
+      // load ROM segments
+      for (uint8_t i = 0x00; i < 0x08; i++) {
+        if (!(romBitmap & (uint8_t(1) << i)))
+          loadROM(int(i >> 1), int(i & 1) << 14, 0, (uint8_t *) 0);
+        else {
+          uint8_t tmp = 0;
+          loadROM(int(i >> 1), int(i & 1) << 14, 1, &tmp);
+          for (size_t j = 0; j < 16384; j++)
+            segmentTable[i][j] = buf.readByte();
+        }
+      }
+      // load I/O and TED registers
+      ioRegister_0000 = buf.readByte();
+      ioRegister_0001 = buf.readByte();
+      for (uint8_t i = 0x00; i <= 0x1F; i++)
+        tedRegisters[i] = buf.readByte();
+      // load memory paging
+      hannesRegister = buf.readByte();
+      uint8_t romSelect_ = buf.readByte() & uint8_t(0x8F);
       // update internal registers according to the new RAM image loaded
-      writeMemory(0x0000, memory_ram[0x0000]);
-      writeMemory(0x0001, memory_ram[0x0001]);
-      writeMemory(0xFF06, memory_ram[0xFF06]);
-      writeMemory(0xFF07, memory_ram[0xFF07]);
-      for (uint16_t i = 0xFF0A; i < 0xFF11; i++)
-        writeMemory(i, memory_ram[i]);
-      for (uint16_t i = 0xFF12; i < 0xFF1A; i++)
-        writeMemory(i, memory_ram[i]);
+      write_register_FD16(this, 0xFD16, hannesRegister);
+      if (romSelect_ & uint8_t(0x80))
+        write_register_FF3E(this, 0xFF3E, 0x00);
+      else
+        write_register_FF3F(this, 0xFF3F, 0x00);
+      write_register_FDDx(this, uint16_t(0xFDD0) | uint16_t(romSelect_), 0x00);
+      writeMemory(0x0000, ioRegister_0000);
+      writeMemory(0x0001, ioRegister_0001);
+      writeMemory(0xFF06, tedRegisters[0x06]);
+      writeMemory(0xFF07, tedRegisters[0x07]);
+      for (uint8_t i = 0x0A; i < 0x1A; i++)
+        writeMemory(uint16_t(0xFF00) | uint16_t(i), tedRegisters[i]);
       // load remaining internal registers from snapshot data
-      rom_enabled = buf.readBoolean();
-      rom_bank_low = buf.readByte() & 3;
-      rom_bank_high = buf.readByte() & 3;
       cycle_count = buf.readUInt32();
       video_column = buf.readByte() & 0x7F;
       cycle_count = (cycle_count & 0xFFFFFFFEUL)
@@ -344,15 +368,15 @@ namespace Plus4 {
   void TED7360::saveProgram(Ep128Emu::File::Buffer& buf)
   {
     uint16_t  startAddr, endAddr, len;
-    startAddr =
-        uint16_t(memory_ram[0x002B]) | (uint16_t(memory_ram[0x002C]) << 8);
-    endAddr =
-        uint16_t(memory_ram[0x002D]) | (uint16_t(memory_ram[0x002E]) << 8);
+    startAddr = uint16_t(readMemoryCPU(0x002B))
+                | (uint16_t(readMemoryCPU(0x002C)) << 8);
+    endAddr = uint16_t(readMemoryCPU(0x002D))
+              | (uint16_t(readMemoryCPU(0x002E)) << 8);
     len = (endAddr > startAddr ? (endAddr - startAddr) : uint16_t(0));
     buf.writeUInt32(startAddr);
     buf.writeUInt32(len);
     while (len) {
-      buf.writeByte(readMemoryRaw(uint32_t(startAddr) | 0x003F0000));
+      buf.writeByte(readMemoryCPU(startAddr, true));
       startAddr = (startAddr + 1) & 0xFFFF;
       len--;
     }
@@ -373,16 +397,16 @@ namespace Plus4 {
     if (!f)
       throw Ep128Emu::Exception("error opening plus4 program file");
     uint16_t  startAddr, endAddr, len;
-    startAddr =
-        uint16_t(memory_ram[0x002B]) | (uint16_t(memory_ram[0x002C]) << 8);
-    endAddr =
-        uint16_t(memory_ram[0x002D]) | (uint16_t(memory_ram[0x002E]) << 8);
+    startAddr = uint16_t(readMemoryCPU(0x002B))
+                | (uint16_t(readMemoryCPU(0x002C)) << 8);
+    endAddr = uint16_t(readMemoryCPU(0x002D))
+              | (uint16_t(readMemoryCPU(0x002E)) << 8);
     len = (endAddr > startAddr ? (endAddr - startAddr) : uint16_t(0));
     bool  err = true;
     if (std::fputc(int(startAddr & 0xFF), f) != EOF) {
       if (std::fputc(int((startAddr >> 8) & 0xFF), f) != EOF) {
         while (len) {
-          int   c = readMemoryRaw(uint32_t(startAddr) | 0x003F0000);
+          int   c = readMemoryCPU(startAddr, true);
           if (std::fputc(c, f) == EOF)
             break;
           startAddr = (startAddr + 1) & 0xFFFF;
@@ -409,28 +433,28 @@ namespace Plus4 {
         size_t(len) != (buf.getDataSize() - buf.getPosition()))
       throw Ep128Emu::Exception("invalid plus4 program length");
 #if 0
-    memory_ram[0x002B] = uint8_t(addr & 0xFF);
-    memory_ram[0x002C] = uint8_t((addr >> 8) & 0xFF);
+    writeMemory(0x002B, uint8_t(addr & 0xFF));
+    writeMemory(0x002C, uint8_t((addr >> 8) & 0xFF));
 #endif
     while (len) {
       writeMemory(uint16_t(addr), buf.readByte());
       addr = (addr + 1) & 0xFFFF;
       len--;
     }
-    memory_ram[0x002D] = uint8_t(addr & 0xFF);
-    memory_ram[0x002E] = uint8_t((addr >> 8) & 0xFF);
-    memory_ram[0x002F] = uint8_t(addr & 0xFF);
-    memory_ram[0x0030] = uint8_t((addr >> 8) & 0xFF);
-    memory_ram[0x0031] = uint8_t(addr & 0xFF);
-    memory_ram[0x0032] = uint8_t((addr >> 8) & 0xFF);
-    memory_ram[0x0033] = 0x00;
-    memory_ram[0x0034] = 0xFD;
-    memory_ram[0x0035] = 0xFE;
-    memory_ram[0x0036] = 0xFC;
-    memory_ram[0x0037] = 0x00;
-    memory_ram[0x0038] = 0xFD;
-    memory_ram[0x009D] = uint8_t(addr & 0xFF);
-    memory_ram[0x009E] = uint8_t((addr >> 8) & 0xFF);
+    writeMemory(0x002D, uint8_t(addr & 0xFF));
+    writeMemory(0x002E, uint8_t((addr >> 8) & 0xFF));
+    writeMemory(0x002F, uint8_t(addr & 0xFF));
+    writeMemory(0x0030, uint8_t((addr >> 8) & 0xFF));
+    writeMemory(0x0031, uint8_t(addr & 0xFF));
+    writeMemory(0x0032, uint8_t((addr >> 8) & 0xFF));
+    writeMemory(0x0033, readMemoryCPU(0x0037));
+    writeMemory(0x0034, readMemoryCPU(0x0038));
+#if 0
+    writeMemory(0x0035, readMemoryCPU(0x0037));
+    writeMemory(0x0036, readMemoryCPU(0x0038));
+#endif
+    writeMemory(0x009D, uint8_t(addr & 0xFF));
+    writeMemory(0x009E, uint8_t((addr >> 8) & 0xFF));
   }
 
   void TED7360::loadProgram(const char *fileName)
@@ -451,8 +475,8 @@ namespace Plus4 {
       throw Ep128Emu::Exception("unexpected end of plus4 program file");
     addr |= uint16_t((c & 0xFF) << 8);
 #if 0
-    memory_ram[0x002B] = uint8_t(addr & 0xFF);
-    memory_ram[0x002C] = uint8_t((addr >> 8) & 0xFF);
+    writeMemory(0x002B, uint8_t(addr & 0xFF));
+    writeMemory(0x002C, uint8_t((addr >> 8) & 0xFF));
 #endif
     size_t  len = 0;
     while (true) {
@@ -467,20 +491,20 @@ namespace Plus4 {
       addr = (addr + 1) & 0xFFFF;
     }
     std::fclose(f);
-    memory_ram[0x002D] = uint8_t(addr & 0xFF);
-    memory_ram[0x002E] = uint8_t((addr >> 8) & 0xFF);
-    memory_ram[0x002F] = uint8_t(addr & 0xFF);
-    memory_ram[0x0030] = uint8_t((addr >> 8) & 0xFF);
-    memory_ram[0x0031] = uint8_t(addr & 0xFF);
-    memory_ram[0x0032] = uint8_t((addr >> 8) & 0xFF);
-    memory_ram[0x0033] = 0x00;
-    memory_ram[0x0034] = 0xFD;
-    memory_ram[0x0035] = 0xFE;
-    memory_ram[0x0036] = 0xFC;
-    memory_ram[0x0037] = 0x00;
-    memory_ram[0x0038] = 0xFD;
-    memory_ram[0x009D] = uint8_t(addr & 0xFF);
-    memory_ram[0x009E] = uint8_t((addr >> 8) & 0xFF);
+    writeMemory(0x002D, uint8_t(addr & 0xFF));
+    writeMemory(0x002E, uint8_t((addr >> 8) & 0xFF));
+    writeMemory(0x002F, uint8_t(addr & 0xFF));
+    writeMemory(0x0030, uint8_t((addr >> 8) & 0xFF));
+    writeMemory(0x0031, uint8_t(addr & 0xFF));
+    writeMemory(0x0032, uint8_t((addr >> 8) & 0xFF));
+    writeMemory(0x0033, readMemoryCPU(0x0037));
+    writeMemory(0x0034, readMemoryCPU(0x0038));
+#if 0
+    writeMemory(0x0035, readMemoryCPU(0x0037));
+    writeMemory(0x0036, readMemoryCPU(0x0038));
+#endif
+    writeMemory(0x009D, uint8_t(addr & 0xFF));
+    writeMemory(0x009E, uint8_t((addr >> 8) & 0xFF));
   }
 
   void TED7360::registerChunkTypes(Ep128Emu::File& f)

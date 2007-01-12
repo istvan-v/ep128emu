@@ -1,6 +1,6 @@
 
 // plus4 -- portable Commodore PLUS/4 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -25,41 +25,69 @@ namespace Plus4 {
 
   TED7360::TED7360() : M7501()
   {
-    // clear memory
-    for (int i = 0; i < 0x10000; i++) {
-      uint8_t   tmp = ((i & 1) ? (uint8_t) 0xFF : (uint8_t) 0x00);
-      tmp = ((i & 0x40) ? (tmp & (uint8_t) 0xF7) : (tmp | (uint8_t) 0x08));
-      memory_ram[i] = ((i & 0xFF) ? tmp : (uint8_t) 0xFF);
+    // create initial memory map
+    ramSegments = 0;
+    for (int i = 0; i < 256; i++)
+      segmentTable[i] = (uint8_t *) 0;
+    try {
+      setRAMSize(64);
     }
-    for (int j = 0; j < 4; j++) {
-      for (int i = 0; i < 0x8000; i++) {
-        memory_rom[j][i] = (uint8_t) 0xFF;
+    catch (...) {
+      for (int i = 0; i < 256; i++) {
+        if (segmentTable[i] != (uint8_t *) 0) {
+          delete[] segmentTable[i];
+          segmentTable[i] = (uint8_t *) 0;
+        }
       }
+      throw;
     }
     setMemoryCallbackUserData(this);
-    for (int i = 0; i < 0x10000; i++) {
-      setMemoryReadCallback(uint16_t(i), &read_ram_);
-      setMemoryWriteCallback(uint16_t(i), &write_ram_);
+    for (uint16_t i = 0x0000; i <= 0x0FFF; i++) {
+      setMemoryReadCallback(i, &read_memory_0000_to_0FFF);
+      setMemoryWriteCallback(i, &write_memory_0000_to_0FFF);
     }
-    for (int i = 0x8000; i < 0xC000; i++)
-      setMemoryReadCallback(uint16_t(i), &read_memory_8000);
-    for (int i = 0xC000; i < 0xFC00; i++)
-      setMemoryReadCallback(uint16_t(i), &read_memory_C000);
-    for (int i = 0xFC00; i < 0xFD00; i++)
-      setMemoryReadCallback(uint16_t(i), &read_memory_FC00);
-    for (int i = 0xFF40; i < 0x10000; i++)
-      setMemoryReadCallback(uint16_t(i), &read_memory_C000);
+    for (uint16_t i = 0x1000; i <= 0x3FFF; i++) {
+      setMemoryReadCallback(i, &read_memory_1000_to_3FFF);
+      setMemoryWriteCallback(i, &write_memory_1000_to_3FFF);
+    }
+    for (uint16_t i = 0x4000; i <= 0x7FFF; i++) {
+      setMemoryReadCallback(i, &read_memory_4000_to_7FFF);
+      setMemoryWriteCallback(i, &write_memory_4000_to_7FFF);
+    }
+    for (uint16_t i = 0x8000; i <= 0xBFFF; i++) {
+      setMemoryReadCallback(i, &read_memory_8000_to_BFFF);
+      setMemoryWriteCallback(i, &write_memory_8000_to_BFFF);
+    }
+    for (uint16_t i = 0xC000; i <= 0xFBFF; i++) {
+      setMemoryReadCallback(i, &read_memory_C000_to_FBFF);
+      setMemoryWriteCallback(i, &write_memory_C000_to_FBFF);
+    }
+    for (uint16_t i = 0xFC00; i <= 0xFCFF; i++) {
+      setMemoryReadCallback(i, &read_memory_FC00_to_FCFF);
+      setMemoryWriteCallback(i, &write_memory_FC00_to_FCFF);
+    }
+    for (uint16_t i = 0xFD00; i <= 0xFEFF; i++) {
+      setMemoryReadCallback(i, &read_memory_FD00_to_FEFF);
+      setMemoryWriteCallback(i, &write_memory_FD00_to_FEFF);
+    }
+    for (uint16_t i = 0xFF00; i <= 0xFF1F; i++) {
+      setMemoryReadCallback(i, &read_register_FFxx);
+      setMemoryWriteCallback(i, &write_register_FFxx);
+    }
+    for (uint32_t i = 0xFF20; i <= 0xFFFF; i++) {
+      setMemoryReadCallback(uint16_t(i), &read_memory_FF00_to_FFFF);
+      setMemoryWriteCallback(uint16_t(i), &write_memory_FF00_to_FFFF);
+    }
     // TED register read
     setMemoryReadCallback(0x0000, &read_register_0000);
     setMemoryReadCallback(0x0001, &read_register_0001);
-    for (int i = 0xFD00; i < 0xFF00; i++)
-      setMemoryReadCallback(uint16_t(i), &read_register_unimplemented);
-    for (int i = 0xFD10; i < 0xFD20; i++)
-      setMemoryReadCallback(uint16_t(i), &read_register_FD10);
-    for (int i = 0xFD30; i < 0xFD40; i++)
-      setMemoryReadCallback(uint16_t(i), &read_register_FD30);
-    for (int i = 0xFF00; i < 0xFF20; i++)
-      setMemoryReadCallback(uint16_t(i), &read_ram_);
+    for (uint16_t i = 0xFD00; i <= 0xFD0F; i++)
+      setMemoryReadCallback(i, &read_register_FD0x);
+    for (uint16_t i = 0xFD10; i <= 0xFD1F; i++)
+      setMemoryReadCallback(i, &read_register_FD1x);
+    setMemoryReadCallback(0xFD16, &read_register_FD16);
+    for (uint16_t i = 0xFD30; i <= 0xFD3F; i++)
+      setMemoryReadCallback(i, &read_register_FD3x);
     setMemoryReadCallback(0xFF00, &read_register_FF00);
     setMemoryReadCallback(0xFF01, &read_register_FF01);
     setMemoryReadCallback(0xFF02, &read_register_FF02);
@@ -85,17 +113,18 @@ namespace Plus4 {
     setMemoryReadCallback(0xFF1D, &read_register_FF1D);
     setMemoryReadCallback(0xFF1E, &read_register_FF1E);
     setMemoryReadCallback(0xFF1F, &read_register_FF1F);
-    setMemoryReadCallback(0xFF3E, &read_register_FF3E);
-    setMemoryReadCallback(0xFF3F, &read_register_FF3F);
+    setMemoryReadCallback(0xFF3E, &read_register_FF3E_FF3F);
+    setMemoryReadCallback(0xFF3F, &read_register_FF3E_FF3F);
     // TED register write
     setMemoryWriteCallback(0x0000, &write_register_0000);
     setMemoryWriteCallback(0x0001, &write_register_0001);
-    for (int i = 0xFD10; i < 0xFD20; i++)
-      setMemoryWriteCallback(uint16_t(i), &write_register_FD1x);
-    for (int i = 0xFD30; i < 0xFD40; i++)
-      setMemoryWriteCallback(uint16_t(i), &write_register_FD3x);
-    for (int i = 0xFDD0; i < 0xFDE0; i++)
-      setMemoryWriteCallback(uint16_t(i), &write_register_FDDx);
+    for (uint16_t i = 0xFD10; i <= 0xFD1F; i++)
+      setMemoryWriteCallback(i, &write_register_FD1x);
+    setMemoryWriteCallback(0xFD16, &write_register_FD16);
+    for (uint16_t i = 0xFD30; i <= 0xFD3F; i++)
+      setMemoryWriteCallback(i, &write_register_FD3x);
+    for (uint16_t i = 0xFDD0; i <= 0xFDDF; i++)
+      setMemoryWriteCallback(i, &write_register_FDDx);
     setMemoryWriteCallback(0xFF00, &write_register_FF00);
     setMemoryWriteCallback(0xFF01, &write_register_FF01);
     setMemoryWriteCallback(0xFF02, &write_register_FF02);
@@ -142,25 +171,26 @@ namespace Plus4 {
   void TED7360::initRegisters()
   {
     // initialize memory paging
-    rom_enabled = true;
-    rom_enabled_for_video = true;
-    rom_bank_low = (unsigned char) 0;
-    rom_bank_high = (unsigned char) 0;
-    render_func = &render_invalid_mode;
+    hannesRegister = uint8_t(0xFF);
+    memoryReadMap = 0x06F8U;
+    memoryWriteMap = 0x0678U;
+    cpuMemoryReadMap = 0x06F8U;
+    tedDMAReadMap = 0x07F8U;
+    tedBitmapReadMap = 0x07F8U;
     // clear memory used by TED registers
-    memory_ram[0x0000] = uint8_t(0x0F);
-    memory_ram[0x0001] = uint8_t(0xC8);
-    for (int i = 0xFD00; i < 0xFF00; i++)
-      memory_ram[i] = uint8_t(0xFF);
-    for (int i = 0xFF00; i < 0xFF20; i++)
-      memory_ram[i] = uint8_t(0x00);
-    memory_ram[0xFF08] = uint8_t(0xFF);
-    memory_ram[0xFF0C] = uint8_t(0xFF);
-    memory_ram[0xFF0D] = uint8_t(0xFF);
-    memory_ram[0xFF13] = uint8_t(0x01);
-    memory_ram[0xFF1D] = uint8_t(0xE0);
-    memory_ram[0xFF1E] = uint8_t(0xC0);
+    ioRegister_0000 = uint8_t(0x0F);
+    ioRegister_0001 = uint8_t(0xC8);
+    for (uint8_t i = 0x00; i <= 0x1F; i++)
+      tedRegisters[i] = uint8_t(0x00);
+    tedRegisters[0x08] = uint8_t(0xFF);
+    tedRegisters[0x0C] = uint8_t(0xFF);
+    tedRegisters[0x0D] = uint8_t(0xFF);
+    tedRegisters[0x12] = uint8_t(0xC4);
+    tedRegisters[0x13] = uint8_t(0x01);
+    tedRegisters[0x1D] = uint8_t(0xE0);
+    tedRegisters[0x1E] = uint8_t(0xC0);
     // set internal TED registers
+    render_func = &render_invalid_mode;
     cycle_count = 0UL;
     video_column = 96;
     video_line = 224;
@@ -235,20 +265,23 @@ namespace Plus4 {
       // reset TED registers
       this->initRegisters();
       // make sure that RAM size is detected correctly
-      for (uint16_t i = 0x3FFD; i > 0x3FF5; i--) {
-        if (memory_ram[i] != memory_ram[i | 0xC000])
-          break;
-        if (i == 0x3FF6)
-          memory_ram[i] = (memory_ram[i] + uint8_t(1)) & uint8_t(0xFF);
-      }
-      for (uint16_t i = 0x7FFD; i > 0x7FF5; i--) {
-        if (memory_ram[i] != memory_ram[i | 0xC000])
-          break;
-        if (i == 0x7FF6)
-          memory_ram[i] = (memory_ram[i] + uint8_t(1)) & uint8_t(0xFF);
+      for (uint8_t j = 0xC0; j < 0xFF; j++) {
+        if ((j & uint8_t(0x02)) != uint8_t(0) &&
+            !(j == uint8_t(0xFE) && segmentTable[0xFC] == (uint8_t *) 0))
+          continue;
+        if (segmentTable[j] != (uint8_t *) 0) {
+          for (uint16_t i = 0x3FFD; i > 0x3FF5; i--) {
+            if (segmentTable[j][i] != readMemory(i | 0xC000))
+              break;
+            if (i == 0x3FF6) {
+              segmentTable[j][i] =
+                  (segmentTable[j][i] + uint8_t(1)) & uint8_t(0xFF);
+            }
+          }
+        }
       }
       // force RAM testing
-      memory_ram[0x0508] = 0x00;
+      writeMemory(0x0508, 0x00);
     }
     // reset CPU
     M7501::reset(cold_reset);
@@ -256,6 +289,12 @@ namespace Plus4 {
 
   TED7360::~TED7360()
   {
+    for (int i = 0; i < 256; i++) {
+      if (segmentTable[i] != (uint8_t *) 0) {
+        delete[] segmentTable[i];
+        segmentTable[i] = (uint8_t *) 0;
+      }
+    }
   }
 
 }       // namespace Plus4

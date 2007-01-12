@@ -95,11 +95,11 @@ namespace Plus4 {
       vm.stopDemoRecording(false);
       {
         std::string fileName;
-        uint8_t   nameLen = vm.readMemory(0x003F00AB);
-        uint16_t  nameAddr = uint16_t(vm.readMemory(0x003F00AF))
-                             | (uint16_t(vm.readMemory(0x003F00B0)) << 8);
+        uint8_t   nameLen = readMemoryCPU(0x00AB);
+        uint16_t  nameAddr = uint16_t(readMemoryCPU(0x00AF))
+                             | (uint16_t(readMemoryCPU(0x00B0)) << 8);
         while (nameLen) {
-          char    c = char(vm.readMemory(0x003F0000U | uint32_t(nameAddr)));
+          char    c = char(readMemoryCPU(nameAddr, true));
           if (c == '\0')
             break;
           fileName += c;
@@ -118,25 +118,24 @@ namespace Plus4 {
             if (c != EOF) {
               addr |= (uint16_t(c & 0xFF) << 8);
               reg_AC = 0x00;
-              if (vm.readMemory(0x003F00AD) == 0x00)
-                addr = uint16_t(vm.readMemory(0x003F00B4))
-                       | (uint16_t(vm.readMemory(0x003F00B5)) << 8);
+              if (readMemoryCPU(0x00AD) == 0x00)
+                addr = uint16_t(readMemoryCPU(0x00B4))
+                       | (uint16_t(readMemoryCPU(0x00B5)) << 8);
               unsigned int  nBytes = 0U;
               do {
                 c = std::fgetc(f);
                 if (c == EOF)
                   break;
                 if (n == 0x01)          // load
-                  vm.writeMemory(addr, uint8_t(c & 0xFF), true);
-                else if (uint8_t(c & 0xFF)
-                         != vm.readMemory(0x003F0000U | uint32_t(addr))) {
+                  writeMemoryCPU(addr, uint8_t(c & 0xFF));
+                else if (uint8_t(c & 0xFF) != readMemoryCPU(addr, true)) {
                   reg_AC = 0xF8;        // verify error
                   break;
                 }
                 addr = (addr + 1) & 0xFFFF;
               } while (++nBytes < 0xFFFFU);
-              vm.writeMemory(0x003F009D, uint8_t(addr) & 0xFF);
-              vm.writeMemory(0x003F009E, uint8_t(addr >> 8) & 0xFF);
+              writeMemoryCPU(0x009D, uint8_t(addr) & 0xFF);
+              writeMemoryCPU(0x009E, uint8_t(addr >> 8) & 0xFF);
             }
           }
           std::fclose(f);
@@ -151,11 +150,11 @@ namespace Plus4 {
       vm.stopDemoRecording(false);
       {
         std::string fileName;
-        uint8_t   nameLen = vm.readMemory(0x003F00AB);
-        uint16_t  nameAddr = uint16_t(vm.readMemory(0x003F00AF))
-                             | (uint16_t(vm.readMemory(0x003F00B0)) << 8);
+        uint8_t   nameLen = readMemoryCPU(0x00AB);
+        uint16_t  nameAddr = uint16_t(readMemoryCPU(0x00AF))
+                             | (uint16_t(readMemoryCPU(0x00B0)) << 8);
         while (nameLen) {
-          char    c = char(vm.readMemory(0x003F0000U | uint32_t(nameAddr)));
+          char    c = char(readMemoryCPU(nameAddr, true));
           if (c == '\0')
             break;
           fileName += c;
@@ -166,17 +165,17 @@ namespace Plus4 {
         int       err = vm.openFileInWorkingDirectory(f, fileName, "wb");
         if (!err) {
           reg_AC = 0xFA;
-          uint8_t   c = vm.readMemory(0x003F00B2);
+          uint8_t   c = readMemoryCPU(0x00B2);
           uint16_t  addr = uint16_t(c);
           if (std::fputc(c, f) != EOF) {
-            c = vm.readMemory(0x003F00B3);
+            c = readMemoryCPU(0x00B3);
             addr |= (uint16_t(c) << 8);
             if (std::fputc(c, f) != EOF) {
-              uint16_t  endAddr = uint16_t(vm.readMemory(0x003F009D))
-                                  | (uint16_t(vm.readMemory(0x003F009E)) << 8);
+              uint16_t  endAddr = uint16_t(readMemoryCPU(0x009D))
+                                  | (uint16_t(readMemoryCPU(0x009E)) << 8);
               endAddr = endAddr & 0xFFFF;
               while (addr != endAddr) {
-                c = vm.readMemory(0x003F0000U | uint32_t(addr));
+                c = readMemoryCPU(addr, true);
                 if (std::fputc(c, f) == EOF)
                   break;
                 addr = (addr + 1) & 0xFFFF;
@@ -255,7 +254,7 @@ namespace Plus4 {
                    Ep128Emu::AudioOutput& audioOutput_)
     : VirtualMachine(display_, audioOutput_),
       ted((TED7360_ *) 0),
-      cpuFrequencyMultiplier(1),
+      cpuClockFrequency(1773448),
       tedFrequency(886724),
       soundClockFrequency(221681),
       tedCyclesRemaining(0),
@@ -375,11 +374,22 @@ namespace Plus4 {
 
   void Plus4VM::resetMemoryConfiguration(size_t memSize)
   {
-    (void) memSize;     // RAM size is always 64K
-    stopDemo();
-    // delete all ROM segments
-    for (uint8_t n = 0; n < 8; n++)
-      loadROMSegment(n, (char *) 0, 0);
+    try {
+      stopDemo();
+      // delete all ROM segments
+      for (uint8_t n = 0; n < 8; n++)
+        loadROMSegment(n, (char *) 0, 0);
+      // set new RAM size
+      ted->setRAMSize(memSize);
+    }
+    catch (...) {
+      try {
+        this->reset(true);
+      }
+      catch (...) {
+      }
+      throw;
+    }
     // cold reset
     this->reset(true);
   }
@@ -390,11 +400,7 @@ namespace Plus4 {
     if (n >= 8)
       return;
     // clear segment first
-    uint8_t tmpBuf[256];
-    for (size_t i = 0; i < 256; i++)
-      tmpBuf[i] = 0xFF;
-    for (int i = 0; i < 16384; i += 256)
-      ted->loadROM(int(n) >> 1, (int(n & 1) << 14) + i, 256, &(tmpBuf[0]));
+    ted->loadROM(int(n >> 1), int(n & 1) << 14, 0, (uint8_t *) 0);
     if (fileName == (char *) 0 || fileName[0] == '\0') {
       // empty file name: delete segment
       return;
@@ -418,20 +424,45 @@ namespace Plus4 {
 
   void Plus4VM::setCPUFrequency(size_t freq_)
   {
-    size_t  freqMult = (freq_ + tedFrequency) / (tedFrequency << 1);
-    freqMult = (freqMult > 1 ? (freqMult < 100 ? freqMult : 100) : 1);
-    if (freqMult != cpuFrequencyMultiplier) {
+    size_t  freq = (freq_ > 1500000 ? (freq_ < 150000000 ? freq_ : 150000000)
+                                      : 1500000);
+    if (freq == cpuClockFrequency)
+      return;
+    size_t  oldFreqMult, newFreqMult;
+    oldFreqMult = (cpuClockFrequency + tedFrequency) / (tedFrequency << 1);
+    cpuClockFrequency = freq;
+    newFreqMult = (freq + tedFrequency) / (tedFrequency << 1);
+    newFreqMult = (newFreqMult > 1 ? (newFreqMult < 100 ? newFreqMult : 100)
+                                     : 1);
+    if (newFreqMult != oldFreqMult) {
       stopDemoPlayback();       // changing configuration implies stopping
       stopDemoRecording(false); // any demo playback or recording
-      cpuFrequencyMultiplier = freqMult;
-      ted->setCPUClockMultiplier(int(freqMult));
+      ted->setCPUClockMultiplier(int(newFreqMult));
     }
   }
 
   void Plus4VM::setVideoFrequency(size_t freq_)
   {
-    // TODO: implement this eventually
-    (void) freq_;
+    size_t  freq = (freq_ > 768000 ? (freq_ < 1024000 ? freq_ : 1024000)
+                                     : 768000);
+    freq = ((freq + 2) >> 2) << 2;
+    if (freq != tedFrequency) {
+      stopDemoPlayback();       // changing configuration implies stopping
+      stopDemoRecording(false); // any demo playback or recording
+      tedFrequency = freq;
+      soundClockFrequency = freq >> 2;
+      size_t  cpuFreqMult;
+      cpuFreqMult = (cpuClockFrequency + tedFrequency) / (tedFrequency << 1);
+      cpuFreqMult = (cpuFreqMult > 1 ? (cpuFreqMult < 100 ? cpuFreqMult : 100)
+                                       : 1);
+      ted->setCPUClockMultiplier(int(cpuFreqMult));
+      if (haveTape()) {
+        tapeSamplesPerTEDCycle =
+            (int64_t(getTapeSampleRate()) << 32) / int64_t(tedFrequency);
+      }
+      tapeSamplesRemaining = 0;
+      setAudioConverterSampleRate(float(long(soundClockFrequency)));
+    }
   }
 
   void Plus4VM::setVideoMemoryLatency(size_t t_)
@@ -544,20 +575,9 @@ namespace Plus4 {
 
   uint8_t Plus4VM::readMemory(uint32_t addr, bool isCPUAddress) const
   {
-    if (isCPUAddress) {
-      addr &= uint32_t(0x0000FFFF);
-      uint8_t   segment = ted->getMemoryPage(uint8_t(addr >> 14));
-      if (addr <= 0x0001U)
-        segment = 0xFC;
-      else if (addr >= 0xFD00U && addr < 0xFF40U)
-        segment = 0xFF;
-      else if (segment < 0x08 && (addr >= 0xFC00U && addr < 0xFD00U))
-        segment = 0x01;
-      addr = (addr & uint32_t(0x3FFF)) | (uint32_t(segment) << 14);
-    }
-    else
-      addr &= uint32_t(0x003FFFFF);
-    return ted->readMemoryRaw(addr);
+    if (isCPUAddress)
+      return ted->readMemoryCPU(uint16_t(addr & 0xFFFFU));
+    return ted->readMemoryRaw(addr & uint32_t(0x003FFFFF));
   }
 
   void Plus4VM::writeMemory(uint32_t addr, uint8_t value, bool isCPUAddress)
@@ -567,9 +587,9 @@ namespace Plus4 {
       stopDemoRecording(false);
     }
     if (isCPUAddress)
-      addr |= uint32_t(0x003F0000);
-    addr &= uint32_t(0x003FFFFF);
-    ted->writeMemoryRaw(addr, value);
+      ted->writeMemoryCPU(uint16_t(addr & 0xFFFFU), value);
+    else
+      ted->writeMemoryRaw(addr & uint32_t(0x003FFFFF), value);
   }
 
   uint16_t Plus4VM::getProgramCounter() const
@@ -617,7 +637,7 @@ namespace Plus4 {
       Ep128Emu::File::Buffer  buf;
       buf.setPosition(0);
       buf.writeUInt32(0x01000000);      // version number
-      buf.writeUInt32(uint32_t(cpuFrequencyMultiplier));
+      buf.writeUInt32(uint32_t(cpuClockFrequency));
       buf.writeUInt32(uint32_t(tedFrequency));
       buf.writeUInt32(uint32_t(soundClockFrequency));
       f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_P4VM_STATE, buf);
@@ -629,7 +649,7 @@ namespace Plus4 {
     Ep128Emu::File::Buffer  buf;
     buf.setPosition(0);
     buf.writeUInt32(0x01000000);        // version number
-    buf.writeUInt32(uint32_t(cpuFrequencyMultiplier));
+    buf.writeUInt32(uint32_t(cpuClockFrequency));
     buf.writeUInt32(uint32_t(tedFrequency));
     buf.writeUInt32(uint32_t(soundClockFrequency));
     f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_P4VM_CONFIG, buf);
@@ -706,14 +726,10 @@ namespace Plus4 {
     stopDemo();
     snapshotLoadFlag = true;
     try {
-      uint32_t  tmpCPUFrequencyMultiplier = buf.readUInt32();
-      if (tmpCPUFrequencyMultiplier < 1U)
-        tmpCPUFrequencyMultiplier = 1U;
-      else if (tmpCPUFrequencyMultiplier > 100U)
-        tmpCPUFrequencyMultiplier = 100U;
+      uint32_t  tmpCPUClockFrequency = buf.readUInt32();
       uint32_t  tmpTEDFrequency = buf.readUInt32();
       uint32_t  tmpSoundClockFrequency = buf.readUInt32();
-      (void) tmpCPUFrequencyMultiplier;
+      (void) tmpCPUClockFrequency;
       (void) tmpTEDFrequency;
       (void) tmpSoundClockFrequency;
       if (buf.getPosition() != buf.getDataSize())
@@ -737,16 +753,12 @@ namespace Plus4 {
                                 "machine configuration format");
     }
     try {
-      uint32_t  tmpCPUFrequencyMultiplier = buf.readUInt32();
-      if (tmpCPUFrequencyMultiplier < 1U)
-        tmpCPUFrequencyMultiplier = 1U;
-      else if (tmpCPUFrequencyMultiplier > 100U)
-        tmpCPUFrequencyMultiplier = 100U;
+      uint32_t  tmpCPUClockFrequency = buf.readUInt32();
       uint32_t  tmpTEDFrequency = buf.readUInt32();
       uint32_t  tmpSoundClockFrequency = buf.readUInt32();
       (void) tmpSoundClockFrequency;
+      setCPUFrequency(tmpCPUClockFrequency);
       setVideoFrequency(tmpTEDFrequency);
-      setCPUFrequency(tmpCPUFrequencyMultiplier * (tedFrequency * 2));
       if (buf.getPosition() != buf.getDataSize())
         throw Ep128Emu::Exception("trailing garbage at end of "
                                   "plus4 machine configuration data");

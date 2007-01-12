@@ -218,6 +218,18 @@ static void cfgErrorFunc(void *userData, const char *msg)
   std::cerr << "WARNING: " << msg << std::endl;
 }
 
+static void plus4ClockFreqChangeCallback(void *userData,
+                                         const std::string& name,
+                                         unsigned int value)
+{
+  (void) name;
+  Ep128Emu::EmulatorConfiguration&  cfg =
+      *(reinterpret_cast<Ep128Emu::EmulatorConfiguration *>(userData));
+  if (value == cfg.vm.videoClockFrequency)
+    cfg.vmConfigurationChanged = true;
+  cfg.vm.soundClockFrequency = (cfg.vm.videoClockFrequency + 2U) >> 2;
+}
+
 int main(int argc, char **argv)
 {
   Fl_Window *basew = (Fl_Window *) 0;
@@ -268,20 +280,24 @@ int main(int argc, char **argv)
     if (isPlus4) {
       Ep128Emu::ConfigurationDB::ConfigurationVariable  *cv;
       cv = &((*config)["vm.cpuClockFrequency"]);
-      (*cv).setRange(1773448.0, 177344800.0, 1773448.0);
+      (*cv).setRange(1500000.0, 150000000.0, 0.0);
       (*cv) = (unsigned int) 1773448;
       cv = &((*config)["vm.videoClockFrequency"]);
-      (*cv).setRange(886724.0, 886724.0, 0.0);
+      (*cv).setRange(768000.0, 1024000.0, 4.0);
       (*cv) = (unsigned int) 886724;
+      (*cv).setCallback(&plus4ClockFreqChangeCallback, config, true);
       cv = &((*config)["vm.soundClockFrequency"]);
-      (*cv).setRange(221681.0, 221681.0, 0.0);
+      (*cv).setRange(192000.0, 256000.0, 0.0);
       (*cv) = (unsigned int) 221681;
+      (*cv).setCallback(&plus4ClockFreqChangeCallback, config, true);
       cv = &((*config)["vm.videoMemoryLatency"]);
       (*cv).setRange(0.0, 0.0, 0.0);
       (*cv) = (unsigned int) 0;
       cv = &((*config)["memory.ram.size"]);
-      (*cv).setRange(64.0, 64.0, 0.0);
+      (*cv).setRange(16.0, 1024.0, 16.0);
       (*cv) = int(64);
+      cv = &((*config)["sound.sampleRate"]);
+      (*cv).setRange(11025.0, 96000.0, 0.0);
     }
     // load base configuration (if available)
     {

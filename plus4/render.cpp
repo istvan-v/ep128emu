@@ -1,6 +1,6 @@
 
 // plus4 -- portable Commodore PLUS/4 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -212,19 +212,19 @@ namespace Plus4 {
 
   void TED7360::selectRenderer()
   {
-    uint8_t mode =   (memory_ram[0xFF06] & uint8_t(0x60))
-                   | (memory_ram[0xFF07] & uint8_t(0x90));
+    uint8_t mode =   (tedRegisters[0x06] & uint8_t(0x60))
+                   | (tedRegisters[0x07] & uint8_t(0x90));
     switch (mode) {
     case 0x00:
       bitmapMode = false;
       render_func = &render_char_128;
-      charset_base_addr = int(memory_ram[0xFF13] & uint8_t(0xFC)) << 8;
+      charset_base_addr = int(tedRegisters[0x13] & uint8_t(0xFC)) << 8;
       characterMask = uint8_t(0x7F);
       break;
     case 0x10:
       bitmapMode = false;
       render_func = &render_char_MCM_128;
-      charset_base_addr = int(memory_ram[0xFF13] & uint8_t(0xFC)) << 8;
+      charset_base_addr = int(tedRegisters[0x13] & uint8_t(0xFC)) << 8;
       characterMask = uint8_t(0x7F);
       break;
     case 0x20:
@@ -242,19 +242,19 @@ namespace Plus4 {
     case 0x40:
       bitmapMode = false;
       render_func = &render_char_ECM;
-      charset_base_addr = int(memory_ram[0xFF13] & uint8_t(0xF8)) << 8;
+      charset_base_addr = int(tedRegisters[0x13] & uint8_t(0xF8)) << 8;
       characterMask = uint8_t(0x3F);
       break;
     case 0x80:
       bitmapMode = false;
       render_func = &render_char_256;
-      charset_base_addr = int(memory_ram[0xFF13] & uint8_t(0xF8)) << 8;
+      charset_base_addr = int(tedRegisters[0x13] & uint8_t(0xF8)) << 8;
       characterMask = uint8_t(0xFF);
       break;
     case 0x90:
       bitmapMode = false;
       render_func = &render_char_MCM_256;
-      charset_base_addr = int(memory_ram[0xFF13] & uint8_t(0xF8)) << 8;
+      charset_base_addr = int(tedRegisters[0x13] & uint8_t(0xF8)) << 8;
       characterMask = uint8_t(0xFF);
       break;
     case 0xA0:
@@ -272,7 +272,7 @@ namespace Plus4 {
     case 0xC0:
       bitmapMode = false;
       render_func = &render_char_ECM;
-      charset_base_addr = int(memory_ram[0xFF13] & uint8_t(0xF8)) << 8;
+      charset_base_addr = int(tedRegisters[0x13] & uint8_t(0xF8)) << 8;
       characterMask = uint8_t(0x3F);
       break;
     default:

@@ -1,6 +1,6 @@
 
 // plus4 -- portable Commodore PLUS/4 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -23,18 +23,11 @@
 
 namespace Plus4 {
 
-  uint8_t TED7360::read_register_unimplemented(void *userData, uint16_t addr)
+  uint8_t TED7360::read_register_0000(void *userData, uint16_t addr)
   {
     (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    ted.dataBusState = uint8_t(0xFF);
-    return ted.dataBusState;
-  }
-
-  uint8_t TED7360::read_register_0000(void *userData, uint16_t addr)
-  {
-    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    ted.dataBusState = ted.memory_ram[addr];
+    ted.dataBusState = ted.ioRegister_0000;
     return ted.dataBusState;
   }
 
@@ -49,7 +42,16 @@ namespace Plus4 {
     return ted.dataBusState;
   }
 
-  uint8_t TED7360::read_register_FD10(void *userData, uint16_t addr)
+  uint8_t TED7360::read_register_FD0x(void *userData, uint16_t addr)
+  {
+    (void) addr;
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    // RS232 registers (FIXME: unimplemented)
+    ted.dataBusState = uint8_t(0x00);
+    return ted.dataBusState;
+  }
+
+  uint8_t TED7360::read_register_FD1x(void *userData, uint16_t addr)
   {
     (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
@@ -58,11 +60,18 @@ namespace Plus4 {
     return ted.dataBusState;
   }
 
-  uint8_t TED7360::read_register_FD30(void *userData, uint16_t addr)
+  uint8_t TED7360::read_register_FD3x(void *userData, uint16_t addr)
   {
     (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    ted.dataBusState = uint8_t(0xFF);
+    ted.dataBusState = uint8_t(ted.keyboard_row_select_mask & 0xFF);
+    return ted.dataBusState;
+  }
+
+  uint8_t TED7360::read_register_FFxx(void *userData, uint16_t addr)
+  {
+    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
+    ted.dataBusState = ted.tedRegisters[uint8_t(addr) & uint8_t(0xFF)];
     return ted.dataBusState;
   }
 
@@ -116,17 +125,20 @@ namespace Plus4 {
 
   uint8_t TED7360::read_register_FF06(void *userData, uint16_t addr)
   {
+    (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    ted.dataBusState = ted.memory_ram[addr] & uint8_t(0x7F);
+    ted.dataBusState = ted.tedRegisters[0x06] & uint8_t(0x7F);
     return ted.dataBusState;
   }
 
   uint8_t TED7360::read_register_FF09(void *userData, uint16_t addr)
   {
+    (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
     // bit 2 (light pen interrupt) is always set
-    uint8_t irq_state = (ted.memory_ram[addr] & uint8_t(0x7F)) | uint8_t(0x25);
-    if (((irq_state & ted.memory_ram[0xFF0A]) & uint8_t(0x5E)) != uint8_t(0))
+    uint8_t irq_state =
+        (ted.tedRegisters[0x09] & uint8_t(0x7F)) | uint8_t(0x25);
+    if (((irq_state & ted.tedRegisters[0x0A]) & uint8_t(0x5E)) != uint8_t(0))
       irq_state |= uint8_t(0x80);
     ted.dataBusState = irq_state;
     return irq_state;
@@ -134,52 +146,58 @@ namespace Plus4 {
 
   uint8_t TED7360::read_register_FF0A(void *userData, uint16_t addr)
   {
+    (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    ted.dataBusState = ted.memory_ram[addr] | uint8_t(0xA0);
+    ted.dataBusState = ted.tedRegisters[0x0A] | uint8_t(0xA0);
     return ted.dataBusState;
   }
 
   uint8_t TED7360::read_register_FF0C(void *userData, uint16_t addr)
   {
+    (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    ted.dataBusState = ted.memory_ram[addr] | uint8_t(0xFC);
+    ted.dataBusState = ted.tedRegisters[0x0C] | uint8_t(0xFC);
     return ted.dataBusState;
   }
 
   uint8_t TED7360::read_register_FF10(void *userData, uint16_t addr)
   {
+    (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    ted.dataBusState = (ted.memory_ram[addr] | uint8_t(0x7C)) & uint8_t(0x7F);
+    ted.dataBusState = (ted.tedRegisters[0x10] | uint8_t(0x7C)) & uint8_t(0x7F);
     return ted.dataBusState;
   }
 
   uint8_t TED7360::read_register_FF12(void *userData, uint16_t addr)
   {
+    (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    ted.dataBusState = ted.memory_ram[addr] | uint8_t(0xC0);
+    ted.dataBusState = ted.tedRegisters[0x12] | uint8_t(0xC0);
     return ted.dataBusState;
   }
 
   uint8_t TED7360::read_register_FF13(void *userData, uint16_t addr)
   {
+    (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    ted.dataBusState = (ted.rom_enabled ?
-                        (ted.memory_ram[addr] | uint8_t(0x01))
-                        : (ted.memory_ram[addr] & uint8_t(0xFE)));
+    ted.dataBusState = (ted.tedRegisters[0x13] & uint8_t(0xFE))
+                       | ((uint8_t(ted.cpuMemoryReadMap) & uint8_t(0xFF)) >> 7);
     return ted.dataBusState;
   }
 
   uint8_t TED7360::read_register_FF14(void *userData, uint16_t addr)
   {
+    (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    ted.dataBusState = ted.memory_ram[addr] | uint8_t(0x07);
+    ted.dataBusState = ted.tedRegisters[0x14] | uint8_t(0x07);
     return ted.dataBusState;
   }
 
   uint8_t TED7360::read_register_FF15_to_FF19(void *userData, uint16_t addr)
   {
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    ted.dataBusState = ted.memory_ram[addr] | uint8_t(0x80);
+    ted.dataBusState =
+        ted.tedRegisters[uint8_t(addr) & uint8_t(0xFF)] | uint8_t(0x80);
     return ted.dataBusState;
   }
 
@@ -187,8 +205,8 @@ namespace Plus4 {
   {
     (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    ted.dataBusState = uint8_t(ted.character_position_reload >> 8)
-                       | uint8_t(0xFC);
+    ted.dataBusState =
+        uint8_t(ted.character_position_reload >> 8) | uint8_t(0xFC);
     return ted.dataBusState;
   }
 
@@ -226,25 +244,11 @@ namespace Plus4 {
 
   uint8_t TED7360::read_register_FF1F(void *userData, uint16_t addr)
   {
-    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    ted.dataBusState = ((ted.memory_ram[addr] & uint8_t(0x78)) | uint8_t(0x80))
-                       | ted.character_line;
-    return ted.dataBusState;
-  }
-
-  uint8_t TED7360::read_register_FF3E(void *userData, uint16_t addr)
-  {
     (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    ted.dataBusState = uint8_t(0x00);
-    return ted.dataBusState;
-  }
-
-  uint8_t TED7360::read_register_FF3F(void *userData, uint16_t addr)
-  {
-    (void) addr;
-    TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    ted.dataBusState = uint8_t(0x00);
+    ted.dataBusState =
+        ((ted.tedRegisters[0x1F] & uint8_t(0x78)) | uint8_t(0x80))
+        | ted.character_line;
     return ted.dataBusState;
   }
 

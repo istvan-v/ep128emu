@@ -1,6 +1,6 @@
 
 // plus4 -- portable Commodore PLUS/4 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -26,18 +26,23 @@ namespace Plus4 {
   void TED7360::run(int nCycles)
   {
     for (int i = 0; i < nCycles; i++, cycle_count++) {
+      bool  evenCycle = !(cycle_count & 1UL);
       if (ted_disabled) {
-        if (cycle_count & 1UL)
+        if (!evenCycle) {
           M7501::run(cpu_clock_multiplier);
-        if (!(cycle_count & 7UL))
-          playSample(0);
+          video_column &= uint8_t(0x7E);
+        }
+        else {
+          if (!(cycle_count & 7UL))
+            playSample(0);
+          video_column |= uint8_t(0x01);
+        }
         continue;
       }
-      bool  evenCycle = !(video_column & uint8_t(0x01));
       switch (video_column) {
       case 1:                           // start display (38 column mode)
         if (displayWindow &&
-            (memory_ram[0xFF07] & uint8_t(0x08)) == uint8_t(0)) {
+            (tedRegisters[0x07] & uint8_t(0x08)) == uint8_t(0)) {
           displayActive = true;
           pixelBufReadPos = (pixelBufWritePos + 40) & 0x38;
         }
@@ -55,11 +60,11 @@ namespace Plus4 {
           dma_position = (dma_position + 40) & 0x03FF;
         break;
       case 77:                          // end of display (38 column mode)
-        if ((memory_ram[0xFF07] & uint8_t(0x08)) == uint8_t(0))
+        if ((tedRegisters[0x07] & uint8_t(0x08)) == uint8_t(0))
           displayActive = false;
         break;
       case 79:                          // end of display (40 column mode)
-        if ((memory_ram[0xFF07] & uint8_t(0x08)) != uint8_t(0))
+        if ((tedRegisters[0x07] & uint8_t(0x08)) != uint8_t(0))
           displayActive = false;
         break;
       case 85:                          // DRAM refresh end
@@ -68,9 +73,9 @@ namespace Plus4 {
         break;
       case 88:                          // increment flash counter
         if (video_line == 205) {
-          memory_ram[0xFF1F] =
-              (memory_ram[0xFF1F] & uint8_t(0x7F)) + uint8_t(0x08);
-          if (memory_ram[0xFF1F] & uint8_t(0x80))
+          tedRegisters[0x1F] =
+              (tedRegisters[0x1F] & uint8_t(0x7F)) + uint8_t(0x08);
+          if (tedRegisters[0x1F] & uint8_t(0x80))
             flash_state = !flash_state;
         }
         break;
@@ -78,7 +83,7 @@ namespace Plus4 {
         horizontalBlanking = true;
         break;
       case 98:                          // increment line number
-        if ((memory_ram[0xFF07] & uint8_t(0x40)) == uint8_t(0)) {       // PAL
+        if ((tedRegisters[0x07] & uint8_t(0x40)) == uint8_t(0)) {       // PAL
           video_line = (video_line != 311 ? ((video_line + 1) & 0x01FF) : 0);
           switch (video_line) {
           case 251:
@@ -112,19 +117,19 @@ namespace Plus4 {
             break;
           }
         }
-        if ((memory_ram[0xFF06] & uint8_t(0x10)) != uint8_t(0)) {
+        if ((tedRegisters[0x06] & uint8_t(0x10)) != uint8_t(0)) {
           if (video_line == 0)
             renderWindow = true;
           else if ((video_line == 4 &&
-                    (memory_ram[0xFF06] & uint8_t(0x08)) != uint8_t(0)) ||
+                    (tedRegisters[0x06] & uint8_t(0x08)) != uint8_t(0)) ||
                    (video_line == 8 &&
-                    (memory_ram[0xFF06] & uint8_t(0x08)) == uint8_t(0)))
+                    (tedRegisters[0x06] & uint8_t(0x08)) == uint8_t(0)))
             displayWindow = true;
         }
         if ((video_line == 200 &&
-             (memory_ram[0xFF06] & uint8_t(0x08)) == uint8_t(0)) ||
+             (tedRegisters[0x06] & uint8_t(0x08)) == uint8_t(0)) ||
             (video_line == 204 &&
-             (memory_ram[0xFF06] & uint8_t(0x08)) != uint8_t(0)))
+             (tedRegisters[0x06] & uint8_t(0x08)) != uint8_t(0)))
           displayWindow = false;
         if (video_line == 0)            // end of screen
           character_position_reload = 0x0000;
@@ -149,7 +154,7 @@ namespace Plus4 {
           singleClockMode = true;
           // check if DMA should be requested
           uint8_t tmp = (uint8_t(video_line)
-                         + (memory_ram[0xFF06] ^ uint8_t(0xFF)))
+                         + (tedRegisters[0x06] ^ uint8_t(0xFF)))
                         & uint8_t(0x07);
           if (tmp == uint8_t(0)) {
             if (dmaWindow)
@@ -178,7 +183,7 @@ namespace Plus4 {
         break;
       case 113:                         // start display (40 column mode)
         if (displayWindow &&
-            (memory_ram[0xFF07] & uint8_t(0x08)) != uint8_t(0)) {
+            (tedRegisters[0x07] & uint8_t(0x08)) != uint8_t(0)) {
           displayActive = true;
           pixelBufReadPos = (pixelBufWritePos + 40) & 0x38;
         }
@@ -225,7 +230,7 @@ namespace Plus4 {
       if (video_line == videoInterruptLine) {
         if (!prvVideoInterruptState) {
           prvVideoInterruptState = true;
-          memory_ram[0xFF09] |= uint8_t(0x02);
+          tedRegisters[0x09] |= uint8_t(0x02);
         }
       }
       else
@@ -233,7 +238,7 @@ namespace Plus4 {
       // run CPU and render display
       if (!M7501::haltFlag) {
         if (!evenCycle || !(singleClockMode || !doubleClockModeEnabled)) {
-          if (((memory_ram[0xFF09] & memory_ram[0xFF0A]) & uint8_t(0x5E))
+          if (((tedRegisters[0x09] & tedRegisters[0x0A]) & uint8_t(0x5E))
               != uint8_t(0))
             M7501::interruptRequest();
           M7501::run(cpu_clock_multiplier);
@@ -241,16 +246,20 @@ namespace Plus4 {
       }
       else if (!evenCycle) {
         if (attributeDMACnt >= 5) {
-          dataBusState =
-              readMemory(uint16_t(((dma_position + character_column) & 0x03FF)
-                                  | (attr_base_addr & 0xF800)));
+          memoryReadMap = tedDMAReadMap;
+          (void) readMemory(uint16_t(((dma_position + character_column)
+                                      & 0x03FF)
+                                     | (attr_base_addr & 0xF800)));
           attr_buf_tmp[character_column] = dataBusState;
+          memoryReadMap = cpuMemoryReadMap;
         }
         else if (characterDMACnt >= 5) {
-          dataBusState =
-              readMemory(uint16_t(((dma_position + character_column) & 0x03FF)
-                                  | (attr_base_addr | 0x0400)));
+          memoryReadMap = tedDMAReadMap;
+          (void) readMemory(uint16_t(((dma_position + character_column)
+                                      & 0x03FF)
+                                     | (attr_base_addr | 0x0400)));
           char_buf[character_column] = dataBusState;
+          memoryReadMap = cpuMemoryReadMap;
         }
       }
       if (evenCycle) {
@@ -267,20 +276,17 @@ namespace Plus4 {
               addr_ |= uint16_t(charset_base_addr
                                 | (int(currentCharacter
                                        & characterMask) << 3));
-            if (rom_enabled_for_video) {
-              if (addr_ >= 0x8000) {
-                if (addr_ < 0xC000)
-                  dataBusState = memory_rom[rom_bank_low][addr_ & 0x7FFF];
-                else
-                  dataBusState = memory_rom[rom_bank_high][addr_ & 0x7FFF];
-              }
+            if (addr_ >= uint16_t(0x8000) || !(tedBitmapReadMap & 0x80U)) {
+              memoryReadMap = tedBitmapReadMap;
+              (void) readMemory(addr_);
             }
-            else
-              dataBusState = memory_ram[addr_];
           }
-          else
-            dataBusState = readMemory(0xFFFF);
+          else {
+            memoryReadMap = tedDMAReadMap;
+            (void) readMemory(0xFFFF);
+          }
           currentBitmap = dataBusState;
+          memoryReadMap = cpuMemoryReadMap;
           render_func(this);
           pixelBufWritePos = (pixelBufWritePos + 8) & 0x38;
           if (++character_column >= 40) {
@@ -333,86 +339,89 @@ namespace Plus4 {
           *(bufp++) = (c < uint8_t(0x80) ? c : oldColors[c & uint8_t(0x07)]);
         }
       }
-      // update timers on even cycle count (884 kHz rate)
-      if (!(cycle_count & 1UL)) {
-        if (timer1_run) {
-          timer1_state = (timer1_state - 1) & 0xFFFF;
-          if (!timer1_state) {
-            // reload timer
-            timer1_state = timer1_reload_value;
-            // trigger interrupt if enabled
-            memory_ram[0xFF09] |= uint8_t(0x08);
-          }
-        }
+      if (evenCycle) {
+        // update timer 2 and 3 on even cycle count (884 kHz rate)
         if (timer2_run) {
           timer2_state = (timer2_state - 1) & 0xFFFF;
           if (!timer2_state) {
             // trigger interrupt if enabled
-            memory_ram[0xFF09] |= uint8_t(0x10);
+            tedRegisters[0x09] |= uint8_t(0x10);
           }
         }
         if (timer3_run) {
           timer3_state = (timer3_state - 1) & 0xFFFF;
           if (!timer3_state) {
             // trigger interrupt if enabled
-            memory_ram[0xFF09] |= uint8_t(0x40);
+            tedRegisters[0x09] |= uint8_t(0x40);
           }
+        }
+        // update sound generators on every 8th cycle (221 kHz)
+        if (!(cycle_count & 7UL)) {
+          int     sound_output = 0;
+          int     sound_volume;
+          uint8_t sound_register = tedRegisters[0x11];
+          sound_volume = int(sound_register & uint8_t(0x0F)) << 10;
+          sound_volume = (sound_volume < 8192 ? sound_volume : 8192);
+          if (sound_register & uint8_t(0x80)) {
+            // DAC mode
+            sound_channel_1_cnt = sound_channel_1_reload;
+            sound_channel_2_cnt = sound_channel_2_reload;
+            sound_channel_1_state = uint8_t(1);
+            sound_channel_2_state = uint8_t(1);
+            sound_channel_2_noise_state = uint8_t(0xFF);
+            sound_channel_2_noise_output = uint8_t(1);
+          }
+          else {
+            sound_channel_1_cnt = (sound_channel_1_cnt + 1) & 1023;
+            if (sound_channel_1_cnt == 1023) {
+              // channel 1 square wave
+              sound_channel_1_cnt = sound_channel_1_reload;
+              if (sound_channel_1_reload != 1022) {
+                sound_channel_1_state ^= uint8_t(1);
+                sound_channel_1_state &= uint8_t(1);
+              }
+            }
+            sound_channel_2_cnt = (sound_channel_2_cnt + 1) & 1023;
+            if (sound_channel_2_cnt == 1023) {
+              // channel 2 square wave
+              sound_channel_2_cnt = sound_channel_2_reload;
+              if (sound_channel_2_reload != 1022) {
+                sound_channel_2_state ^= uint8_t(1);
+                sound_channel_2_state &= uint8_t(1);
+                // channel 2 noise, 8 bit polycnt (10110011)
+                uint8_t tmp = sound_channel_2_noise_state & uint8_t(0xB3);
+                tmp = tmp ^ (tmp >> 1);
+                tmp = tmp ^ (tmp >> 2);
+                tmp = (tmp ^ (tmp >> 4)) & uint8_t(1);
+                sound_channel_2_noise_output ^= tmp;
+                sound_channel_2_noise_output &= uint8_t(1);
+                sound_channel_2_noise_state <<= 1;
+                sound_channel_2_noise_state |= sound_channel_2_noise_output;
+              }
+            }
+          }
+          // mix sound outputs
+          if (sound_register & uint8_t(0x10))
+            sound_output += (sound_channel_1_state ? sound_volume : 0);
+          if (sound_register & uint8_t(0x20))
+            sound_output += (sound_channel_2_state ? sound_volume : 0);
+          else if (sound_register & uint8_t(0x40))
+            sound_output += (sound_channel_2_noise_output ? 0 : sound_volume);
+          // send sound output signal (sample rate = 221 kHz)
+          playSample(int16_t(sound_output));
         }
       }
-      // update sound generators on every 8th cycle (221 kHz)
-      if (!(cycle_count & 7UL)) {
-        int     sound_output = 0;
-        int     sound_volume;
-        uint8_t sound_register = memory_ram[0xFF11];
-        sound_volume = int(sound_register & uint8_t(0x0F)) << 10;
-        sound_volume = (sound_volume < 8192 ? sound_volume : 8192);
-        if (sound_register & uint8_t(0x80)) {
-          // DAC mode
-          sound_channel_1_cnt = sound_channel_1_reload;
-          sound_channel_2_cnt = sound_channel_2_reload;
-          sound_channel_1_state = uint8_t(1);
-          sound_channel_2_state = uint8_t(1);
-          sound_channel_2_noise_state = uint8_t(0xFF);
-          sound_channel_2_noise_output = uint8_t(1);
-        }
-        else {
-          sound_channel_1_cnt = (sound_channel_1_cnt + 1) & 1023;
-          if (sound_channel_1_cnt == 1023) {
-            // channel 1 square wave
-            sound_channel_1_cnt = sound_channel_1_reload;
-            if (sound_channel_1_reload != 1022) {
-              sound_channel_1_state ^= uint8_t(1);
-              sound_channel_1_state &= uint8_t(1);
-            }
-          }
-          sound_channel_2_cnt = (sound_channel_2_cnt + 1) & 1023;
-          if (sound_channel_2_cnt == 1023) {
-            // channel 2 square wave
-            sound_channel_2_cnt = sound_channel_2_reload;
-            if (sound_channel_2_reload != 1022) {
-              sound_channel_2_state ^= uint8_t(1);
-              sound_channel_2_state &= uint8_t(1);
-              // channel 2 noise, 8 bit polycnt (10110011)
-              uint8_t tmp = sound_channel_2_noise_state & uint8_t(0xB3);
-              tmp = tmp ^ (tmp >> 1);
-              tmp = tmp ^ (tmp >> 2);
-              tmp = (tmp ^ (tmp >> 4)) & uint8_t(1);
-              sound_channel_2_noise_output ^= tmp;
-              sound_channel_2_noise_output &= uint8_t(1);
-              sound_channel_2_noise_state <<= 1;
-              sound_channel_2_noise_state |= sound_channel_2_noise_output;
-            }
+      else {
+        // update timer 1 on odd cycle count (884 kHz rate)
+        if (timer1_run) {
+          timer1_state = (timer1_state - 1) & 0xFFFF;
+          if (!timer1_state) {
+            // reload timer
+            timer1_state = timer1_reload_value;
+            // trigger interrupt if enabled
+            tedRegisters[0x09] |= uint8_t(0x08);
           }
         }
-        // mix sound outputs
-        if (sound_register & uint8_t(0x10))
-          sound_output += (sound_channel_1_state ? sound_volume : 0);
-        if (sound_register & uint8_t(0x20))
-          sound_output += (sound_channel_2_state ? sound_volume : 0);
-        else if (sound_register & uint8_t(0x40))
-          sound_output += (sound_channel_2_noise_output ? 0 : sound_volume);
-        // send sound output signal (sample rate = 221 kHz)
-        playSample(int16_t(sound_output));
       }
       // update horizontal position
       video_column = (video_column == 113 ? 0 : ((video_column + 1) & 0x7F));

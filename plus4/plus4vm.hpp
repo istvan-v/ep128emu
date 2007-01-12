@@ -46,10 +46,10 @@ namespace Plus4 {
                                       uint16_t addr, uint8_t value);
     };
     // ----------------
-    TED7360_                *ted;
-    size_t    cpuFrequencyMultiplier;   // defaults to 1
-    size_t    tedFrequency;             // fixed at 886724 Hz
-    size_t    soundClockFrequency;      // fixed at 221681 Hz
+    TED7360_  *ted;
+    size_t    cpuClockFrequency;        // defaults to 1773448 Hz
+    size_t    tedFrequency;             // defaults to 886724 Hz
+    size_t    soundClockFrequency;      // fixed at tedFrequency / 4
     int64_t   tedCyclesRemaining;       // in 2^-32 TED cycle units
     int64_t   tapeSamplesPerTEDCycle;
     int64_t   tapeSamplesRemaining;

@@ -47,19 +47,22 @@ namespace Plus4 {
         return ((unsigned char *) &colors_)[n];
       }
     };
-    // memory images (64K RAM, 4*32K ROM)
-    uint8_t     memory_ram[65536];
-    uint8_t     memory_rom[4][32768];
     // memory and register read functions
-    static uint8_t  read_ram_(void *userData, uint16_t addr);
-    static uint8_t  read_memory_8000(void *userData, uint16_t addr);
-    static uint8_t  read_memory_C000(void *userData, uint16_t addr);
-    static uint8_t  read_memory_FC00(void *userData, uint16_t addr);
+    static uint8_t  read_memory_0000_to_0FFF(void *userData, uint16_t addr);
+    static uint8_t  read_memory_1000_to_3FFF(void *userData, uint16_t addr);
+    static uint8_t  read_memory_4000_to_7FFF(void *userData, uint16_t addr);
+    static uint8_t  read_memory_8000_to_BFFF(void *userData, uint16_t addr);
+    static uint8_t  read_memory_C000_to_FBFF(void *userData, uint16_t addr);
+    static uint8_t  read_memory_FC00_to_FCFF(void *userData, uint16_t addr);
+    static uint8_t  read_memory_FD00_to_FEFF(void *userData, uint16_t addr);
+    static uint8_t  read_memory_FF00_to_FFFF(void *userData, uint16_t addr);
     static uint8_t  read_register_0000(void *userData, uint16_t addr);
     static uint8_t  read_register_0001(void *userData, uint16_t addr);
-    static uint8_t  read_register_unimplemented(void *userData, uint16_t addr);
-    static uint8_t  read_register_FD10(void *userData, uint16_t addr);
-    static uint8_t  read_register_FD30(void *userData, uint16_t addr);
+    static uint8_t  read_register_FD0x(void *userData, uint16_t addr);
+    static uint8_t  read_register_FD1x(void *userData, uint16_t addr);
+    static uint8_t  read_register_FD16(void *userData, uint16_t addr);
+    static uint8_t  read_register_FD3x(void *userData, uint16_t addr);
+    static uint8_t  read_register_FFxx(void *userData, uint16_t addr);
     static uint8_t  read_register_FF00(void *userData, uint16_t addr);
     static uint8_t  read_register_FF01(void *userData, uint16_t addr);
     static uint8_t  read_register_FF02(void *userData, uint16_t addr);
@@ -81,19 +84,37 @@ namespace Plus4 {
     static uint8_t  read_register_FF1D(void *userData, uint16_t addr);
     static uint8_t  read_register_FF1E(void *userData, uint16_t addr);
     static uint8_t  read_register_FF1F(void *userData, uint16_t addr);
-    static uint8_t  read_register_FF3E(void *userData, uint16_t addr);
-    static uint8_t  read_register_FF3F(void *userData, uint16_t addr);
+    static uint8_t  read_register_FF3E_FF3F(void *userData, uint16_t addr);
     // memory and register write functions
-    static void     write_ram_(void *userData, uint16_t addr, uint8_t value);
+    static void     write_memory_0000_to_0FFF(void *userData,
+                                              uint16_t addr, uint8_t value);
+    static void     write_memory_1000_to_3FFF(void *userData,
+                                              uint16_t addr, uint8_t value);
+    static void     write_memory_4000_to_7FFF(void *userData,
+                                              uint16_t addr, uint8_t value);
+    static void     write_memory_8000_to_BFFF(void *userData,
+                                              uint16_t addr, uint8_t value);
+    static void     write_memory_C000_to_FBFF(void *userData,
+                                              uint16_t addr, uint8_t value);
+    static void     write_memory_FC00_to_FCFF(void *userData,
+                                              uint16_t addr, uint8_t value);
+    static void     write_memory_FD00_to_FEFF(void *userData,
+                                              uint16_t addr, uint8_t value);
+    static void     write_memory_FF00_to_FFFF(void *userData,
+                                              uint16_t addr, uint8_t value);
     static void     write_register_0000(void *userData,
                                         uint16_t addr, uint8_t value);
     static void     write_register_0001(void *userData,
                                         uint16_t addr, uint8_t value);
     static void     write_register_FD1x(void *userData,
                                         uint16_t addr, uint8_t value);
+    static void     write_register_FD16(void *userData,
+                                        uint16_t addr, uint8_t value);
     static void     write_register_FD3x(void *userData,
                                         uint16_t addr, uint8_t value);
     static void     write_register_FDDx(void *userData,
+                                        uint16_t addr, uint8_t value);
+    static void     write_register_FFxx(void *userData,
                                         uint16_t addr, uint8_t value);
     static void     write_register_FF00(void *userData,
                                         uint16_t addr, uint8_t value);
@@ -162,17 +183,35 @@ namespace Plus4 {
     static void render_char_MCM_128(void *ted_);
     static void render_char_MCM_256(void *ted_);
     static void render_invalid_mode(void *ted_);
+    // -----------------------------------------------------------------
+    // CPU I/O registers
+    uint8_t     ioRegister_0000;
+    uint8_t     ioRegister_0001;
+    // number of RAM segments; can be one of the following values:
+    //   1: 16K (segment FF)
+    //   2: 32K (segments FE, FF)
+    //   4: 64K (segments FC to FF)
+    //  16: 256K Hannes (segments F0 to FF)
+    //  64: 1024K Hannes (segments C0 to FF)
+    uint8_t     ramSegments;
+    // value written to FD16:
+    //   bit 7:       enable memory expansion at 1000-FFFF if set to 0, or
+    //                at 4000-FFFF if set to 1
+    //   bit 6:       if set to 1, allow access to memory expansion by TED
+    //   bits 0 to 3: RAM bank selected
+    uint8_t     hannesRegister;
+    // base index to memoryMapTable[] (see below) to be used by readMemory()
+    unsigned int  memoryReadMap;
+    // base index to memoryMapTable[] to be used by writeMemory()
+    unsigned int  memoryWriteMap;
+    // memoryReadMap is set to one of these before calling readMemory()
+    unsigned int  cpuMemoryReadMap;
+    unsigned int  tedDMAReadMap;
+    unsigned int  tedBitmapReadMap;
+    // copy of TED registers at FF00 to FF1F
+    uint8_t     tedRegisters[32];
     // currently selected render function (depending on bits of FF06 and FF07)
     void        (*render_func)(void *ted_);
-    // -----------------------------------------------------------------
-    // this flag is true if ROM is enabled (FF3E was written)
-    bool        rom_enabled;
-    // this flag is true if ROM is enabled for video data (FF12 bit 2 is set)
-    bool        rom_enabled_for_video;
-    // ROM bank selected for 8000..BFFF (0 to 3)
-    unsigned char rom_bank_low;
-    // ROM bank selected for C000..FFFF (0 to 3)
-    unsigned char rom_bank_high;
     // TED cycle counter
     unsigned long cycle_count;
     // CPU clock multiplier
@@ -262,6 +301,26 @@ namespace Plus4 {
     bool        tape_read_state;
     bool        tape_write_state;
     bool        tape_button_state;
+    // --------
+    uint8_t     *segmentTable[256];
+    // table of 4096 memory maps, indexed by a 12-bit value multiplied by 8:
+    //   bits 8 to 11: ROM banks selected by writing to FDD0 + n
+    //   bit 7:        1: do not allow RAM expansion at 1000-3FFF
+    //   bit 6:        1: allow use of RAM expansion by TED
+    //   bit 5:        memory access by CPU (0) or TED (1)
+    //   bit 4:        RAM (0) or ROM (1) selected
+    //   bits 0 to 3:  Hannes memory bank
+    // each memory map consists of 8 bytes selecting segments for the
+    // following address ranges:
+    //   0: 1000-3FFF
+    //   1: 4000-7FFF
+    //   2: 8000-BFFF
+    //   3: C000-FBFF
+    //   4: 0000-0FFF
+    //   5: FC00-FCFF
+    //   6: FD00-FEFF
+    //   7: FF00-FFFF
+    uint8_t     memoryMapTable[32768];
     // -----------------------------------------------------------------
     void selectRenderer();
     void initRegisters();
@@ -283,7 +342,14 @@ namespace Plus4 {
    public:
     TED7360();
     virtual ~TED7360();
+    // Load 'cnt' bytes of ROM data from 'buf' to bank 'bankNum' (0 to 3),
+    // starting the write from byte 'offs' (0 to 32767). If 'buf' is NULL,
+    // the ROM segment at the starting position is deleted, and 'cnt' is
+    // ignored.
     void loadROM(int bankNum, int offs, int cnt, const uint8_t *buf);
+    // Resize RAM to 'n' kilobytes (16, 32, 64, 256, or 1024), and clear all
+    // RAM data.
+    void setRAMSize(size_t n);
     void run(int nCycles = 1);
     virtual void reset(bool cold_reset = false);
     void setCPUClockMultiplier(int clk);
@@ -292,11 +358,19 @@ namespace Plus4 {
     // used for ROM, while segments 0xFC to 0xFF are RAM.
     uint8_t getMemoryPage(int n) const;
     // Read memory directly without paging. Valid address ranges are
-    // 0x00000000 to 0x0001FFFF for ROM, and 0x003F0000 to 0x003FFFFF for RAM.
+    // 0x00000000 to 0x0001FFFF for ROM, and 0x003F0000 to 0x003FFFFF for RAM
+    // (assuming 64K size).
     uint8_t readMemoryRaw(uint32_t addr) const;
     // Write memory directly without paging. Valid addresses are in the
     // range 0x003F0000 to 0x003FFFFF (i.e. 64K RAM).
     void writeMemoryRaw(uint32_t addr, uint8_t value);
+    // Read memory at 16-bit CPU address with paging (this also allows access
+    // to I/O and TED registers). If 'forceRAM_' is true, data is always read
+    // from RAM.
+    uint8_t readMemoryCPU(uint16_t addr, bool forceRAM_ = false) const;
+    // Write memory at 16-bit CPU address with paging (this also allows access
+    // to I/O and TED registers).
+    void writeMemoryCPU(uint16_t addr, uint8_t value);
     inline void setUserPort(uint8_t value)
     {
       user_port_state = value;
@@ -320,7 +394,7 @@ namespace Plus4 {
     inline void setTapeMotorState(bool state)
     {
       tape_motor_state = state;
-      memory_ram[0x0001] = (memory_ram[0x0001] & 0xF7) | (state ? 0x00 : 0x08);
+      ioRegister_0001 = (ioRegister_0001 & 0xF7) | (state ? 0x00 : 0x08);
     }
     inline bool getTapeMotorState() const
     {
