@@ -180,6 +180,7 @@ namespace Plus4 {
     // clear memory used by TED registers
     ioRegister_0000 = uint8_t(0x0F);
     ioRegister_0001 = uint8_t(0xC8);
+    tedRegisterWriteMask = 0U;
     for (uint8_t i = 0x00; i <= 0x1F; i++)
       tedRegisters[i] = uint8_t(0x00);
     tedRegisters[0x08] = uint8_t(0xFF);
@@ -248,9 +249,10 @@ namespace Plus4 {
     currentBitmap = uint8_t(0x00);
     pixelBufReadPos = 0;
     pixelBufWritePos = 0;
-    attributeDMACnt = 0;
-    characterDMACnt = 0;
+    dmaCycleCounter = 0;
+    attributeDMAFlag = false;
     savedCharacterLine = 0;
+    savedVideoLine = 224;
     videoInterruptLine = 0;
     prvVideoInterruptState = false;
     dataBusState = uint8_t(0xFF);

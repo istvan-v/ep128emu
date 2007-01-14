@@ -1,6 +1,6 @@
 
 // plus4 -- portable Commodore PLUS/4 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -43,7 +43,6 @@ namespace Plus4 {
       interruptDelayRegister(0U),
       interruptFlag(false),
       resetFlag(true),
-      haltRequestFlag(false),
       haltFlag(false),
       reg_TMP(0),
       reg_L(0),
@@ -91,8 +90,6 @@ namespace Plus4 {
           (reg_SR & uint8_t(0x04)) == uint8_t(0))
         interruptFlag = true;
       interruptDelayRegister >>= 1;
-      if (haltFlag)
-        continue;
       bool    doneCycle = false;
       do {
         unsigned char n = *(currentOpcode++);
@@ -100,12 +97,11 @@ namespace Plus4 {
         case CPU_OP_RD_OPCODE:
           if (!(interruptFlag | resetFlag)) {
             doneCycle = true;
-            if (haltRequestFlag) {
-              haltFlag = true;
+            uint8_t opNum = readMemory(reg_PC);
+            if (haltFlag) {
               currentOpcode--;
               break;
             }
-            uint8_t opNum = readMemory(reg_PC);
             if (singleStepModeEnabled)
               breakPointCallback(false, reg_PC, opNum);
             else if (haveBreakPoints)
@@ -120,82 +116,67 @@ namespace Plus4 {
           break;
         case CPU_OP_RD_TMP:
           doneCycle = true;
-          if (!haltRequestFlag) {
-            reg_TMP = readMemory(reg_PC);
-            if (haveBreakPoints)
-              checkReadBreakPoint(reg_PC, reg_TMP);
-            reg_PC = (reg_PC + 1) & 0xFFFF;
-          }
-          else {
-            haltFlag = true;
+          reg_TMP = readMemory(reg_PC);
+          if (haltFlag) {
             currentOpcode--;
+            break;
           }
+          if (haveBreakPoints)
+            checkReadBreakPoint(reg_PC, reg_TMP);
+          reg_PC = (reg_PC + 1) & 0xFFFF;
           break;
         case CPU_OP_RD_TMP_NODEBUG:
           doneCycle = true;
-          if (!haltRequestFlag) {
-            reg_TMP = readMemory(reg_PC);
-            reg_PC = (reg_PC + 1) & 0xFFFF;
-          }
-          else {
-            haltFlag = true;
+          reg_TMP = readMemory(reg_PC);
+          if (haltFlag) {
             currentOpcode--;
+            break;
           }
+          reg_PC = (reg_PC + 1) & 0xFFFF;
           break;
         case CPU_OP_RD_L:
           doneCycle = true;
-          if (!haltRequestFlag) {
-            reg_L = readMemory(reg_PC);
-            if (haveBreakPoints)
-              checkReadBreakPoint(reg_PC, reg_L);
-            reg_PC = (reg_PC + 1) & 0xFFFF;
-          }
-          else {
-            haltFlag = true;
+          reg_L = readMemory(reg_PC);
+          if (haltFlag) {
             currentOpcode--;
+            break;
           }
+          if (haveBreakPoints)
+            checkReadBreakPoint(reg_PC, reg_L);
+          reg_PC = (reg_PC + 1) & 0xFFFF;
           break;
         case CPU_OP_RD_H:
           doneCycle = true;
-          if (!haltRequestFlag) {
-            reg_H = readMemory(reg_PC);
-            if (haveBreakPoints)
-              checkReadBreakPoint(reg_PC, reg_H);
-            reg_PC = (reg_PC + 1) & 0xFFFF;
-          }
-          else {
-            haltFlag = true;
+          reg_H = readMemory(reg_PC);
+          if (haltFlag) {
             currentOpcode--;
+            break;
           }
+          if (haveBreakPoints)
+            checkReadBreakPoint(reg_PC, reg_H);
+          reg_PC = (reg_PC + 1) & 0xFFFF;
           break;
         case CPU_OP_WAIT:
           doneCycle = true;
-          if (haltRequestFlag) {
-            haltFlag = true;
+          if (haltFlag)
             currentOpcode--;
-          }
           break;
         case CPU_OP_LD_TMP_MEM:
           doneCycle = true;
-          if (!haltRequestFlag) {
+          {
             uint16_t  addr = uint16_t(reg_L) | (uint16_t(reg_H) << 8);
             reg_TMP = readMemory(addr);
-            if (haveBreakPoints)
+            if (haltFlag)
+              currentOpcode--;
+            else if (haveBreakPoints)
               checkReadBreakPoint(addr, reg_TMP);
-          }
-          else {
-            haltFlag = true;
-            currentOpcode--;
           }
           break;
         case CPU_OP_LD_TMP_MEM_NODEBUG:
           doneCycle = true;
-          if (!haltRequestFlag)
-            reg_TMP = readMemory(uint16_t(reg_L) | (uint16_t(reg_H) << 8));
-          else {
-            haltFlag = true;
+          reg_TMP = readMemory(uint16_t(reg_L) | (uint16_t(reg_H) << 8));
+          if (haltFlag)
             currentOpcode--;
-          }
           break;
         case CPU_OP_LD_MEM_TMP:
           {
@@ -212,15 +193,16 @@ namespace Plus4 {
           break;
         case CPU_OP_LD_H_MEM:
           doneCycle = true;
-          if (!haltRequestFlag) {
+          {
             uint16_t  addr = uint16_t(reg_L) | (uint16_t(reg_H) << 8);
-            reg_H = readMemory(addr);
+            uint8_t   tmp = readMemory(addr);
+            if (haltFlag) {
+              currentOpcode--;
+              break;
+            }
+            reg_H = tmp;
             if (haveBreakPoints)
               checkReadBreakPoint(addr, reg_H);
-          }
-          else {
-            haltFlag = true;
-            currentOpcode--;
           }
           break;
         case CPU_OP_PUSH_TMP:
@@ -232,14 +214,12 @@ namespace Plus4 {
         case CPU_OP_POP_TMP:
           // FIXME: should check breakpoints ?
           doneCycle = true;
-          if (!haltRequestFlag) {
+          if (!haltFlag) {
             reg_SP = (reg_SP + uint8_t(1)) & uint8_t(0xFF);
             reg_TMP = readMemory(uint16_t(0x0100) | uint16_t(reg_SP));
           }
-          else {
-            haltFlag = true;
+          else
             currentOpcode--;
-          }
           break;
         case CPU_OP_PUSH_PCL:
           // FIXME: should check breakpoints ?
@@ -251,16 +231,14 @@ namespace Plus4 {
         case CPU_OP_POP_PCL:
           // FIXME: should check breakpoints ?
           doneCycle = true;
-          if (!haltRequestFlag) {
+          if (!haltFlag) {
             reg_SP = (reg_SP + uint8_t(1)) & uint8_t(0xFF);
             reg_PC = (reg_PC & uint16_t(0xFF00))
                      | uint16_t(readMemory(uint16_t(0x0100)
                                            | uint16_t(reg_SP)));
           }
-          else {
-            haltFlag = true;
+          else
             currentOpcode--;
-          }
           break;
         case CPU_OP_PUSH_PCH:
           // FIXME: should check breakpoints ?
@@ -272,16 +250,14 @@ namespace Plus4 {
         case CPU_OP_POP_PCH:
           // FIXME: should check breakpoints ?
           doneCycle = true;
-          if (!haltRequestFlag) {
+          if (!haltFlag) {
             reg_SP = (reg_SP + uint8_t(1)) & uint8_t(0xFF);
             reg_PC = (reg_PC & uint16_t(0x00FF))
                      | (uint16_t(readMemory(uint16_t(0x0100)
                                             | uint16_t(reg_SP))) << 8);
           }
-          else {
-            haltFlag = true;
+          else
             currentOpcode--;
-          }
           break;
         case CPU_OP_LD_TMP_00:
           reg_TMP = uint8_t(0x00);
@@ -347,8 +323,7 @@ namespace Plus4 {
             uint8_t tmp = (reg_L + reg_XR) & uint8_t(0xFF);
             if (tmp < reg_L) {
               doneCycle = true;
-              if (haltRequestFlag) {
-                haltFlag = true;
+              if (haltFlag) {
                 currentOpcode--;
                 break;
               }
@@ -359,23 +334,20 @@ namespace Plus4 {
           break;
         case CPU_OP_ADDR_X_SLOW:
           doneCycle = true;
-          if (!haltRequestFlag) {
+          if (!haltFlag) {
             reg_L = (reg_L + reg_XR) & uint8_t(0xFF);
             if (reg_L < reg_XR)
               reg_H = (reg_H + uint8_t(1)) & uint8_t(0xFF);
           }
-          else {
-            haltFlag = true;
+          else
             currentOpcode--;
-          }
           break;
         case CPU_OP_ADDR_Y:
           {
             uint8_t tmp = (reg_L + reg_YR) & uint8_t(0xFF);
             if (tmp < reg_L) {
               doneCycle = true;
-              if (haltRequestFlag) {
-                haltFlag = true;
+              if (haltFlag) {
                 currentOpcode--;
                 break;
               }
@@ -386,15 +358,13 @@ namespace Plus4 {
           break;
         case CPU_OP_ADDR_Y_SLOW:
           doneCycle = true;
-          if (!haltRequestFlag) {
+          if (!haltFlag) {
             reg_L = (reg_L + reg_YR) & uint8_t(0xFF);
             if (reg_L < reg_YR)
               reg_H = (reg_H + uint8_t(1)) & uint8_t(0xFF);
           }
-          else {
-            haltFlag = true;
+          else
             currentOpcode--;
-          }
           break;
         case CPU_OP_TEST_N:
           reg_TMP = (((reg_SR ^ reg_TMP) & uint8_t(0x80)) == uint8_t(0x00) ?
@@ -493,10 +463,8 @@ namespace Plus4 {
             currentOpcode++;
           else {
             doneCycle = true;
-            if (haltRequestFlag) {
-              haltFlag = true;
+            if (haltFlag)
               currentOpcode--;
-            }
           }
           break;
         case CPU_OP_BRK:
@@ -584,8 +552,7 @@ namespace Plus4 {
             if ((((tmp ^ uint8_t(reg_PC)) & (reg_L ^ uint8_t(reg_PC)))
                  & uint8_t(0x80)) != uint8_t(0)) {
               doneCycle = true;
-              if (haltRequestFlag) {
-                haltFlag = true;
+              if (haltFlag) {
                 currentOpcode--;
                 break;
               }
@@ -676,7 +643,7 @@ namespace Plus4 {
           break;
         case CPU_OP_SYS:
           doneCycle = true;
-          if (!haltRequestFlag) {
+          if (!haltFlag) {
             uint32_t  nn = uint32_t(currentOpcode - &(opcodeTable[0])) >> 4;
             uint16_t  addr = (reg_PC + 0xFFFC) & 0xFFFF;
             nn = (nn << 8) | uint32_t(reg_TMP);
@@ -693,20 +660,15 @@ namespace Plus4 {
             if (nn)
               this->reset();
           }
-          else {
-            haltFlag = true;
+          else
             currentOpcode--;
-          }
           break;
         case CPU_OP_INVALID_OPCODE:
           doneCycle = true;
-          if (!haltRequestFlag) {
+          if (!haltFlag)
             this->reset();
-          }
-          else {
-            haltFlag = true;
+          else
             currentOpcode--;
-          }
           break;
         }
       } while (!doneCycle);
@@ -722,7 +684,6 @@ namespace Plus4 {
       currentOpcode = &(opcodeTable[0x0FFF]);
       interruptDelayRegister = 0U;
       interruptFlag = false;
-      haltRequestFlag = false;
       haltFlag = false;
     }
   }
@@ -867,7 +828,6 @@ namespace Plus4 {
     buf.writeUInt32(interruptDelayRegister);
     buf.writeBoolean(interruptFlag);
     buf.writeBoolean(resetFlag);
-    buf.writeBoolean(haltRequestFlag);
     buf.writeBoolean(haltFlag);
   }
 
@@ -903,7 +863,6 @@ namespace Plus4 {
       interruptDelayRegister = buf.readUInt32();
       interruptFlag = buf.readBoolean();
       resetFlag = buf.readBoolean();
-      haltRequestFlag = buf.readBoolean();
       haltFlag = buf.readBoolean();
       if (currentOpcodeIndex < 4128U)
         currentOpcode = &(opcodeTable[currentOpcodeIndex]);

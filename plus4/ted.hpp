@@ -25,28 +25,6 @@ namespace Plus4 {
 
   class TED7360 : public M7501 {
    private:
-    class ColorRegisters {
-     private:
-      uint64_t  colors_;
-     public:
-      ColorRegisters()
-        : colors_(0U)
-      {
-      }
-      ColorRegisters(const ColorRegisters& r)
-        : colors_(r.colors_)
-      {
-      }
-      inline ColorRegisters& operator=(const ColorRegisters& r)
-      {
-        colors_ = r.colors_;
-        return (*this);
-      }
-      inline unsigned char& operator[](size_t n)
-      {
-        return ((unsigned char *) &colors_)[n];
-      }
-    };
     // memory and register read functions
     static uint8_t  read_memory_0000_to_0FFF(void *userData, uint16_t addr);
     static uint8_t  read_memory_1000_to_3FFF(void *userData, uint16_t addr);
@@ -209,6 +187,7 @@ namespace Plus4 {
     unsigned int  tedDMAReadMap;
     unsigned int  tedBitmapReadMap;
     // copy of TED registers at FF00 to FF1F
+    uint32_t    tedRegisterWriteMask;
     uint8_t     tedRegisters[32];
     // currently selected render function (depending on bits of FF06 and FF07)
     void        (*render_func)(void *ted_);
@@ -276,8 +255,6 @@ namespace Plus4 {
     uint8_t     pixel_buf[64];
     uint8_t     line_buf[414];
     int         line_buf_pos;
-    ColorRegisters  oldColors;
-    ColorRegisters  newColors;
     bool        bitmapMode;
     uint8_t     currentCharacter;
     uint8_t     characterMask;
@@ -285,9 +262,10 @@ namespace Plus4 {
     uint8_t     currentBitmap;
     uint8_t     pixelBufReadPos;
     uint8_t     pixelBufWritePos;
-    uint8_t     attributeDMACnt;
-    uint8_t     characterDMACnt;
+    uint8_t     dmaCycleCounter;
+    bool        attributeDMAFlag;
     uint8_t     savedCharacterLine;
+    int         savedVideoLine;
     int         videoInterruptLine;
     bool        prvVideoInterruptState;
     // for fetching bitmap data from invalid memory address

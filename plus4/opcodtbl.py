@@ -9,7 +9,7 @@ def generateOpcode(f, opNum, opName_):
     else:
         operand = ''
     writeInstructions = ['inc', 'dec', 'asl', 'lsr', 'rol', 'ror', 'rla',
-                         'rra', 'slo', 'sre', 'sta']
+                         'rra', 'slo', 'sre', 'sta', 'dcp', 'isb']
     if operand == '#nn':
         print >> f, '    CPU_OP_RD_TMP,'
         if opName == 'nop':
@@ -141,6 +141,14 @@ def generateOpcode(f, opNum, opName_):
                 elif opName == 'rra':
                     print >> f, '    CPU_OP_ROR,'
                     print >> f, '    CPU_OP_ADC,'
+                    cnt = cnt + 2
+                elif opName == 'dcp':
+                    print >> f, '    CPU_OP_DEC,'
+                    print >> f, '    CPU_OP_CMP,'
+                    cnt = cnt + 2
+                elif opName == 'isb':
+                    print >> f, '    CPU_OP_INC,'
+                    print >> f, '    CPU_OP_SBC,'
                     cnt = cnt + 2
                 else:
                     print >> f, '    CPU_OP_%s,' % opName.upper()
@@ -507,12 +515,12 @@ generateOpcode(f, 0xBE, 'LDX nnnn, Y')
 generateOpcode(f, 0xBF, 'LAX nnnn, Y')  # ???
 generateOpcode(f, 0xC0, 'CPY #nn')
 generateOpcode(f, 0xC1, 'CMP (nn, X)')
-generateOpcode(f, 0xC2, '???')
-generateOpcode(f, 0xC3, '???')
+generateOpcode(f, 0xC2, 'NOP #nn')      # ???
+generateOpcode(f, 0xC3, 'DCP (nn, X)')  # ???
 generateOpcode(f, 0xC4, 'CPY nn')
 generateOpcode(f, 0xC5, 'CMP nn')
 generateOpcode(f, 0xC6, 'DEC nn')
-generateOpcode(f, 0xC7, '???')
+generateOpcode(f, 0xC7, 'DCP nn')       # ???
 generateOpcode(f, 0xC8, 'INY')
 generateOpcode(f, 0xC9, 'CMP #nn')
 generateOpcode(f, 0xCA, 'DEX')
@@ -520,31 +528,31 @@ generateOpcode(f, 0xCB, '???')
 generateOpcode(f, 0xCC, 'CPY nnnn')
 generateOpcode(f, 0xCD, 'CMP nnnn')
 generateOpcode(f, 0xCE, 'DEC nnnn')
-generateOpcode(f, 0xCF, '???')
+generateOpcode(f, 0xCF, 'DCP nnnn')     # ???
 generateOpcode(f, 0xD0, 'BNE nn')
 generateOpcode(f, 0xD1, 'CMP (nn), Y')
 generateOpcode(f, 0xD2, '???')
-generateOpcode(f, 0xD3, '???')
+generateOpcode(f, 0xD3, 'DCP (nn), Y')  # ???
 generateOpcode(f, 0xD4, 'NOP nn, X')    # ???
 generateOpcode(f, 0xD5, 'CMP nn, X')
 generateOpcode(f, 0xD6, 'DEC nn, X')
-generateOpcode(f, 0xD7, '???')
+generateOpcode(f, 0xD7, 'DCP nn, X')    # ???
 generateOpcode(f, 0xD8, 'CLD')
 generateOpcode(f, 0xD9, 'CMP nnnn, Y')
 generateOpcode(f, 0xDA, 'NOP')          # ???
-generateOpcode(f, 0xDB, '???')
+generateOpcode(f, 0xDB, 'DCP nnnn, Y')  # ???
 generateOpcode(f, 0xDC, 'NOP nnnn, X')  # ???
 generateOpcode(f, 0xDD, 'CMP nnnn, X')
 generateOpcode(f, 0xDE, 'DEC nnnn, X')
-generateOpcode(f, 0xDF, '???')
+generateOpcode(f, 0xDF, 'DCP nnnn, X')  # ???
 generateOpcode(f, 0xE0, 'CPX #nn')
 generateOpcode(f, 0xE1, 'SBC (nn, X)')
-generateOpcode(f, 0xE2, '???')
-generateOpcode(f, 0xE3, '???')
+generateOpcode(f, 0xE2, 'NOP #nn')      # ???
+generateOpcode(f, 0xE3, 'ISB (nn, X)')  # ???
 generateOpcode(f, 0xE4, 'CPX nn')
 generateOpcode(f, 0xE5, 'SBC nn')
 generateOpcode(f, 0xE6, 'INC nn')
-generateOpcode(f, 0xE7, '???')
+generateOpcode(f, 0xE7, 'ISB nn')       # ???
 generateOpcode(f, 0xE8, 'INX')
 generateOpcode(f, 0xE9, 'SBC #nn')
 generateOpcode(f, 0xEA, 'NOP')
@@ -552,25 +560,25 @@ generateOpcode(f, 0xEB, 'SBC #nn')      # ???
 generateOpcode(f, 0xEC, 'CPX nnnn')
 generateOpcode(f, 0xED, 'SBC nnnn')
 generateOpcode(f, 0xEE, 'INC nnnn')
-generateOpcode(f, 0xEF, '???')
+generateOpcode(f, 0xEF, 'ISB nnnn')     # ???
 generateOpcode(f, 0xF0, 'BEQ nn')
 generateOpcode(f, 0xF1, 'SBC (nn), Y')
-generateOpcode(f, 0xF2, 'SYS')
-generateOpcode(f, 0xF3, '???')
+generateOpcode(f, 0xF2, 'SYS')          # emulator system call / ???
+generateOpcode(f, 0xF3, 'ISB (nn), Y')  # ???
 generateOpcode(f, 0xF4, 'NOP nn, X')    # ???
 generateOpcode(f, 0xF5, 'SBC nn, X')
 generateOpcode(f, 0xF6, 'INC nn, X')
-generateOpcode(f, 0xF7, '???')
+generateOpcode(f, 0xF7, 'ISB nn, X')    # ???
 generateOpcode(f, 0xF8, 'SED')
 generateOpcode(f, 0xF9, 'SBC nnnn, Y')
 generateOpcode(f, 0xFA, 'NOP')          # ???
-generateOpcode(f, 0xFB, '???')
+generateOpcode(f, 0xFB, 'ISB nnnn, Y')  # ???
 generateOpcode(f, 0xFC, 'NOP nnnn, X')  # ???
 generateOpcode(f, 0xFD, 'SBC nnnn, X')
 generateOpcode(f, 0xFE, 'INC nnnn, X')
-generateOpcode(f, 0xFF, '???')
-generateOpcode(f, 0x0100, 'INT')
-generateOpcode(f, 0x0101, 'RST')
+generateOpcode(f, 0xFF, 'ISB nnnn, X')  # ???
+generateOpcode(f, 0x0100, 'INT')        # interrupt
+generateOpcode(f, 0x0101, 'RST')        # reset
 print >> f, '  };'
 print >> f, ''
 print >> f, '}       // namespace Plus4'

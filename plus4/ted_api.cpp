@@ -186,6 +186,7 @@ namespace Plus4 {
     buf.writeByte((uint8_t(cpuMemoryReadMap) & uint8_t(0x80))
                   | (uint8_t(cpuMemoryReadMap >> 11) & uint8_t(0x0F)));
     // save internal registers
+    buf.writeUInt32(tedRegisterWriteMask);
     buf.writeUInt32(uint32_t(cycle_count));
     buf.writeByte(video_column);
     buf.writeUInt32(uint32_t(video_line));
@@ -222,9 +223,10 @@ namespace Plus4 {
     buf.writeByte(currentBitmap);
     buf.writeByte(pixelBufReadPos);
     buf.writeByte(pixelBufWritePos);
-    buf.writeByte(attributeDMACnt);
-    buf.writeByte(characterDMACnt);
+    buf.writeByte(dmaCycleCounter);
+    buf.writeBoolean(attributeDMAFlag);
     buf.writeByte(savedCharacterLine);
+    buf.writeUInt32(uint32_t(savedVideoLine));
     buf.writeBoolean(prvVideoInterruptState);
     buf.writeByte(dataBusState);
     buf.writeUInt32(uint32_t(keyboard_row_select_mask));
@@ -301,6 +303,7 @@ namespace Plus4 {
       for (uint8_t i = 0x0A; i < 0x1A; i++)
         writeMemory(uint16_t(0xFF00) | uint16_t(i), tedRegisters[i]);
       // load remaining internal registers from snapshot data
+      tedRegisterWriteMask = buf.readUInt32();
       cycle_count = buf.readUInt32();
       video_column = buf.readByte() & 0x7F;
       cycle_count = (cycle_count & 0xFFFFFFFEUL)
@@ -341,9 +344,10 @@ namespace Plus4 {
       currentBitmap = buf.readByte();
       pixelBufReadPos = buf.readByte() & 0x3C;
       pixelBufWritePos = buf.readByte() & 0x38;
-      attributeDMACnt = buf.readByte();
-      characterDMACnt = buf.readByte();
+      dmaCycleCounter = buf.readByte();
+      attributeDMAFlag = buf.readBoolean();
       savedCharacterLine = buf.readByte() & 7;
+      savedVideoLine = int(buf.readUInt32() & 0x01FF);
       prvVideoInterruptState = buf.readBoolean();
       dataBusState = buf.readByte();
       keyboard_row_select_mask = int(buf.readUInt32() & 0xFFFF);

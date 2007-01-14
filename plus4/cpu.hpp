@@ -1,6 +1,6 @@
 
 // plus4 -- portable Commodore PLUS/4 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -128,10 +128,7 @@ namespace Plus4 {
     unsigned int  interruptDelayRegister;
     bool        interruptFlag;
     bool        resetFlag;
-    bool        haltRequestFlag;
-   protected:
     bool        haltFlag;
-   private:
     uint8_t     reg_TMP;
     uint8_t     reg_L;
     uint8_t     reg_H;
@@ -185,12 +182,7 @@ namespace Plus4 {
     virtual void reset(bool isColdReset = false);
     inline void setIsCPURunning(bool n)
     {
-      if (n) {
-        haltRequestFlag = false;
-        haltFlag = false;
-      }
-      else
-        haltRequestFlag = true;
+      haltFlag = !n;
     }
     inline const M7501Registers& getRegisters() const
     {
