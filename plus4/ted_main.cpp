@@ -86,10 +86,10 @@ namespace Plus4 {
         break;
       case 95:
         if (renderWindow) {
-          uint8_t tmp = (uint8_t(savedVideoLine) ^ tedRegisters[0x06])
-                        & uint8_t(0x07);
-          if (tmp == uint8_t(0))
-            bitmapFetchWindow = true;
+          // if done attribute DMA in this line, continue with character
+          // DMA in next one
+          if (dmaFlags & 1)
+            dmaFlags = 2;
         }
         break;
       case 97:                          // increment line number
@@ -157,7 +157,7 @@ namespace Plus4 {
       case 99:
         if (savedVideoLine == 0) {
           dma_position = 0x0000;
-          attributeDMAFlag = false;
+          dmaFlags = 0;
         }
         if (dmaWindow) {                // increment character sub-line
           character_line = (character_line + 1) & 7;
@@ -170,18 +170,23 @@ namespace Plus4 {
         }
         else if (renderWindow) {
           // check if DMA should be requested
-          if (attributeDMAFlag) {
-            dmaCycleCounter = 1;
-            attributeDMAFlag = false;
-          }
-          else {
-            uint8_t tmp = (uint8_t(savedVideoLine) ^ tedRegisters[0x06])
-                          & uint8_t(0x07);
-            if (tmp == uint8_t(0) && savedVideoLine != 203) {
+          uint8_t tmp =
+              (uint8_t(savedVideoLine) + (tedRegisters[0x06] ^ uint8_t(0x07)))
+              & uint8_t(0x07);
+          if (tmp == uint8_t(7)) {
+            if (savedVideoLine != 203) {
+              // start a new DMA at character line 7
               dmaWindow = true;
               dmaCycleCounter = 1;
-              attributeDMAFlag = true;
+              dmaFlags = 1;
             }
+          }
+          else if (dmaFlags & 2) {
+            bitmapFetchWindow = true;
+            // done reading attribute data in previous line,
+            // now continue DMA to get character data
+            dmaCycleCounter = 1;
+            dmaFlags = 0;
           }
         }
         break;
@@ -215,18 +220,13 @@ namespace Plus4 {
       }
       // initialize DMA if requested
       if (dmaCycleCounter != uint8_t(0) && !evenCycle) {
+        dmaCycleCounter++;
         switch (dmaCycleCounter) {
-        case 2:
+        case 3:
           singleClockMode = true;
           break;
-        case 3:
+        case 4:
           M7501::setIsCPURunning(false);
-          break;
-        case 6:
-          if (!attributeDMAFlag) {
-            for (int j = 0; j < 40; j++)
-              attr_buf[j] = attr_buf_tmp[j];
-          }
           break;
         }
       }
@@ -241,7 +241,7 @@ namespace Plus4 {
         prvVideoInterruptState = false;
       // run CPU and render display
       tedRegisterWriteMask = 0U;
-      if (dmaCycleCounter < 6) {
+      if (dmaCycleCounter < 7) {
         if (!evenCycle || !(singleClockMode || !doubleClockModeEnabled)) {
           if (((tedRegisters[0x09] & tedRegisters[0x0A]) & uint8_t(0x5E))
               != uint8_t(0))
@@ -250,31 +250,28 @@ namespace Plus4 {
         }
       }
       if (!evenCycle) {
-        if (dmaCycleCounter) {
-          // perform DMA fetches on odd cycle counts
-          if (renderingDisplay && dmaCycleCounter >= 3) {
-            if (attributeDMAFlag) {
-              if (dmaCycleCounter >= 6) {
-                memoryReadMap = tedDMAReadMap;
-                (void) readMemory(uint16_t(((dma_position + character_column)
-                                            & 0x03FF)
-                                           | (attr_base_addr & 0xF800)));
-                memoryReadMap = cpuMemoryReadMap;
-              }
-              attr_buf_tmp[character_column] = dataBusState;
+        // perform DMA fetches on odd cycle counts
+        if (renderingDisplay && dmaCycleCounter >= 4) {
+          if (dmaFlags & 1) {
+            if (dmaCycleCounter >= 7) {
+              memoryReadMap = tedDMAReadMap;
+              (void) readMemory(uint16_t(((dma_position + character_column)
+                                          & 0x03FF)
+                                         | (attr_base_addr & 0xF800)));
+              memoryReadMap = cpuMemoryReadMap;
             }
-            else {
-              if (dmaCycleCounter >= 6) {
-                memoryReadMap = tedDMAReadMap;
-                (void) readMemory(uint16_t(((dma_position + character_column)
-                                            & 0x03FF)
-                                           | (attr_base_addr | 0x0400)));
-                memoryReadMap = cpuMemoryReadMap;
-              }
-              char_buf[character_column] = dataBusState;
-            }
+            attr_buf_tmp[character_column] = dataBusState;
           }
-          dmaCycleCounter++;
+          else {
+            if (dmaCycleCounter >= 7) {
+              memoryReadMap = tedDMAReadMap;
+              (void) readMemory(uint16_t(((dma_position + character_column)
+                                          & 0x03FF)
+                                         | (attr_base_addr | 0x0400)));
+              memoryReadMap = cpuMemoryReadMap;
+            }
+            char_buf[character_column] = dataBusState;
+          }
         }
       }
       else {
@@ -298,7 +295,7 @@ namespace Plus4 {
             }
           }
           else {
-            memoryReadMap = tedDMAReadMap;
+            memoryReadMap = cpuMemoryReadMap;
             (void) readMemory(0xFFFF);
           }
           currentBitmap = dataBusState;
@@ -307,7 +304,13 @@ namespace Plus4 {
           pixelBufWritePos = (pixelBufWritePos + 8) & 0x38;
           if (++character_column >= 40) {
             character_column = 39;
-            dmaCycleCounter = 0;
+            if (dmaCycleCounter) {
+              dmaCycleCounter = 0;
+              if (dmaFlags & 1) {
+                for (int j = 0; j < 40; j++)
+                  attr_buf[j] = attr_buf_tmp[j];
+              }
+            }
             M7501::setIsCPURunning(true);
             currentBitmap = uint8_t(0x00);
             render_func(this);

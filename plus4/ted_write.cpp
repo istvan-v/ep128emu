@@ -144,17 +144,27 @@ namespace Plus4 {
     ted.dataBusState = value;
     if (((ted.tedRegisters[0x06] ^ value) & uint8_t(0x07)) != uint8_t(0)) {
       // if vertical scroll has changed:
-      if (ted.renderWindow && !ted.attributeDMAFlag &&
-          ted.dmaCycleCounter == uint8_t(0)) {
+      if (ted.renderWindow) {
         // check if DMA should be requested
-        uint8_t tmp = (uint8_t(ted.savedVideoLine) ^ value) & uint8_t(0x07);
-        if (tmp == uint8_t(0)) {
-          if ((ted.video_column < 97 || ted.video_column >= 99) &&
-              ted.savedVideoLine != 203) {
-            ted.dmaWindow = true;
-            ted.attributeDMAFlag = true;
-            if (ted.video_column >= 99 || ted.video_column < 75)
-              ted.dmaCycleCounter = 1;
+        uint8_t tmp = (uint8_t(ted.savedVideoLine) + (value ^ uint8_t(0x07)))
+                      & uint8_t(0x07);
+        if (tmp == uint8_t(7)) {
+          ted.dmaWindow = true;
+          if (!(ted.video_column >= 95 && ted.video_column < 99)) {
+            if (ted.savedVideoLine != 203) {
+              if (ted.dmaCycleCounter == 0 &&
+                  (ted.video_column >= 99 || ted.video_column < 75))
+                ted.dmaCycleCounter = 2;
+              ted.dmaFlags = 1;
+            }
+          }
+        }
+        else if (tmp != uint8_t(0)) {
+          if (!(ted.video_column >= 95 && ted.video_column < 99)) {
+            // abort an already started DMA transfer
+            ted.dmaCycleCounter = 0;
+            ted.dmaFlags = 0;
+            ted.setIsCPURunning(true);
           }
         }
       }

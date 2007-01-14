@@ -263,12 +263,12 @@ namespace Plus4 {
     uint8_t     pixelBufReadPos;
     uint8_t     pixelBufWritePos;
     uint8_t     dmaCycleCounter;
-    bool        attributeDMAFlag;
+    uint8_t     dmaFlags;   // sum of: 1: attr DMA; 2: char DMA in next line
     uint8_t     savedCharacterLine;
     int         savedVideoLine;
     int         videoInterruptLine;
     bool        prvVideoInterruptState;
-    // for fetching bitmap data from invalid memory address
+    // for reading data from invalid memory address
     uint8_t     dataBusState;
     // keyboard matrix
     int         keyboard_row_select_mask;

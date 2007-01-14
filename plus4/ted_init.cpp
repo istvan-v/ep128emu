@@ -250,7 +250,7 @@ namespace Plus4 {
     pixelBufReadPos = 0;
     pixelBufWritePos = 0;
     dmaCycleCounter = 0;
-    attributeDMAFlag = false;
+    dmaFlags = 0;
     savedCharacterLine = 0;
     savedVideoLine = 224;
     videoInterruptLine = 0;
