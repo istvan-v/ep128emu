@@ -210,9 +210,9 @@ namespace Plus4 {
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
-    // 0x0B: ???
-    CPU_OP_INVALID_OPCODE,
-    CPU_OP_RD_OPCODE,
+    // 0x0B: ANC #nn
+    CPU_OP_RD_TMP,
+    CPU_OP_ANC,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
@@ -754,9 +754,9 @@ namespace Plus4 {
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
-    // 0x2B: ???
-    CPU_OP_INVALID_OPCODE,
-    CPU_OP_RD_OPCODE,
+    // 0x2B: ANC #nn
+    CPU_OP_RD_TMP,
+    CPU_OP_ANC,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
@@ -1298,12 +1298,12 @@ namespace Plus4 {
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
-    // 0x4B: ???
-    CPU_OP_INVALID_OPCODE,
-    CPU_OP_RD_OPCODE,
-    CPU_OP_RD_OPCODE,
-    CPU_OP_RD_OPCODE,
-    CPU_OP_RD_OPCODE,
+    // 0x4B: ASR #nn
+    CPU_OP_RD_TMP,
+    CPU_OP_AND,
+    CPU_OP_LD_TMP_A,
+    CPU_OP_LSR,
+    CPU_OP_LD_A_TMP,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
@@ -2386,9 +2386,9 @@ namespace Plus4 {
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
-    // 0x8B: ???
-    CPU_OP_INVALID_OPCODE,
-    CPU_OP_RD_OPCODE,
+    // 0x8B: ANE #nn
+    CPU_OP_RD_TMP,
+    CPU_OP_ANE,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
@@ -2930,9 +2930,9 @@ namespace Plus4 {
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
-    // 0xAB: ???
-    CPU_OP_INVALID_OPCODE,
-    CPU_OP_RD_OPCODE,
+    // 0xAB: LXA #nn
+    CPU_OP_RD_TMP,
+    CPU_OP_LXA,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
@@ -3202,12 +3202,12 @@ namespace Plus4 {
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
-    // 0xBB: ???
-    CPU_OP_INVALID_OPCODE,
-    CPU_OP_RD_OPCODE,
-    CPU_OP_RD_OPCODE,
-    CPU_OP_RD_OPCODE,
-    CPU_OP_RD_OPCODE,
+    // 0xBB: LAS nnnn, Y
+    CPU_OP_RD_L,
+    CPU_OP_RD_H,
+    CPU_OP_ADDR_Y,
+    CPU_OP_LD_TMP_MEM,
+    CPU_OP_LAS,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
@@ -3474,9 +3474,9 @@ namespace Plus4 {
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
-    // 0xCB: ???
-    CPU_OP_INVALID_OPCODE,
-    CPU_OP_RD_OPCODE,
+    // 0xCB: SBX #nn
+    CPU_OP_RD_TMP,
+    CPU_OP_SBX,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,
     CPU_OP_RD_OPCODE,

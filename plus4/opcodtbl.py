@@ -14,6 +14,12 @@ def generateOpcode(f, opNum, opName_):
         print >> f, '    CPU_OP_RD_TMP,'
         if opName == 'nop':
             pass
+        elif opName == 'asr':
+            print >> f, '    CPU_OP_AND,'
+            print >> f, '    CPU_OP_LD_TMP_A,'
+            print >> f, '    CPU_OP_LSR,'
+            print >> f, '    CPU_OP_LD_A_TMP,'
+            cnt = cnt + 4
         elif opName[:2] != 'ld':
             print >> f, '    CPU_OP_%s,' % opName.upper()
             cnt = cnt + 1
@@ -332,7 +338,7 @@ generateOpcode(f, 0x07, 'SLO nn')       # ???
 generateOpcode(f, 0x08, 'PHP')
 generateOpcode(f, 0x09, 'ORA #nn')
 generateOpcode(f, 0x0A, 'ASL')
-generateOpcode(f, 0x0B, '???')
+generateOpcode(f, 0x0B, 'ANC #nn')      # ???
 generateOpcode(f, 0x0C, 'NOP nnnn')     # ???
 generateOpcode(f, 0x0D, 'ORA nnnn')
 generateOpcode(f, 0x0E, 'ASL nnnn')
@@ -364,7 +370,7 @@ generateOpcode(f, 0x27, 'RLA nn')       # ???
 generateOpcode(f, 0x28, 'PLP')
 generateOpcode(f, 0x29, 'AND #nn')
 generateOpcode(f, 0x2A, 'ROL')
-generateOpcode(f, 0x2B, '???')
+generateOpcode(f, 0x2B, 'ANC #nn')      # ???
 generateOpcode(f, 0x2C, 'BIT nnnn')
 generateOpcode(f, 0x2D, 'AND nnnn')
 generateOpcode(f, 0x2E, 'ROL nnnn')
@@ -396,7 +402,7 @@ generateOpcode(f, 0x47, 'SRE nn')       # ???
 generateOpcode(f, 0x48, 'PHA')
 generateOpcode(f, 0x49, 'EOR #nn')
 generateOpcode(f, 0x4A, 'LSR')
-generateOpcode(f, 0x4B, '???')
+generateOpcode(f, 0x4B, 'ASR #nn')      # ???
 generateOpcode(f, 0x4C, 'JMP nnnn')
 generateOpcode(f, 0x4D, 'EOR nnnn')
 generateOpcode(f, 0x4E, 'LSR nnnn')
@@ -460,7 +466,7 @@ generateOpcode(f, 0x87, 'SAX nn')       # ???
 generateOpcode(f, 0x88, 'DEY')
 generateOpcode(f, 0x89, 'NOP #nn')      # ???
 generateOpcode(f, 0x8A, 'TXA')
-generateOpcode(f, 0x8B, '???')
+generateOpcode(f, 0x8B, 'ANE #nn')      # ???
 generateOpcode(f, 0x8C, 'STY nnnn')
 generateOpcode(f, 0x8D, 'STA nnnn')
 generateOpcode(f, 0x8E, 'STX nnnn')
@@ -492,7 +498,7 @@ generateOpcode(f, 0xA7, 'LAX nn')       # ???
 generateOpcode(f, 0xA8, 'TAY')
 generateOpcode(f, 0xA9, 'LDA #nn')
 generateOpcode(f, 0xAA, 'TAX')
-generateOpcode(f, 0xAB, '???')
+generateOpcode(f, 0xAB, 'LXA #nn')      # ???
 generateOpcode(f, 0xAC, 'LDY nnnn')
 generateOpcode(f, 0xAD, 'LDA nnnn')
 generateOpcode(f, 0xAE, 'LDX nnnn')
@@ -508,7 +514,7 @@ generateOpcode(f, 0xB7, 'LAX nn, Y')    # ???
 generateOpcode(f, 0xB8, 'CLV')
 generateOpcode(f, 0xB9, 'LDA nnnn, Y')
 generateOpcode(f, 0xBA, 'TSX')
-generateOpcode(f, 0xBB, '???')
+generateOpcode(f, 0xBB, 'LAS nnnn, Y')  # ???
 generateOpcode(f, 0xBC, 'LDY nnnn, X')
 generateOpcode(f, 0xBD, 'LDA nnnn, X')
 generateOpcode(f, 0xBE, 'LDX nnnn, Y')
@@ -524,7 +530,7 @@ generateOpcode(f, 0xC7, 'DCP nn')       # ???
 generateOpcode(f, 0xC8, 'INY')
 generateOpcode(f, 0xC9, 'CMP #nn')
 generateOpcode(f, 0xCA, 'DEX')
-generateOpcode(f, 0xCB, '???')
+generateOpcode(f, 0xCB, 'SBX #nn')      # ???
 generateOpcode(f, 0xCC, 'CPY nnnn')
 generateOpcode(f, 0xCD, 'CMP nnnn')
 generateOpcode(f, 0xCE, 'DEC nnnn')
