@@ -9,7 +9,8 @@ def generateOpcode(f, opNum, opName_):
     else:
         operand = ''
     writeInstructions = ['inc', 'dec', 'asl', 'lsr', 'rol', 'ror', 'rla',
-                         'rra', 'slo', 'sre', 'sta', 'dcp', 'isb']
+                         'rra', 'slo', 'sre', 'sta', 'dcp', 'isb', 'sha',
+                         'shs', 'shx', 'shy']
     if operand == '#nn':
         print >> f, '    CPU_OP_RD_TMP,'
         if opName == 'nop':
@@ -49,20 +50,15 @@ def generateOpcode(f, opNum, opName_):
         elif opName[0] != 'j':
             if operand == 'nn':
                 print >> f, '    CPU_OP_RD_L,'
-                print >> f, '    CPU_OP_ADDR_ZEROPAGE,'
-                cnt = cnt + 2
+                cnt = cnt + 1
             elif operand == 'nn,x' or operand == 'nn, x':
                 print >> f, '    CPU_OP_RD_L,'
-                print >> f, '    CPU_OP_ADDR_ZEROPAGE,'
-                print >> f, '    CPU_OP_ADDR_X_SLOW,'
-                print >> f, '    CPU_OP_ADDR_ZEROPAGE,'
-                cnt = cnt + 4
+                print >> f, '    CPU_OP_ADDR_X_ZEROPAGE,'
+                cnt = cnt + 2
             elif operand == 'nn,y' or operand == 'nn, y':
                 print >> f, '    CPU_OP_RD_L,'
-                print >> f, '    CPU_OP_ADDR_ZEROPAGE,'
-                print >> f, '    CPU_OP_ADDR_Y_SLOW,'
-                print >> f, '    CPU_OP_ADDR_ZEROPAGE,'
-                cnt = cnt + 4
+                print >> f, '    CPU_OP_ADDR_Y_ZEROPAGE,'
+                cnt = cnt + 2
             elif operand == 'nnnn':
                 print >> f, '    CPU_OP_RD_L,'
                 print >> f, '    CPU_OP_RD_H,'
@@ -71,7 +67,10 @@ def generateOpcode(f, opNum, opName_):
                 print >> f, '    CPU_OP_RD_L,'
                 print >> f, '    CPU_OP_RD_H,'
                 if opName in writeInstructions:
-                    print >> f, '    CPU_OP_ADDR_X_SLOW,'
+                    if opName[:2] == 'sh':
+                        print >> f, '    CPU_OP_ADDR_X_%s,' % opName.upper()
+                    else:
+                        print >> f, '    CPU_OP_ADDR_X_SLOW,'
                 else:
                     print >> f, '    CPU_OP_ADDR_X,'
                 cnt = cnt + 3
@@ -79,36 +78,39 @@ def generateOpcode(f, opNum, opName_):
                 print >> f, '    CPU_OP_RD_L,'
                 print >> f, '    CPU_OP_RD_H,'
                 if opName in writeInstructions:
-                    print >> f, '    CPU_OP_ADDR_Y_SLOW,'
+                    if opName[:2] == 'sh':
+                        print >> f, '    CPU_OP_ADDR_Y_%s,' % opName.upper()
+                    else:
+                        print >> f, '    CPU_OP_ADDR_Y_SLOW,'
                 else:
                     print >> f, '    CPU_OP_ADDR_Y,'
                 cnt = cnt + 3
             elif operand == '(nn),y' or operand == '(nn), y':
                 print >> f, '    CPU_OP_RD_L,'
-                print >> f, '    CPU_OP_ADDR_ZEROPAGE,'
                 print >> f, '    CPU_OP_LD_TMP_MEM,'
                 print >> f, '    CPU_OP_INC_L,'
                 print >> f, '    CPU_OP_LD_H_MEM,'
                 print >> f, '    CPU_OP_LD_L_TMP,'
                 if opName in writeInstructions:
-                    print >> f, '    CPU_OP_ADDR_Y_SLOW,'
+                    if opName[:2] == 'sh':
+                        print >> f, '    CPU_OP_ADDR_Y_%s,' % opName.upper()
+                    else:
+                        print >> f, '    CPU_OP_ADDR_Y_SLOW,'
                 else:
                     print >> f, '    CPU_OP_ADDR_Y,'
-                cnt = cnt + 7
+                cnt = cnt + 6
             elif operand == '(nn,x)' or operand == '(nn, x)':
                 print >> f, '    CPU_OP_RD_L,'
-                print >> f, '    CPU_OP_ADDR_ZEROPAGE,'
-                print >> f, '    CPU_OP_ADDR_X_SLOW,'
-                print >> f, '    CPU_OP_ADDR_ZEROPAGE,'
+                print >> f, '    CPU_OP_ADDR_X_ZEROPAGE,'
                 print >> f, '    CPU_OP_LD_TMP_MEM,'
                 print >> f, '    CPU_OP_INC_L,'
                 print >> f, '    CPU_OP_LD_H_MEM,'
                 print >> f, '    CPU_OP_LD_L_TMP,'
-                cnt = cnt + 8
+                cnt = cnt + 6
             else:
                 print ' *** invalid addressing mode'
                 raise SystemExit(-1)
-            if opName[:2] != 'st' and opName != 'sax':
+            if opName[:2] != 'st' and opName[:2] != 'sh' and opName != 'sax':
                 print >> f, '    CPU_OP_LD_TMP_MEM,'
                 cnt = cnt + 1
             if opName == 'nop':
@@ -122,6 +124,9 @@ def generateOpcode(f, opNum, opName_):
                 print >> f, '    CPU_OP_LD_A_TMP,'
                 print >> f, '    CPU_OP_LD_X_TMP,'
                 cnt = cnt + 3
+            elif opName[:2] == 'sh':
+                print >> f, '    CPU_OP_LD_MEM_TMP,'
+                cnt = cnt + 1
             elif opName[:2] == 'st':
                 print >> f, '    CPU_OP_LD_TMP_%s,' % opName[2].upper()
                 print >> f, '    CPU_OP_LD_MEM_TMP,'
@@ -434,7 +439,7 @@ generateOpcode(f, 0x67, 'RRA nn')       # ???
 generateOpcode(f, 0x68, 'PLA')
 generateOpcode(f, 0x69, 'ADC #nn')
 generateOpcode(f, 0x6A, 'ROR')
-generateOpcode(f, 0x6B, '???')
+generateOpcode(f, 0x6B, 'ARR #nn')      # ???
 generateOpcode(f, 0x6C, 'JMP (nnnn)')
 generateOpcode(f, 0x6D, 'ADC nnnn')
 generateOpcode(f, 0x6E, 'ROR nnnn')
@@ -474,7 +479,7 @@ generateOpcode(f, 0x8F, 'SAX nnnn')     # ???
 generateOpcode(f, 0x90, 'BCC nn')
 generateOpcode(f, 0x91, 'STA (nn), Y')
 generateOpcode(f, 0x92, '???')
-generateOpcode(f, 0x93, '???')
+generateOpcode(f, 0x93, 'SHA (nn), Y')  # ???
 generateOpcode(f, 0x94, 'STY nn, X')
 generateOpcode(f, 0x95, 'STA nn, X')
 generateOpcode(f, 0x96, 'STX nn, Y')
@@ -482,11 +487,11 @@ generateOpcode(f, 0x97, 'SAX nn, Y')    # ???
 generateOpcode(f, 0x98, 'TYA')
 generateOpcode(f, 0x99, 'STA nnnn, Y')
 generateOpcode(f, 0x9A, 'TXS')
-generateOpcode(f, 0x9B, '???')
-generateOpcode(f, 0x9C, '???')
+generateOpcode(f, 0x9B, 'SHS nnnn, Y')  # ???
+generateOpcode(f, 0x9C, 'SHY nnnn, X')  # ???
 generateOpcode(f, 0x9D, 'STA nnnn, X')
-generateOpcode(f, 0x9E, '???')
-generateOpcode(f, 0x9F, '???')
+generateOpcode(f, 0x9E, 'SHX nnnn, Y')  # ???
+generateOpcode(f, 0x9F, 'SHA nnnn, Y')  # ???
 generateOpcode(f, 0xA0, 'LDY #nn')
 generateOpcode(f, 0xA1, 'LDA (nn, X)')
 generateOpcode(f, 0xA2, 'LDX #nn')
