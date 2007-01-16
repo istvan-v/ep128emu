@@ -113,6 +113,12 @@ namespace Ep128Emu {
       double      volume;
       double      dcBlockFilter1Freq;
       double      dcBlockFilter2Freq;
+      struct {
+        int       mode;
+        double    frequency;
+        double    level;
+        double    q;
+      } equalizer;
     } sound;
     bool          soundSettingsChanged;
     // --------

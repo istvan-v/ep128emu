@@ -105,6 +105,10 @@ namespace Ep128Emu {
       audioOutputVolume(0.7071f),
       audioOutputFilter1Freq(10.0f),
       audioOutputFilter2Freq(10.0f),
+      audioOutputEQMode(-1),
+      audioOutputEQFrequency(1000.0f),
+      audioOutputEQLevel(1.0f),
+      audioOutputEQ_Q(0.7071f),
       tapePlaybackOn(false),
       tapeRecordOn(false),
       tapeMotorOn(false),
@@ -162,6 +166,10 @@ namespace Ep128Emu {
               audioConverterSampleRate, audioOutputSampleRate,
               audioOutputFilter1Freq, audioOutputFilter2Freq,
               audioOutputVolume);
+        audioConverter->setEqualizerParameters(audioOutputEQMode,
+                                               audioOutputEQFrequency,
+                                               audioOutputEQLevel,
+                                               audioOutputEQ_Q);
       }
     }
     writingAudioOutput =
@@ -213,6 +221,10 @@ namespace Ep128Emu {
               audioConverterSampleRate, audioOutputSampleRate,
               audioOutputFilter1Freq, audioOutputFilter2Freq,
               audioOutputVolume);
+        audioConverter->setEqualizerParameters(audioOutputEQMode,
+                                               audioOutputEQFrequency,
+                                               audioOutputEQLevel,
+                                               audioOutputEQ_Q);
       }
       writingAudioOutput =
           (audioConverter != (AudioConverter *) 0 && audioOutputEnabled &&
@@ -233,6 +245,30 @@ namespace Ep128Emu {
     if (audioConverter)
       audioConverter->setDCBlockFilters(audioOutputFilter1Freq,
                                         audioOutputFilter2Freq);
+  }
+
+  void VirtualMachine::setAudioOutputEqualizer(int mode_, float freq_,
+                                               float level_, float q_)
+  {
+    mode_ = ((mode_ >= 0 && mode_ <= 2) ? mode_ : -1);
+    freq_ = (freq_ > 1.0f ? (freq_ < 100000.0f ? freq_ : 100000.0f) : 1.0f);
+    level_ = (level_ > 0.0001f ? (level_ < 100.0f ? level_ : 100.0f) : 0.0001f);
+    q_ = (q_ > 0.001f ? (q_ < 100.0f ? q_ : 100.0f) : 0.001f);
+    if (mode_ != audioOutputEQMode ||
+        freq_ != audioOutputEQFrequency ||
+        level_ != audioOutputEQLevel ||
+        q_ != audioOutputEQ_Q) {
+      audioOutputEQMode = mode_;
+      audioOutputEQFrequency = freq_;
+      audioOutputEQLevel = level_;
+      audioOutputEQ_Q = q_;
+      if (audioConverter) {
+        audioConverter->setEqualizerParameters(audioOutputEQMode,
+                                               audioOutputEQFrequency,
+                                               audioOutputEQLevel,
+                                               audioOutputEQ_Q);
+      }
+    }
   }
 
   void VirtualMachine::setAudioOutputVolume(float ampScale_)
@@ -612,6 +648,10 @@ namespace Ep128Emu {
               audioConverterSampleRate, audioOutputSampleRate,
               audioOutputFilter1Freq, audioOutputFilter2Freq,
               audioOutputVolume);
+        audioConverter->setEqualizerParameters(audioOutputEQMode,
+                                               audioOutputEQFrequency,
+                                               audioOutputEQLevel,
+                                               audioOutputEQ_Q);
       }
       writingAudioOutput =
           (audioConverter != (AudioConverter *) 0 && audioOutputEnabled &&

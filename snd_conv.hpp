@@ -35,12 +35,24 @@ namespace Ep128Emu {
       void setCutoffFrequency(float frq);
       DCBlockFilter(float sampleRate_, float cutoffFreq = 10.0f);
     };
+    class ParametricEqualizer {
+     private:
+      int     mode; // -1: disabled, 0: peaking EQ, 1: low shelf, 2: high shelf
+      double  xnm1, xnm2, ynm1, ynm2;
+      double  a1da0, a2da0, b0da0, b1da0, b2da0;
+     public:
+      ParametricEqualizer();
+      void setParameters(int mode_, float omega_, float level_, float q_);
+      inline float process(float inputSignal);
+    };
     float   inputSampleRate;
     float   outputSampleRate;
     DCBlockFilter dcBlock1L;
     DCBlockFilter dcBlock1R;
     DCBlockFilter dcBlock2L;
     DCBlockFilter dcBlock2R;
+    ParametricEqualizer eqL;
+    ParametricEqualizer eqR;
     float   ampScale;
    public:
     AudioConverter(float inputSampleRate_, float outputSampleRate_,
@@ -49,6 +61,7 @@ namespace Ep128Emu {
     virtual ~AudioConverter();
     virtual void sendInputSignal(uint32_t audioInput) = 0;
     void setDCBlockFilters(float frq1, float frq2);
+    void setEqualizerParameters(int mode_, float freq_, float level_, float q_);
     void setOutputVolume(float ampScale_);
    protected:
     virtual void audioOutput(int16_t left, int16_t right) = 0;
@@ -84,8 +97,6 @@ namespace Ep128Emu {
                                 int outBufSize, float bufPos);
     };
     static ResampleWindow window;
-    float   prvInputL, prvInputR;
-    int     sampleCnt;
     static const int bufSize = 16;
     float   bufL[16];
     float   bufR[16];

@@ -58,6 +58,92 @@ namespace Ep128Emu {
     setCutoffFrequency(cutoffFreq);
   }
 
+  AudioConverter::ParametricEqualizer::ParametricEqualizer()
+    : mode(-1),
+      xnm1(0.0), xnm2(0.0), ynm1(0.0), ynm2(0.0),
+      a1da0(0.0), a2da0(0.0), b0da0(1.0), b1da0(0.0), b2da0(0.0)
+  {
+  }
+
+  void AudioConverter::ParametricEqualizer::setParameters(int mode_,
+                                                          float omega_,
+                                                          float level_,
+                                                          float q_)
+  {
+    mode = ((mode_ >= 0 && mode_ <= 2) ? mode_ : -1);
+    xnm1 = 0.0;
+    xnm2 = 0.0;
+    ynm1 = 0.0;
+    ynm2 = 0.0;
+    omega_ = (omega_ > 0.0005f ? (omega_ < 3.14f ? omega_ : 3.14f) : 0.0005f);
+    level_ = (level_ > 0.0001f ? (level_ < 100.0f ? level_ : 100.0f) : 0.0001f);
+    q_ = (q_ > 0.001f ? (q_ < 100.0f ? q_ : 100.0f) : 0.001f);
+    // the following code is based on formulas by Robert Bristow-Johnson
+    double  a = std::sqrt(level_);
+    double  cosw0 = std::cos(omega_);
+    double  alpha = std::sin(omega_) / (2.0f * q_);
+    double  a0;
+    switch (mode) {
+    case -1:                                    // disabled
+      a1da0 = 0.0;
+      a2da0 = 0.0;
+      b0da0 = 1.0;
+      b1da0 = 0.0;
+      b2da0 = 0.0;
+      break;
+    case 0:                                     // peaking EQ
+      a0 = 1.0 + (alpha / a);
+      a1da0 = (-2.0 * cosw0) / a0;
+      a2da0 = (1.0 - (alpha / a)) / a0;
+      b0da0 = (1.0 + (alpha * a)) / a0;
+      b1da0 = (-2.0 * cosw0) / a0;
+      b2da0 = (1.0 - (alpha * a)) / a0;
+      break;
+    case 1:                                     // low shelf
+      {
+        double  am1cosw0 = (a - 1.0) * cosw0;
+        double  twoSqrtAAlpha = 2.0 * std::sqrt(a) * alpha;
+        a0 = (a + 1.0) + am1cosw0 + twoSqrtAAlpha;
+        a1da0 = (-2.0 * ((a - 1.0) + ((a + 1.0) * cosw0))) / a0;
+        a2da0 = ((a + 1.0) + am1cosw0 - twoSqrtAAlpha) / a0;
+        b0da0 = a * ((a + 1.0) - am1cosw0 + twoSqrtAAlpha) / a0;
+        b1da0 = 2.0 * a * ((a - 1.0) - ((a + 1.0) * cosw0)) / a0;
+        b2da0 = a * ((a + 1.0) - am1cosw0 - twoSqrtAAlpha) / a0;
+      }
+      break;
+    case 2:                                     // high shelf
+      {
+        double  am1cosw0 = (a - 1.0) * cosw0;
+        double  twoSqrtAAlpha = 2.0 * std::sqrt(a) * alpha;
+        a0 = (a + 1.0) - am1cosw0 + twoSqrtAAlpha;
+        a1da0 = (2.0 * ((a - 1.0) - ((a + 1.0) * cosw0))) / a0;
+        a2da0 = ((a + 1.0) - am1cosw0 - twoSqrtAAlpha) / a0;
+        b0da0 = a * ((a + 1.0) + am1cosw0 + twoSqrtAAlpha) / a0;
+        b1da0 = -2.0 * a * ((a - 1.0) + ((a + 1.0) * cosw0)) / a0;
+        b2da0 = a * ((a + 1.0) + am1cosw0 - twoSqrtAAlpha) / a0;
+      }
+      break;
+    }
+  }
+
+  inline float AudioConverter::ParametricEqualizer::process(float inputSignal)
+  {
+    if (mode >= 0) {
+      double  yn = (inputSignal * b0da0) + (xnm1 * b1da0) + (xnm2 * b2da0)
+                   - (ynm1 * a1da0) - (ynm2 * a2da0);
+      // avoid denormals
+      volatile double tmp = 1.0e-32;
+      yn = (yn + 1.0e-32) - tmp;
+      xnm2 = xnm1;
+      xnm1 = inputSignal;
+      ynm2 = ynm1;
+      ynm1 = yn;
+      return float(yn);
+    }
+    else
+      return inputSignal;
+  }
+
   inline void AudioConverter::sendOutputSignal(float left, float right)
   {
     // scale, clip, and convert to 16 bit integer format
@@ -109,6 +195,14 @@ namespace Ep128Emu {
     dcBlock2R.setCutoffFrequency(frq2);
   }
 
+  void AudioConverter::setEqualizerParameters(int mode_, float freq_,
+                                              float level_, float q_)
+  {
+    float   omega = 2.0f * 3.1415927f * freq_ / outputSampleRate;
+    eqL.setParameters(mode_, omega, level_, q_);
+    eqR.setParameters(mode_, omega, level_, q_);
+  }
+
   void AudioConverter::setOutputVolume(float ampScale_)
   {
     if (ampScale_ > 0.01f && ampScale_ < 1.0f)
@@ -136,8 +230,9 @@ namespace Ep128Emu {
       outRight += ((prvInputR + right2) * phsFrac);
       outLeft /= (downsampleRatio * 2.0f);
       outRight /= (downsampleRatio * 2.0f);
-      sendOutputSignal(dcBlock2L.process(dcBlock1L.process(outLeft)),
-                       dcBlock2R.process(dcBlock1R.process(outRight)));
+      sendOutputSignal(
+          eqL.process(dcBlock2L.process(dcBlock1L.process(outLeft))),
+          eqR.process(dcBlock2R.process(dcBlock1R.process(outRight))));
       outLeft = (left2 + left) * (1.0f - phsFrac);
       outRight = (right2 + right) * (1.0f - phsFrac);
       nxtPhs = (nxtPhs + downsampleRatio) - phs;
@@ -213,15 +308,6 @@ namespace Ep128Emu {
   {
     float   left = float(int(audioInput & 0xFFFF));
     float   right = float(int(audioInput >> 16));
-    if (!sampleCnt) {
-      prvInputL = left;
-      prvInputR = right;
-      sampleCnt++;
-      return;
-    }
-    sampleCnt = 0;
-    left += prvInputL;
-    right += prvInputR;
     window.processSample(left, right, bufL, bufR, bufSize, bufPos);
     bufPos += resampleRatio;
     if (bufPos >= nxtPos) {
@@ -231,12 +317,13 @@ namespace Ep128Emu {
       int     readPos = int(bufPos) - 6;
       while (readPos < 0)
         readPos += bufSize;
-      left = bufL[readPos] * (0.5f * resampleRatio);
+      left = bufL[readPos] * resampleRatio;
       bufL[readPos] = 0.0f;
-      right = bufR[readPos] * (0.5f * resampleRatio);
+      right = bufR[readPos] * resampleRatio;
       bufR[readPos] = 0.0f;
-      sendOutputSignal(dcBlock2L.process(dcBlock1L.process(left)),
-                       dcBlock2R.process(dcBlock1R.process(right)));
+      sendOutputSignal(
+          eqL.process(dcBlock2L.process(dcBlock1L.process(left))),
+          eqR.process(dcBlock2R.process(dcBlock1R.process(right))));
     }
   }
 
@@ -248,16 +335,13 @@ namespace Ep128Emu {
     : AudioConverter(inputSampleRate_, outputSampleRate_,
                      dcBlockFreq1, dcBlockFreq2, ampScale_)
   {
-    prvInputL = 0.0f;
-    prvInputR = 0.0f;
-    sampleCnt = 0;
     for (int i = 0; i < bufSize; i++) {
       bufL[i] = 0.0f;
       bufR[i] = 0.0f;
     }
     bufPos = 0.0f;
     nxtPos = 1.0f;
-    resampleRatio = outputSampleRate_ / (inputSampleRate_ * 0.5f);
+    resampleRatio = outputSampleRate_ / inputSampleRate_;
   }
 
   AudioConverterHighQuality::~AudioConverterHighQuality()

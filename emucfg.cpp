@@ -218,6 +218,18 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "sound.dcBlockFilter2Freq",
                                 sound.dcBlockFilter2Freq, 10.0,
                                 soundSettingsChanged, 1.0, 1000.0);
+    defineConfigurationVariable(*this, "sound.equalizer.mode",
+                                sound.equalizer.mode, int(-1),
+                                soundSettingsChanged, -1.0, 2.0);
+    defineConfigurationVariable(*this, "sound.equalizer.frequency",
+                                sound.equalizer.frequency, 1000.0,
+                                soundSettingsChanged, 1.0, 100000.0);
+    defineConfigurationVariable(*this, "sound.equalizer.level",
+                                sound.equalizer.level, 1.0,
+                                soundSettingsChanged, 0.0001, 100.0);
+    defineConfigurationVariable(*this, "sound.equalizer.q",
+                                sound.equalizer.q, 0.7071,
+                                soundSettingsChanged, 0.001, 100.0);
     // ----------------
     for (int i = 0; i < 128; i++) {
       char  tmpBuf[16];
@@ -375,6 +387,10 @@ namespace Ep128Emu {
       vm_.setAudioOutputVolume(float(sound.volume));
       vm_.setAudioOutputFilters(float(sound.dcBlockFilter1Freq),
                                 float(sound.dcBlockFilter2Freq));
+      vm_.setAudioOutputEqualizer(sound.equalizer.mode,
+                                  float(sound.equalizer.frequency),
+                                  float(sound.equalizer.level),
+                                  float(sound.equalizer.q));
       try {
         audioOutput.setOutputFile(sound.file);
       }

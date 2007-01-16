@@ -45,6 +45,10 @@ namespace Ep128Emu {
     float           audioOutputVolume;
     float           audioOutputFilter1Freq;
     float           audioOutputFilter2Freq;
+    int             audioOutputEQMode;
+    float           audioOutputEQFrequency;
+    float           audioOutputEQLevel;
+    float           audioOutputEQ_Q;
     bool            tapePlaybackOn;
     bool            tapeRecordOn;
     bool            tapeMotorOn;
@@ -79,6 +83,11 @@ namespace Ep128Emu {
     // remove DC offset
     virtual void setAudioOutputFilters(float dcBlockFreq1_,
                                        float dcBlockFreq2_);
+    // set parameters of audio output equalizer
+    // 'mode_' can be one of the following values: -1: disable equalizer,
+    // 0: peaking EQ, 1: low shelf, 2: high shelf
+    virtual void setAudioOutputEqualizer(int mode_,
+                                         float freq_, float level_, float q_);
     // set amplitude scale for audio output (defaults to 0.7071)
     virtual void setAudioOutputVolume(float ampScale_);
     // set if audio data is sent to sound card and output file (disabling
