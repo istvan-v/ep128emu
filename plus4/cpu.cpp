@@ -137,6 +137,7 @@ namespace Plus4 {
         case CPU_OP_RD_L:
           doneCycle = true;
           reg_L = readMemory(reg_PC);
+          reg_H = uint8_t(0x00);
           if (haltFlag) {
             currentOpcode--;
             break;
@@ -315,14 +316,12 @@ namespace Plus4 {
         case CPU_OP_LD_SP_TMP:
           reg_SP = reg_TMP;
           break;
-        case CPU_OP_ADDR_ZEROPAGE:
-          reg_H = uint8_t(0x00);
-          break;
         case CPU_OP_ADDR_X:
           {
             uint8_t tmp = (reg_L + reg_XR) & uint8_t(0xFF);
             if (tmp < reg_L) {
               doneCycle = true;
+              (void) readMemory(uint16_t(tmp) | (uint16_t(reg_H) << 8));
               if (haltFlag) {
                 currentOpcode--;
                 break;
@@ -334,19 +333,51 @@ namespace Plus4 {
           break;
         case CPU_OP_ADDR_X_SLOW:
           doneCycle = true;
+          {
+            uint8_t tmp = (reg_L + reg_XR) & uint8_t(0xFF);
+            (void) readMemory(uint16_t(tmp) | (uint16_t(reg_H) << 8));
+            if (haltFlag) {
+              currentOpcode--;
+              break;
+            }
+            if (tmp < reg_L)
+              reg_H = (reg_H + uint8_t(1)) & uint8_t(0xFF);
+            reg_L = tmp;
+          }
+          break;
+        case CPU_OP_ADDR_X_ZEROPAGE:
+          doneCycle = true;
+          (void) readMemory(uint16_t(reg_L));
           if (!haltFlag) {
             reg_L = (reg_L + reg_XR) & uint8_t(0xFF);
-            if (reg_L < reg_XR)
-              reg_H = (reg_H + uint8_t(1)) & uint8_t(0xFF);
+            reg_H = uint8_t(0x00);
           }
           else
             currentOpcode--;
+          break;
+        case CPU_OP_ADDR_X_SHY:
+          doneCycle = true;
+          {
+            uint8_t tmp = (reg_L + reg_XR) & uint8_t(0xFF);
+            (void) readMemory(uint16_t(tmp) | (uint16_t(reg_H) << 8));
+            if (haltFlag) {
+              currentOpcode--;
+              break;
+            }
+            uint8_t addrHp1 = (reg_H + uint8_t(1)) & uint8_t(0xFF);
+            addrHp1 = addrHp1 & reg_YR;
+            reg_TMP = addrHp1;
+            if (tmp < reg_L)
+              reg_H = addrHp1;
+            reg_L = tmp;
+          }
           break;
         case CPU_OP_ADDR_Y:
           {
             uint8_t tmp = (reg_L + reg_YR) & uint8_t(0xFF);
             if (tmp < reg_L) {
               doneCycle = true;
+              (void) readMemory(uint16_t(tmp) | (uint16_t(reg_H) << 8));
               if (haltFlag) {
                 currentOpcode--;
                 break;
@@ -358,13 +389,79 @@ namespace Plus4 {
           break;
         case CPU_OP_ADDR_Y_SLOW:
           doneCycle = true;
+          {
+            uint8_t tmp = (reg_L + reg_YR) & uint8_t(0xFF);
+            (void) readMemory(uint16_t(tmp) | (uint16_t(reg_H) << 8));
+            if (haltFlag) {
+              currentOpcode--;
+              break;
+            }
+            if (tmp < reg_L)
+              reg_H = (reg_H + uint8_t(1)) & uint8_t(0xFF);
+            reg_L = tmp;
+          }
+          break;
+        case CPU_OP_ADDR_Y_ZEROPAGE:
+          doneCycle = true;
+          (void) readMemory(uint16_t(reg_L));
           if (!haltFlag) {
             reg_L = (reg_L + reg_YR) & uint8_t(0xFF);
-            if (reg_L < reg_YR)
-              reg_H = (reg_H + uint8_t(1)) & uint8_t(0xFF);
+            reg_H = uint8_t(0x00);
           }
           else
             currentOpcode--;
+          break;
+        case CPU_OP_ADDR_Y_SHA:
+          doneCycle = true;
+          {
+            uint8_t tmp = (reg_L + reg_YR) & uint8_t(0xFF);
+            (void) readMemory(uint16_t(tmp) | (uint16_t(reg_H) << 8));
+            if (haltFlag) {
+              currentOpcode--;
+              break;
+            }
+            uint8_t addrHp1 = (reg_H + uint8_t(1)) & uint8_t(0xFF);
+            addrHp1 = addrHp1 & (reg_AC & reg_XR);
+            reg_TMP = addrHp1;
+            if (tmp < reg_L)
+              reg_H = addrHp1;
+            reg_L = tmp;
+          }
+          break;
+        case CPU_OP_ADDR_Y_SHS:
+          doneCycle = true;
+          {
+            uint8_t tmp = (reg_L + reg_YR) & uint8_t(0xFF);
+            (void) readMemory(uint16_t(tmp) | (uint16_t(reg_H) << 8));
+            if (haltFlag) {
+              currentOpcode--;
+              break;
+            }
+            uint8_t addrHp1 = (reg_H + uint8_t(1)) & uint8_t(0xFF);
+            reg_SP = reg_AC & reg_XR;
+            addrHp1 = addrHp1 & reg_SP;
+            reg_TMP = addrHp1;
+            if (tmp < reg_L)
+              reg_H = addrHp1;
+            reg_L = tmp;
+          }
+          break;
+        case CPU_OP_ADDR_Y_SHX:
+          doneCycle = true;
+          {
+            uint8_t tmp = (reg_L + reg_YR) & uint8_t(0xFF);
+            (void) readMemory(uint16_t(tmp) | (uint16_t(reg_H) << 8));
+            if (haltFlag) {
+              currentOpcode--;
+              break;
+            }
+            uint8_t addrHp1 = (reg_H + uint8_t(1)) & uint8_t(0xFF);
+            addrHp1 = addrHp1 & reg_XR;
+            reg_TMP = addrHp1;
+            if (tmp < reg_L)
+              reg_H = addrHp1;
+            reg_L = tmp;
+          }
           break;
         case CPU_OP_TEST_N:
           reg_TMP = (((reg_SR ^ reg_TMP) & uint8_t(0x80)) == uint8_t(0x00) ?
@@ -409,32 +506,39 @@ namespace Plus4 {
                              uint8_t(0x02) : uint8_t(0x00));
           break;
         case CPU_OP_ADC:
-          {
-            unsigned int  result = (unsigned int) (reg_SR & uint8_t(0x01));
-            if (reg_SR & (uint8_t) 0x08) {
-              // add in BCD mode
-              result += (unsigned int) (reg_AC & uint8_t(0x0F));
-              result += (unsigned int) (reg_TMP & uint8_t(0x0F));
-              result += (result < 0x0AU ? 0x00U : 0x06U);
-              result += (unsigned int) (reg_AC & uint8_t(0xF0));
-              result += (unsigned int) (reg_TMP & uint8_t(0xF0));
-              result += (result < 0xA0U ? 0x00U : 0x60U);
-            }
-            else {
-              // add in binary mode
-              result += ((unsigned int) reg_AC + (unsigned int) reg_TMP);
-            }
+          if (!(reg_SR & uint8_t(0x08))) {
+            // add in binary mode
+            unsigned int  result = (unsigned int) (reg_AC & uint8_t(0xFF))
+                                   + (unsigned int) (reg_TMP & uint8_t(0xFF))
+                                   + (unsigned int) (reg_SR & uint8_t(0x01));
             reg_SR &= uint8_t(0x3C);
-            // carry
-            reg_SR |= (result >= 0x0100U ? uint8_t(0x01) : uint8_t(0x00));
-            // overflow
+            reg_SR |= (uint8_t(result >> 8) & uint8_t(0x01));           // C
             reg_SR |= ((((reg_AC ^ ~reg_TMP) & (reg_AC ^ uint8_t(result)))
-                        & uint8_t(0x80)) >> 1);
-            reg_AC = uint8_t(result);
+                        & uint8_t(0x80)) >> 1);                         // V
+            reg_AC = uint8_t(result) & uint8_t(0xFF);
+            reg_SR |= (reg_AC & uint8_t(0x80));                         // N
+            reg_SR |= uint8_t(reg_AC == uint8_t(0x00) ? 0x02 : 0x00);   // Z
           }
-          reg_SR = reg_SR | (reg_AC & uint8_t(0x80));
-          reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
-                             uint8_t(0x02) : uint8_t(0x00));
+          else {
+            // add in BCD mode
+            unsigned int  l = (unsigned int) (reg_SR & uint8_t(0x01))
+                              + (unsigned int) (reg_AC & uint8_t(0x0F))
+                              + (unsigned int) (reg_TMP & uint8_t(0x0F));
+            unsigned int  h = (unsigned int) (reg_AC & uint8_t(0xF0))
+                              + (unsigned int) (reg_TMP & uint8_t(0xF0));
+            reg_SR &= uint8_t(0x3C);
+            if (!(uint8_t(h + l) & uint8_t(0xFF)))
+              reg_SR |= uint8_t(0x02);                                  // Z
+            l += (l < 0x0AU ? 0x00U : 0x06U);
+            h += (l >= 0x10U ? 0x10U : 0x00U);
+            l &= 0x0FU;
+            reg_SR = reg_SR | (uint8_t(h) & uint8_t(0x80));             // N
+            reg_SR |= ((((reg_AC ^ ~reg_TMP) & (reg_AC ^ uint8_t(h)))
+                        & uint8_t(0x80)) >> 1);                         // V
+            h += (h < 0xA0U ? 0x00U : 0x60U);
+            reg_SR |= (h >= 0x0100U ? uint8_t(0x01) : uint8_t(0x00));   // C
+            reg_AC = uint8_t(h + l) & uint8_t(0xFF);
+          }
           break;
         case CPU_OP_ANC:
           reg_AC = reg_AC & reg_TMP;
@@ -455,6 +559,30 @@ namespace Plus4 {
           reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_AC & uint8_t(0x80));
           reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
                              uint8_t(0x02) : uint8_t(0x00));
+          break;
+        case CPU_OP_ARR:
+          {
+            uint8_t tmp = reg_AC & reg_TMP;
+            reg_AC = tmp >> 1;
+            if (reg_SR & uint8_t(0x01))
+              reg_AC |= uint8_t(0x80);
+            reg_SR &= uint8_t(0x3C);
+            reg_SR |= ((reg_AC ^ tmp) & uint8_t(0x40));
+            reg_SR |= (reg_AC & uint8_t(0x80));
+            if (!reg_AC)
+              reg_SR |= uint8_t(0x02);
+            if (!(reg_SR & uint8_t(0x08))) {
+              reg_SR |= ((tmp & uint8_t(0x80)) >> 7);
+            }
+            else {
+              if ((tmp & uint8_t(0x0F)) >= uint8_t(0x05))
+                reg_AC = uint8_t((reg_AC & 0xF0) | ((reg_AC + 0x06) & 0x0F));
+              if (tmp >= uint8_t(0x50)) {
+                reg_AC = uint8_t((reg_AC + 0x60) & 0xFF);
+                reg_SR |= uint8_t(0x01);
+              }
+            }
+          }
           break;
         case CPU_OP_ASL:
           {
@@ -641,34 +769,33 @@ namespace Plus4 {
           break;
         case CPU_OP_SBC:
           {
-            unsigned int  result = (unsigned int) (reg_SR & uint8_t(0x01));
-            reg_TMP ^= uint8_t(0xFF);
+            // subtract in binary mode
+            uint8_t       tmp = (reg_TMP ^ uint8_t(0xFF)) & uint8_t(0xFF);
+            uint8_t       c = reg_SR & uint8_t(0x01);
+            unsigned int  result = (unsigned int) (reg_AC & uint8_t(0xFF))
+                                   + (unsigned int) tmp
+                                   + (unsigned int) c;
+            reg_SR &= uint8_t(0x3C);
+            reg_SR |= (uint8_t(result >> 8) & uint8_t(0x01));           // C
+            reg_SR |= ((((reg_AC ^ ~tmp) & (reg_AC ^ uint8_t(result)))
+                        & uint8_t(0x80)) >> 1);                         // V
+            result &= 0xFFU;
+            reg_SR |= (uint8_t(result) & uint8_t(0x80));                // N
+            reg_SR |= uint8_t(result == 0x00U ? 0x02 : 0x00);           // Z
             if (reg_SR & uint8_t(0x08)) {
               // subtract in BCD mode
-              result += (unsigned int) (reg_AC & uint8_t(0x0F));
-              result += (unsigned int) (reg_TMP & uint8_t(0x0F));
-              if (result < 0x10U)
-                result = (result + 0x0AU) & 0x0FU;
-              result += (unsigned int) (reg_AC & uint8_t(0xF0));
-              result += (unsigned int) (reg_TMP & uint8_t(0xF0));
-              if (result < 0x0100U)
-                result = (result + 0xA0U) & 0xFFU;
+              unsigned int  l = (unsigned int) (reg_AC & uint8_t(0x0F))
+                                + (unsigned int) (tmp & uint8_t(0x0F))
+                                + (unsigned int) c;
+              unsigned int  h = (unsigned int) (reg_AC & uint8_t(0xF0))
+                                + (unsigned int) (tmp & uint8_t(0xF0));
+              h += (l & 0x10U);
+              l += (l < 0x10U ? 0x0AU : 0x00U);
+              h += (h < 0x100U ? 0xA0U : 0x00U);
+              result = (h + (l & 0x0FU)) & 0xFFU;
             }
-            else {
-              // subtract in binary mode
-              result += ((unsigned int) reg_AC + (unsigned int) reg_TMP);
-            }
-            reg_SR &= uint8_t(0x3C);
-            // carry
-            reg_SR |= (result >= 0x0100U ? uint8_t(0x01) : uint8_t(0x00));
-            // overflow
-            reg_SR |= ((((reg_AC ^ ~reg_TMP) & (reg_AC ^ uint8_t(result)))
-                        & uint8_t(0x80)) >> 1);
             reg_AC = uint8_t(result);
           }
-          reg_SR = reg_SR | (reg_AC & uint8_t(0x80));
-          reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
-                             uint8_t(0x02) : uint8_t(0x00));
           break;
         case CPU_OP_SBX:
           {
