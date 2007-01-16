@@ -314,7 +314,7 @@ namespace Plus4 {
       character_position_reload = int(buf.readUInt32() & 0x03FF);
       character_column = buf.readByte();
       character_column = (character_column < 39 ? character_column : 39);
-      dma_position = int(buf.readUInt32() & 0x03FF);
+      dma_position = int(buf.readUInt32() & 0x07FF);
       flash_state = buf.readBoolean();
       renderWindow = buf.readBoolean();
       dmaWindow = buf.readBoolean();

@@ -263,7 +263,7 @@ namespace Plus4 {
     uint8_t     pixelBufReadPos;
     uint8_t     pixelBufWritePos;
     uint8_t     dmaCycleCounter;
-    uint8_t     dmaFlags;   // sum of: 1: attr DMA; 2: char DMA in next line
+    uint8_t     dmaFlags;       // sum of: 1: attribute DMA; 2: character DMA
     uint8_t     savedCharacterLine;
     int         savedVideoLine;
     int         videoInterruptLine;

@@ -59,7 +59,8 @@ namespace Plus4 {
         character_position = character_position_reload;
                                         // update DMA read position
         if (dmaWindow && character_line == 6)
-          dma_position = (dma_position + 40) & 0x03FF;
+          dma_position = (dma_position & 0x0400)
+                         | ((dma_position + 40) & 0x03FF);
         break;
       case 77:                          // end of display (38 column mode)
         if ((tedRegisters[0x07] & uint8_t(0x08)) == uint8_t(0))
@@ -88,8 +89,7 @@ namespace Plus4 {
         if (renderWindow) {
           // if done attribute DMA in this line, continue with character
           // DMA in next one
-          if (dmaFlags & 1)
-            dmaFlags = 2;
+          dmaFlags = (dmaFlags & 1) << 1;
         }
         break;
       case 97:                          // increment line number
@@ -178,7 +178,8 @@ namespace Plus4 {
               // start a new DMA at character line 7
               dmaWindow = true;
               dmaCycleCounter = 1;
-              dmaFlags = 1;
+              dmaFlags = dmaFlags | 1;
+              dma_position = dma_position & 0x03FF;
             }
           }
           else if (dmaFlags & 2) {
@@ -186,7 +187,7 @@ namespace Plus4 {
             // done reading attribute data in previous line,
             // now continue DMA to get character data
             dmaCycleCounter = 1;
-            dmaFlags = 0;
+            dma_position = dma_position | 0x0400;
           }
         }
         break;
@@ -252,26 +253,18 @@ namespace Plus4 {
       if (!evenCycle) {
         // perform DMA fetches on odd cycle counts
         if (renderingDisplay && dmaCycleCounter >= 4) {
-          if (dmaFlags & 1) {
-            if (dmaCycleCounter >= 7) {
-              memoryReadMap = tedDMAReadMap;
-              (void) readMemory(uint16_t(((dma_position + character_column)
-                                          & 0x03FF)
-                                         | (attr_base_addr & 0xF800)));
-              memoryReadMap = cpuMemoryReadMap;
-            }
+          if (dmaCycleCounter >= 7) {
+            memoryReadMap = tedDMAReadMap;
+            (void) readMemory(uint16_t((attr_base_addr
+                                        | (dma_position & 0x0400))
+                                       | ((dma_position + character_column)
+                                          & 0x03FF)));
+            memoryReadMap = cpuMemoryReadMap;
+          }
+          if (dmaFlags & 1)
             attr_buf_tmp[character_column] = dataBusState;
-          }
-          else {
-            if (dmaCycleCounter >= 7) {
-              memoryReadMap = tedDMAReadMap;
-              (void) readMemory(uint16_t(((dma_position + character_column)
-                                          & 0x03FF)
-                                         | (attr_base_addr | 0x0400)));
-              memoryReadMap = cpuMemoryReadMap;
-            }
+          if (dmaFlags & 2)
             char_buf[character_column] = dataBusState;
-          }
         }
       }
       else {

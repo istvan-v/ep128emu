@@ -155,7 +155,8 @@ namespace Plus4 {
               if (ted.dmaCycleCounter == 0 &&
                   (ted.video_column >= 99 || ted.video_column < 75))
                 ted.dmaCycleCounter = 2;
-              ted.dmaFlags = 1;
+              ted.dmaFlags = ted.dmaFlags | 1;
+              ted.dma_position = ted.dma_position & 0x03FF;
             }
           }
         }
