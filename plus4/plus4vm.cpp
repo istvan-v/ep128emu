@@ -26,6 +26,8 @@
 #include <cstdio>
 #include <vector>
 
+#include "plus4/resid/sid.hpp"
+
 static void writeDemoTimeCnt(Ep128Emu::File::Buffer& buf, uint64_t n)
 {
   uint64_t  mask = uint64_t(0x7F) << 49;
@@ -61,6 +63,12 @@ namespace Plus4 {
       vm(vm_),
       lineCnt_(0)
   {
+    for (uint16_t i = 0x00; i <= 0x1F; i++) {
+      setMemoryReadCallback(uint16_t(0xFD40) + i, &sidRegisterRead);
+      setMemoryWriteCallback(uint16_t(0xFD40) + i, &sidRegisterWrite);
+      setMemoryReadCallback(uint16_t(0xFE80) + i, &sidRegisterRead);
+      setMemoryWriteCallback(uint16_t(0xFE80) + i, &sidRegisterWrite);
+    }
   }
 
   Plus4VM::TED7360_::~TED7360_()
@@ -69,8 +77,11 @@ namespace Plus4 {
 
   void Plus4VM::TED7360_::playSample(int16_t sampleValue)
   {
-    vm.sendAudioOutput(uint16_t(sampleValue & 0x7FFF),
-                       uint16_t(sampleValue & 0x7FFF));
+    uint16_t  tmp = uint16_t(uint32_t(sampleValue)
+                             + (vm.soundOutputAccumulator >> 3)
+                             + (vm.soundOutputAccumulator >> 4));
+    vm.soundOutputAccumulator = 0U;
+    vm.sendAudioOutput(tmp, tmp);
   }
 
   void Plus4VM::TED7360_::drawLine(const uint8_t *buf, size_t nBytes)
@@ -206,6 +217,25 @@ namespace Plus4 {
                           false, isWrite, addr, value);
   }
 
+  uint8_t Plus4VM::TED7360_::sidRegisterRead(void *userData, uint16_t addr)
+  {
+    TED7360_& ted = *(reinterpret_cast<TED7360_ *>(userData));
+    if (ted.vm.sidEnabled) {
+      ted.dataBusState =
+          uint8_t(ted.vm.sid_->read(uint8_t(addr) & uint8_t(0x1F)));
+    }
+    return ted.dataBusState;
+  }
+
+  void Plus4VM::TED7360_::sidRegisterWrite(void *userData,
+                                           uint16_t addr, uint8_t value)
+  {
+    TED7360_& ted = *(reinterpret_cast<TED7360_ *>(userData));
+    ted.dataBusState = value;
+    ted.vm.sidEnabled = true;
+    ted.vm.sid_->write(uint8_t(addr) & uint8_t(0x1F), value);
+  }
+
   // --------------------------------------------------------------------------
 
   void Plus4VM::stopDemoPlayback()
@@ -265,7 +295,10 @@ namespace Plus4 {
       isRecordingDemo(false),
       isPlayingDemo(false),
       snapshotLoadFlag(false),
-      demoTimeCnt(0U)
+      demoTimeCnt(0U),
+      sid_((SID *) 0),
+      soundOutputAccumulator(0U),
+      sidEnabled(false)
   {
     ted = new TED7360_(*this);
     try {
@@ -277,8 +310,14 @@ namespace Plus4 {
       dp.indexToRGBFunc = &TED7360::convertPixelToRGB;
       display.setDisplayParameters(dp);
       setAudioConverterSampleRate(float(long(soundClockFrequency)));
+      sid_ = new SID();
+      sid_->set_chip_model(MOS8580);
+      sid_->enable_external_filter(false);
+      sid_->reset();
     }
     catch (...) {
+      if (sid_)
+        delete sid_;
       delete ted;
       throw;
     }
@@ -292,6 +331,7 @@ namespace Plus4 {
     }
     catch (...) {
     }
+    delete sid_;
     delete ted;
   }
 
@@ -358,6 +398,10 @@ namespace Plus4 {
         }
       }
       ted->run(2);
+      if (sidEnabled) {
+        sid_->clock();
+        soundOutputAccumulator += (uint32_t(sid_->output() + 32768));
+      }
       tedCyclesRemaining -= (int64_t(1) << 32);
       if (isRecordingDemo)
         demoTimeCnt++;
@@ -370,6 +414,9 @@ namespace Plus4 {
     stopDemoRecording(false);
     ted->reset(isColdReset);
     setTapeMotorState(false);
+    sid_->reset();
+    if (isColdReset)
+      sidEnabled = false;
   }
 
   void Plus4VM::resetMemoryConfiguration(size_t memSize)
@@ -633,6 +680,7 @@ namespace Plus4 {
   void Plus4VM::saveState(Ep128Emu::File& f)
   {
     ted->saveState(f);
+    sid_->saveState(f);
     {
       Ep128Emu::File::Buffer  buf;
       buf.setPosition(0);
@@ -640,6 +688,7 @@ namespace Plus4 {
       buf.writeUInt32(uint32_t(cpuClockFrequency));
       buf.writeUInt32(uint32_t(tedFrequency));
       buf.writeUInt32(uint32_t(soundClockFrequency));
+      buf.writeBoolean(sidEnabled);
       f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_P4VM_STATE, buf);
     }
   }
@@ -732,6 +781,7 @@ namespace Plus4 {
       (void) tmpCPUClockFrequency;
       (void) tmpTEDFrequency;
       (void) tmpSoundClockFrequency;
+      sidEnabled = buf.readBoolean();
       if (buf.getPosition() != buf.getDataSize())
         throw Ep128Emu::Exception("trailing garbage at end of "
                                   "plus4 snapshot data");
@@ -894,6 +944,7 @@ namespace Plus4 {
       throw;
     }
     ted->registerChunkTypes(f);
+    sid_->registerChunkType(f);
   }
 
 }       // namespace Plus4

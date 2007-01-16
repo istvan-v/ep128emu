@@ -119,9 +119,34 @@ plus4Lib = plus4LibEnvironment.StaticLibrary('plus4', Split('''
 
 # -----------------------------------------------------------------------------
 
+residLibEnvironment = plus4LibEnvironment.Copy()
+residLibEnvironment.Append(CPPPATH = ['./plus4/resid'])
+
+residLib = residLibEnvironment.StaticLibrary('resid', Split('''
+    plus4/resid/envelope.cpp
+    plus4/resid/extfilt.cpp
+    plus4/resid/filter.cpp
+    plus4/resid/pot.cpp
+    plus4/resid/sid.cpp
+    plus4/resid/version.cpp
+    plus4/resid/voice.cpp
+    plus4/resid/wave6581_PS_.cpp
+    plus4/resid/wave6581_PST.cpp
+    plus4/resid/wave6581_P_T.cpp
+    plus4/resid/wave6581__ST.cpp
+    plus4/resid/wave8580_PS_.cpp
+    plus4/resid/wave8580_PST.cpp
+    plus4/resid/wave8580_P_T.cpp
+    plus4/resid/wave8580__ST.cpp
+    plus4/resid/wave.cpp
+'''))
+
+# -----------------------------------------------------------------------------
+
 ep128emuEnvironment = ep128emuGLGUIEnvironment.Copy()
 ep128emuEnvironment.Append(CPPPATH = ['./z80'])
-ep128emuEnvironment.Append(LIBS = ['ep128', 'z80', 'plus4', 'ep128emu'])
+ep128emuEnvironment.Append(LIBS = ['ep128', 'z80', 'plus4', 'resid',
+                                   'ep128emu'])
 if haveDotconf:
     ep128emuEnvironment.Append(LIBS = ['dotconf'])
 ep128emuEnvironment.Append(LIBS = ['portaudio', 'sndfile', 'jack', 'asound',
@@ -133,6 +158,7 @@ ep128emu = ep128emuEnvironment.Program('ep128emu', Split('''
 Depends(ep128emu, ep128Lib)
 Depends(ep128emu, z80Lib)
 Depends(ep128emu, plus4Lib)
+Depends(ep128emu, residLib)
 Depends(ep128emu, ep128emuLib)
 
 # -----------------------------------------------------------------------------

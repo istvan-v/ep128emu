@@ -268,8 +268,10 @@ namespace Plus4 {
     int         savedVideoLine;
     int         videoInterruptLine;
     bool        prvVideoInterruptState;
+   protected:
     // for reading data from invalid memory address
     uint8_t     dataBusState;
+   private:
     // keyboard matrix
     int         keyboard_row_select_mask;
     uint8_t     keyboard_matrix[16];

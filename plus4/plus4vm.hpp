@@ -28,12 +28,17 @@
 
 namespace Plus4 {
 
+  class SID;
+
   class Plus4VM : public Ep128Emu::VirtualMachine {
    private:
     class TED7360_ : public TED7360 {
      private:
       Plus4VM&  vm;
       int       lineCnt_;
+      static uint8_t sidRegisterRead(void *userData, uint16_t addr);
+      static void sidRegisterWrite(void *userData,
+                                   uint16_t addr, uint8_t value);
      public:
       TED7360_(Plus4VM& vm_);
       virtual ~TED7360_();
@@ -77,6 +82,9 @@ namespace Plus4 {
     bool      snapshotLoadFlag;
     // used for counting time between demo events (in TED cycles)
     uint64_t  demoTimeCnt;
+    SID       *sid_;
+    uint32_t  soundOutputAccumulator;
+    bool      sidEnabled;
     // ----------------
     void stopDemoPlayback();
     void stopDemoRecording(bool writeFile_);
