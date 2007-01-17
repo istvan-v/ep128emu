@@ -1,5 +1,7 @@
 # vim: syntax=python
 
+win32CrossCompile = 0
+
 compilerFlags = Split('''
     -Wall -W -ansi -pedantic -Wno-long-long -Wshadow -g -O2
 ''')
@@ -12,15 +14,28 @@ ep128emuLibEnvironment = Environment()
 ep128emuLibEnvironment.Append(CCFLAGS = compilerFlags)
 ep128emuLibEnvironment.Append(CPPPATH = ['.', '/usr/local/include'])
 ep128emuLibEnvironment.Append(LINKFLAGS = ['-L.'])
+if win32CrossCompile:
+    ep128emuLibEnvironment['AR'] = 'wine D:/MinGW/bin/ar.exe'
+    ep128emuLibEnvironment['CC'] = 'wine D:/MinGW/bin/gcc.exe'
+    ep128emuLibEnvironment['CPP'] = 'wine D:/MinGW/bin/cpp.exe'
+    ep128emuLibEnvironment['CXX'] = 'wine D:/MinGW/bin/g++.exe'
+    ep128emuLibEnvironment['LINK'] = 'wine D:/MinGW/bin/g++.exe'
+    ep128emuLibEnvironment['RANLIB'] = 'wine D:/MinGW/bin/ranlib.exe'
+    ep128emuLibEnvironment.Append(LIBS = ['ole32', 'uuid', 'ws2_32',
+                                          'gdi32', 'user32', 'kernel32'])
 
 ep128emuGUIEnvironment = ep128emuLibEnvironment.Copy()
-if not ep128emuGUIEnvironment.ParseConfig(
+if win32CrossCompile:
+    ep128emuGUIEnvironment.Prepend(LIBS = ['fltk'])
+elif not ep128emuGUIEnvironment.ParseConfig(
         '%s --cxxflags --ldflags --libs' % fltkConfig):
     print 'WARNING: could not run fltk-config'
     ep128emuGUIEnvironment.Append(LIBS = ['fltk'])
 
 ep128emuGLGUIEnvironment = ep128emuLibEnvironment.Copy()
-if not ep128emuGLGUIEnvironment.ParseConfig(
+if win32CrossCompile:
+    ep128emuGLGUIEnvironment.Prepend(LIBS = ['fltk_gl', 'glu32', 'opengl32'])
+elif not ep128emuGLGUIEnvironment.ParseConfig(
         '%s --use-gl --cxxflags --ldflags --libs' % fltkConfig):
     print 'WARNING: could not run fltk-config'
     ep128emuGLGUIEnvironment.Append(LIBS = ['fltk_gl', 'GL'])
@@ -145,12 +160,13 @@ residLib = residLibEnvironment.StaticLibrary('resid', Split('''
 
 ep128emuEnvironment = ep128emuGLGUIEnvironment.Copy()
 ep128emuEnvironment.Append(CPPPATH = ['./z80'])
-ep128emuEnvironment.Append(LIBS = ['ep128', 'z80', 'plus4', 'resid',
-                                   'ep128emu'])
+ep128emuEnvironment.Prepend(LIBS = ['ep128', 'z80', 'plus4', 'resid',
+                                    'ep128emu'])
 if haveDotconf:
     ep128emuEnvironment.Append(LIBS = ['dotconf'])
-ep128emuEnvironment.Append(LIBS = ['portaudio', 'sndfile', 'jack', 'asound',
-                                   'pthread'])
+ep128emuEnvironment.Append(LIBS = ['portaudio', 'sndfile'])
+if not win32CrossCompile:
+    ep128emuEnvironment.Append(LIBS = ['jack', 'asound', 'pthread'])
 
 ep128emu = ep128emuEnvironment.Program('ep128emu', Split('''
     main.cpp
@@ -165,10 +181,12 @@ Depends(ep128emu, ep128emuLib)
 
 tapeeditEnvironment = ep128emuGUIEnvironment.Copy()
 tapeeditEnvironment.Append(CPPPATH = ['./tapeutil'])
-tapeeditEnvironment.Append(LIBS = ['ep128emu'])
+tapeeditEnvironment.Prepend(LIBS = ['ep128emu'])
 if haveDotconf:
     tapeeditEnvironment.Append(LIBS = ['dotconf'])
-tapeeditEnvironment.Append(LIBS = ['sndfile', 'pthread'])
+tapeeditEnvironment.Append(LIBS = ['sndfile'])
+if not win32CrossCompile:
+    tapeeditEnvironment.Append(LIBS = ['pthread'])
 
 Command(['tapeutil/tapeedit.cpp', 'tapeutil/tapeedit.hpp'],
         'tapeutil/tapeedit.fl',
