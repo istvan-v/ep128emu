@@ -417,7 +417,11 @@ namespace Ep128Emu {
     dirName += ".ep128emu";
     mkdir(dirName.c_str(), 0700);
 #else
-    stripString(dirName, std::getenv("USERPROFILE"));
+    const char  *s = std::getenv("USERPROFILE");
+    if (s) {
+      dirName = s;
+      stripString(dirName);
+    }
     if ((int) dirName.size() != 0) {
       struct _stat tmp;
       std::memset(&tmp, 0, sizeof(struct _stat));
@@ -429,7 +433,11 @@ namespace Ep128Emu {
         dirName = "";
     }
     if ((int) dirName.size() == 0) {
-      stripString(dirName, std::getenv("HOME"));
+      s = std::getenv("HOME");
+      if (s) {
+        dirName = s;
+        stripString(dirName);
+      }
       if ((int) dirName.size() != 0) {
         struct _stat tmp;
         std::memset(&tmp, 0, sizeof(struct _stat));
