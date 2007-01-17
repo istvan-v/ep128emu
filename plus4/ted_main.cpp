@@ -288,7 +288,7 @@ namespace Plus4 {
             }
           }
           else {
-            memoryReadMap = cpuMemoryReadMap;
+            memoryReadMap = tedDMAReadMap;  // not sure if this is correct
             (void) readMemory(0xFFFF);
           }
           currentBitmap = dataBusState;

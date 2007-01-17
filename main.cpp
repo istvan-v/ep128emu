@@ -133,18 +133,20 @@ class VMThread : public Ep128Emu::Thread {
             int   n = evt.keyCode - (FL_F + 9);
             if (Fl::event_shift() != 0)
               n += 4;
+            if (Fl::event_ctrl() != 0)
+              n += 8;
             switch (n) {
-            case 0:                               // F9: tape play
+            case 0:                             // F9: tape play
               vm.tapePlay();
               std::cout << "tape play on (position = "
                         << vm.getTapePosition() << " seconds)" << std::endl;
               break;
-            case 1:                               // F10: tape stop
+            case 1:                             // F10: tape stop
               vm.tapeStop();
               std::cout << "tape stopped (position = "
                         << vm.getTapePosition() << " seconds)" << std::endl;
               break;
-            case 2:                               // F11: tape seek
+            case 2:                             // F11: tape seek
               {
                 double  oldTapePos = vm.getTapePosition();
                 vm.tapeSeekToCuePoint(true, 60.0);
@@ -154,10 +156,10 @@ class VMThread : public Ep128Emu::Thread {
                           << vm.getTapePosition() << " seconds)" << std::endl;
               }
               break;
-            case 3:                               // F12: soft reset
+            case 3:                             // F12: soft reset
               vm.reset(false);
               break;
-            case 4:                               // Shift + F9: record demo
+            case 4:                             // Shift + F9: record demo
               if (vm.getIsPlayingDemo() || vm.getIsRecordingDemo()) {
                 if (vm.getIsPlayingDemo())
                   std::cout << "demo playback stopped" << std::endl;
@@ -169,7 +171,7 @@ class VMThread : public Ep128Emu::Thread {
                 std::cout << "recording demo..." << std::endl;
               }
               break;
-            case 5:                               // Shift + F10: play demo
+            case 5:                             // Shift + F10: play demo
               if (vm.getIsPlayingDemo() || vm.getIsRecordingDemo()) {
                 if (vm.getIsPlayingDemo())
                   std::cout << "demo playback stopped" << std::endl;
@@ -182,13 +184,30 @@ class VMThread : public Ep128Emu::Thread {
                 std::cout << "playing demo..." << std::endl;
               }
               break;
-            case 6:                               // Shift + F11: tape record
+            case 6:                             // Shift + F11: tape record
               vm.tapeRecord();
               std::cout << "tape record on (position = "
                         << vm.getTapePosition() << " seconds)" << std::endl;
               break;
-            case 7:                               // Shift + F12: hard reset
+            case 7:                             // Shift + F12: hard reset
               vm.reset(true);
+              break;
+            case 10:                            // Ctrl + F11: rewind tape
+              vm.tapeSeek(0.0);
+              std::cout << "tape position set to "
+                        << vm.getTapePosition() << " seconds)" << std::endl;
+              break;
+            case 11:                            // Ctrl + F12: reload config
+              try {
+                if (typeid(vm) == typeid(Ep128::Ep128VM))
+                  config.loadState("ep128.cfg", true);
+                else if (typeid(vm) == typeid(Plus4::Plus4VM))
+                  config.loadState("plus4.cfg", true);
+                config.applySettings();
+              }
+              catch (Ep128Emu::Exception& e) {
+                std::cerr << "WARNING: " << e.what() << std::endl;
+              }
               break;
             }
           }
