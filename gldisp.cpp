@@ -33,6 +33,17 @@
 
 #include "gldisp.hpp"
 
+#ifdef WIN32
+#  undef WIN32
+#endif
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#  define WIN32 1
+#endif
+
+#ifdef WIN32
+#  include <wingdi.h>
+#endif
+
 static void decodeLine(unsigned char *outBuf,
                        const unsigned char *inBuf, size_t nBytes)
 {
@@ -637,10 +648,20 @@ namespace Ep128Emu {
           !(displayParameters.blendScale2 > 0.99 &&
             displayParameters.blendScale3 < 0.01)) {
         glEnable(GL_BLEND);
+#ifndef WIN32
         glBlendColor(GLclampf(displayParameters.blendScale2),
                      GLclampf(displayParameters.blendScale2),
                      GLclampf(displayParameters.blendScale2),
                      GLclampf(1.0 - displayParameters.blendScale3));
+#else
+        void  (*glBlendColor_)(GLclampf, GLclampf, GLclampf, GLclampf) =
+            (void (*)(GLclampf, GLclampf, GLclampf, GLclampf))
+                wglGetProcAddress("glBlendColor");
+        glBlendColor_(GLclampf(displayParameters.blendScale2),
+                      GLclampf(displayParameters.blendScale2),
+                      GLclampf(displayParameters.blendScale2),
+                      GLclampf(1.0 - displayParameters.blendScale3));
+#endif
         glBlendFunc(GL_CONSTANT_COLOR, GL_ONE_MINUS_CONSTANT_ALPHA);
       }
       else

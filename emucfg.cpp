@@ -193,7 +193,7 @@ namespace Ep128Emu {
                                 soundSettingsChanged);
     defineConfigurationVariable(*this, "sound.device",
                                 sound.device, int(0),
-                                soundSettingsChanged, 0.0, 1000.0);
+                                soundSettingsChanged, -1.0, 1000.0);
     defineConfigurationVariable(*this, "sound.sampleRate",
                                 sound.sampleRate, 48000.0,
                                 soundSettingsChanged, 11025.0, 192000.0);

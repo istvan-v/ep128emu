@@ -187,6 +187,8 @@ if haveDotconf:
 tapeeditEnvironment.Append(LIBS = ['sndfile'])
 if not win32CrossCompile:
     tapeeditEnvironment.Append(LIBS = ['pthread'])
+else:
+    tapeeditEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
 
 Command(['tapeutil/tapeedit.cpp', 'tapeutil/tapeedit.hpp'],
         'tapeutil/tapeedit.fl',

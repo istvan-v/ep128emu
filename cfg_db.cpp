@@ -730,11 +730,11 @@ namespace Ep128Emu {
           size_t  j = 0;
           while (j < s.length() && !err) {
             unsigned char c = (unsigned char) s[j];
-            if (c >= 32 && c < 127) {
-              if (c != '"')
+            if (c >= 32 && c != 127) {
+              if (c == '"' || c == '\\')
+                err = (std::fputc('\\', f) == EOF);
+              if (!err)
                 err = (std::fputc(c, f) == EOF);
-              else
-                err = (std::fprintf(f, "\\\"") < 0);
             }
             else
               err = (std::fprintf(f, "\\%03o", (unsigned int) c) < 0);
