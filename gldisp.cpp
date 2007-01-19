@@ -320,8 +320,10 @@ namespace Ep128Emu {
       messageQueue = m;
     lastMessage = m;
     messageQueueMutex.unlock();
-    if (typeid(*m) == typeid(Message_FrameDone))
+    if (typeid(*m) == typeid(Message_FrameDone)) {
       Fl::awake();
+      threadLock.wait(1);
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -347,7 +349,8 @@ namespace Ep128Emu {
       savedDisplayParameters(),
       exitFlag(false),
       forceUpdateLineCnt(0),
-      forceUpdateLineMask(0)
+      forceUpdateLineMask(0),
+      redrawFlag(false)
   {
     try {
       lineBuffers = new Message_LineData*[578];
@@ -368,6 +371,8 @@ namespace Ep128Emu {
         delete[] textureBuffer;
       throw;
     }
+    displayParameters.useDoubleBuffering = isDoubleBuffered;
+    savedDisplayParameters.useDoubleBuffering = isDoubleBuffered;
     this->mode(FL_RGB | (isDoubleBuffered ? FL_DOUBLE : FL_SINGLE));
   }
 
@@ -507,8 +512,8 @@ namespace Ep128Emu {
         }
       }
     }
-    else if (!(displayParameters.displayQuality == 0 &&
-               (this->mode() & FL_DOUBLE) == 0)) {
+    else if (displayParameters.displayQuality != 0 ||
+             displayParameters.useDoubleBuffering) {
       for (size_t yc = 0; yc < 289; yc++) {
         // decode video data
         const unsigned char *bufp = (unsigned char *) 0;
@@ -620,8 +625,8 @@ namespace Ep128Emu {
       }
     }
 
-    if (!(displayParameters.displayQuality == 0 &&
-          (this->mode() & FL_DOUBLE) == 0)) {
+    if (displayParameters.displayQuality != 0 ||
+        displayParameters.useDoubleBuffering) {
       // load texture
       GLuint  textureID_ = GLuint(textureID);
       GLint   savedTextureID = 0;
@@ -644,7 +649,7 @@ namespace Ep128Emu {
       // update display
       glEnable(GL_TEXTURE_2D);
       if (displayParameters.displayQuality > 0 &&
-          (this->mode() & FL_DOUBLE) == 0 &&
+          !displayParameters.useDoubleBuffering &&
           !(displayParameters.blendScale2 > 0.99 &&
             displayParameters.blendScale3 < 0.01)) {
         glEnable(GL_BLEND);
@@ -746,6 +751,16 @@ namespace Ep128Emu {
       glEnd();
       glPopMatrix();
     }
+    if (redrawFlag) {
+      redrawFlag = false;
+      displayFrame();
+      noInputTimer.reset();
+    }
+  }
+
+  bool OpenGLDisplay::checkEvents()
+  {
+    threadLock.notify();
     while (true) {
       messageQueueMutex.lock();
       Message *m = messageQueue;
@@ -768,7 +783,7 @@ namespace Ep128Emu {
         if (msg->lineNum >= 0 && msg->lineNum < 578) {
           if (displayParameters.displayQuality == 0) {
             msg->lineNum = msg->lineNum & (~(int(1)));
-            if ((this->mode() & FL_DOUBLE) == 0) {
+            if (!displayParameters.useDoubleBuffering) {
               // check if this line has changed
               if (lineBuffers[msg->lineNum] != (Message_LineData *) 0) {
                 if (*(lineBuffers[msg->lineNum]) == *msg) {
@@ -786,16 +801,34 @@ namespace Ep128Emu {
         }
       }
       else if (typeid(*m) == typeid(Message_FrameDone)) {
-        displayFrame();
-        noInputTimer.reset();
-        // do not display more than one frame per draw() call
+        // need to update display
+        redrawFlag = true;
         deleteMessage(m);
         break;
       }
       else if (typeid(*m) == typeid(Message_SetParameters)) {
         Message_SetParameters *msg;
         msg = static_cast<Message_SetParameters *>(m);
-        if (displayParameters.displayQuality != msg->dp.displayQuality) {
+        if (displayParameters.displayQuality != msg->dp.displayQuality ||
+            displayParameters.useDoubleBuffering
+            != msg->dp.useDoubleBuffering) {
+          if (displayParameters.useDoubleBuffering
+              != msg->dp.useDoubleBuffering) {
+            // if double buffering mode has changed, also need to generate
+            // a new texture ID
+            GLuint  oldTextureID = GLuint(textureID);
+            textureID = 0UL;
+            if (oldTextureID)
+              glDeleteTextures(1, &oldTextureID);
+            this->mode(FL_RGB
+                       | (msg->dp.useDoubleBuffering ? FL_DOUBLE : FL_SINGLE));
+            if (oldTextureID) {
+              oldTextureID = 0U;
+              glGenTextures(1, &oldTextureID);
+              textureID = (unsigned long) oldTextureID;
+            }
+            Fl::focus(this);
+          }
           // reset texture
           std::memset(textureBuffer, 0, sizeof(uint16_t) * 1024 * 1024);
           glEnable(GL_TEXTURE_2D);
@@ -822,8 +855,7 @@ namespace Ep128Emu {
       deleteMessage(m);
     }
     if (noInputTimer.getRealTime() > 0.33) {
-      displayFrame();
-      noInputTimer.reset();
+      redrawFlag = true;
     }
     if (forceUpdateTimer.getRealTime() >= 0.125) {
       forceUpdateLineMask |= (uint8_t(1) << forceUpdateLineCnt);
@@ -831,6 +863,7 @@ namespace Ep128Emu {
       forceUpdateLineCnt &= uint8_t(7);
       forceUpdateTimer.reset();
     }
+    return redrawFlag;
   }
 
   int OpenGLDisplay::handle(int event)
@@ -853,16 +886,6 @@ namespace Ep128Emu {
       OpenGLDisplay::getDisplayParameters() const
   {
     return savedDisplayParameters;
-  }
-
-  void OpenGLDisplay::setIsDoubleBuffered(bool n)
-  {
-    int   newMode = int(n ? FL_DOUBLE : FL_SINGLE);
-    Fl::lock();
-    int   oldMode = int(this->mode());
-    if (((newMode ^ oldMode) & int(FL_DOUBLE)) != 0)
-      this->mode(Fl_Mode(oldMode ^ int(FL_DOUBLE)));
-    Fl::unlock();
   }
 
   void OpenGLDisplay::drawLine(const uint8_t *buf, size_t nBytes)
@@ -897,8 +920,11 @@ namespace Ep128Emu {
       framesPending++;
     skippingFrame = (framesPending > 3);    // should this be configurable ?
     messageQueueMutex.unlock();
-    if (skippedFrame)
+    if (skippedFrame) {
+      Fl::awake();
+      threadLock.wait(1);
       return;
+    }
     Message *m = allocateMessage<Message_FrameDone>();
     queueMessage(m);
   }

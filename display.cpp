@@ -38,6 +38,7 @@ namespace Ep128Emu {
     displayQuality = (src.displayQuality > 0 ?
                       (src.displayQuality < 3 ? src.displayQuality : 3)
                       : 0);
+    useDoubleBuffering = src.useDoubleBuffering;
     if (src.indexToRGBFunc)
       indexToRGBFunc = src.indexToRGBFunc;
     else
@@ -94,6 +95,7 @@ namespace Ep128Emu {
 
   VideoDisplay::DisplayParameters::DisplayParameters()
     : displayQuality(2),
+      useDoubleBuffering(false),
       indexToRGBFunc(&defaultIndexToRGBFunc),
       brightness(0.0), contrast(1.0), gamma(1.0), saturation(1.0),
       redBrightness(0.0), redContrast(1.0), redGamma(1.0),

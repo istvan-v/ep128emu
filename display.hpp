@@ -34,6 +34,8 @@ namespace Ep128Emu {
       // 2: full horizontal resolution, no interlace (704x288)
       // 3: full horizontal resolution, interlace (704x576)
       int     displayQuality;
+      // set this to true to enable double buffered display
+      bool    useDoubleBuffering;
       // function to convert 8-bit color indices to red, green, and blue
       // levels (in the range 0.0 to 1.0); if NULL, greyscale is assumed
       void    (*indexToRGBFunc)(uint8_t color,

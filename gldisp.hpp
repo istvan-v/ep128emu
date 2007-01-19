@@ -169,8 +169,10 @@ namespace Ep128Emu {
     volatile bool exitFlag;
     uint8_t       forceUpdateLineCnt;
     uint8_t       forceUpdateLineMask;
+    bool          redrawFlag;
     Timer         noInputTimer;
     Timer         forceUpdateTimer;
+    ThreadLock    threadLock;
    public:
     OpenGLDisplay(int xx = 0, int yy = 0, int ww = 704, int hh = 576,
                   const char *lbl = (char *) 0, bool isDoubleBuffered = false);
@@ -179,7 +181,6 @@ namespace Ep128Emu {
     // (see 'struct DisplayParameters' above for more information)
     virtual void setDisplayParameters(const DisplayParameters& dp);
     virtual const DisplayParameters& getDisplayParameters() const;
-    void setIsDoubleBuffered(bool n);
     // Draw next line of display.
     // 'buf' defines a line of 736 pixels, as 46 groups of 16 pixels each,
     // in the following format: the first byte defines the number of
@@ -203,6 +204,9 @@ namespace Ep128Emu {
     // (newState = false) of VSYNC. 'currentSlot_' is the position within
     // the current line (0 to 56).
     virtual void vsyncStateChange(bool newState, unsigned int currentSlot_);
+    // Read and process messages sent by the child thread. Returns true if
+    // redraw() needs to be called to update the display.
+    bool checkEvents();
    protected:
     virtual void draw();
    public:

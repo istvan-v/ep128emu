@@ -368,7 +368,6 @@ int main(int argc, char **argv)
     w->size(config->display.width, config->display.height);
     basew->size_range(352, 288, 1408, 1152);
     basew->show();
-    w->setIsDoubleBuffered(config->display.doubleBuffered);
     w->show();
     w->cursor(FL_CURSOR_NONE);
     vmThread = new VMThread(*vm, *w, *audioOutput, *config);
@@ -377,8 +376,9 @@ int main(int argc, char **argv)
       config->display.width = basew->w();
       config->display.height = basew->h();
       w->size(basew->w(), basew->h());
-      w->redraw();
-      Fl::wait(0.05);
+      if (w->checkEvents())
+        w->redraw();
+      Fl::wait(0.025);
     } while (basew->shown() && !vmThread->stopFlag);
     vmThread->stopFlag = true;
     vmThread->join();

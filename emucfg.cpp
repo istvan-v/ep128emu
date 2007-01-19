@@ -345,6 +345,7 @@ namespace Ep128Emu {
       vm_.setEnableDisplay(display.enabled);
       VideoDisplay::DisplayParameters dp(videoDisplay.getDisplayParameters());
       dp.displayQuality = display.quality;
+      dp.useDoubleBuffering = display.doubleBuffered;
       dp.brightness = display.brightness;
       dp.contrast = display.contrast;
       dp.gamma = display.gamma;
