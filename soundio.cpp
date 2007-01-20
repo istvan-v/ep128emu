@@ -177,6 +177,8 @@ namespace Ep128Emu {
   AudioOutput_PortAudio::AudioOutput_PortAudio()
     : AudioOutput(),
       paInitialized(false),
+      disableRingBuffer(false),
+      paLockTimeout(0U),
       writeBufIndex(0),
       readBufIndex(0),
       paStream((PaStream *) 0),
@@ -191,10 +193,12 @@ namespace Ep128Emu {
   AudioOutput_PortAudio::~AudioOutput_PortAudio()
   {
     if (paStream) {
-      Pa_AbortStream(paStream);
+      Pa_StopStream(paStream);
       Pa_CloseStream(paStream);
       paStream = (PaStream *) 0;
     }
+    disableRingBuffer = false;
+    paLockTimeout = 0U;
     writeBufIndex = 0;
     readBufIndex = 0;
     buffers.clear();
@@ -240,10 +244,12 @@ namespace Ep128Emu {
   void AudioOutput_PortAudio::closeDevice()
   {
     if (paStream) {
-      Pa_AbortStream(paStream);
+      Pa_StopStream(paStream);
       Pa_CloseStream(paStream);
       paStream = (PaStream *) 0;
     }
+    disableRingBuffer = false;
+    paLockTimeout = 0U;
     writeBufIndex = 0;
     readBufIndex = 0;
     buffers.clear();
@@ -315,7 +321,7 @@ namespace Ep128Emu {
     if (nFrames > (p->buffers[p->readBufIndex].audioData.size() >> 1))
       nFrames = p->buffers[p->readBufIndex].audioData.size() >> 1;
     nFrames <<= 1;
-    if (p->buffers[p->readBufIndex].paLock.wait(0)) {
+    if (p->buffers[p->readBufIndex].paLock.wait(p->paLockTimeout)) {
       for ( ; i < nFrames; i++)
         buf[i] = p->buffers[p->readBufIndex].audioData[i];
     }
@@ -336,24 +342,6 @@ namespace Ep128Emu {
     writeBufIndex = 0;
     readBufIndex = 0;
     paStream = (PaStream *) 0;
-    // calculate buffer size
-    int   periodSize = int(totalLatency * sampleRate + 0.5)
-                       / (nPeriodsHW + nPeriodsSW - 2);
-    for (int i = 16; i < 16384; i <<= 1) {
-      if (i >= periodSize) {
-        periodSize = i;
-        break;
-      }
-    }
-    if (periodSize > 16384)
-      periodSize = 16384;
-    // initialize buffers
-    buffers.resize(size_t(nPeriodsSW));
-    for (int i = 0; i < nPeriodsSW; i++) {
-      buffers[i].audioData.resize(size_t(periodSize) << 1);
-      for (int j = 0; j < (periodSize << 1); j++)
-        buffers[i].audioData[j] = 0;
-    }
     // find audio device
 #ifndef USING_OLD_PORTAUDIO_API
     int     devCnt = int(Pa_GetDeviceCount());
@@ -382,6 +370,47 @@ namespace Ep128Emu {
     }
     if (devIndex >= devCnt)
       throw Exception("device number is out of range");
+#ifndef USING_OLD_PORTAUDIO_API
+    const PaDeviceInfo  *devInfo = Pa_GetDeviceInfo(PaDeviceIndex(devIndex));
+    if (devInfo) {
+      const PaHostApiInfo *hostApiInfo = Pa_GetHostApiInfo(devInfo->hostApi);
+      if (hostApiInfo) {
+        if (hostApiInfo->type == paDirectSound ||
+            hostApiInfo->type == paMME ||
+            hostApiInfo->type == paOSS ||
+            hostApiInfo->type == paALSA) {
+          disableRingBuffer = true;
+        }
+      }
+    }
+#else
+    disableRingBuffer = true;
+#endif
+    // calculate buffer size
+    int   nPeriodsSW_ = (disableRingBuffer ? 1 : nPeriodsSW);
+    int   periodSize = int(totalLatency * sampleRate + 0.5)
+                       / (nPeriodsHW + nPeriodsSW_ - 2);
+    for (int i = 16; i < 16384; i <<= 1) {
+      if (i >= periodSize) {
+        periodSize = i;
+        break;
+      }
+    }
+    if (periodSize > 16384)
+      periodSize = 16384;
+    if (disableRingBuffer)
+      paLockTimeout = (unsigned int) (double(periodSize) * double(nPeriodsHW)
+                                      * 1000.0 / double(sampleRate)
+                                      + 0.999);
+    else
+      paLockTimeout = 0U;
+    // initialize buffers
+    buffers.resize(size_t(nPeriodsSW_));
+    for (int i = 0; i < nPeriodsSW_; i++) {
+      buffers[i].audioData.resize(size_t(periodSize) << 1);
+      for (int j = 0; j < (periodSize << 1); j++)
+        buffers[i].audioData[j] = 0;
+    }
     // open audio stream
 #ifndef USING_OLD_PORTAUDIO_API
     PaStreamParameters  streamParams;
