@@ -285,8 +285,8 @@ int main(int argc, char **argv)
       for (size_t i = 0; i < devList.size(); i++)
         std::cout << "  " << i << ": " << devList[i] << std::endl;
     }
-    basew = new Fl_Window(50, 50, 352, 288, "ep128emu test");
-    w = new Display(0, 0, 352, 288, "OpenGL test window");
+    basew = new Fl_Window(50, 50, 384, 288, "ep128emu test");
+    w = new Display(0, 0, 384, 288, "OpenGL test window");
     w->end();
     basew->end();
     if (!isPlus4)
@@ -366,7 +366,7 @@ int main(int argc, char **argv)
     config->applySettings();
     basew->size(config->display.width, config->display.height);
     w->size(config->display.width, config->display.height);
-    basew->size_range(352, 288, 1408, 1152);
+    basew->size_range(384, 288, 1536, 1152);
     basew->show();
     w->show();
     w->cursor(FL_CURSOR_NONE);

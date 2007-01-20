@@ -49,7 +49,7 @@ static void decodeLine(unsigned char *outBuf,
 {
   const unsigned char *bufp = inBuf;
 
-  for (size_t i = 0; i < 704; i += 16) {
+  for (size_t i = 0; i < 768; i += 16) {
     unsigned char c = *(bufp++);
     switch (c) {
     case 0x01:
@@ -269,9 +269,8 @@ namespace Ep128Emu {
   {
     (void) nBytes;
     const uint8_t *bufp = buf;
-    bufp += (int(*bufp) + 1);
     unsigned char *p = reinterpret_cast<unsigned char *>(&(buf_[0]));
-    for (size_t i = 0; i < 44; i++) {
+    for (size_t i = 0; i < 48; i++) {
       unsigned char n = *(bufp++);
       *(p++) = n;
       do {
@@ -422,7 +421,7 @@ namespace Ep128Emu {
     glOrtho(0.0, 1.0, 1.0, 0.0, 0.0, 1.0);
 
     double  x0, y0, x1, y1;
-    double  aspectScale = (704.0 / 576.0)
+    double  aspectScale = (768.0 / 576.0)
                           / ((double(this->w()) / double(this->h()))
                              * displayParameters.pixelAspectRatio);
     x0 = 0.0;
@@ -464,11 +463,11 @@ namespace Ep128Emu {
       glEnd();
     }
 
-    unsigned char lineBuf1[704];
+    unsigned char lineBuf1[768];
     unsigned char *curLine_ = &(lineBuf1[0]);
     if (displayParameters.displayQuality > 2) {
-      // full horizontal resolution, interlace (704x576)
-      unsigned char lineBuf2[704];
+      // full horizontal resolution, interlace (768x576)
+      unsigned char lineBuf2[768];
       unsigned char *prvLine_ = &(lineBuf2[0]);
       for (size_t yc = 0; yc < 578; yc++) {
         if ((yc == 0 && lineBuffers[yc] != (Message_LineData *) 0) ||
@@ -487,27 +486,27 @@ namespace Ep128Emu {
           decodeLine(curLine_, bufp, nBytes);
         }
         // build 16-bit texture
-        uint16_t  *txtp = &(textureBuffer[yc * 704]);
+        uint16_t  *txtp = &(textureBuffer[yc * 768]);
         if (lineBuffers[yc] != (Message_LineData *) 0) {
-          for (size_t xc = 0; xc < 704; xc++)
+          for (size_t xc = 0; xc < 768; xc++)
             txtp[xc] = colormap(curLine_[xc]);
         }
         else if ((yc != 0 && yc != 577) &&
                  (lineBuffers[yc - 1] != (Message_LineData *) 0 &&
                   lineBuffers[yc + 1] != (Message_LineData *) 0)) {
-          for (size_t xc = 0; xc < 704; xc++)
+          for (size_t xc = 0; xc < 768; xc++)
             txtp[xc] = colormap(prvLine_[xc], curLine_[xc]);
         }
         else if (yc != 0 && lineBuffers[yc - 1] != (Message_LineData *) 0) {
-          for (size_t xc = 0; xc < 704; xc++)
+          for (size_t xc = 0; xc < 768; xc++)
             txtp[xc] = colormap(curLine_[xc], 0);
         }
         else if (yc != 577 && lineBuffers[yc + 1] != (Message_LineData *) 0) {
-          for (size_t xc = 0; xc < 704; xc++)
+          for (size_t xc = 0; xc < 768; xc++)
             txtp[xc] = colormap(0, curLine_[xc]);
         }
         else {
-          for (size_t xc = 0; xc < 704; xc++)
+          for (size_t xc = 0; xc < 768; xc++)
             txtp[xc] = colormap(0);
         }
       }
@@ -527,18 +526,18 @@ namespace Ep128Emu {
           decodeLine(curLine_, bufp, nBytes);
         }
         else
-          std::memset(curLine_, 0, 704);
+          std::memset(curLine_, 0, 768);
         // build 16-bit texture
         if (displayParameters.displayQuality == 2) {
-          // full horizontal resolution, no interlace (704x288)
-          uint16_t  *txtp = &(textureBuffer[yc * 704]);
-          for (size_t xc = 0; xc < 704; xc++)
+          // full horizontal resolution, no interlace (768x288)
+          uint16_t  *txtp = &(textureBuffer[yc * 768]);
+          for (size_t xc = 0; xc < 768; xc++)
             txtp[xc] = colormap(curLine_[xc]);
         }
         else {
-          // half horizontal resolution, no interlace (352x288)
-          uint16_t  *txtp = &(textureBuffer[yc * 352]);
-          for (size_t xc = 0; xc < 704; xc += 2)
+          // half horizontal resolution, no interlace (384x288)
+          uint16_t  *txtp = &(textureBuffer[yc * 384]);
+          for (size_t xc = 0; xc < 768; xc += 2)
             txtp[xc >> 1] = colormap(curLine_[xc], curLine_[xc + 1]);
         }
       }
@@ -576,15 +575,15 @@ namespace Ep128Emu {
             decodeLine(curLine_, bufp, nBytes);
           }
           else
-            std::memset(curLine_, 0, 704);
+            std::memset(curLine_, 0, 768);
           // build 16-bit texture:
-          // half horizontal resolution, no interlace (352x8)
-          uint16_t  *txtp = &(textureBuffer[offs * 352]);
-          for (size_t xc = 0; xc < 704; xc += 2)
+          // half horizontal resolution, no interlace (384x8)
+          uint16_t  *txtp = &(textureBuffer[offs * 384]);
+          for (size_t xc = 0; xc < 768; xc += 2)
             txtp[xc >> 1] = colormap(curLine_[xc], curLine_[xc + 1]);
         }
         // load texture
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 352, 8,
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 384, 8,
                         GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
                         (GLvoid *) textureBuffer);
         // update display
@@ -595,9 +594,9 @@ namespace Ep128Emu {
         glBegin(GL_QUADS);
         glTexCoord2f(GLfloat(0.0), GLfloat(0.001 / 1024.0));
         glVertex2f(GLfloat(x0), GLfloat(ycf0));
-        glTexCoord2f(GLfloat(352.0 / 1024.0), GLfloat(0.001 / 1024.0));
+        glTexCoord2f(GLfloat(384.0 / 1024.0), GLfloat(0.001 / 1024.0));
         glVertex2f(GLfloat(x1), GLfloat(ycf0));
-        glTexCoord2f(GLfloat(352.0 / 1024.0), GLfloat(7.999 / 1024.0));
+        glTexCoord2f(GLfloat(384.0 / 1024.0), GLfloat(7.999 / 1024.0));
         glVertex2f(GLfloat(x1), GLfloat(ycf1));
         glTexCoord2f(GLfloat(0.0), GLfloat(7.999 / 1024.0));
         glVertex2f(GLfloat(x0), GLfloat(ycf1));
@@ -635,15 +634,15 @@ namespace Ep128Emu {
       glBindTexture(GL_TEXTURE_2D, textureID_);
       setTextureParameters(displayParameters.displayQuality);
       if (displayParameters.displayQuality > 2)
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 704, 578,
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 578,
                         GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
                         (GLvoid *) textureBuffer);
       else if (displayParameters.displayQuality < 2)
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 352, 289,
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 384, 289,
                         GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
                         (GLvoid *) textureBuffer);
       else
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 704, 289,
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 289,
                         GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
                         (GLvoid *) textureBuffer);
       // update display
@@ -675,9 +674,9 @@ namespace Ep128Emu {
       if (displayParameters.displayQuality > 2) {
         glTexCoord2f(GLfloat(0.0), GLfloat(1.0 / 1024.0));
         glVertex2f(GLfloat(x0), GLfloat(y0));
-        glTexCoord2f(GLfloat(704.0 / 1024.0), GLfloat(1.0 / 1024.0));
+        glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(1.0 / 1024.0));
         glVertex2f(GLfloat(x1), GLfloat(y0));
-        glTexCoord2f(GLfloat(704.0 / 1024.0), GLfloat(577.0 / 1024.0));
+        glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(577.0 / 1024.0));
         glVertex2f(GLfloat(x1), GLfloat(y1));
         glTexCoord2f(GLfloat(0.0), GLfloat(577.0 / 1024.0));
         glVertex2f(GLfloat(x0), GLfloat(y1));
@@ -685,9 +684,9 @@ namespace Ep128Emu {
       else if (displayParameters.displayQuality < 2) {
         glTexCoord2f(GLfloat(0.0), GLfloat(0.0));
         glVertex2f(GLfloat(x0), GLfloat(y0));
-        glTexCoord2f(GLfloat(352.0 / 1024.0), GLfloat(0.0));
+        glTexCoord2f(GLfloat(384.0 / 1024.0), GLfloat(0.0));
         glVertex2f(GLfloat(x1), GLfloat(y0));
-        glTexCoord2f(GLfloat(352.0 / 1024.0), GLfloat(288.0 / 1024.0));
+        glTexCoord2f(GLfloat(384.0 / 1024.0), GLfloat(288.0 / 1024.0));
         glVertex2f(GLfloat(x1), GLfloat(y1));
         glTexCoord2f(GLfloat(0.0), GLfloat(288.0 / 1024.0));
         glVertex2f(GLfloat(x0), GLfloat(y1));
@@ -695,9 +694,9 @@ namespace Ep128Emu {
       else {
         glTexCoord2f(GLfloat(0.0), GLfloat(0.0));
         glVertex2f(GLfloat(x0), GLfloat(y0));
-        glTexCoord2f(GLfloat(704.0 / 1024.0), GLfloat(0.0));
+        glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(0.0));
         glVertex2f(GLfloat(x1), GLfloat(y0));
-        glTexCoord2f(GLfloat(704.0 / 1024.0), GLfloat(288.0 / 1024.0));
+        glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(288.0 / 1024.0));
         glVertex2f(GLfloat(x1), GLfloat(y1));
         glTexCoord2f(GLfloat(0.0), GLfloat(288.0 / 1024.0));
         glVertex2f(GLfloat(x0), GLfloat(y1));

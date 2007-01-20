@@ -757,24 +757,32 @@ namespace Ep128 {
       if (vsyncFlag != wasVsync)
         vsyncStateChange(vsyncFlag, currentSlot);
     }
-    if (currentSlot >= 8) {
-      if (currentSlot < 54) {
-        // display area
-        if (!currentRenderer) {
-          *(lineBufPtr++) = 0x01;
+    if (currentSlot >= 7) {
+      switch (currentSlot) {
+      case 7:
+        *(lineBufPtr++) = 0x01;
+        if (!currentRenderer)
           *(lineBufPtr++) = borderColor;
-        }
         else
-          currentRenderer->doRender(lineBufPtr);
-      }
-      else if (currentSlot == 54) {
-        size_t  nBytes = size_t(lineBufPtr - lineBuf);
-        lineBufPtr = lineBuf;
-        for (size_t i = nBytes; (i & 3) != 0; i++)
-          lineBuf[i] = 0;
-        drawLine(lineBuf, nBytes);
-      }
-      else if (currentSlot == 56) {
+          *(lineBufPtr++) = 0x00;
+        break;
+      case 54:                          // end of display area
+        *(lineBufPtr++) = 0x01;
+        if (!currentRenderer)
+          *(lineBufPtr++) = borderColor;
+        else
+          *(lineBufPtr++) = 0x00;
+        {
+          size_t  nBytes = size_t(lineBufPtr - lineBuf);
+          lineBufPtr = lineBuf;
+          for (size_t i = nBytes; (i & 3) != 0; i++)
+            lineBuf[i] = 0;
+          drawLine(lineBuf, nBytes);
+        }
+        break;
+      case 55:
+        break;
+      case 56:
         if (lptClockEnabled) {
           if (--linesRemaining == 0) {
             if (!lpb.reloadFlag)
@@ -785,6 +793,15 @@ namespace Ep128 {
         }
         currentSlot = 0;
         currentSlot--;
+        break;
+      default:                          // display area
+        if (!currentRenderer) {
+          *(lineBufPtr++) = 0x01;
+          *(lineBufPtr++) = borderColor;
+        }
+        else {
+          currentRenderer->doRender(lineBufPtr);
+        }
       }
     }
     currentSlot++;
@@ -821,8 +838,8 @@ namespace Ep128 {
     lptClockEnabled = true;
     vsyncFlag = false;
     try {
-      uint32_t  *p = new uint32_t[196];     // for 782 bytes (46 * 17)
-      for (size_t i = 0; i < 196; i++)
+      uint32_t  *p = new uint32_t[204];     // for 816 bytes (48 * 17)
+      for (size_t i = 0; i < 204; i++)
         p[i] = 0;
       lineBuf = reinterpret_cast<uint8_t *>(p);
       lineBufPtr = lineBuf;
@@ -1019,8 +1036,8 @@ namespace Ep128 {
       currentSlot = uint8_t(buf.readByte() % 57U);
       borderColor = buf.readByte();
       lineBufPtr = lineBuf;
-      if (currentSlot > 8 && currentSlot <= 54) {
-        size_t  i = currentSlot - 8;
+      if (currentSlot > 7 && currentSlot <= 54) {
+        size_t  i = currentSlot - 7;
         do {
           *(lineBufPtr++) = 0x01;
           *(lineBufPtr++) = borderColor;

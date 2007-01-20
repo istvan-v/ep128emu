@@ -28,11 +28,11 @@ namespace Ep128Emu {
    public:
     class DisplayParameters {
      public:
-      // 0: half horizontal resolution, no interlace (352x288),
+      // 0: half horizontal resolution, no interlace (384x288),
       //    no texture filtering, no blend effects
-      // 1: half horizontal resolution, no interlace (352x288)
-      // 2: full horizontal resolution, no interlace (704x288)
-      // 3: full horizontal resolution, interlace (704x576)
+      // 1: half horizontal resolution, no interlace (384x288)
+      // 2: full horizontal resolution, no interlace (768x288)
+      // 3: full horizontal resolution, interlace (768x576)
       int     displayQuality;
       // set this to true to enable double buffered display
       bool    useDoubleBuffering;
@@ -95,7 +95,7 @@ namespace Ep128Emu {
     virtual void setDisplayParameters(const DisplayParameters& dp) = 0;
     virtual const DisplayParameters& getDisplayParameters() const = 0;
     // Draw next line of display.
-    // 'buf' defines a line of 736 pixels, as 46 groups of 16 pixels each,
+    // 'buf' defines a line of 768 pixels, as 48 groups of 16 pixels each,
     // in the following format: the first byte defines the number of
     // additional bytes that encode the 16 pixels to be displayed. The data
     // length also determines the pixel format, and can have the following
@@ -111,7 +111,7 @@ namespace Ep128Emu {
     //         is 1
     //   0x08: eight 8-bit color indices (pixel width = 2)
     //   0x10: sixteen 8-bit color indices (pixel width = 1)
-    // The buffer contains 'nBytes' (in the range of 92 to 782) bytes of data.
+    // The buffer contains 'nBytes' (in the range of 96 to 816) bytes of data.
     virtual void drawLine(const uint8_t *buf, size_t nBytes) = 0;
     // Should be called at the beginning (newState = true) and end
     // (newState = false) of VSYNC. 'currentSlot_' is the position within

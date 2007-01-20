@@ -176,8 +176,8 @@ namespace Ep128Emu {
                                 display.effects.param3, 0.3,
                                 displaySettingsChanged, 0.0, 1.0);
     defineConfigurationVariable(*this, "display.width",
-                                display.width, 704,
-                                displaySettingsChanged, 352.0, 1408.0);
+                                display.width, 768,
+                                displaySettingsChanged, 384.0, 1536.0);
     defineConfigurationVariable(*this, "display.height",
                                 display.height, 576,
                                 displaySettingsChanged, 288.0, 1152.0);

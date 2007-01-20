@@ -184,7 +184,7 @@ class x : public NickRenderer {                 \
     NickRenderer  *currentRenderer;     // NULL if border only
     NickRendererTable   renderers;
     uint8_t   currentSlot;      // 0 to 56
-    uint8_t   *lineBuf;         // 46 slots = 736 pixels
+    uint8_t   *lineBuf;         // 48 slots = 768 pixels
     uint8_t   *lineBufPtr;
     uint8_t   borderColor;
     bool      lptClockEnabled;
@@ -194,7 +194,7 @@ class x : public NickRenderer {                 \
     // IRQ is active (low)
     virtual void irqStateChange(bool newState);
     // drawLine() is called after rendering each line.
-    // 'buf' defines a line of 736 pixels, as 46 groups of 16 pixels each,
+    // 'buf' defines a line of 768 pixels, as 48 groups of 16 pixels each,
     // in the following format: the first byte defines the number of
     // additional bytes that encode the 16 pixels to be displayed. The data
     // length also determines the pixel format, and can have the following
@@ -211,7 +211,7 @@ class x : public NickRenderer {                 \
     //   0x08: eight 8-bit color indices (pixel width = 2)
     //   0x10: sixteen 8-bit color indices (pixel width = 1)
     // The buffer is aligned to 4 bytes, and contains 'nBytes' (in the range
-    // of 92 to 782) bytes of data.
+    // of 96 to 816) bytes of data.
     virtual void drawLine(const uint8_t *buf, size_t nBytes);
     // Called at the beginning (newState = true) and end (newState = false)
     // of VSYNC. 'currentSlot_' is the position within the current line

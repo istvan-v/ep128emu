@@ -239,7 +239,7 @@ namespace Plus4 {
     }
     for (int i = 0; i < 64; i++)
       pixel_buf[i] = uint8_t(0);
-    for (int i = 0; i < 414; i++)
+    for (int i = 0; i < 432; i++)
       line_buf[i] = uint8_t(0x08);
     line_buf_pos = 0;
     bitmapMode = false;

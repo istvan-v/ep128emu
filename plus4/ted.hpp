@@ -253,7 +253,7 @@ namespace Plus4 {
     uint8_t     attr_buf_tmp[40];
     uint8_t     char_buf[40];
     uint8_t     pixel_buf[64];
-    uint8_t     line_buf[414];
+    uint8_t     line_buf[432];
     int         line_buf_pos;
     bool        bitmapMode;
     uint8_t     currentCharacter;

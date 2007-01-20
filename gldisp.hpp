@@ -63,9 +63,9 @@ namespace Ep128Emu {
     };
     class Message_LineData : public Message {
      private:
-      // a line of 704 pixels needs a maximum space of 704 * (17 / 16) = 748
-      // ( = 187 * 4) bytes in compressed format
-      uint32_t  buf_[187];
+      // a line of 768 pixels needs a maximum space of 768 * (17 / 16) = 816
+      // ( = 204 * 4) bytes in compressed format
+      uint32_t  buf_[204];
       // number of bytes in buffer
       size_t    nBytes_;
      public:
@@ -78,7 +78,7 @@ namespace Ep128Emu {
         lineNum = 0;
       }
       virtual ~Message_LineData();
-      // copy a line (736 pixels in compressed format) to the buffer
+      // copy a line (768 pixels in compressed format) to the buffer
       void copyLine(const uint8_t *buf, size_t nBytes);
       inline void getLineData(const unsigned char*& buf, size_t& nBytes)
       {
@@ -174,7 +174,7 @@ namespace Ep128Emu {
     Timer         forceUpdateTimer;
     ThreadLock    threadLock;
    public:
-    OpenGLDisplay(int xx = 0, int yy = 0, int ww = 704, int hh = 576,
+    OpenGLDisplay(int xx = 0, int yy = 0, int ww = 768, int hh = 576,
                   const char *lbl = (char *) 0, bool isDoubleBuffered = false);
     virtual ~OpenGLDisplay();
     // set color correction and other display parameters
@@ -182,7 +182,7 @@ namespace Ep128Emu {
     virtual void setDisplayParameters(const DisplayParameters& dp);
     virtual const DisplayParameters& getDisplayParameters() const;
     // Draw next line of display.
-    // 'buf' defines a line of 736 pixels, as 46 groups of 16 pixels each,
+    // 'buf' defines a line of 768 pixels, as 48 groups of 16 pixels each,
     // in the following format: the first byte defines the number of
     // additional bytes that encode the 16 pixels to be displayed. The data
     // length also determines the pixel format, and can have the following
@@ -198,7 +198,7 @@ namespace Ep128Emu {
     //         is 1
     //   0x08: eight 8-bit color indices (pixel width = 2)
     //   0x10: sixteen 8-bit color indices (pixel width = 1)
-    // The buffer contains 'nBytes' (in the range of 92 to 782) bytes of data.
+    // The buffer contains 'nBytes' (in the range of 96 to 816) bytes of data.
     virtual void drawLine(const uint8_t *buf, size_t nBytes);
     // Should be called at the beginning (newState = true) and end
     // (newState = false) of VSYNC. 'currentSlot_' is the position within

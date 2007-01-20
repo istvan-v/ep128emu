@@ -72,7 +72,10 @@ namespace Plus4 {
         break;
       case 85:                          // DRAM refresh end
         singleClockMode = false;
-        drawLine(&(line_buf[0]), 414);
+        break;
+      case 87:                          // horizontal blanking start
+        horizontalBlanking = true;
+        drawLine(&(line_buf[0]), 432);
         break;
       case 88:                          // increment flash counter
         if (video_line == 205) {
@@ -81,9 +84,6 @@ namespace Plus4 {
           if (tedRegisters[0x1F] & uint8_t(0x80))
             flash_state = !flash_state;
         }
-        break;
-      case 89:                          // horizontal blanking start
-        horizontalBlanking = true;
         break;
       case 95:
         if (renderWindow) {
@@ -200,7 +200,7 @@ namespace Plus4 {
           }
         }
         break;
-      case 107:                         // horizontal blanking end
+      case 105:                         // horizontal blanking end
         horizontalBlanking = false;
         line_buf_pos = 0;
         break;
@@ -316,7 +316,7 @@ namespace Plus4 {
             character_position = 0x03FF;
         }
       }
-      if (line_buf_pos < 365) {
+      if (line_buf_pos < 381) {
         unsigned int  ndx = (unsigned int) line_buf_pos >> 3;
         ndx = ((ndx << 3) + ndx) + ((unsigned int) line_buf_pos & 7U) + 1U;
         line_buf_pos += 4;
