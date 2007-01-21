@@ -92,6 +92,7 @@ namespace Ep128Emu {
     PaStream      *paStream;
     Timer         timer_;
     double        nextTime;
+    ThreadLock    closeDeviceLock;
 #ifndef USING_OLD_PORTAUDIO_API
     static int portAudioCallback(const void *input, void *output,
                                  unsigned long frameCount,

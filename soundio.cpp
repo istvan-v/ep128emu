@@ -182,7 +182,8 @@ namespace Ep128Emu {
       writeBufIndex(0),
       readBufIndex(0),
       paStream((PaStream *) 0),
-      nextTime(0.0)
+      nextTime(0.0),
+      closeDeviceLock(true)
   {
     // initialize PortAudio
     if (Pa_Initialize() != paNoError)
@@ -194,7 +195,9 @@ namespace Ep128Emu {
   {
     if (paStream) {
       Pa_StopStream(paStream);
+      closeDeviceLock.wait();
       Pa_CloseStream(paStream);
+      closeDeviceLock.notify();
       paStream = (PaStream *) 0;
     }
     disableRingBuffer = false;
@@ -245,7 +248,9 @@ namespace Ep128Emu {
   {
     if (paStream) {
       Pa_StopStream(paStream);
+      closeDeviceLock.wait();
       Pa_CloseStream(paStream);
+      closeDeviceLock.notify();
       paStream = (PaStream *) 0;
     }
     disableRingBuffer = false;
@@ -309,6 +314,13 @@ namespace Ep128Emu {
   {
     AudioOutput_PortAudio *p =
         reinterpret_cast<AudioOutput_PortAudio *>(userData);
+    if (!p->closeDeviceLock.wait(0)) {
+#ifndef USING_OLD_PORTAUDIO_API
+      return int(paAbort);
+#else
+      return 1;
+#endif
+    }
     int16_t *buf = reinterpret_cast<int16_t *>(output);
     size_t  i = 0, nFrames = frameCount;
     (void) input;
@@ -330,6 +342,7 @@ namespace Ep128Emu {
       p->readBufIndex = 0;
     for ( ; i < (frameCount << 1); i++)
       buf[i] = 0;
+    p->closeDeviceLock.notify();
 #ifndef USING_OLD_PORTAUDIO_API
     return int(paContinue);
 #else

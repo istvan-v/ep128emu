@@ -605,7 +605,7 @@ namespace Ep128Emu {
       // clean up
       glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
       glPopMatrix();
-      glFinish();
+      glFlush();
       // make sure that all lines are updated at a slow rate
       if (forceUpdateLineMask) {
         for (size_t yc = 0; yc < 289; yc++) {
@@ -705,7 +705,7 @@ namespace Ep128Emu {
       // clean up
       glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
       glPopMatrix();
-      glFinish();
+      glFlush();
       for (size_t n = 0; n < 578; n++) {
         if (lineBuffers[n] != (Message_LineData *) 0) {
           Message *m = lineBuffers[n];
@@ -801,6 +801,12 @@ namespace Ep128Emu {
       }
       else if (typeid(*m) == typeid(Message_FrameDone)) {
         // need to update display
+        if (redrawFlag) {
+          // lost a frame
+          messageQueueMutex.lock();
+          framesPending = (framesPending > 0 ? (framesPending - 1) : 0);
+          messageQueueMutex.unlock();
+        }
         redrawFlag = true;
         deleteMessage(m);
         break;
@@ -854,6 +860,12 @@ namespace Ep128Emu {
       deleteMessage(m);
     }
     if (noInputTimer.getRealTime() > 0.33) {
+      if (redrawFlag) {
+        // lost a frame
+        messageQueueMutex.lock();
+        framesPending = (framesPending > 0 ? (framesPending - 1) : 0);
+        messageQueueMutex.unlock();
+      }
       redrawFlag = true;
     }
     if (forceUpdateTimer.getRealTime() >= 0.125) {
