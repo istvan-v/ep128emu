@@ -99,6 +99,7 @@ class VMThread : public Ep128Emu::Thread {
   Ep128Emu::EmulatorConfiguration&  config;
  public:
   volatile bool   stopFlag;
+  volatile bool   toggleFullscreenFlag;
   VMThread(Ep128Emu::VirtualMachine& vm_,
            Display& display_, Ep128Emu::AudioOutput& audioOutput_,
            Ep128Emu::EmulatorConfiguration& config_)
@@ -107,7 +108,8 @@ class VMThread : public Ep128Emu::Thread {
       display(display_),
       audioOutput(audioOutput_),
       config(config_),
-      stopFlag(false)
+      stopFlag(false),
+      toggleFullscreenFlag(false)
   {
   }
   virtual ~VMThread()
@@ -191,6 +193,9 @@ class VMThread : public Ep128Emu::Thread {
               break;
             case 7:                             // Shift + F12: hard reset
               vm.reset(true);
+              break;
+            case 8:                             // Ctrl + F9: toggle fullscreen
+              toggleFullscreenFlag = true;
               break;
             case 10:                            // Ctrl + F11: rewind tape
               vm.tapeSeek(0.0);
@@ -372,9 +377,23 @@ int main(int argc, char **argv)
     w->cursor(FL_CURSOR_NONE);
     vmThread = new VMThread(*vm, *w, *audioOutput, *config);
     vmThread->start();
+    bool    fullscreenMode = false;
     do {
-      config->display.width = basew->w();
-      config->display.height = basew->h();
+      if (vmThread->toggleFullscreenFlag) {
+        vmThread->toggleFullscreenFlag = false;
+        fullscreenMode = !fullscreenMode;
+        if (fullscreenMode)
+          basew->fullscreen();
+        else {
+          basew->fullscreen_off(32, 32,
+                                config->display.width, config->display.height);
+          basew->size_range(384, 288, 1536, 1152);
+        }
+      }
+      if (!fullscreenMode) {
+        config->display.width = basew->w();
+        config->display.height = basew->h();
+      }
       w->size(basew->w(), basew->h());
       if (w->checkEvents())
         w->redraw();
