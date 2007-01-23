@@ -21,6 +21,7 @@
 
 #include "ep128emu.hpp"
 #include "system.hpp"
+#include "fldisp.hpp"
 #include "gldisp.hpp"
 #include "soundio.hpp"
 #include "ep128vm.hpp"
@@ -44,15 +45,15 @@ struct KeyboardEvent {
   int     keyCode;
 };
 
-class Display : public Ep128Emu::OpenGLDisplay {
+template <typename T>
+class Display : public T {
  private:
   std::list<KeyboardEvent>  keyboardQueue;
   Ep128Emu::Mutex keyboardQueueMutex;
   std::map< int, bool > keyboardState;
  public:
-  Display(int xx, int yy, int ww, int hh, const char *lbl = 0,
-          bool isDoubleBuffered = false)
-    : Ep128Emu::OpenGLDisplay(xx, yy, ww, hh, lbl, isDoubleBuffered)
+  Display(int xx, int yy, int ww, int hh, const char *lbl = 0)
+    : T(xx, yy, ww, hh, lbl)
   {
   }
   virtual ~Display()
@@ -94,14 +95,15 @@ class Display : public Ep128Emu::OpenGLDisplay {
 class VMThread : public Ep128Emu::Thread {
  private:
   Ep128Emu::VirtualMachine& vm;
-  Display&                  display;
+  Ep128Emu::VideoDisplay&   display;
   Ep128Emu::AudioOutput&    audioOutput;
   Ep128Emu::EmulatorConfiguration&  config;
  public:
   volatile bool   stopFlag;
   volatile bool   toggleFullscreenFlag;
   VMThread(Ep128Emu::VirtualMachine& vm_,
-           Display& display_, Ep128Emu::AudioOutput& audioOutput_,
+           Ep128Emu::VideoDisplay& display_,
+           Ep128Emu::AudioOutput& audioOutput_,
            Ep128Emu::EmulatorConfiguration& config_)
     : Thread(),
       vm(vm_),
@@ -117,6 +119,10 @@ class VMThread : public Ep128Emu::Thread {
   }
   virtual void run()
   {
+    Display<Ep128Emu::OpenGLDisplay>  *glDisplay =
+        dynamic_cast< Display<Ep128Emu::OpenGLDisplay> *>(&display);
+    Display<Ep128Emu::FLTKDisplay>    *flDisplay =
+        dynamic_cast< Display<Ep128Emu::FLTKDisplay> *>(&display);
     try {
       Ep128Emu::File  f;
       bool    recordingDemo = false;
@@ -127,7 +133,11 @@ class VMThread : public Ep128Emu::Thread {
             recordingDemo = false;
             std::cout << "demo recording stopped" << std::endl;
           }
-          KeyboardEvent evt = display.getKeyboardEvent();
+          KeyboardEvent evt;
+          if (glDisplay)
+            evt = glDisplay->getKeyboardEvent();
+          else
+            evt = flDisplay->getKeyboardEvent();
           if (evt.keyCode == 0)
             break;
           if (evt.isKeyPress &&
@@ -257,13 +267,14 @@ static void plus4ClockFreqChangeCallback(void *userData,
 int main(int argc, char **argv)
 {
   Fl_Window *basew = (Fl_Window *) 0;
-  Display   *w = (Display *) 0;
+  Fl_Window *w = (Fl_Window *) 0;
   Ep128Emu::VirtualMachine  *vm = (Ep128Emu::VirtualMachine *) 0;
   Ep128Emu::AudioOutput     *audioOutput = (Ep128Emu::AudioOutput *) 0;
   Ep128Emu::EmulatorConfiguration *config =
       (Ep128Emu::EmulatorConfiguration *) 0;
   VMThread  *vmThread = (VMThread *) 0;
   bool      isPlus4 = false;
+  bool      glEnabled = true;
   const char  *cfgFileName = "ep128.cfg";
 
   try {
@@ -280,6 +291,37 @@ int main(int argc, char **argv)
         isPlus4 = true;
         cfgFileName = "plus4.cfg";
       }
+      else if (std::strcmp(argv[i], "-opengl") == 0) {
+        glEnabled = true;
+      }
+      else if (std::strcmp(argv[i], "-no-opengl") == 0) {
+        glEnabled = false;
+      }
+      else if (std::strcmp(argv[i], "-h") == 0 ||
+               std::strcmp(argv[i], "-help") == 0 ||
+               std::strcmp(argv[i], "--help") == 0) {
+        std::cerr << "Usage: " << argv[0] << " [OPTIONS...]" << std::endl;
+        std::cerr << "The allowed options are:" << std::endl;
+        std::cerr << "    -h | -help | --help "
+                     "print this message" << std::endl;
+        std::cerr << "    -ep128 | -plus4     "
+                     "select machine to be emulated (default: ep128)"
+                  << std::endl;
+        std::cerr << "    -cfg <FILENAME>     "
+                     "load ASCII format configuration file" << std::endl;
+        std::cerr << "    -opengl             "
+                     "use OpenGL video driver (this is the default)"
+                  << std::endl;
+        std::cerr << "    -no-opengl          "
+                     "use software video driver" << std::endl;
+        std::cerr << "    OPTION=VALUE        "
+                     "set configuration variable 'OPTION' to 'VALUE'"
+                  << std::endl;
+        std::cerr << "    OPTION              "
+                     "set boolean configuration variable 'OPTION' to true"
+                  << std::endl;
+        return 0;
+      }
     }
 
     Fl::lock();
@@ -291,14 +333,20 @@ int main(int argc, char **argv)
         std::cout << "  " << i << ": " << devList[i] << std::endl;
     }
     basew = new Fl_Window(50, 50, 384, 288, "ep128emu test");
-    w = new Display(0, 0, 384, 288, "OpenGL test window");
+    if (glEnabled)
+      w = new Display<Ep128Emu::OpenGLDisplay>(0, 0, 384, 288, "");
+    else
+      w = new Display<Ep128Emu::FLTKDisplay>(0, 0, 384, 288, "");
     w->end();
     basew->end();
     if (!isPlus4)
-      vm = new Ep128::Ep128VM(*w, *audioOutput);
+      vm = new Ep128::Ep128VM(*(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
+                              *audioOutput);
     else
-      vm = new Plus4::Plus4VM(*w, *audioOutput);
-    config = new Ep128Emu::EmulatorConfiguration(*vm, *w, *audioOutput);
+      vm = new Plus4::Plus4VM(*(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
+                              *audioOutput);
+    config = new Ep128Emu::EmulatorConfiguration(
+        *vm, *(dynamic_cast<Ep128Emu::VideoDisplay *>(w)), *audioOutput);
     config->setErrorCallback(&cfgErrorFunc, (void *) 0);
     // set machine specific defaults and limits
     if (isPlus4) {
@@ -341,7 +389,9 @@ int main(int argc, char **argv)
     // check command line for any additional configuration
     for (int i = 1; i < argc; i++) {
       if (std::strcmp(argv[i], "-ep128") == 0 ||
-          std::strcmp(argv[i], "-plus4") == 0)
+          std::strcmp(argv[i], "-plus4") == 0 ||
+          std::strcmp(argv[i], "-opengl") == 0 ||
+          std::strcmp(argv[i], "-no-opengl") == 0)
         continue;
       if (std::strcmp(argv[i], "-cfg") == 0) {
         if (++i >= argc)
@@ -375,7 +425,8 @@ int main(int argc, char **argv)
     basew->show();
     w->show();
     w->cursor(FL_CURSOR_NONE);
-    vmThread = new VMThread(*vm, *w, *audioOutput, *config);
+    vmThread = new VMThread(*vm, *(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
+                            *audioOutput, *config);
     vmThread->start();
     bool    fullscreenMode = false;
     do {
@@ -395,8 +446,16 @@ int main(int argc, char **argv)
         config->display.height = basew->h();
       }
       w->size(basew->w(), basew->h());
-      if (w->checkEvents())
-        w->redraw();
+      if (glEnabled) {
+        if ((dynamic_cast<Ep128Emu::OpenGLDisplay *>(w))->checkEvents()) {
+          w->redraw();
+        }
+      }
+      else {
+        if ((dynamic_cast<Ep128Emu::FLTKDisplay *>(w))->checkEvents()) {
+          w->redraw();
+        }
+      }
       Fl::wait(0.025);
     } while (basew->shown() && !vmThread->stopFlag);
     vmThread->stopFlag = true;

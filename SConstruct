@@ -82,6 +82,7 @@ ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
     display.cpp
     emucfg.cpp
     fileio.cpp
+    fldisp.cpp
     gldisp.cpp
     snd_conv.cpp
     soundio.cpp
