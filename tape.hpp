@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -27,17 +27,23 @@ namespace Ep128Emu {
 
   class Tape {
    private:
-    static const long sampleRate = 24000L;
+    long      sampleRate;       // defaults to 24000
+    int       fileBitsPerSample;
+    int       requestedBitsPerSample;
     std::FILE *f;               // tape image file
-    uint8_t   *buf;             // 4096 bytes ( = 32768 samples)
-    uint32_t  *cuePointTable;   // the table has 1024 elements, and contains:
-                                //         0: magic number (0x7B6CDE49,
-                                //            big-endian)
-                                // 1 to 1022: the sample positions where cue
+    uint8_t   *buf;             // 4096 bytes
+    uint32_t  *fileHeader;      // table with a length of 1024, contains:
+                                //      0, 1: magic number (0x0275CD72,
+                                //            0x1C445126)
+                                //         2: number of bits per sample in
+                                //            file (1, 2, 4, or 8)
+                                //         3: sample rate in Hz (10000 to
+                                //            120000)
+                                // 4 to 1022: the sample positions where cue
                                 //            points are defined, in sorted
                                 //            order, padded with 0xFFFFFFFF
                                 //            values
-                                //      1023: 32 bit checksum (big-endian)
+                                //      1023: must be 0xFFFFFFFF
     size_t    cuePointCnt;
     bool      isReadOnly;
     bool      isBufferDirty;    // true if 'buf' has been changed,
@@ -45,7 +51,7 @@ namespace Ep128Emu {
     bool      isPlaybackOn;
     bool      isRecordOn;
     bool      isMotorOn;
-    bool      haveCuePoints;
+    bool      usingNewFormat;
     size_t    tapeLength;       // tape length (in samples)
     size_t    tapePosition;     // current read/write position (in samples)
     int       inputState;
@@ -54,23 +60,27 @@ namespace Ep128Emu {
     void seek_(size_t pos, bool recording);
     inline void setSample_(int newState)
     {
-      uint8_t mask = uint8_t(128 >> (tapePosition & 7));
-      buf[(tapePosition & 0x7FF8) >> 3] =
-          (buf[(tapePosition & 0x7FF8) >> 3] & (mask ^ 0xFF))
-          | (newState > 0 ? mask : 0);
+      buf[tapePosition & 0x0FFF] =
+          uint8_t(newState > 0 ? (newState < 255 ? newState : 255) : 0);
     }
     inline int getSample_() const
     {
-      return ((buf[(tapePosition & 0x7FF8) >> 3]
-               & uint8_t(128 >> (tapePosition & 7))) == 0 ? 0 : 1);
+      return (buf[tapePosition & 0x0FFF]);
     }
-    inline long blockNumToFilePos_(size_t blockNum_)
-    {
-      return long((haveCuePoints ? (blockNum_ + 1) : blockNum_) << 12);
-    }
+    bool findCuePoint_(size_t& ndx_, size_t pos_);
+    void packSamples_();
+    bool writeBuffer_();
+    bool readBuffer_();
+    void unpackSamples_();
+    bool writeHeader_();
     void flushBuffer_();
    public:
-    Tape(const char *fileName);
+    // Open tape file 'fileName'. If the file does not exist yet, it is created
+    // with the specified sample rate and bits per sample. Otherwise,
+    // 'sampleRate_' is ignored, and samples are converted according to
+    // 'bitsPerSample'.
+    Tape(const char *fileName,
+         long sampleRate_ = 24000L, int bitsPerSample = 1);
     virtual ~Tape();
     // get sample rate of tape emulation
     inline long getSampleRate() const
@@ -116,12 +126,12 @@ namespace Ep128Emu {
     // set input signal for recording
     inline void setInputSignal(int newState)
     {
-      inputState = (newState > 0 ? 1 : 0);
+      inputState = newState;
     }
     // get output signal
     inline int getOutputSignal() const
     {
-      return (outputState > 0 ? 1 : 0);
+      return outputState;
     }
     // Seek to the specified time (in seconds).
     void seek(double t);

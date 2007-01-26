@@ -1064,7 +1064,7 @@ namespace Ep128 {
 
   void Ep128VM::tapeRecord()
   {
-    Ep128Emu::VirtualMachine::tapePlay();
+    Ep128Emu::VirtualMachine::tapeRecord();
     if (haveTape() && getIsTapeMotorOn() && getTapeButtonState() != 0)
       stopDemo();
   }

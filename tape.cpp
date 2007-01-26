@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -22,38 +22,6 @@
 #include <cstdio>
 #include <cstdlib>
 
-static size_t findCuePoint(size_t pos_,
-                           uint32_t *cuePointTable, size_t cuePointCnt)
-{
-  uint32_t  pos = (pos_ < 0xFFFFFFFEUL ?
-                   uint32_t(pos_) : uint32_t(0xFFFFFFFEUL));
-  size_t    min_ = 1;
-  size_t    max_ = cuePointCnt + 1;
-  while ((min_ + 1) < max_) {
-    size_t  tmp = (min_ + max_) >> 1;
-    if (pos > cuePointTable[tmp])
-      min_ = tmp;
-    else if (pos < cuePointTable[tmp])
-      max_ = tmp;
-    else
-      return tmp;
-  }
-  return min_;
-}
-
-static uint32_t calculateCuePointChecksum(uint32_t *cuePointTable)
-{
-  unsigned int  h = 1U;
-
-  for (size_t i = 1; i < 1023; i++) {
-    uint64_t  tmp;
-    h ^= cuePointTable[i];
-    tmp = (uint32_t) h * (uint64_t) 0xC2B0C3CCU;
-    h = ((unsigned int) tmp ^ (unsigned int) (tmp >> 32)) & 0xFFFFFFFFU;
-  }
-  return uint32_t(h);
-}
-
 static int cuePointCmpFunc(const void *p1, const void *p2)
 {
   if (*((uint32_t *) p1) < *((uint32_t *) p2))
@@ -65,17 +33,146 @@ static int cuePointCmpFunc(const void *p1, const void *p2)
 
 namespace Ep128Emu {
 
+  bool Tape::findCuePoint_(size_t& ndx_, size_t pos_)
+  {
+    uint32_t  *cuePointTable = &(fileHeader[4]);
+    uint32_t  pos = (pos_ < 0xFFFFFFFEUL ?
+                     uint32_t(pos_) : uint32_t(0xFFFFFFFEUL));
+    size_t    min_ = 0;
+    size_t    max_ = cuePointCnt;
+    while ((min_ + 1) < max_) {
+      size_t  tmp = (min_ + max_) >> 1;
+      if (pos > cuePointTable[tmp])
+        min_ = tmp;
+      else if (pos < cuePointTable[tmp])
+        max_ = tmp;
+      else {
+        ndx_ = tmp;
+        return true;
+      }
+    }
+    ndx_ = min_;
+    return (cuePointTable[min_] == pos);
+  }
+
+  void Tape::packSamples_()
+  {
+    unsigned char byteBuf = 0;
+    unsigned char bitCnt = 0;
+    size_t        writePos = 0;
+    for (size_t i = 0; i < 4096; i++) {
+      unsigned char c = buf[i];
+      if (requestedBitsPerSample < 8)
+        c = c << (unsigned char) (8 - requestedBitsPerSample);
+      for (int j = 0; j < fileBitsPerSample; j++) {
+        byteBuf = (byteBuf << 1) | ((c & (unsigned char) 0x80) >> 7);
+        c = (c & (unsigned char) 0x7F) << 1;
+        bitCnt++;
+      }
+      if (bitCnt >= 8) {
+        buf[writePos++] = uint8_t(byteBuf);
+        byteBuf = 0;
+        bitCnt = 0;
+      }
+    }
+  }
+
+  bool Tape::writeBuffer_()
+  {
+    // calculate file position
+    size_t  blockSize = 512U * (unsigned int) fileBitsPerSample;
+    size_t  filePos = (tapePosition >> 12) * blockSize;
+    if (usingNewFormat)
+      filePos = filePos + 4096;
+    if (std::fseek(f, long(filePos), SEEK_SET) < 0)
+      return false;
+    // write data
+    long    n = long(std::fwrite(buf, sizeof(uint8_t), blockSize, f));
+    n = (n >= 0L ? n : 0L);
+    size_t  endPos = filePos + size_t(n);
+    if (usingNewFormat)
+      endPos = endPos - 4096;
+    endPos = endPos * (8U / (unsigned int) fileBitsPerSample);
+    if (endPos > tapeLength)
+      tapeLength = endPos;
+    bool    err = (n != long(blockSize));
+    if (std::fflush(f) != 0)
+      err = true;
+    return (!err);
+  }
+
+  bool Tape::readBuffer_()
+  {
+    bool    err = false;
+    long    n = 0L;
+    size_t  blockSize = 512U * (unsigned int) fileBitsPerSample;
+    if ((tapePosition & 0xFFFFF000UL) < tapeLength) {
+      // calculate file position
+      size_t  filePos = (tapePosition >> 12) * blockSize;
+      if (usingNewFormat)
+        filePos = filePos + 4096;
+      if (std::fseek(f, long(filePos), SEEK_SET) >= 0) {
+        // read data
+        n = long(std::fread(buf, sizeof(uint8_t), blockSize, f));
+        n = (n >= 0L ? n : 0L);
+      }
+    }
+    if (n < long(blockSize)) {
+      err = true;
+      // pad with zero bytes
+      do {
+        buf[n] = 0;
+      } while (++n < long(blockSize));
+    }
+    return (!err);
+  }
+
+  void Tape::unpackSamples_()
+  {
+    unsigned char byteBuf = 0;
+    unsigned char bitCnt = 0;
+    size_t        readPos = 512U * (unsigned int) fileBitsPerSample;
+    for (size_t i = 4096; i > 0; ) {
+      if (!bitCnt) {
+        byteBuf = (unsigned char) buf[--readPos];
+        bitCnt = 8;
+      }
+      unsigned char c = byteBuf;
+      switch (fileBitsPerSample) {
+      case 1:
+        c &= (unsigned char) 0x01;
+        break;
+      case 2:
+        c &= (unsigned char) 0x03;
+        break;
+      case 4:
+        c &= (unsigned char) 0x0F;
+        break;
+      case 8:
+        c &= (unsigned char) 0xFF;
+        break;
+      }
+      byteBuf = byteBuf >> (unsigned char) fileBitsPerSample;
+      bitCnt = bitCnt - (unsigned char) fileBitsPerSample;
+      if (fileBitsPerSample < requestedBitsPerSample)
+        c = c << (unsigned char) (requestedBitsPerSample - fileBitsPerSample);
+      else if (fileBitsPerSample > requestedBitsPerSample)
+        c = c >> (unsigned char) (fileBitsPerSample - requestedBitsPerSample);
+      buf[--i] = uint8_t(c);
+    }
+  }
+
   void Tape::seek_(size_t pos_, bool recording)
   {
     // unless recording, clamp position to tape length
     size_t  pos = ((pos_ < tapeLength || recording) ? pos_ : tapeLength);
-    size_t  oldBlockNum = (tapePosition >> 15);
-    size_t  newBlockNum = (pos >> 15);
+    size_t  oldBlockNum = (tapePosition >> 12);
+    size_t  newBlockNum = (pos >> 12);
 
     if (recording && cuePointCnt > 0) {
-      size_t  ndx = findCuePoint(pos, cuePointTable, cuePointCnt);
-      // if recording over a cue point, delete it
-      if (cuePointTable[ndx] == pos) {
+      size_t  ndx = 0;
+      if (findCuePoint_(ndx, pos)) {
+        // if recording over a cue point, delete it
         size_t  savedPos = tapePosition;
         tapePosition = pos;
         deleteNearestCuePoint();
@@ -95,75 +192,63 @@ namespace Ep128Emu {
       err = true;
     }
     tapePosition = pos;
-    if (((newBlockNum + 1) << 15) <= tapeLength) {
-      std::fseek(f, blockNumToFilePos_(newBlockNum), SEEK_SET);
-      std::fread(buf, 1, 4096, f);
-    }
-    else if (!recording) {
-      // if not recording, the position is clamped to the tape length,
-      // and the file is not extended
-      std::fseek(f, blockNumToFilePos_(newBlockNum), SEEK_SET);
-      long    n = 0L;
-      size_t  nBytes = (tapeLength >> 3) - (newBlockNum << 12);
-      if (nBytes > 0)
-        n = long(std::fread(buf, 1, nBytes, f));
-      n = (n > 0L ? n : 0L);
-      // pad buffer with zero bytes
-      for ( ; n < 4096; n++)
-        buf[n] = 0;
-    }
-    else {
-      // extend file length
-      std::fseek(f, 0L, SEEK_END);
-      long  nBytes = blockNumToFilePos_(newBlockNum + 1) - std::ftell(f);
-      long  n = 0L;
-      while (n < nBytes) {
-        if (std::fputc(0, f) == EOF) {
-          err = true;
-          break;
-        }
-        n++;
-      }
-      tapeLength += (size_t(n) << 3);
-      size_t  tmp = tapePosition;
-      tapePosition = size_t(0) - 1;
-      this->seek_(tmp, false);
-    }
+    readBuffer_();
+    unpackSamples_();
     if (err)
       throw Exception("error writing tape file - is the disk full ?");
+  }
+
+  bool Tape::writeHeader_()
+  {
+    if (!usingNewFormat)
+      return true;
+    if (std::fseek(f, 0L, SEEK_SET) < 0)
+      return false;
+    bool      err = false;
+    uint32_t  tmp = 0U;
+    for (size_t i = 0; i < 4096; i++) {
+      if (!(i & 3)) {
+        tmp = fileHeader[i >> 2];
+        tmp = ((tmp & 0xFF000000U) >> 24) | ((tmp & 0x00FF0000U) >> 8)
+              | ((tmp & 0x0000FF00U) << 8) | ((tmp & 0x000000FFU) << 24);
+      }
+      if (std::fputc(int(tmp & 0xFFU), f) == EOF) {
+        err = true;
+        break;
+      }
+      tmp = tmp >> 8;
+    }
+    if (std::fflush(f) != 0)
+      err = true;
+    return (!err);
   }
 
   void Tape::flushBuffer_()
   {
     if (isBufferDirty) {
-      size_t  blockNum = (tapePosition >> 15);
-      bool    err = false;
-      std::fseek(f, blockNumToFilePos_(blockNum), SEEK_SET);
-      long    n = long(std::fwrite(buf, 1, 4096, f));
+      packSamples_();
+      bool    err = !(writeBuffer_());
+      unpackSamples_();
       isBufferDirty = false;
-      n = (n > 0L ? n : 0L);
-      if ((((blockNum << 12) + size_t(n)) << 3) > tapeLength)
-        tapeLength = ((blockNum << 12) + size_t(n)) << 3;
-      if (n != 4096L)
-        err = true;
-      if (std::fflush(f) != 0)
-        err = true;
       if (err)
         throw Exception("error writing tape file - is the disk full ?");
     }
   }
 
-  Tape::Tape(const char *fileName)
-    : f((std::FILE *) 0),
+  Tape::Tape(const char *fileName, long sampleRate_, int bitsPerSample)
+    : sampleRate(24000L),
+      fileBitsPerSample(1),
+      requestedBitsPerSample(bitsPerSample),
+      f((std::FILE *) 0),
       buf((uint8_t *) 0),
-      cuePointTable((uint32_t *) 0),
+      fileHeader((uint32_t *) 0),
       cuePointCnt(0),
-      isReadOnly(true),
+      isReadOnly(false),
       isBufferDirty(false),
       isPlaybackOn(false),
       isRecordOn(false),
       isMotorOn(false),
-      haveCuePoints(false),
+      usingNewFormat(false),
       tapeLength(0),
       tapePosition(0),
       inputState(0),
@@ -172,61 +257,95 @@ namespace Ep128Emu {
     try {
       if (fileName == (char *) 0 || fileName[0] == '\0')
         throw Exception("invalid tape file name");
+      if (sampleRate_ < 10000L || sampleRate_ > 120000L)
+        throw Exception("invalid tape sample rate");
+      if (!(requestedBitsPerSample == 1 || requestedBitsPerSample == 2 ||
+            requestedBitsPerSample == 4 || requestedBitsPerSample == 8))
+        throw Exception("invalid tape sample size");
       buf = new uint8_t[4096];
       for (size_t i = 0; i < 4096; i++)
         buf[i] = 0;
-      cuePointTable = new uint32_t[1024];
+      fileHeader = new uint32_t[1024];
       f = std::fopen(fileName, "r+b");
-      if (!f)
+      if (!f) {
         f = std::fopen(fileName, "rb");
-      else
-        isReadOnly = false;
+        if (!f) {
+          // create new tape file
+          f = std::fopen(fileName, "w+b");
+          if (f) {
+            usingNewFormat = true;
+            sampleRate = sampleRate_;
+            fileBitsPerSample = requestedBitsPerSample;
+            fileHeader[0] = 0x0275CD72U;
+            fileHeader[1] = 0x1C445126U;
+            fileHeader[2] = uint32_t(fileBitsPerSample);
+            fileHeader[3] = uint32_t(sampleRate);
+            for (size_t i = 4; i < 1024; i++)
+              fileHeader[i] = 0xFFFFFFFFU;
+            if (!writeHeader_()) {
+              std::fclose(f);
+              std::remove(fileName);
+              f = (std::FILE *) 0;
+            }
+          }
+        }
+        else
+          isReadOnly = true;
+      }
       if (!f)
         throw Exception("error opening tape file");
-      if (std::fseek(f, 0L, SEEK_END) < 0)
-        throw Exception("error setting tape file position");
-      long  fSize = std::ftell(f);
-      if (fSize < 0L)
-        throw Exception("cannot find out length of tape file");
-      tapeLength = size_t(fSize) << 3;
-      std::fseek(f, 0L, SEEK_SET);
-      // check for a cue point table
-      if (tapeLength >= 32768) {
-        std::fread(buf, 1, 4096, f);
-        for (size_t i = 0; i < 4096; i += 4) {
-          uint32_t  tmp;
-          tmp =   (uint32_t(buf[i + 0]) << 24) | (uint32_t(buf[i + 1]) << 16)
-                | (uint32_t(buf[i + 2]) << 8)  |  uint32_t(buf[i + 3]);
-          cuePointTable[i >> 2] = tmp;
+      if (!usingNewFormat) {
+        if (std::fseek(f, 0L, SEEK_END) < 0)
+          throw Exception("error setting tape file position");
+        long  fSize = std::ftell(f);
+        if (fSize < 0L)
+          throw Exception("cannot find out length of tape file");
+        std::fseek(f, 0L, SEEK_SET);
+        // check file header
+        if (fSize >= 4096L) {
+          std::fread(buf, 1, 4096, f);
+          for (size_t i = 0; i < 4096; i += 4) {
+            uint32_t  tmp;
+            tmp =   (uint32_t(buf[i + 0]) << 24) | (uint32_t(buf[i + 1]) << 16)
+                  | (uint32_t(buf[i + 2]) << 8)  |  uint32_t(buf[i + 3]);
+            fileHeader[i >> 2] = tmp;
+          }
+          if (fileHeader[0] == 0x0275CD72U && fileHeader[1] == 0x1C445126U &&
+              (fileHeader[2] == 1U || fileHeader[2] == 2U ||
+               fileHeader[2] == 4U || fileHeader[2] == 8U) &&
+              (fileHeader[3] >= 10000U && fileHeader[3] <= 120000U) &&
+              fileHeader[1023] == 0xFFFFFFFFU) {
+            usingNewFormat = true;
+            sampleRate = long(fileHeader[3]);
+            fileBitsPerSample = int(fileHeader[2]);
+            std::qsort(&(fileHeader[4]), 1020, sizeof(uint32_t),
+                       &cuePointCmpFunc);
+            while (fileHeader[cuePointCnt + 4] != uint32_t(0xFFFFFFFFUL))
+              cuePointCnt++;
+          }
         }
-        if (cuePointTable[0] == 0x7B6CDE49 &&
-            cuePointTable[1023] == calculateCuePointChecksum(cuePointTable)) {
-          std::qsort(&(cuePointTable[1]), 1022, sizeof(uint32_t),
-                     &cuePointCmpFunc);
-          cuePointTable[1022] = uint32_t(0xFFFFFFFFUL);
-          cuePointTable[1023] = calculateCuePointChecksum(cuePointTable);
-          while (cuePointTable[cuePointCnt + 1] != uint32_t(0xFFFFFFFFUL))
-            cuePointCnt++;
-          haveCuePoints = true;
-          tapeLength -= 32768;
+        tapeLength = size_t(fSize);
+        if (usingNewFormat)
+          tapeLength = tapeLength - 4096;
+        tapeLength = (tapeLength << 3) / (unsigned int) fileBitsPerSample;
+        if (!usingNewFormat) {
+          fileHeader[0] = 0x0275CD72U;
+          fileHeader[1] = 0x1C445126U;
+          fileHeader[2] = uint32_t(fileBitsPerSample);
+          fileHeader[3] = uint32_t(sampleRate);
+          for (size_t i = 4; i < 1024; i++)
+            fileHeader[i] = 0xFFFFFFFFU;
         }
+        // fill buffer
+        readBuffer_();
+        unpackSamples_();
       }
-      if (!haveCuePoints) {
-        cuePointTable[0] = 0x7B6CDE49;
-        for (size_t i = 1; i < 1023; i++)
-          cuePointTable[i] = uint32_t(0xFFFFFFFFUL);
-        cuePointTable[1023] = calculateCuePointChecksum(cuePointTable);
-      }
-      // fill buffer
-      std::fseek(f, (haveCuePoints ? 4096L : 0L), SEEK_SET);
-      size_t  n = tapeLength >> 3;
-      std::fread(buf, 1, (n < 4096 ? n : 4096), f);
     }
     catch (...) {
       if (f)
         std::fclose(f);
-      if (cuePointTable)
-        delete[] cuePointTable;
+      if (fileHeader)
+        delete[] fileHeader;
       if (buf)
         delete[] buf;
       throw;
@@ -239,11 +358,11 @@ namespace Ep128Emu {
     // FIXME: errors are not handled here
     try {
       flushBuffer_();
-      std::fclose(f);
     }
     catch (...) {
     }
-    delete[] cuePointTable;
+    std::fclose(f);
+    delete[] fileHeader;
     delete[] buf;
   }
 
@@ -270,17 +389,19 @@ namespace Ep128Emu {
   void Tape::seekToCuePoint(bool isForward, double t)
   {
     if (cuePointCnt > 0) {
-      size_t  ndx = findCuePoint(tapePosition, cuePointTable, cuePointCnt);
+      size_t    ndx = 0;
+      findCuePoint_(ndx, tapePosition);
+      uint32_t  *cuePointTable = &(fileHeader[4]);
       if ((cuePointTable[ndx] < tapePosition && !isForward) ||
           (cuePointTable[ndx] > tapePosition && isForward)) {
         this->seek_(cuePointTable[ndx], false);
         return;
       }
-      else if (ndx > 1 && !isForward) {
+      else if (ndx > 0 && !isForward) {
         this->seek_(cuePointTable[ndx - 1], false);
         return;
       }
-      else if (ndx < cuePointCnt && isForward) {
+      else if ((ndx + 1) < cuePointCnt && isForward) {
         this->seek_(cuePointTable[ndx + 1], false);
         return;
       }
@@ -293,79 +414,60 @@ namespace Ep128Emu {
 
   void Tape::addCuePoint()
   {
-    if (isReadOnly || cuePointCnt >= 1021 || !haveCuePoints)
+    if (isReadOnly || cuePointCnt >= 1019 || !usingNewFormat)
       return;
+    uint32_t  *cuePointTable = &(fileHeader[4]);
     uint32_t  pos = (tapePosition < 0xFFFFFFFEUL ?
                      uint32_t(tapePosition) : uint32_t(0xFFFFFFFEUL));
-    size_t    ndx = findCuePoint(pos, cuePointTable, cuePointCnt);
-    if (cuePointTable[ndx] == pos)
+    size_t    ndx = 0;
+    if (findCuePoint_(ndx, pos))
       return;           // there is already a cue point at this position
-    cuePointTable[++cuePointCnt] = pos;
+    cuePointTable[cuePointCnt++] = pos;
     // sort table
-    for (size_t i = cuePointCnt - 1; i >= 1; i--) {
-      uint32_t  tmp = cuePointTable[i];
+    for (size_t i = cuePointCnt - 1; i != 0; ) {
+      uint32_t  tmp = cuePointTable[--i];
       if (tmp < cuePointTable[i + 1])
         break;
       cuePointTable[i] = cuePointTable[i + 1];
       cuePointTable[i + 1] = tmp;
     }
-    cuePointTable[1023] = calculateCuePointChecksum(cuePointTable);
-    std::fseek(f, 0L, SEEK_SET);
-    for (size_t i = 0; i < 1024; i++) {
-      if (std::fputc(int((cuePointTable[i] >> 24) & 0xFF), f) == EOF ||
-          std::fputc(int((cuePointTable[i] >> 16) & 0xFF), f) == EOF ||
-          std::fputc(int((cuePointTable[i] >> 8) & 0xFF), f) == EOF ||
-          std::fputc(int(cuePointTable[i] & 0xFF), f) == EOF)
-        throw Exception("error updating cue point table");
-    }
+    if (!writeHeader_())
+      throw Exception("error updating cue point table");
   }
 
   void Tape::deleteNearestCuePoint()
   {
     if (isReadOnly || cuePointCnt < 1)
       return;
+    uint32_t  *cuePointTable = &(fileHeader[4]);
     uint32_t  pos = (tapePosition < 0xFFFFFFFEUL ?
                      uint32_t(tapePosition) : uint32_t(0xFFFFFFFEUL));
     size_t    ndx = 0;
-    long      nearestDiff = 0x7FFFFFFFL;
-    for (size_t i = 1; i <= cuePointCnt; i++) {
-      long  tmp = long(cuePointTable[i]) - long(pos);
-      tmp = (tmp >= 0L ? tmp : -tmp);
+    uint32_t  nearestDiff = uint32_t(0xFFFFFFFFUL);
+    for (size_t i = 0; i < cuePointCnt; i++) {
+      uint32_t  tmp = (cuePointTable[i] >= pos ?
+                       (cuePointTable[i] - pos) : (pos - cuePointTable[i]));
       if (tmp >= nearestDiff)
         break;
       nearestDiff = tmp;
       ndx = i;
     }
-    for (size_t i = ndx; i < cuePointCnt; i++)
-      cuePointTable[i] = cuePointTable[i + 1];
-    cuePointTable[cuePointCnt--] = uint32_t(0xFFFFFFFEUL);
-    cuePointTable[1023] = calculateCuePointChecksum(cuePointTable);
-    std::fseek(f, 0L, SEEK_SET);
-    for (size_t i = 0; i < 1024; i++) {
-      if (std::fputc(int((cuePointTable[i] >> 24) & 0xFF), f) == EOF ||
-          std::fputc(int((cuePointTable[i] >> 16) & 0xFF), f) == EOF ||
-          std::fputc(int((cuePointTable[i] >> 8) & 0xFF), f) == EOF ||
-          std::fputc(int(cuePointTable[i] & 0xFF), f) == EOF)
-        throw Exception("error updating cue point table");
-    }
+    for (size_t i = (ndx + 1); i < cuePointCnt; i++)
+      cuePointTable[i - 1] = cuePointTable[i];
+    cuePointTable[cuePointCnt--] = uint32_t(0xFFFFFFFFUL);
+    if (!writeHeader_())
+      throw Exception("error updating cue point table");
   }
 
   void Tape::deleteAllCuePoints()
   {
     if (isReadOnly || cuePointCnt < 1)
       return;
-    cuePointTable[0] = 0x7B6CDE49;
-    for (size_t i = 1; i < 1023; i++)
-      cuePointTable[i] = uint32_t(0xFFFFFFFFUL);
-    cuePointTable[1023] = calculateCuePointChecksum(cuePointTable);
-    std::fseek(f, 0L, SEEK_SET);
-    for (size_t i = 0; i < 1024; i++) {
-      if (std::fputc(int((cuePointTable[i] >> 24) & 0xFF), f) == EOF ||
-          std::fputc(int((cuePointTable[i] >> 16) & 0xFF), f) == EOF ||
-          std::fputc(int((cuePointTable[i] >> 8) & 0xFF), f) == EOF ||
-          std::fputc(int(cuePointTable[i] & 0xFF), f) == EOF)
-        throw Exception("error updating cue point table");
-    }
+    for (size_t i = 4; i < 1024; i++)
+      fileHeader[i] = uint32_t(0xFFFFFFFFUL);
+    cuePointCnt = 0;
+    if (!writeHeader_())
+      throw Exception("error updating cue point table");
   }
 
 }       // namespace Ep128Emu
