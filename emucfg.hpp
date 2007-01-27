@@ -151,9 +151,11 @@ namespace Ep128Emu {
     // --------
     struct {
       std::string imageFile;
+      int         defaultSampleRate;
       bool        fastMode;
     } tape;
     bool          tapeSettingsChanged;
+    bool          tapeDefaultSampleRateChanged;
     bool          fastTapeModeChanged;
     // --------
     struct {

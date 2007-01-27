@@ -55,6 +55,7 @@ namespace Ep128Emu {
     bool            fastTapeModeEnabled;
     Tape            *tape;
     std::string     tapeFileName;
+    long            defaultTapeSampleRate;
    protected:
     void            (*breakPointCallback)(void *userData,
                                           bool isIO, bool isWrite,
@@ -124,6 +125,18 @@ namespace Ep128Emu {
     // Set tape image file name (if the file name is NULL or empty, tape
     // emulation is disabled).
     virtual void setTapeFileName(const std::string& fileName);
+    // Set sample rate (in Hz) to be used when creating a new tape image file.
+    // If the file already exists, this setting is ignored, and the value
+    // stored in the file header is used instead.
+    virtual void setDefaultTapeSampleRate(long sampleRate_ = 24000L);
+    // Returns the actual sample rate of the tape file, or zero if there is no
+    // tape image file opened.
+    virtual long getTapeSampleRate() const;
+    // Returns the number of bits per sample in the tape file, or zero if there
+    // is no tape image file opened.
+    virtual int getTapeSampleSize() const;
+    // Returns true if the tape is opened in read-only mode.
+    virtual bool getIsTapeReadOnly() const;
     // start tape playback
     virtual void tapePlay();
     // start tape recording; if the tape file is read-only, this is
@@ -136,6 +149,9 @@ namespace Ep128Emu {
     // Returns the current tape position in seconds, or -1.0 if there is
     // no tape image file opened.
     virtual double getTapePosition() const;
+    // Returns the current length of the tape file in seconds, or -1.0 if
+    // there is no tape image file opened.
+    virtual double getTapeLength() const;
     // Seek forward (if isForward = true) or backward (if isForward = false)
     // to the nearest cue point, or by 't' seconds if no cue point is found.
     virtual void tapeSeekToCuePoint(bool isForward = true, double t = 10.0);
@@ -257,6 +273,9 @@ namespace Ep128Emu {
         this->audioConverter->sendInputSignal(uint32_t(left)
                                               | (uint32_t(right) << 16));
     }
+    // this function is similar to the public setTapeFileName(), but allows
+    // derived classes to use a different sample size than the default of 1 bit
+    void setTapeFileName(const std::string& fileName, int bitsPerSample);
    private:
     void setTapeMotorState_(bool newState);
    protected:
@@ -278,12 +297,6 @@ namespace Ep128Emu {
     inline bool haveTape() const
     {
       return (this->tape != (Tape *) 0);
-    }
-    inline long getTapeSampleRate() const
-    {
-      if (this->tape != (Tape *) 0)
-        return this->tape->getSampleRate();
-      return 0L;
     }
     inline int runTape(int tapeInput)
     {

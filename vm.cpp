@@ -115,6 +115,7 @@ namespace Ep128Emu {
       fastTapeModeEnabled(false),
       tape((Tape *) 0),
       tapeFileName(""),
+      defaultTapeSampleRate(24000L),
       breakPointCallback(&defaultBreakPointCallback),
       breakPointCallbackUserData((void *) 0),
       noBreakOnDataRead(false),
@@ -372,24 +373,35 @@ namespace Ep128Emu {
 
   void VirtualMachine::setTapeFileName(const std::string& fileName)
   {
-    if (tape) {
-      if (fileName == tapeFileName) {
-        tape->seek(0.0);
-        return;
-      }
-      delete tape;
-      tape = (Tape *) 0;
-      tapeFileName = "";
-    }
-    if (fileName.length() == 0)
-      return;
-    tape = new Tape(fileName.c_str());
-    tapeFileName = fileName;
-    if (tapeRecordOn)
-      tape->record();
-    else if (tapePlaybackOn)
-      tape->play();
-    tape->setIsMotorOn(tapeMotorOn);
+    setTapeFileName(fileName, 1);
+  }
+
+  void VirtualMachine::setDefaultTapeSampleRate(long sampleRate_)
+  {
+    defaultTapeSampleRate = (sampleRate_ > 10000L ?
+                             (sampleRate_ < 120000L ? sampleRate_ : 120000L)
+                             : 10000L);
+  }
+
+  long VirtualMachine::getTapeSampleRate() const
+  {
+    if (tape)
+      return tape->getSampleRate();
+    return 0L;
+  }
+
+  int VirtualMachine::getTapeSampleSize() const
+  {
+    if (tape)
+      return tape->getSampleSize();
+    return 0;
+  }
+
+  bool VirtualMachine::getIsTapeReadOnly() const
+  {
+    if (tape)
+      return tape->getIsReadOnly();
+    return true;
   }
 
   void VirtualMachine::tapePlay()
@@ -434,6 +446,13 @@ namespace Ep128Emu {
   {
     if (tape)
       return tape->getPosition();
+    return -1.0;
+  }
+
+  double VirtualMachine::getTapeLength() const
+  {
+    if (tape)
+      return tape->getLength();
     return -1.0;
   }
 
@@ -612,6 +631,29 @@ namespace Ep128Emu {
   void VirtualMachine::loadDemo(File::Buffer& buf)
   {
     (void) buf;
+  }
+
+  void VirtualMachine::setTapeFileName(const std::string& fileName,
+                                       int bitsPerSample)
+  {
+    if (tape) {
+      if (fileName == tapeFileName) {
+        tape->seek(0.0);
+        return;
+      }
+      delete tape;
+      tape = (Tape *) 0;
+      tapeFileName = "";
+    }
+    if (fileName.length() == 0)
+      return;
+    tape = new Tape(fileName.c_str(), 0, defaultTapeSampleRate, bitsPerSample);
+    tapeFileName = fileName;
+    if (tapeRecordOn)
+      tape->record();
+    else if (tapePlaybackOn)
+      tape->play();
+    tape->setIsMotorOn(tapeMotorOn);
   }
 
   void VirtualMachine::setTapeMotorState_(bool newState)

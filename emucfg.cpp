@@ -287,6 +287,10 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "tape.imageFile",
                                 tape.imageFile, std::string(""),
                                 tapeSettingsChanged);
+    defineConfigurationVariable(*this, "tape.defaultSampleRate",
+                                tape.defaultSampleRate, int(24000),
+                                tapeDefaultSampleRateChanged,
+                                10000.0, 120000.0);
     defineConfigurationVariable(*this, "tape.fastMode",
                                 tape.fastMode, false,
                                 fastTapeModeChanged);
@@ -471,6 +475,10 @@ namespace Ep128Emu {
         errorCallback(errorCallbackUserData, e.what());
       }
       floppyDChanged = false;
+    }
+    if (tapeDefaultSampleRateChanged) {
+      vm_.setDefaultTapeSampleRate(tape.defaultSampleRate);
+      tapeDefaultSampleRateChanged = false;
     }
     if (tapeSettingsChanged) {
       try {

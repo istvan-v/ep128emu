@@ -75,17 +75,35 @@ namespace Ep128Emu {
     bool writeHeader_();
     void flushBuffer_();
    public:
-    // Open tape file 'fileName'. If the file does not exist yet, it is created
-    // with the specified sample rate and bits per sample. Otherwise,
-    // 'sampleRate_' is ignored, and samples are converted according to
-    // 'bitsPerSample'.
-    Tape(const char *fileName,
+    // Open tape file 'fileName'. If the file does not exist yet, it may be
+    // created (depending on the 'mode' parameter) with the specified sample
+    // rate and bits per sample. Otherwise, 'sampleRate_' is ignored, and
+    // samples are converted according to 'bitsPerSample'.
+    // 'mode' can be one of the following values:
+    //   0: open tape file read-write if possible, or create a new file if
+    //      it does not exist
+    //   1: open tape file read-write if possible, and fail if it does not
+    //      exist
+    //   2: open an existing tape file read-only
+    //   3: create new tape file in read-write mode; if the file already
+    //      exists, it is truncated and a new header is written
+    Tape(const char *fileName, int mode = 0,
          long sampleRate_ = 24000L, int bitsPerSample = 1);
     virtual ~Tape();
     // get sample rate of tape emulation
     inline long getSampleRate() const
     {
       return sampleRate;
+    }
+    // get number of bits (1, 2, 4, or 8) per sample in tape file
+    inline int getSampleSize() const
+    {
+      return fileBitsPerSample;
+    }
+    // returns true if the tape file is opened in read-only mode
+    inline bool getIsReadOnly() const
+    {
+      return isReadOnly;
     }
     // run tape emulation for a period of 1.0 / getSampleRate() seconds
     inline void runOneSample()
@@ -138,7 +156,18 @@ namespace Ep128Emu {
     // Returns the current tape position in seconds.
     inline double getPosition() const
     {
-      return (double(long(tapePosition)) / double(sampleRate));
+      return (double(uint32_t(tapePosition)) / double(sampleRate));
+    }
+    // Returns the current tape length in seconds.
+    inline double getLength() const
+    {
+      return (double(uint32_t(tapeLength)) / double(sampleRate));
+    }
+    // Returns true if the current position is at the end of the tape;
+    // should be used only when reading a tape file.
+    inline bool getIsEndOfTape() const
+    {
+      return (tapePosition >= tapeLength);
     }
     // Seek forward (if isForward = true) or backward (if isForward = false)
     // to the nearest cue point, or by 't' seconds if no cue point is found.

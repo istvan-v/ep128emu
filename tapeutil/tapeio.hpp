@@ -21,6 +21,7 @@
 #define EP128EMU_TAPEIO_HPP
 
 #include "ep128emu.hpp"
+#include "tape.hpp"
 
 #include <cstdio>
 #include <string>
@@ -88,11 +89,9 @@ namespace Ep128Emu {
 
   class TapeInput_TapeImage : public TapeInput {
    private:
-    std::FILE *f;
-    uint8_t bitBuffer;
-    uint8_t bitsRemaining;
+    Tape    *f;
    public:
-    TapeInput_TapeImage(std::FILE *f_, Fl_Progress *disp);
+    TapeInput_TapeImage(Tape *f_, Fl_Progress *disp);
     virtual ~TapeInput_TapeImage();
     // returns tape signal (0 or 1), or -1 on end of file
     virtual int getSample_();
@@ -132,14 +131,14 @@ namespace Ep128Emu {
 
   class TapeOutput {
    private:
-    std::FILE *f;
-    std::vector<size_t> cuePoints;
-    uint8_t   bitBuffer;
-    uint8_t   bitCnt;
+    Tape      *f;
     uint16_t  crcValue;
-    bool      isFlushed;
     size_t    fileSize;
-    void writeSample(int n);
+    inline void writeSample(int n)
+    {
+      this->f->setInputSignal(n);
+      this->f->runOneSample();
+    }
     void writePeriod(size_t periodLength);
     void resetCRC();
     void writeByte(uint8_t n);
@@ -148,7 +147,6 @@ namespace Ep128Emu {
     TapeOutput(const char *fileName);
     virtual ~TapeOutput();
     void writeFile(const TapeFile& file_);
-    void flush();
   };
 
   class TapeFiles {

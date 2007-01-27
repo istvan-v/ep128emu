@@ -57,22 +57,41 @@ namespace Ep128Emu {
 
   void Tape::packSamples_()
   {
-    unsigned char byteBuf = 0;
-    unsigned char bitCnt = 0;
-    size_t        writePos = 0;
-    for (size_t i = 0; i < 4096; i++) {
-      unsigned char c = buf[i];
-      if (requestedBitsPerSample < 8)
-        c = c << (unsigned char) (8 - requestedBitsPerSample);
-      for (int j = 0; j < fileBitsPerSample; j++) {
-        byteBuf = (byteBuf << 1) | ((c & (unsigned char) 0x80) >> 7);
-        c = (c & (unsigned char) 0x7F) << 1;
-        bitCnt++;
+    uint8_t maxValue = uint8_t((1 << requestedBitsPerSample) - 1);
+    uint8_t *buf_ = buf;
+    if (fileBitsPerSample == requestedBitsPerSample) {
+      for (size_t i = 0; i < 4096; i++) {
+        uint8_t c = buf_[i];
+        buf_[i] = (c < maxValue ? c : maxValue);
       }
-      if (bitCnt >= 8) {
-        buf[writePos++] = uint8_t(byteBuf);
-        byteBuf = 0;
-        bitCnt = 0;
+    }
+    else if (fileBitsPerSample < requestedBitsPerSample) {
+      uint8_t rShift = uint8_t(requestedBitsPerSample - fileBitsPerSample);
+      for (size_t i = 0; i < 4096; i++) {
+        uint8_t c = buf_[i];
+        buf_[i] = (c < maxValue ? c : maxValue) >> rShift;
+      }
+    }
+    else {
+      uint8_t lShift = uint8_t(fileBitsPerSample - requestedBitsPerSample);
+      for (size_t i = 0; i < 4096; i++) {
+        uint8_t c = buf_[i];
+        buf_[i] = (c < maxValue ? c : maxValue) << lShift;
+      }
+    }
+    if (fileBitsPerSample != 8) {
+      int     nBits = fileBitsPerSample;
+      int     byteBuf = 0;
+      int     bitCnt = 8;
+      size_t  writePos = 0;
+      for (size_t i = 0; i < 4096; i++) {
+        byteBuf = (byteBuf << nBits) | int(buf_[i]);
+        bitCnt = bitCnt - nBits;
+        if (!bitCnt) {
+          buf_[writePos++] = uint8_t(byteBuf);
+          byteBuf = 0;
+          bitCnt = 8;
+        }
       }
     }
   }
@@ -129,36 +148,32 @@ namespace Ep128Emu {
 
   void Tape::unpackSamples_()
   {
-    unsigned char byteBuf = 0;
-    unsigned char bitCnt = 0;
-    size_t        readPos = 512U * (unsigned int) fileBitsPerSample;
-    for (size_t i = 4096; i > 0; ) {
-      if (!bitCnt) {
-        byteBuf = (unsigned char) buf[--readPos];
-        bitCnt = 8;
+    uint8_t *buf_ = buf;
+    if (fileBitsPerSample != 8) {
+      int     nBits = fileBitsPerSample;
+      int     byteBuf = 0;
+      int     bitCnt = 0;
+      int     bitMask = (1 << fileBitsPerSample) - 1;
+      size_t  readPos = 512U * (unsigned int) fileBitsPerSample;
+      for (size_t i = 4096; i != 0; ) {
+        if (!bitCnt) {
+          byteBuf = int(buf_[--readPos]);
+          bitCnt = 8;
+        }
+        buf_[--i] = uint8_t(byteBuf & bitMask);
+        byteBuf = byteBuf >> nBits;
+        bitCnt = bitCnt - nBits;
       }
-      unsigned char c = byteBuf;
-      switch (fileBitsPerSample) {
-      case 1:
-        c &= (unsigned char) 0x01;
-        break;
-      case 2:
-        c &= (unsigned char) 0x03;
-        break;
-      case 4:
-        c &= (unsigned char) 0x0F;
-        break;
-      case 8:
-        c &= (unsigned char) 0xFF;
-        break;
-      }
-      byteBuf = byteBuf >> (unsigned char) fileBitsPerSample;
-      bitCnt = bitCnt - (unsigned char) fileBitsPerSample;
-      if (fileBitsPerSample < requestedBitsPerSample)
-        c = c << (unsigned char) (requestedBitsPerSample - fileBitsPerSample);
-      else if (fileBitsPerSample > requestedBitsPerSample)
-        c = c >> (unsigned char) (fileBitsPerSample - requestedBitsPerSample);
-      buf[--i] = uint8_t(c);
+    }
+    if (fileBitsPerSample < requestedBitsPerSample) {
+      uint8_t lShift = uint8_t(requestedBitsPerSample - fileBitsPerSample);
+      for (size_t i = 0; i < 4096; i++)
+        buf_[i] = buf_[i] << lShift;
+    }
+    else if (fileBitsPerSample > requestedBitsPerSample) {
+      uint8_t rShift = uint8_t(fileBitsPerSample - requestedBitsPerSample);
+      for (size_t i = 0; i < 4096; i++)
+        buf_[i] = buf_[i] >> rShift;
     }
   }
 
@@ -235,7 +250,8 @@ namespace Ep128Emu {
     }
   }
 
-  Tape::Tape(const char *fileName, long sampleRate_, int bitsPerSample)
+  Tape::Tape(const char *fileName, int mode,
+             long sampleRate_, int bitsPerSample)
     : sampleRate(24000L),
       fileBitsPerSample(1),
       requestedBitsPerSample(bitsPerSample),
@@ -262,39 +278,42 @@ namespace Ep128Emu {
       if (!(requestedBitsPerSample == 1 || requestedBitsPerSample == 2 ||
             requestedBitsPerSample == 4 || requestedBitsPerSample == 8))
         throw Exception("invalid tape sample size");
+      if (!(mode >= 0 && mode <= 3))
+        throw Exception("invalid tape open mode parameter");
       buf = new uint8_t[4096];
       for (size_t i = 0; i < 4096; i++)
         buf[i] = 0;
       fileHeader = new uint32_t[1024];
-      f = std::fopen(fileName, "r+b");
-      if (!f) {
+      if (mode == 0 || mode == 1)
+        f = std::fopen(fileName, "r+b");
+      if (f == (std::FILE *) 0 && mode != 3) {
         f = std::fopen(fileName, "rb");
-        if (!f) {
-          // create new tape file
-          f = std::fopen(fileName, "w+b");
-          if (f) {
-            usingNewFormat = true;
-            sampleRate = sampleRate_;
-            fileBitsPerSample = requestedBitsPerSample;
-            fileHeader[0] = 0x0275CD72U;
-            fileHeader[1] = 0x1C445126U;
-            fileHeader[2] = uint32_t(fileBitsPerSample);
-            fileHeader[3] = uint32_t(sampleRate);
-            for (size_t i = 4; i < 1024; i++)
-              fileHeader[i] = 0xFFFFFFFFU;
-            if (!writeHeader_()) {
-              std::fclose(f);
-              std::remove(fileName);
-              f = (std::FILE *) 0;
-            }
+        if (f)
+          isReadOnly = true;
+      }
+      if (f == (std::FILE *) 0 && (mode == 0 || mode == 3)) {
+        // create new tape file
+        f = std::fopen(fileName, "w+b");
+        if (f) {
+          usingNewFormat = true;
+          sampleRate = sampleRate_;
+          fileBitsPerSample = requestedBitsPerSample;
+          fileHeader[0] = 0x0275CD72U;
+          fileHeader[1] = 0x1C445126U;
+          fileHeader[2] = uint32_t(fileBitsPerSample);
+          fileHeader[3] = uint32_t(sampleRate);
+          for (size_t i = 4; i < 1024; i++)
+            fileHeader[i] = 0xFFFFFFFFU;
+          if (!writeHeader_()) {
+            std::fclose(f);
+            std::remove(fileName);
+            f = (std::FILE *) 0;
           }
         }
-        else
-          isReadOnly = true;
       }
       if (!f)
         throw Exception("error opening tape file");
-      if (!usingNewFormat) {
+      if (!usingNewFormat) {            // if opening an already existing file:
         if (std::fseek(f, 0L, SEEK_END) < 0)
           throw Exception("error setting tape file position");
         long  fSize = std::ftell(f);

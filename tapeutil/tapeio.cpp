@@ -19,6 +19,7 @@
 
 #include "ep128emu.hpp"
 #include "system.hpp"
+#include "tape.hpp"
 #include "tapeio.hpp"
 
 #include <iostream>
@@ -454,50 +455,32 @@ namespace Ep128Emu {
     return 0;
   }
 
-  TapeInput_TapeImage::TapeInput_TapeImage(std::FILE *f_,
+  TapeInput_TapeImage::TapeInput_TapeImage(Tape *f_,
                                            Fl_Progress *disp)
     : TapeInput(disp),
-      f(f_),
-      bitBuffer(0),
-      bitsRemaining(0)
+      f(f_)
   {
     if (f) {
-      if (std::fseek(f, 0L, SEEK_END) == 0) {
-        long  fileSize = std::ftell(f);
-        if (fileSize > 0L)
-          totalSamples = size_t(fileSize) << 3;
-      }
-      std::fseek(f, 0L, SEEK_SET);
+      totalSamples =
+          size_t(uint32_t(f->getLength() * double(f->getSampleRate()) + 0.5));
+      f->seek(0.0);
+      f->play();
+      f->setIsMotorOn(true);
     }
   }
 
   TapeInput_TapeImage::~TapeInput_TapeImage()
   {
     if (f)
-      std::fclose(f);
+      delete f;
   }
 
   int TapeInput_TapeImage::getSample_()
   {
-    if (!bitsRemaining) {
-      if (f) {
-        int   c = std::fgetc(f);
-        if (c != EOF) {
-          bitBuffer = uint8_t(c);
-          bitsRemaining = 8;
-        }
-        else {
-          std::fclose(f);
-          f = (std::FILE *) 0;
-        }
-      }
-      if (!bitsRemaining)
-        return -1;
-    }
-    int   retval = ((bitBuffer & 0x80) == 0 ? 0 : 1);
-    bitBuffer <<= 1;
-    bitsRemaining--;
-    return retval;
+    if (f->getIsEndOfTape())
+      return -1;
+    f->runOneSample();
+    return f->getOutputSignal();
   }
 
   TapeInput_SndFile::TapeInput_SndFile(SNDFILE *f_, SF_INFO& sfinfo,
@@ -569,21 +552,6 @@ namespace Ep128Emu {
 
   // --------------------------------------------------------------------------
 
-  void TapeOutput::writeSample(int n)
-  {
-    isFlushed = false;
-    bitBuffer = ((bitBuffer & 0x7F) << 1) | uint8_t(n > 0 ? 1 : 0);
-    if (++bitCnt < 8)
-      return;
-    bitCnt = 0;
-    if (f) {
-      if (std::fputc(bitBuffer, f) == EOF)
-        throw Exception("error writing file - is the disk full ?");
-      fileSize++;
-    }
-    bitBuffer = 0;
-  }
-
   void TapeOutput::writePeriod(size_t periodLength)
   {
     size_t  i = 0;
@@ -623,49 +591,32 @@ namespace Ep128Emu {
   }
 
   TapeOutput::TapeOutput(const char *fileName)
-    : f((std::FILE *) 0),
-      bitBuffer(0),
-      bitCnt(0),
+    : f((Tape *) 0),
       crcValue(0),
-      isFlushed(false),
       fileSize(0)
   {
-    if (fileName == (char *) 0 || fileName[0] == '\0')
-      throw Exception("invalid file name");
-    f = std::fopen(fileName, "wb");
-    if (!f)
-      throw Exception("error opening file");
     try {
-      // empty space for cue point table (will be written later by flush())
-      for (size_t i = 0; i < 32768; i++)
-        writeSample(0);
+      f = new Tape(fileName, 3, 24000L, 1);
+      f->record();
+      f->setIsMotorOn(true);
     }
     catch (...) {
-      std::fclose(f);
-      f = (std::FILE *) 0;
+      if (f)
+        delete f;
       throw;
     }
   }
 
   TapeOutput::~TapeOutput()
   {
-    try {
-      // FIXME: cannot handle errors here
-      this->flush();
-      if (f)
-        std::fclose(f);
-    }
-    catch (...) {
-    }
+    // FIXME: cannot handle errors here
+    delete f;
   }
 
   void TapeOutput::writeFile(const TapeFile& file_)
   {
     // add cue point at the beginning of the file
-    if (cuePoints.size() < 1021) {
-      if (fileSize >= 4096 && fileSize <= 0x20000000)
-        cuePoints.push_back((fileSize - 4096) << 3);
-    }
+    f->addCuePoint();
     // write lead-in, sync bit, dummy byte, and 0x6A
     for (size_t i = 0; i < 6000; i++)       // 0.25 seconds
       writeSample(0);
@@ -685,7 +636,7 @@ namespace Ep128Emu {
     for (size_t i = 0; i < fname.length(); i++)
       writeByte(uint8_t(fname[i]));
     writeCRC();
-    for (size_t i = 0; i < 600; i++)        // 0.25 seconds
+    for (size_t i = 0; i < 150; i++)        // 0.0625 seconds
       writePeriod(10);
     for (size_t i = 0; i < 6000; i++)       // 0.25 seconds
       writeSample(0);
@@ -717,61 +668,13 @@ namespace Ep128Emu {
         // write CRC
         writeCRC();
       }
-      for (size_t l = 0; l < 600; l++)      // 0.25 seconds
+      for (size_t l = 0; l < 150; l++)      // 0.0625 seconds
         writePeriod(10);
       for (size_t l = 0; l < 6000; l++)     // 0.25 seconds
         writeSample(0);
     }
     for (size_t i = 0; i < 24000; i++)      // 1 second
       writeSample(0);
-    this->flush();
-  }
-
-  void TapeOutput::flush()
-  {
-    if (f == (std::FILE *) 0 || isFlushed)
-      return;
-    while (bitCnt != 0)
-      writeSample(0);
-    // write cue point table
-    if (std::fseek(f, 0L, SEEK_SET) < 0)
-      throw Exception("error setting file position in tape image");
-    bool    err = false;
-    if (std::fputc(0x7B, f) == EOF)
-      err = true;
-    if (std::fputc(0x6C, f) == EOF)
-      err = true;
-    if (std::fputc(0xDE, f) == EOF)
-      err = true;
-    if (std::fputc(0x49, f) == EOF)
-      err = true;
-    uint32_t  cuePointChecksum = 1U;
-    for (size_t i = 0; i < 1023; i++) {
-      uint32_t  n = uint32_t(0xFFFFFFFFUL);
-      if (i < cuePoints.size())
-        n = uint32_t(cuePoints[i]);
-      else if (i == 1022)
-        n = cuePointChecksum;
-      if (std::fputc(int((n >> 24) & 0xFF), f) == EOF)
-        err = true;
-      if (std::fputc(int((n >> 16) & 0xFF), f) == EOF)
-        err = true;
-      if (std::fputc(int((n >> 8) & 0xFF), f) == EOF)
-        err = true;
-      if (std::fputc(int(n & 0xFF), f) == EOF)
-        err = true;
-      cuePointChecksum ^= n;
-      uint64_t  tmp = cuePointChecksum * uint64_t(0xC2B0C3CCUL);
-      cuePointChecksum = (uint32_t(tmp) ^ uint32_t(tmp >> 32))
-                         & uint32_t(0xFFFFFFFFUL);
-    }
-    if (err)
-      throw Exception("error writing file - is the disk full ?");
-    if (std::fseek(f, long(fileSize), SEEK_SET) < 0)
-      throw Exception("error setting file position in tape image");
-    while (fileSize < 8192)
-      writeSample(0);
-    isFlushed = true;
   }
 
   // --------------------------------------------------------------------------
@@ -799,11 +702,9 @@ namespace Ep128Emu {
     SF_INFO   sfinfo;
     std::memset(&sfinfo, 0, sizeof(SF_INFO));
     SNDFILE   *sf = sf_open(fileName_, SFM_READ, &sfinfo);
-    std::FILE *f = (std::FILE *) 0;
+    Tape      *f = (Tape *) 0;
     if (!sf) {
-      f = std::fopen(fileName_, "rb");
-      if (!f)
-        throw Exception("error opening file");
+      f = new Tape(fileName_, 2, 24000L, 1);
     }
     TapeInput *t = (TapeInput *) 0;
     try {
@@ -817,7 +718,7 @@ namespace Ep128Emu {
       if (sf)
         sf_close(sf);
       if (f)
-        std::fclose(f);
+        delete f;
       throw;
     }
     TapeFile  *tf = (TapeFile *) 0;
@@ -900,7 +801,6 @@ namespace Ep128Emu {
       TapeOutput  t(fileName_);
       for (size_t i = 0; i < tapeFiles_.size(); i++)
         t.writeFile(*(tapeFiles_[i]));
-      t.flush();
     }
     return true;
   }
