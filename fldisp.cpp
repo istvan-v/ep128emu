@@ -446,35 +446,50 @@ namespace Ep128Emu {
               // convert to RGB
               const unsigned char *bufp = &(lineBuf_[0]);
               unsigned char       *p = pixelBuf_;
-              fracX_ = 0;
+              uint32_t            c = 0U;
+              fracX_ = displayWidth_;
               if (!halfResolutionX_) {
-                for (int xc = 0;
-                     xc < displayWidth_ && bufp < &(lineBuf_[768]);
-                     xc++, p += 3) {
-                  uint32_t  c = colormap(*bufp);
-                  p[0] = (unsigned char) (c >> 16) & (unsigned char) 0xFF;
-                  p[1] = (unsigned char) (c >> 8) & (unsigned char) 0xFF;
-                  p[2] = (unsigned char) c & (unsigned char) 0xFF;
-                  fracX_ += 768;
-                  while (fracX_ >= displayWidth_) {
-                    fracX_ -= displayWidth_;
-                    bufp++;
+                for (int xc = 0; xc < displayWidth_; xc++, p += 3) {
+                  if (fracX_ >= displayWidth_) {
+                    if (bufp >= &(lineBuf_[768]))
+                      break;
+                    do {
+                      c = colormap(*bufp);
+                      fracX_ -= displayWidth_;
+                      bufp++;
+                    } while (fracX_ >= displayWidth_);
                   }
+                  {
+                    uint32_t  tmp = c;
+                    p[2] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[1] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[0] = (unsigned char) tmp & (unsigned char) 0xFF;
+                  }
+                  fracX_ += 768;
                 }
               }
               else {
-                for (int xc = 0;
-                     xc < displayWidth_ && bufp < &(lineBuf_[768]);
-                     xc++, p += 3) {
-                  uint32_t  c = colormap(bufp[0], bufp[1]);
-                  p[0] = (unsigned char) (c >> 16) & (unsigned char) 0xFF;
-                  p[1] = (unsigned char) (c >> 8) & (unsigned char) 0xFF;
-                  p[2] = (unsigned char) c & (unsigned char) 0xFF;
-                  fracX_ += 384;
-                  while (fracX_ >= displayWidth_) {
-                    fracX_ -= displayWidth_;
-                    bufp += 2;
+                for (int xc = 0; xc < displayWidth_; xc++, p += 3) {
+                  if (fracX_ >= displayWidth_) {
+                    if (bufp >= &(lineBuf_[768]))
+                      break;
+                    do {
+                      c = colormap(bufp[0], bufp[1]);
+                      fracX_ -= displayWidth_;
+                      bufp += 2;
+                    } while (fracX_ >= displayWidth_);
                   }
+                  {
+                    uint32_t  tmp = c;
+                    p[2] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[1] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[0] = (unsigned char) tmp & (unsigned char) 0xFF;
+                  }
+                  fracX_ += 384;
                 }
               }
             }
