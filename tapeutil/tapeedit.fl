@@ -143,7 +143,7 @@ class TapeEditorGUI {open selected
   soundFileMaxFreq = 3000.0f;
   copyrightText = new Fl_Text_Buffer;
   copyrightText->append("ep128emu -- portable Enterprise 128 emulator\\n");
-  copyrightText->append("Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>\\n");
+  copyrightText->append("Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>\\n");
   copyrightText->append("http://sourceforge.net/projects/ep128emu/\\n");
   copyrightText->append("Z80 emulation is based on ENTER emulator, Copyright (C) 1999-2001 by\\n");
   copyrightText->append("Kevin Thacker, and ep32 (C) by Vincze B\\351la Gy\\366rgy.\\n");
@@ -621,13 +621,42 @@ class TapeEditorGUI {open selected
   }
 } 
 
-Function {main()} {open return_type int
+Function {main(int argc, char **argv)} {open return_type int
 } {
   code {{
   Fl::lock();
   TapeEditorGUI *w = new TapeEditorGUI;
   try {
     w->mainWindow->show();
+    for (int i = 1; i < argc; i++) {
+      if (!w->busyFlag) {
+        w->busyFlag = true;
+        if (argv[i] != (char *) 0 && argv[i][0] != \'\\0\') {
+          std::string tmp;
+          Ep128Emu::splitPath(std::string(argv[i]), w->tapeDir, tmp);
+          w->progressWindow->show();
+          w->exitFlag = false;
+          try {
+            w->fileList.readTapeImage(argv[i],
+                                      w->progressDisplay,
+                                      w->soundFileChannel,
+                                      w->soundFileMinFreq,
+                                      w->soundFileMaxFreq);
+          }
+          catch (std::exception& e) {
+            w->errorMessage->label(e.what());
+            w->errorWindow->show();
+            do {
+              Fl::wait(0.05);
+            } while (w->errorWindow->shown());
+            w->errorMessage->label("");
+          }
+          w->progressWindow->hide();
+          w->updateDisplay();
+        }
+        w->busyFlag = false;
+      }
+    }
     do {
       if (w->updateFlag)
         w->updateDisplay();
