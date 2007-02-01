@@ -1,0 +1,197 @@
+# data file for the Fltk User Interface Designer (fluid)
+version 1.0107 
+do_not_include_H_from_C 
+header_name {.hpp} 
+code_name {.cpp}
+decl {\#include "gui.hpp"} {selected
+} 
+
+class EmulatorWindowGroup {open : {public Fl_Group}
+} {
+  decl {void *gui_;} {}
+  Function {EmulatorWindowGroup(int xx, int yy, int ww, int hh, const char *lbl_ = (char *) 0) : Fl_Group(xx, yy, ww, hh, lbl_)} {open
+  } {
+    code {{
+  gui_ = (void *) 0;
+}} {}
+  }
+  Function {~EmulatorWindowGroup()} {open return_type virtual
+  } {}
+  Function {handle(int event)} {open return_type {virtual int}
+  } {
+    code {{
+  if (gui_)
+    return ((Ep128EmuGUI *) gui_)->handleFLTKEvent(event);
+  return 0;
+}} {}
+  }
+  Function {setGUI(void *gui__)} {open return_type void
+  } {
+    code {{
+  gui_ = gui__;
+}} {}
+  }
+} 
+
+class Ep128EmuGUI {open
+} {
+  decl {Ep128Emu::VideoDisplay& display;} {}
+  decl {Ep128Emu::AudioOutput& audioOutput;} {}
+  decl {Ep128Emu::VirtualMachine& vm;} {}
+  decl {Ep128Emu::VMThread& vmThread;} {}
+  decl {Ep128Emu::EmulatorConfiguration& config;} {}
+  decl {Ep128Emu::FLTKDisplay *flDisplay;} {}
+  decl {Ep128Emu::OpenGLDisplay *glDisplay;} {}
+  decl {Fl_Window *emulatorWindow;} {}
+  decl {uintptr_t mainThreadID;} {}
+  decl {int displayMode;} {}
+  decl {bool exitFlag;} {}
+  decl {bool errorFlag;} {}
+  decl {int oldWindowWidth;} {}
+  decl {int oldWindowHeight;} {}
+  decl {int oldDisplayMode;} {}
+  decl {int oldDemoStatus;} {}
+  decl {bool oldPauseFlag;} {}
+  decl {long oldTapeSampleRate;} {}
+  decl {int oldTapeSampleSize;} {}
+  decl {bool oldTapeReadOnlyFlag;} {}
+  decl {long oldTapePosition;} {}
+  decl {bool functionKeyState[12];} {}
+  decl {int tapeButtonState;} {}
+  decl {int oldTapeButtonState;} {}
+  decl {std::string demoRecordFileName;} {}
+  decl {Ep128Emu::File *demoRecordFile;} {}
+  decl {std::string quickSnapshotFileName;} {}
+  decl {bool updateDisplayEntered;} {}
+  decl {bool singleThreadedMode;} {}
+  decl {void init_();} {}
+  decl {void updateDisplay(double t = 0.025);} {public
+  }
+  decl {void errorMessage(const char *msg);} {public
+  }
+  decl {void run();} {public
+  }
+  decl {void resizeWindow(int w, int h);} {}
+  decl {int handleFLTKEvent(int event);} {public
+  }
+  decl {bool lockVMThread(size_t t = 2000);} {public
+  }
+  decl {void unlockVMThread();} {public
+  }
+  decl {bool setSingleThreadedMode(bool isEnabled);} {public
+  }
+  decl {static void menuCallback_File_SetFileIODir(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_LoadFile(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_LoadConfig(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_SaveConfig(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_QSFileName(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_QSLoad(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_QSSave(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_SaveSnapshot(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_RecordDemo(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_StopDemo(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_RecordSound(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_StopSndRecord(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_LoadPRG(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_SavePRG(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_Quit(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_Pause(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_FullSpeed(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_OpenTape(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_TapePlay(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_TapeStop(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_TapeRecord(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_TapeRewind(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_TapePrvCP(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_TapeBwd10s(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_TapeBwd60s(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_TapeNxtCP(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_TapeFwd10s(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_TapeFwd60s(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_AddCP(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_DeleteCP(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_DeleteCPs(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_TapeClose(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_Reset(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_ColdReset(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_ResetFreqs(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_ResetAll(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_DpyMode(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Debug_OpenDebugger(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Help_About(Fl_Widget *o, void *v);} {}
+  Function {Ep128EmuGUI(Ep128Emu::VideoDisplay& display_, Ep128Emu::AudioOutput& audioOutput_, Ep128Emu::VirtualMachine& vm_, Ep128Emu::VMThread& vmThread_, Ep128Emu::EmulatorConfiguration& config_) : display(display_), audioOutput(audioOutput_), vm(vm_), vmThread(vmThread_), config(config_)} {open
+  } {
+    code {{
+  this->init_();
+}} {}
+    Fl_Window mainWindow {
+      label ep128emu open
+      xywh {248 54 400 360} type Single color 37 resizable size_range {384 348 1536 1182} visible
+    } {
+      Fl_Menu_Bar mainMenuBar {open
+        xywh {0 0 340 30} box FLAT_BOX color 37 selection_color 236 labelcolor 52 textcolor 52
+      } {}
+      Fl_Group emulatorWindowGroup {open
+        xywh {0 30 400 300} color 0
+        code0 {o->add(emulatorWindow);}
+        code1 {o->setGUI(this);}
+        class EmulatorWindowGroup
+      } {}
+      Fl_Group statusDisplayGroup {open
+        xywh {40 330 360 30} color 37
+      } {
+        Fl_Output demoStatusDisplay1 {
+          xywh {50 335 50 20} box NO_BOX color 37 selection_color 236 labelsize 12 labelcolor 52 textsize 12 textcolor 52
+          code0 {o->value("Demo: ");}
+        }
+        Fl_Output demoStatusDisplay2 {
+          xywh {97 335 20 20} color 0 selection_color 236 labelsize 12 labelcolor 52 align 8 textfont 5 textsize 12 textcolor 247
+        }
+        Fl_Output tapeInfoDisplay {
+          xywh {130 335 150 20} box NO_BOX color 37 selection_color 236 labelsize 12 labelcolor 52 textsize 12 textcolor 52
+          code0 {o->value("Tape: none");}
+        }
+        Fl_Group tapeStatusDisplayGroup {open
+          xywh {290 335 100 20} box DOWN_BOX color 0 labelsize 12 align 4
+        } {
+          Fl_Output tapeStatusDisplay {
+            xywh {290 335 20 20} box NO_BOX color 0 selection_color 236 labelsize 12 align 8 textfont 5 textsize 12 textcolor 247
+          }
+          Fl_Output tapePositionDisplay {
+            xywh {310 335 80 20} box NO_BOX color 0 selection_color 236 labelsize 12 textfont 4 textsize 12 textcolor 247
+          }
+        }
+      }
+    }
+    Fl_Window errorMessageWindow {
+      label {ep128emu error} open
+      xywh {249 553 280 150} type Double color 37 selection_color 236 modal visible
+    } {
+      Fl_Box {} {
+        xywh {10 10 260 95} box THIN_UP_BOX color 39 selection_color 236 labelcolor 54
+      }
+      Fl_Box errorMessageText {
+        xywh {20 15 240 85} box FLAT_BOX color 39 selection_color 236 labelcolor 54 align 144
+      }
+      Fl_Button {} {
+        label OK
+        callback {errorMessageWindow->hide();}
+        xywh {105 115 70 25} color 38 selection_color 39 labelcolor 52
+      }
+    }
+  }
+  Function {~Ep128EmuGUI()} {open
+  } {
+    code {{
+  setSingleThreadedMode(false);
+  vmThread.quit(true);
+  errorMessageWindow->hide();
+  mainWindow->hide();
+  Fl::wait(0.0);
+  emulatorWindowGroup->remove(*emulatorWindow);
+  delete errorMessageWindow;
+  delete mainWindow;
+  config.sound.file = "";
+}} {}
+  }
+} 

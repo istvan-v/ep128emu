@@ -89,6 +89,7 @@ ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
     system.cpp
     tape.cpp
     vm.cpp
+    vmthread.cpp
     wd177x.cpp
 '''))
 
@@ -160,7 +161,7 @@ residLib = residLibEnvironment.StaticLibrary('resid', Split('''
 # -----------------------------------------------------------------------------
 
 ep128emuEnvironment = ep128emuGLGUIEnvironment.Copy()
-ep128emuEnvironment.Append(CPPPATH = ['./z80'])
+ep128emuEnvironment.Append(CPPPATH = ['./z80', './gui'])
 ep128emuEnvironment.Prepend(LIBS = ['ep128', 'z80', 'plus4', 'resid',
                                     'ep128emu'])
 if haveDotconf:
@@ -169,8 +170,13 @@ ep128emuEnvironment.Append(LIBS = ['portaudio', 'sndfile'])
 if not win32CrossCompile:
     ep128emuEnvironment.Append(LIBS = ['jack', 'asound', 'pthread'])
 
+Command(['gui/gui_fl.cpp', 'gui/gui_fl.hpp'], 'gui/gui.fl',
+        'fluid -c -o gui/gui_fl.cpp -h gui/gui_fl.hpp $SOURCES')
+
 ep128emu = ep128emuEnvironment.Program('ep128emu', Split('''
-    main.cpp
+    gui/gui.cpp
+    gui/gui_fl.cpp
+    gui/main.cpp
 '''))
 Depends(ep128emu, ep128Lib)
 Depends(ep128emu, z80Lib)
