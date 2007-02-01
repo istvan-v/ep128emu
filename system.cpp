@@ -84,8 +84,8 @@ namespace Ep128Emu {
 #else
     pthread_cond_destroy(&(st->c));
     pthread_mutex_destroy(&(st->m));
-    delete st;
 #endif
+    delete st;
   }
 
   ThreadLock& ThreadLock::operator=(const ThreadLock& oldInstance)
