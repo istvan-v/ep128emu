@@ -53,7 +53,7 @@ int main(int argc, char **argv)
   Ep128EmuGUI               *gui_ = (Ep128EmuGUI *) 0;
   bool      isPlus4 = false;
   bool      glEnabled = true;
-  const char  *cfgFileName = "ep128.cfg";
+  const char  *cfgFileName = "ep128cfg.dat";
   int       retval = 0;
   bool      configLoaded = false;
 
@@ -65,11 +65,11 @@ int main(int argc, char **argv)
       }
       else if (std::strcmp(argv[i], "-ep128") == 0) {
         isPlus4 = false;
-        cfgFileName = "ep128.cfg";
+        cfgFileName = "ep128cfg.dat";
       }
       else if (std::strcmp(argv[i], "-plus4") == 0) {
         isPlus4 = true;
-        cfgFileName = "plus4.cfg";
+        cfgFileName = "plus4cfg.dat";
       }
       else if (std::strcmp(argv[i], "-opengl") == 0) {
         glEnabled = true;

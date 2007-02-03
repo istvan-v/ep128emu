@@ -85,6 +85,8 @@ namespace Ep128Emu {
     // wait until the thread has actually stopped, and status information
     // is updated.
     void quit(bool waitFlag_ = false);
+    // Set pointer to be passed to callback functions.
+    void setUserData(void *userData_);
     // Set function to be called to print an error message on non-fatal
     // exceptions.
     void setErrorCallback(void (*func)(void *userData_, const char *msg_));

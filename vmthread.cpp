@@ -296,15 +296,18 @@ namespace Ep128Emu {
     this->join();
   }
 
+  void VMThread::setUserData(void *userData_)
+  {
+    userData = userData_;
+  }
+
   void VMThread::setErrorCallback(void (*func)(void *userData_,
                                                const char *msg_))
   {
-    this->lock(0x7FFFFFFF);
     if (func)
       errorCallback = func;
     else
       errorCallback = &dummyErrorCallback;
-    this->unlock();
   }
 
   void VMThread::reset(bool isColdReset_)

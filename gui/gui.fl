@@ -6,6 +6,8 @@ code_name {.cpp}
 decl {\#include "gui.hpp"} {selected
 } 
 
+decl {\#include <FL/Fl_File_Chooser.H>} {} 
+
 class EmulatorWindowGroup {open : {public Fl_Group}
 } {
   decl {void *gui_;} {}
@@ -64,6 +66,17 @@ class Ep128EmuGUI {open
   decl {std::string quickSnapshotFileName;} {}
   decl {bool updateDisplayEntered;} {}
   decl {bool singleThreadedMode;} {}
+  decl {Fl_File_Chooser *browseFileWindow;} {}
+  decl {std::string snapshotDirectory;} {}
+  decl {std::string demoDirectory;} {}
+  decl {std::string soundFileDirectory;} {}
+  decl {std::string configDirectory;} {}
+  decl {std::string loadFileDirectory;} {}
+  decl {std::string tapeImageDirectory;} {}
+  decl {std::string diskImageDirectory;} {}
+  decl {std::string romImageDirectory;} {}
+  decl {std::string prgFileDirectory;} {}
+  decl {Ep128Emu::ConfigurationDB guiConfig;} {}
   decl {void init_();} {}
   decl {void updateDisplay(double t = 0.025);} {public
   }
@@ -79,6 +92,14 @@ class Ep128EmuGUI {open
   decl {void unlockVMThread();} {public
   }
   decl {bool setSingleThreadedMode(bool isEnabled);} {public
+  }
+  decl {bool browseFile(std::string& fileName, std::string& dirName, const char *pattern, int type, const char *title);} {public
+  }
+  decl {void applyEmulatorConfiguration();} {public
+  }
+  decl {static void errorMessageCallback(void *userData, const char *msg);} {public
+  }
+  decl {bool closeDemoFile(bool stopDemo_);} {public
   }
   decl {static void menuCallback_File_SetFileIODir(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_LoadFile(Fl_Widget *o, void *v);} {}
@@ -186,10 +207,12 @@ class Ep128EmuGUI {open
   setSingleThreadedMode(false);
   vmThread.quit(true);
   errorMessageWindow->hide();
+  browseFileWindow->hide();
   mainWindow->hide();
   Fl::wait(0.0);
   emulatorWindowGroup->remove(*emulatorWindow);
   delete errorMessageWindow;
+  delete browseFileWindow;
   delete mainWindow;
   config.sound.file = "";
 }} {}

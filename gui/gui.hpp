@@ -35,6 +35,7 @@
 #include "ep128vm.hpp"
 #include "plus4/plus4vm.hpp"
 
+#include <FL/Fl_File_Chooser.H>
 #include "gui_fl.hpp"
 
 #endif  // EP128EMU_GUI_HPP

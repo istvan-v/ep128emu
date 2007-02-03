@@ -69,6 +69,26 @@ void Ep128EmuGUI::init_()
   quickSnapshotFileName = "";
   updateDisplayEntered = false;
   singleThreadedMode = false;
+  snapshotDirectory = "";
+  demoDirectory = "";
+  soundFileDirectory = "";
+  configDirectory = "";
+  loadFileDirectory = "";
+  tapeImageDirectory = "";
+  diskImageDirectory = "";
+  romImageDirectory = "";
+  prgFileDirectory = "";
+  guiConfig.createKey("gui.singleThreadedMode", singleThreadedMode);
+  guiConfig.createKey("gui.snapshotDirectory", snapshotDirectory);
+  guiConfig.createKey("gui.demoDirectory", demoDirectory);
+  guiConfig.createKey("gui.soundFileDirectory", soundFileDirectory);
+  guiConfig.createKey("gui.configDirectory", configDirectory);
+  guiConfig.createKey("gui.loadFileDirectory", loadFileDirectory);
+  guiConfig.createKey("gui.tapeImageDirectory", tapeImageDirectory);
+  guiConfig.createKey("gui.diskImageDirectory", diskImageDirectory);
+  guiConfig.createKey("gui.romImageDirectory", romImageDirectory);
+  guiConfig.createKey("gui.prgFileDirectory", prgFileDirectory);
+  browseFileWindow = new Fl_File_Chooser("", "*", Fl_File_Chooser::SINGLE, "");
 }
 
 void Ep128EmuGUI::updateDisplay(double t)
@@ -186,20 +206,8 @@ void Ep128EmuGUI::updateDisplay(double t)
   int   newDemoStatus = (isRecordingDemo_ ? 2 : (isPlayingDemo_ ? 1 : 0));
   if (newDemoStatus != oldDemoStatus) {
     if (newDemoStatus == 0) {
-      if (oldDemoStatus == 2) {
-        try {
-          if (demoRecordFile)
-            demoRecordFile->writeFile(demoRecordFileName.c_str());
-        }
-        catch (std::exception& e) {
-          errorMessage(e.what());
-        }
-        if (demoRecordFile) {
-          delete demoRecordFile;
-          demoRecordFile = (Ep128Emu::File *) 0;
-        }
-        demoRecordFileName = "";
-      }
+      if (oldDemoStatus == 2)
+        closeDemoFile(false);
       demoStatusDisplay1->hide();
       demoStatusDisplay2->hide();
     }
@@ -315,7 +323,12 @@ void Ep128EmuGUI::errorMessage(const char *msg)
 
 void Ep128EmuGUI::run()
 {
+  config.setErrorCallback(&errorMessageCallback, (void *) this);
+  vmThread.setUserData((void *) this);
+  vmThread.setErrorCallback(&errorMessageCallback);
+  // set initial window size from saved configuration
   resizeWindow(config.display.width, config.display.height);
+  // create menu bar
   mainMenuBar->add("File/Set working directory",
                    (char *) 0, &menuCallback_File_SetFileIODir, (void *) this);
   mainMenuBar->add("File/Load file",
@@ -334,7 +347,7 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_File_SaveSnapshot, (void *) this);
   mainMenuBar->add("File/Record demo",
                    (char *) 0, &menuCallback_File_RecordDemo, (void *) this);
-  mainMenuBar->add("File/Stop demo",
+  mainMenuBar->add("File/Stop demo (Ctrl+F11)",
                    (char *) 0, &menuCallback_File_StopDemo, (void *) this);
   mainMenuBar->add("File/Record sound file",
                    (char *) 0, &menuCallback_File_RecordSound, (void *) this);
@@ -388,7 +401,7 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Machine_ColdReset, (void *) this);
   mainMenuBar->add("Machine/Reset/Reset clock frequencies",
                    (char *) 0, &menuCallback_Machine_ResetFreqs, (void *) this);
-  mainMenuBar->add("Machine/Reset/Reset machine configuration",
+  mainMenuBar->add("Machine/Reset/Reset machine configuration (Ctrl+F12)",
                    (char *) 0, &menuCallback_Machine_ResetAll, (void *) this);
   mainMenuBar->add("Options/Display/Cycle display mode (F9)",
                    (char *) 0, &menuCallback_Options_DpyMode, (void *) this);
@@ -399,6 +412,26 @@ void Ep128EmuGUI::run()
   mainWindow->show();
   emulatorWindow->show();
   emulatorWindow->cursor(FL_CURSOR_NONE);
+  // load and apply GUI configuration
+  {
+    bool  savedSingleThreadedMode = singleThreadedMode;
+    try {
+      Ep128Emu::File  f("gui_cfg.dat", true);
+      try {
+        guiConfig.registerChunkType(f);
+        f.processAllChunks();
+      }
+      catch (std::exception& e) {
+        errorMessage(e.what());
+      }
+    }
+    catch (...) {
+    }
+    bool  newSingleThreadedMode = singleThreadedMode;
+    singleThreadedMode = savedSingleThreadedMode;
+    setSingleThreadedMode(newSingleThreadedMode);
+  }
+  // run emulation
   vmThread.pause(false);
   do {
     if (singleThreadedMode) {
@@ -410,26 +443,28 @@ void Ep128EmuGUI::run()
   } while (mainWindow->shown() && !exitFlag);
   setSingleThreadedMode(false);
   vmThread.quit(true);
+  if (mainWindow->shown())
+    mainWindow->hide();
+  updateDisplay();
+  if (errorFlag)
+    errorMessage("exiting due to a fatal error");
+  // if still recording a demo, stop now, and write file
   try {
     vm.stopDemo();
-  }
-  catch (...) {
-    delete demoRecordFile;
-    demoRecordFile = (Ep128Emu::File *) 0;
-    demoRecordFileName = "";
-  }
-  try {
-    if (demoRecordFile)
-      demoRecordFile->writeFile(demoRecordFileName.c_str());
   }
   catch (std::exception& e) {
     errorMessage(e.what());
   }
-  if (demoRecordFile) {
-    delete demoRecordFile;
-    demoRecordFile = (Ep128Emu::File *) 0;
+  closeDemoFile(false);
+  // save GUI configuration
+  try {
+    Ep128Emu::File  f;
+    guiConfig.saveState(f);
+    f.writeFile("gui_cfg.dat", true);
   }
-  demoRecordFileName = "";
+  catch (std::exception& e) {
+    errorMessage(e.what());
+  }
 }
 
 void Ep128EmuGUI::resizeWindow(int w, int h)
@@ -507,8 +542,10 @@ int Ep128EmuGUI::handleFLTKEvent(int event)
               menuCallback_File_QSLoad((Fl_Widget *) 0, (void *) this);
               break;
             case 10:                                    // Control + F11:
+              menuCallback_File_StopDemo((Fl_Widget *) 0, (void *) this);
               break;
             case 11:                                    // Control + F12:
+              menuCallback_Machine_ResetAll((Fl_Widget *) 0, (void *) this);
               break;
             }
           }
@@ -561,6 +598,152 @@ bool Ep128EmuGUI::setSingleThreadedMode(bool isEnabled)
   return true;
 }
 
+bool Ep128EmuGUI::browseFile(std::string& fileName, std::string& dirName,
+                             const char *pattern, int type, const char *title)
+{
+  bool    retval = false;
+  try {
+    fileName.clear();
+#ifdef WIN32
+    uintptr_t currentThreadID = uintptr_t(GetCurrentThreadId());
+#else
+    uintptr_t currentThreadID = uintptr_t(pthread_self());
+#endif
+    if (currentThreadID != mainThreadID) {
+      Fl::lock();
+      while (browseFileWindow->shown()) {
+        Fl::unlock();
+        Ep128Emu::Timer::wait(0.01);
+      }
+      browseFileWindow->directory(dirName.c_str());
+      browseFileWindow->filter(pattern);
+      browseFileWindow->type(type);
+      browseFileWindow->label(title);
+      browseFileWindow->show();
+      if (type == Fl_File_Chooser::CREATE)
+        browseFileWindow->value(dirName.c_str());
+      Fl::unlock();
+      while (true) {
+        updateDisplay();
+        Fl::lock();
+        if (!browseFileWindow->shown()) {
+          try {
+            const char  *s = browseFileWindow->value();
+            if (s != (char *) 0) {
+              fileName = s;
+              Ep128Emu::stripString(fileName);
+              std::string tmp;
+              Ep128Emu::splitPath(fileName, dirName, tmp);
+              retval = true;
+            }
+          }
+          catch (...) {
+            Fl::unlock();
+            throw;
+          }
+          Fl::unlock();
+          break;
+        }
+        Fl::unlock();
+      }
+    }
+    else {
+      Fl_File_Chooser *w =
+          new Fl_File_Chooser(dirName.c_str(), pattern, type, title);
+      try {
+        w->show();
+        if (type == Fl_File_Chooser::CREATE)
+          w->value(dirName.c_str());
+        while (true) {
+          updateDisplay();
+          if (!w->shown()) {
+            const char  *s = w->value();
+            if (s != (char *) 0) {
+              fileName = s;
+              Ep128Emu::stripString(fileName);
+              std::string tmp;
+              Ep128Emu::splitPath(fileName, dirName, tmp);
+              retval = true;
+            }
+            break;
+          }
+        }
+      }
+      catch (...) {
+        if (w->shown())
+          w->hide();
+        delete w;
+        throw;
+      }
+      delete w;
+    }
+  }
+  catch (std::exception& e) {
+    errorMessage(e.what());
+  }
+  return retval;
+}
+
+void Ep128EmuGUI::applyEmulatorConfiguration()
+{
+  if (lockVMThread()) {
+    try {
+      config.applySettings();
+    }
+    catch (...) {
+      unlockVMThread();
+      throw;
+    }
+    unlockVMThread();
+  }
+}
+
+void Ep128EmuGUI::errorMessageCallback(void *userData, const char *msg)
+{
+  reinterpret_cast<Ep128EmuGUI *>(userData)->errorMessage(msg);
+}
+
+bool Ep128EmuGUI::closeDemoFile(bool stopDemo_)
+{
+  if (demoRecordFile) {
+    if (stopDemo_) {
+      if (lockVMThread()) {
+        try {
+          vm.stopDemo();
+        }
+        catch (std::exception& e) {
+          unlockVMThread();
+          delete demoRecordFile;
+          demoRecordFile = (Ep128Emu::File *) 0;
+          demoRecordFileName.clear();
+          errorMessage(e.what());
+          return true;
+        }
+        catch (...) {
+          unlockVMThread();
+          delete demoRecordFile;
+          demoRecordFile = (Ep128Emu::File *) 0;
+          demoRecordFileName.clear();
+          throw;
+        }
+        unlockVMThread();
+      }
+      else
+        return false;
+    }
+    try {
+      demoRecordFile->writeFile(demoRecordFileName.c_str());
+    }
+    catch (std::exception& e) {
+      errorMessage(e.what());
+    }
+    delete demoRecordFile;
+    demoRecordFile = (Ep128Emu::File *) 0;
+  }
+  demoRecordFileName.clear();
+  return true;
+}
+
 // ----------------------------------------------------------------------------
 
 void Ep128EmuGUI::menuCallback_File_SetFileIODir(Fl_Widget *o, void *v)
@@ -568,7 +751,15 @@ void Ep128EmuGUI::menuCallback_File_SetFileIODir(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
+    Ep128Emu::ConfigurationDB::ConfigurationVariable& cv =
+        gui_.config["fileio.workingDirectory"];
+    std::string tmp;
+    std::string tmp2 = std::string(cv);
+    if (gui_.browseFile(tmp, tmp2, "*", Fl_File_Chooser::DIRECTORY,
+                        "Select working directory for emulated machine")) {
+      cv = tmp;
+      gui_.applyEmulatorConfiguration();
+    }
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -580,7 +771,24 @@ void Ep128EmuGUI::menuCallback_File_LoadFile(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
+    std::string tmp;
+    if (gui_.browseFile(tmp, gui_.loadFileDirectory, "All files (*)",
+                        Fl_File_Chooser::SINGLE, "Load ep128emu binary file")) {
+      if (gui_.lockVMThread()) {
+        try {
+          Ep128Emu::File  f(tmp.c_str());
+          gui_.vm.registerChunkTypes(f);
+          gui_.config.registerChunkType(f);
+          f.processAllChunks();
+          gui_.applyEmulatorConfiguration();
+        }
+        catch (...) {
+          gui_.unlockVMThread();
+          throw;
+        }
+        gui_.unlockVMThread();
+      }
+    }
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -592,7 +800,14 @@ void Ep128EmuGUI::menuCallback_File_LoadConfig(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
+    std::string tmp;
+    if (gui_.browseFile(tmp, gui_.configDirectory,
+                        "Configuration files (*.cfg)",
+                        Fl_File_Chooser::SINGLE,
+                        "Load ASCII format configuration file")) {
+      gui_.config.loadState(tmp.c_str());
+      gui_.applyEmulatorConfiguration();
+    }
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -604,7 +819,13 @@ void Ep128EmuGUI::menuCallback_File_SaveConfig(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
+    std::string tmp;
+    if (gui_.browseFile(tmp, gui_.configDirectory,
+                        "Configuration files (*.cfg)",
+                        Fl_File_Chooser::CREATE,
+                        "Save configuration as ASCII text file")) {
+      gui_.config.saveState(tmp.c_str());
+    }
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -616,7 +837,10 @@ void Ep128EmuGUI::menuCallback_File_QSFileName(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
+    std::string tmp;
+    if (gui_.browseFile(tmp, gui_.snapshotDirectory, "Snapshot files (*)",
+                        Fl_File_Chooser::CREATE, "Select quick snapshot file"))
+      gui_.quickSnapshotFileName = tmp;
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -698,7 +922,23 @@ void Ep128EmuGUI::menuCallback_File_SaveSnapshot(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
+    std::string tmp;
+    if (gui_.browseFile(tmp, gui_.snapshotDirectory, "Snapshot files (*)",
+                        Fl_File_Chooser::CREATE, "Save snapshot")) {
+      gui_.loadFileDirectory = gui_.snapshotDirectory;
+      if (gui_.lockVMThread()) {
+        try {
+          Ep128Emu::File  f;
+          gui_.vm.saveState(f);
+          f.writeFile(tmp.c_str());
+        }
+        catch (...) {
+          gui_.unlockVMThread();
+          throw;
+        }
+        gui_.unlockVMThread();
+      }
+    }
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -710,7 +950,30 @@ void Ep128EmuGUI::menuCallback_File_RecordDemo(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
+    std::string tmp;
+    if (gui_.browseFile(tmp, gui_.demoDirectory, "Demo files (*)",
+                        Fl_File_Chooser::CREATE, "Record demo")) {
+      gui_.loadFileDirectory = gui_.demoDirectory;
+      if (gui_.lockVMThread()) {
+        if (gui_.closeDemoFile(true)) {
+          try {
+            gui_.demoRecordFile = new Ep128Emu::File();
+            gui_.demoRecordFileName = tmp;
+            gui_.vm.recordDemo(*(gui_.demoRecordFile));
+          }
+          catch (...) {
+            gui_.unlockVMThread();
+            if (gui_.demoRecordFile) {
+              delete gui_.demoRecordFile;
+              gui_.demoRecordFile = (Ep128Emu::File *) 0;
+            }
+            gui_.demoRecordFileName.clear();
+            throw;
+          }
+        }
+        gui_.unlockVMThread();
+      }
+    }
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -734,7 +997,13 @@ void Ep128EmuGUI::menuCallback_File_RecordSound(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
+    std::string tmp;
+    if (gui_.browseFile(tmp, gui_.soundFileDirectory, "Sound files (*.wav)",
+                        Fl_File_Chooser::CREATE,
+                        "Record sound output to WAV file")) {
+      gui_.config["sound.file"] = tmp;
+      gui_.applyEmulatorConfiguration();
+    }
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -746,17 +1015,8 @@ void Ep128EmuGUI::menuCallback_File_StopSndRecord(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    if (gui_.lockVMThread()) {
-      try {
-        gui_.config["sound.file"] = std::string("");
-        gui_.config.applySettings();
-      }
-      catch (...) {
-        gui_.unlockVMThread();
-        throw;
-      }
-      gui_.unlockVMThread();
-    }
+    gui_.config["sound.file"] = std::string("");
+    gui_.applyEmulatorConfiguration();
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -768,7 +1028,23 @@ void Ep128EmuGUI::menuCallback_File_LoadPRG(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
+    std::string tmp;
+    if (gui_.browseFile(tmp, gui_.prgFileDirectory, "PRG files (*.prg)",
+                        Fl_File_Chooser::SINGLE, "Load program file")) {
+      if (gui_.lockVMThread()) {
+        try {
+          if (typeid(gui_.vm) == typeid(Plus4::Plus4VM)) {
+            Plus4::Plus4VM  *p4vm = dynamic_cast<Plus4::Plus4VM *>(&(gui_.vm));
+            p4vm->loadProgram(tmp.c_str());
+          }
+        }
+        catch (...) {
+          gui_.unlockVMThread();
+          throw;
+        }
+        gui_.unlockVMThread();
+      }
+    }
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -780,7 +1056,23 @@ void Ep128EmuGUI::menuCallback_File_SavePRG(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
+    std::string tmp;
+    if (gui_.browseFile(tmp, gui_.prgFileDirectory, "PRG files (*.prg)",
+                        Fl_File_Chooser::CREATE, "Save program file")) {
+      if (gui_.lockVMThread()) {
+        try {
+          if (typeid(gui_.vm) == typeid(Plus4::Plus4VM)) {
+            Plus4::Plus4VM  *p4vm = dynamic_cast<Plus4::Plus4VM *>(&(gui_.vm));
+            p4vm->saveProgram(tmp.c_str());
+          }
+        }
+        catch (...) {
+          gui_.unlockVMThread();
+          throw;
+        }
+        gui_.unlockVMThread();
+      }
+    }
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -816,17 +1108,8 @@ void Ep128EmuGUI::menuCallback_Machine_FullSpeed(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    if (gui_.lockVMThread()) {
-      try {
-        gui_.config["sound.enabled"] = !gui_.config.sound.enabled;
-        gui_.config.applySettings();
-      }
-      catch (...) {
-        gui_.unlockVMThread();
-        throw;
-      }
-      gui_.unlockVMThread();
-    }
+    gui_.config["sound.enabled"] = !gui_.config.sound.enabled;
+    gui_.applyEmulatorConfiguration();
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -838,7 +1121,12 @@ void Ep128EmuGUI::menuCallback_Machine_OpenTape(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
+    std::string tmp;
+    if (gui_.browseFile(tmp, gui_.tapeImageDirectory, "Tape files (*.tap)",
+                        Fl_File_Chooser::SINGLE, "Select tape image file")) {
+      gui_.config["tape.imageFile"] = tmp;
+      gui_.applyEmulatorConfiguration();
+    }
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -1044,17 +1332,8 @@ void Ep128EmuGUI::menuCallback_Machine_TapeClose(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    if (gui_.lockVMThread()) {
-      try {
-        gui_.config["tape.imageFile"] = std::string("");
-        gui_.config.applySettings();
-      }
-      catch (...) {
-        gui_.unlockVMThread();
-        throw;
-      }
-      gui_.unlockVMThread();
-    }
+    gui_.config["tape.imageFile"] = std::string("");
+    gui_.applyEmulatorConfiguration();
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -1090,17 +1369,8 @@ void Ep128EmuGUI::menuCallback_Machine_ResetFreqs(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    if (gui_.lockVMThread()) {
-      try {
-        gui_.config.vmConfigurationChanged = true;
-        gui_.config.applySettings();
-      }
-      catch (...) {
-        gui_.unlockVMThread();
-        throw;
-      }
-      gui_.unlockVMThread();
-    }
+    gui_.config.vmConfigurationChanged = true;
+    gui_.applyEmulatorConfiguration();
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
