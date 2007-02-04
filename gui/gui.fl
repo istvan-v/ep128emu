@@ -66,7 +66,9 @@ class Ep128EmuGUI {open
   decl {std::string quickSnapshotFileName;} {}
   decl {bool updateDisplayEntered;} {}
   decl {bool singleThreadedMode;} {}
+  decl {bool browseFileWindowShowFlag;} {}
   decl {Fl_File_Chooser *browseFileWindow;} {}
+  decl {Fl_Window *windowToShow;} {}
   decl {std::string snapshotDirectory;} {}
   decl {std::string demoDirectory;} {}
   decl {std::string soundFileDirectory;} {}
@@ -100,6 +102,10 @@ class Ep128EmuGUI {open
   decl {static void errorMessageCallback(void *userData, const char *msg);} {public
   }
   decl {bool closeDemoFile(bool stopDemo_);} {public
+  }
+  decl {void updateDisplaySettingsWindow();} {public
+  }
+  decl {static void fileNameCallback(void *userData, std::string& fileName);} {public
   }
   decl {static void menuCallback_File_SetFileIODir(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_LoadFile(Fl_Widget *o, void *v);} {}
@@ -137,7 +143,17 @@ class Ep128EmuGUI {open
   decl {static void menuCallback_Machine_ColdReset(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Machine_ResetFreqs(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Machine_ResetAll(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_Configure(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_DpyMode(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_DpySize1(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_DpySize2(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_DpySize3(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_DpyConfig(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_SndIncVol(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_SndDecVol(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_SndConfig(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_FloppyCfg(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_ThreadMode(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Debug_OpenDebugger(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Help_About(Fl_Widget *o, void *v);} {}
   Function {Ep128EmuGUI(Ep128Emu::VideoDisplay& display_, Ep128Emu::AudioOutput& audioOutput_, Ep128Emu::VirtualMachine& vm_, Ep128Emu::VMThread& vmThread_, Ep128Emu::EmulatorConfiguration& config_) : display(display_), audioOutput(audioOutput_), vm(vm_), vmThread(vmThread_), config(config_)} {open
@@ -147,7 +163,7 @@ class Ep128EmuGUI {open
 }} {}
     Fl_Window mainWindow {
       label ep128emu open
-      xywh {248 54 400 360} type Single color 37 resizable size_range {384 348 1536 1182} visible
+      xywh {248 54 400 360} type Single color 37 selection_color 0 resizable size_range {384 348 1536 1182} visible
     } {
       Fl_Menu_Bar mainMenuBar {open
         xywh {0 0 340 30} box FLAT_BOX color 37 selection_color 236 labelcolor 52 textcolor 52
@@ -200,6 +216,356 @@ class Ep128EmuGUI {open
         xywh {105 115 70 25} color 38 selection_color 39 labelcolor 52
       }
     }
+    Fl_Window displaySettingsWindow {
+      label {Display settings}
+      callback {{
+  try {
+    applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    errorMessage(e.what());
+  }
+  updateDisplaySettingsWindow();
+  displaySettingsWindow->hide();
+  if ((displayMode & 1) == 0)
+    emulatorWindow->cursor(FL_CURSOR_DEFAULT);
+  else
+    emulatorWindow->cursor(FL_CURSOR_NONE);
+}} open
+      xywh {224 231 400 450} type Double color 37 visible
+    } {
+      Fl_Group {} {open
+        tooltip {Note: you can click on and drag the value displays for fine adjustment} xywh {10 10 380 235} box THIN_UP_BOX color 38
+      } {
+        Fl_Box {} {
+          label Brightness
+          xywh {20 75 75 20} color 38 labelcolor 52 align 20
+        }
+        Fl_Dial globalBrightnessValuator {
+          label Global
+          callback {{
+  config.display.brightness = o->value();
+  config.displaySettingsChanged = true;
+  globalBrightnessValueDisplay->value(o->value());
+}}
+          xywh {115 35 35 35} color 46 selection_color 54 labelcolor 52 align 1 minimum -0.5 maximum 0.5
+        }
+        Fl_Value_Output globalBrightnessValueDisplay {
+          callback {{
+  config.display.brightness = o->value();
+  config.displaySettingsChanged = true;
+  globalBrightnessValuator->value(o->value());
+}}
+          xywh {110 75 45 20} color 0 selection_color 236 labelsize 13 labelcolor 52 minimum -0.5 maximum 0.5 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial redBrightnessValuator {
+          label Red
+          callback {{
+  config.display.red.brightness = o->value();
+  config.displaySettingsChanged = true;
+  redBrightnessValueDisplay->value(o->value());
+}}
+          xywh {190 35 35 35} color 46 selection_color 54 labelcolor 52 align 1 minimum -0.5 maximum 0.5
+        }
+        Fl_Value_Output redBrightnessValueDisplay {
+          callback {{
+  config.display.red.brightness = o->value();
+  config.displaySettingsChanged = true;
+  redBrightnessValuator->value(o->value());
+}}
+          xywh {185 75 45 20} color 0 selection_color 236 labelsize 13 labelcolor 52 minimum -0.5 maximum 0.5 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial greenBrightnessValuator {
+          label Green
+          callback {{
+  config.display.green.brightness = o->value();
+  config.displaySettingsChanged = true;
+  greenBrightnessValueDisplay->value(o->value());
+}}
+          xywh {265 35 35 35} color 46 selection_color 54 labelcolor 52 align 1 minimum -0.5 maximum 0.5
+        }
+        Fl_Value_Output greenBrightnessValueDisplay {
+          callback {{
+  config.display.green.brightness = o->value();
+  config.displaySettingsChanged = true;
+  greenBrightnessValuator->value(o->value());
+}}
+          xywh {260 75 45 20} color 0 selection_color 236 labelsize 13 labelcolor 52 minimum -0.5 maximum 0.5 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial blueBrightnessValuator {
+          label Blue
+          callback {{
+  config.display.blue.brightness = o->value();
+  config.displaySettingsChanged = true;
+  blueBrightnessValueDisplay->value(o->value());
+}}
+          xywh {340 35 35 35} color 46 selection_color 54 labelcolor 52 align 1 minimum -0.5 maximum 0.5
+        }
+        Fl_Value_Output blueBrightnessValueDisplay {
+          callback {{
+  config.display.blue.brightness = o->value();
+  config.displaySettingsChanged = true;
+  blueBrightnessValuator->value(o->value());
+}}
+          xywh {335 75 45 20} color 0 selection_color 236 labelsize 13 labelcolor 52 minimum -0.5 maximum 0.5 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Box {} {
+          label Contrast
+          xywh {20 145 75 20} color 38 labelcolor 52 align 20
+        }
+        Fl_Dial globalContrastValuator {
+          callback {{
+  config.display.contrast = o->value();
+  config.displaySettingsChanged = true;
+  globalContrastValueDisplay->value(o->value());
+}}
+          xywh {115 105 35 35} color 46 selection_color 54 labelcolor 52 align 1 minimum 0.5 maximum 2 value 1
+        }
+        Fl_Value_Output globalContrastValueDisplay {
+          callback {{
+  config.display.contrast = o->value();
+  config.displaySettingsChanged = true;
+  globalContrastValuator->value(o->value());
+}}
+          xywh {110 145 45 20} color 0 selection_color 236 labelsize 13 labelcolor 52 minimum 0.5 maximum 2 value 1 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial redContrastValuator {
+          callback {{
+  config.display.red.contrast = o->value();
+  config.displaySettingsChanged = true;
+  redContrastValueDisplay->value(o->value());
+}}
+          xywh {190 105 35 35} color 46 selection_color 54 labelcolor 52 align 1 minimum 0.5 maximum 2 value 1
+        }
+        Fl_Value_Output redContrastValueDisplay {
+          callback {{
+  config.display.red.contrast = o->value();
+  config.displaySettingsChanged = true;
+  redContrastValuator->value(o->value());
+}}
+          xywh {185 145 45 20} color 0 selection_color 236 labelsize 13 labelcolor 52 minimum 0.5 maximum 2 value 1 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial greenContrastValuator {
+          callback {{
+  config.display.green.contrast = o->value();
+  config.displaySettingsChanged = true;
+  greenContrastValueDisplay->value(o->value());
+}}
+          xywh {265 105 35 35} color 46 selection_color 54 labelcolor 52 align 1 minimum 0.5 maximum 2 value 1
+        }
+        Fl_Value_Output greenContrastValueDisplay {
+          callback {{
+  config.display.green.contrast = o->value();
+  config.displaySettingsChanged = true;
+  greenContrastValuator->value(o->value());
+}}
+          xywh {260 145 45 20} color 0 selection_color 236 labelsize 13 labelcolor 52 minimum 0.5 maximum 2 value 1 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial blueContrastValuator {
+          callback {{
+  config.display.blue.contrast = o->value();
+  config.displaySettingsChanged = true;
+  blueContrastValueDisplay->value(o->value());
+}}
+          xywh {340 105 35 35} color 46 selection_color 54 labelcolor 52 align 1 minimum 0.5 maximum 2 value 1
+        }
+        Fl_Value_Output blueContrastValueDisplay {
+          callback {{
+  config.display.blue.contrast = o->value();
+  config.displaySettingsChanged = true;
+  blueContrastValuator->value(o->value());
+}}
+          xywh {335 145 45 20} color 0 selection_color 236 labelsize 13 labelcolor 52 minimum 0.5 maximum 2 value 1 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Box {} {
+          label Gamma
+          xywh {20 215 75 20} color 38 labelcolor 52 align 20
+        }
+        Fl_Dial globalGammaValuator {
+          callback {{
+  config.display.gamma = o->value();
+  config.displaySettingsChanged = true;
+  globalGammaValueDisplay->value(o->value());
+}}
+          xywh {115 175 35 35} color 46 selection_color 54 labelcolor 52 align 1 minimum 0.25 maximum 4 value 1
+        }
+        Fl_Value_Output globalGammaValueDisplay {
+          callback {{
+  config.display.gamma = o->value();
+  config.displaySettingsChanged = true;
+  globalGammaValuator->value(o->value());
+}}
+          xywh {110 215 45 20} color 0 selection_color 236 labelsize 13 labelcolor 52 minimum 0.25 maximum 4 value 1 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial redGammaValuator {
+          callback {{
+  config.display.red.gamma = o->value();
+  config.displaySettingsChanged = true;
+  redGammaValueDisplay->value(o->value());
+}}
+          xywh {190 175 35 35} color 46 selection_color 54 labelcolor 52 align 1 minimum 0.25 maximum 4 value 1
+        }
+        Fl_Value_Output redGammaValueDisplay {
+          callback {{
+  config.display.red.gamma = o->value();
+  config.displaySettingsChanged = true;
+  redGammaValuator->value(o->value());
+}}
+          xywh {185 215 45 20} color 0 selection_color 236 labelsize 13 labelcolor 52 minimum 0.25 maximum 4 value 1 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial greenGammaValuator {
+          callback {{
+  config.display.green.gamma = o->value();
+  config.displaySettingsChanged = true;
+  greenGammaValueDisplay->value(o->value());
+}}
+          xywh {265 175 35 35} color 46 selection_color 54 labelcolor 52 align 1 minimum 0.25 maximum 4 value 1
+        }
+        Fl_Value_Output greenGammaValueDisplay {
+          callback {{
+  config.display.green.gamma = o->value();
+  config.displaySettingsChanged = true;
+  greenGammaValuator->value(o->value());
+}}
+          xywh {260 215 45 20} color 0 selection_color 236 labelsize 13 labelcolor 52 minimum 0.25 maximum 4 value 1 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial blueGammaValuator {
+          callback {{
+  config.display.blue.gamma = o->value();
+  config.displaySettingsChanged = true;
+  blueGammaValueDisplay->value(o->value());
+}}
+          xywh {340 175 35 35} color 46 selection_color 54 labelcolor 52 align 1 minimum 0.25 maximum 4 value 1
+        }
+        Fl_Value_Output blueGammaValueDisplay {
+          callback {{
+  config.display.blue.gamma = o->value();
+  config.displaySettingsChanged = true;
+  blueGammaValuator->value(o->value());
+}}
+          xywh {335 215 45 20} color 0 selection_color 236 labelsize 13 labelcolor 52 minimum 0.25 maximum 4 value 1 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Box {} {
+          xywh {10 10 90 50} box THIN_DOWN_BOX color 37 selection_color 37 labelcolor 52
+        }
+      }
+      Fl_Group {} {open
+        xywh {10 255 380 150} box THIN_UP_BOX color 38
+      } {
+        Fl_Light_Button enableDisplayValuator {
+          label {Enable display}
+          callback {{
+  config.display.enabled = (o->value() != 0);
+  config.displaySettingsChanged = true;
+}}
+          xywh {20 265 150 25} color 39 labelcolor 52
+        }
+        Fl_Light_Button displayDoubleBufferedValuator {
+          label {Double buffered}
+          callback {{
+  config.display.doubleBuffered = (o->value() != 0);
+  config.displaySettingsChanged = true;
+}}
+          tooltip {Using a double buffered display in OpenGL mode can reduce "tearing" and other artifacts, but also disables the motion blur effect.} xywh {20 300 150 25} color 39 labelcolor 52
+        }
+        Fl_Value_Slider displayQualityValuator {
+          label Quality
+          callback {{
+  config.display.quality = int(o->value() + 0.5);
+  config.displaySettingsChanged = true;
+}}
+          tooltip {This parameter is used only in OpenGL mode. Larger values increase the texture size and enable more effects at the expense of higher CPU usage} xywh {20 335 110 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 8 maximum 3 step 1 value 1 textcolor 52
+        }
+        Fl_Value_Input pixelAspectRatioValuator {
+          label {Pixel aspect ratio}
+          callback {{
+  config.display.pixelAspectRatio = o->clamp(o->value());
+  o->value(config.display.pixelAspectRatio);
+  config.displaySettingsChanged = true;
+}}
+          tooltip {The assumed pixel aspect ratio of the screen; 1.0 means square pixels (the default), larger values make the display narrower, while smaller values result in a wider display. Type new value, or click and drag to change it.} xywh {20 370 55 25} color 0 selection_color 236 labelcolor 52 align 8 when 4 minimum 0.5 maximum 2 step 0.001 value 1 textcolor 52
+        }
+        Fl_Value_Slider displaySaturationValuator {
+          label Saturation
+          callback {{
+  config.display.saturation = o->value();
+  config.displaySettingsChanged = true;
+}}
+          xywh {200 265 110 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 8 maximum 2 value 1 textcolor 52
+        }
+        Fl_Value_Slider displayFXParam1Valuator {
+          label {Effect 1}
+          callback {{
+  config.display.effects.param1 = o->value();
+  config.displaySettingsChanged = true;
+}}
+          tooltip {Controls vertical filtering of scanlines when display quality is set to 3} xywh {200 300 110 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 8 maximum 0.5 value 0.25 textcolor 52
+        }
+        Fl_Value_Slider displayFXParam2Valuator {
+          label {Effect 2}
+          callback {{
+  config.display.effects.param2 = o->value();
+  config.displaySettingsChanged = true;
+}}
+          tooltip {Scale factor for new frame (used for motion blur effect in single buffered OpenGL mode)} xywh {200 335 110 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 8 value 0.75 textcolor 52
+        }
+        Fl_Value_Slider displayFXParam3Valuator {
+          label {Effect 3}
+          callback {{
+  config.display.effects.param3 = o->value();
+  config.displaySettingsChanged = true;
+}}
+          tooltip {Scale factor for previous frame (used for motion blur effect in single buffered OpenGL mode)} xywh {200 370 110 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 8 value 0.25 textcolor 52
+        }
+      }
+      Fl_Button {} {
+        label Apply
+        callback {{
+  try {
+    applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    errorMessage(e.what());
+  }
+  updateDisplaySettingsWindow();
+  if ((displayMode & 1) == 0)
+    emulatorWindow->cursor(FL_CURSOR_DEFAULT);
+  else
+    emulatorWindow->cursor(FL_CURSOR_NONE);
+}}
+        xywh {255 415 60 25} color 38 selection_color 39 labelcolor 52
+      }
+      Fl_Button {} {
+        label OK
+        callback {{
+  try {
+    applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    errorMessage(e.what());
+  }
+  updateDisplaySettingsWindow();
+  displaySettingsWindow->hide();
+  if ((displayMode & 1) == 0)
+    emulatorWindow->cursor(FL_CURSOR_DEFAULT);
+  else
+    emulatorWindow->cursor(FL_CURSOR_NONE);
+}}
+        xywh {325 415 60 25} color 38 selection_color 39 labelcolor 52
+      }
+    }
   }
   Function {~Ep128EmuGUI()} {open
   } {
@@ -208,11 +574,13 @@ class Ep128EmuGUI {open
   vmThread.quit(true);
   errorMessageWindow->hide();
   browseFileWindow->hide();
+  displaySettingsWindow->hide();
   mainWindow->hide();
   Fl::wait(0.0);
   emulatorWindowGroup->remove(*emulatorWindow);
   delete errorMessageWindow;
   delete browseFileWindow;
+  delete displaySettingsWindow;
   delete mainWindow;
   config.sound.file = "";
 }} {}

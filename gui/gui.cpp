@@ -69,6 +69,9 @@ void Ep128EmuGUI::init_()
   quickSnapshotFileName = "";
   updateDisplayEntered = false;
   singleThreadedMode = false;
+  browseFileWindowShowFlag = false;
+  browseFileWindow = (Fl_File_Chooser *) 0;
+  windowToShow = (Fl_Window *) 0;
   snapshotDirectory = "";
   demoDirectory = "";
   soundFileDirectory = "";
@@ -101,6 +104,14 @@ void Ep128EmuGUI::updateDisplay(double t)
   if (currentThreadID != mainThreadID) {
     Ep128Emu::Timer::wait(t * 0.5);
     return;
+  }
+  if (browseFileWindowShowFlag) {
+    browseFileWindow->show();
+    browseFileWindowShowFlag = false;
+  }
+  if (windowToShow) {
+    windowToShow->show();
+    windowToShow = (Fl_Window *) 0;
   }
   if (updateDisplayEntered) {
     // if re-entering this function:
@@ -148,6 +159,10 @@ void Ep128EmuGUI::updateDisplay(double t)
                                    config.display.width, config.display.height);
     }
     resizeWindow(config.display.width, config.display.height);
+    Fl::redraw();
+    Fl::flush();
+    newWindowWidth = mainWindow->w();
+    newWindowHeight = mainWindow->h();
     if ((displayMode & 1) == 0) {
       if (newWindowWidth >= 700)
         statusDisplayGroup->resize(newWindowWidth - 360, 0, 360, 30);
@@ -164,9 +179,14 @@ void Ep128EmuGUI::updateDisplay(double t)
     }
     oldWindowWidth = -1;
     oldWindowHeight = -1;
-    newWindowWidth = mainWindow->w();
-    newWindowHeight = mainWindow->h();
     oldDisplayMode = displayMode;
+    if ((displayMode & 1) == 0)
+      emulatorWindow->cursor(FL_CURSOR_DEFAULT);
+    else
+      emulatorWindow->cursor(FL_CURSOR_NONE);
+    mainWindow->redraw();
+    mainMenuBar->redraw();
+    statusDisplayGroup->redraw();
   }
   else if (newWindowWidth != oldWindowWidth ||
            newWindowHeight != oldWindowHeight) {
@@ -195,6 +215,9 @@ void Ep128EmuGUI::updateDisplay(double t)
     }
     oldWindowWidth = newWindowWidth;
     oldWindowHeight = newWindowHeight;
+    mainWindow->redraw();
+    mainMenuBar->redraw();
+    statusDisplayGroup->redraw();
   }
   if (isPaused_ != oldPauseFlag) {
     oldPauseFlag = isPaused_;
@@ -296,37 +319,36 @@ void Ep128EmuGUI::errorMessage(const char *msg)
   Fl::lock();
   while (errorMessageWindow->shown()) {
     Fl::unlock();
-    Ep128Emu::Timer::wait(0.01);
+    updateDisplay();
+    Fl::lock();
   }
   if (msg)
     errorMessageText->label(msg);
   else
     errorMessageText->label("");
   errorMessageWindow->set_modal();
-  errorMessageWindow->show();
-  Fl::unlock();
+  windowToShow = errorMessageWindow;
   while (true) {
+    Fl::unlock();
     try {
       updateDisplay();
     }
     catch (...) {
     }
     Fl::lock();
-    if (!errorMessageWindow->shown()) {
+    if (windowToShow != errorMessageWindow && !errorMessageWindow->shown()) {
       errorMessageText->label("");
       Fl::unlock();
       break;
     }
-    Fl::unlock();
   }
 }
 
 void Ep128EmuGUI::run()
 {
   config.setErrorCallback(&errorMessageCallback, (void *) this);
-  vmThread.setUserData((void *) this);
-  vmThread.setErrorCallback(&errorMessageCallback);
   // set initial window size from saved configuration
+  emulatorWindow->color(36, 36);
   resizeWindow(config.display.width, config.display.height);
   // create menu bar
   mainMenuBar->add("File/Set working directory",
@@ -403,34 +425,53 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Machine_ResetFreqs, (void *) this);
   mainMenuBar->add("Machine/Reset/Reset machine configuration (Ctrl+F12)",
                    (char *) 0, &menuCallback_Machine_ResetAll, (void *) this);
+  mainMenuBar->add("Machine/Configure...",
+                   (char *) 0, &menuCallback_Machine_Configure, (void *) this);
   mainMenuBar->add("Options/Display/Cycle display mode (F9)",
                    (char *) 0, &menuCallback_Options_DpyMode, (void *) this);
+  mainMenuBar->add("Options/Display/Set size to 384x288",
+                   (char *) 0, &menuCallback_Options_DpySize1, (void *) this);
+  mainMenuBar->add("Options/Display/Set size to 768x576",
+                   (char *) 0, &menuCallback_Options_DpySize2, (void *) this);
+  mainMenuBar->add("Options/Display/Set size to 1152x864",
+                   (char *) 0, &menuCallback_Options_DpySize3, (void *) this);
+  mainMenuBar->add("Options/Display/Configure...",
+                   (char *) 0, &menuCallback_Options_DpyConfig, (void *) this);
+  mainMenuBar->add("Options/Sound/Increase volume",
+                   (char *) 0, &menuCallback_Options_SndIncVol, (void *) this);
+  mainMenuBar->add("Options/Sound/Decrease volume",
+                   (char *) 0, &menuCallback_Options_SndDecVol, (void *) this);
+  mainMenuBar->add("Options/Sound/Configure...",
+                   (char *) 0, &menuCallback_Options_SndConfig, (void *) this);
+  mainMenuBar->add("Options/Floppy/Configure...",
+                   (char *) 0, &menuCallback_Options_FloppyCfg, (void *) this);
+  mainMenuBar->add("Options/Toggle single threaded mode",
+                   (char *) 0, &menuCallback_Options_ThreadMode, (void *) this);
   mainMenuBar->add("Debug/Start debugger",
                    (char *) 0, &menuCallback_Debug_OpenDebugger, (void *) this);
   mainMenuBar->add("Help/About",
                    (char *) 0, &menuCallback_Help_About, (void *) this);
   mainWindow->show();
   emulatorWindow->show();
-  emulatorWindow->cursor(FL_CURSOR_NONE);
   // load and apply GUI configuration
-  {
-    bool  savedSingleThreadedMode = singleThreadedMode;
+  try {
+    Ep128Emu::File  f("gui_cfg.dat", true);
     try {
-      Ep128Emu::File  f("gui_cfg.dat", true);
-      try {
-        guiConfig.registerChunkType(f);
-        f.processAllChunks();
-      }
-      catch (std::exception& e) {
-        errorMessage(e.what());
-      }
+      guiConfig.registerChunkType(f);
+      f.processAllChunks();
     }
-    catch (...) {
+    catch (std::exception& e) {
+      errorMessage(e.what());
     }
-    bool  newSingleThreadedMode = singleThreadedMode;
-    singleThreadedMode = savedSingleThreadedMode;
-    setSingleThreadedMode(newSingleThreadedMode);
   }
+  catch (...) {
+  }
+  vmThread.lock(0x7FFFFFFF);
+  vmThread.setUserData((void *) this);
+  vmThread.setErrorCallback(&errorMessageCallback);
+  vm.setFileNameCallback(&fileNameCallback, (void *) this);
+  if (!singleThreadedMode)
+    vmThread.unlock();
   // run emulation
   vmThread.pause(false);
   do {
@@ -441,8 +482,19 @@ void Ep128EmuGUI::run()
     else
       updateDisplay();
   } while (mainWindow->shown() && !exitFlag);
-  setSingleThreadedMode(false);
+  // close windows and stop emulation thread
+  if (singleThreadedMode)
+    vmThread.unlock();
+  browseFileWindowShowFlag = false;
+  if (browseFileWindow->shown())
+    browseFileWindow->hide();
+  windowToShow = (Fl_Window *) 0;
+  if (errorMessageWindow->shown())
+    errorMessageWindow->hide();
+  updateDisplay();
+  Fl::unlock();
   vmThread.quit(true);
+  Fl::lock();
   if (mainWindow->shown())
     mainWindow->hide();
   updateDisplay();
@@ -480,6 +532,10 @@ void Ep128EmuGUI::resizeWindow(int w, int h)
     else
       mainWindow->size_range(384, 288, 1536, 1152);
   }
+  if ((displayMode & 1) == 0)
+    emulatorWindow->cursor(FL_CURSOR_DEFAULT);
+  else
+    emulatorWindow->cursor(FL_CURSOR_NONE);
 }
 
 int Ep128EmuGUI::handleFLTKEvent(int event)
@@ -602,6 +658,7 @@ bool Ep128EmuGUI::browseFile(std::string& fileName, std::string& dirName,
                              const char *pattern, int type, const char *title)
 {
   bool    retval = false;
+  Fl_File_Chooser *w = (Fl_File_Chooser *) 0;
   try {
     fileName.clear();
 #ifdef WIN32
@@ -611,74 +668,63 @@ bool Ep128EmuGUI::browseFile(std::string& fileName, std::string& dirName,
 #endif
     if (currentThreadID != mainThreadID) {
       Fl::lock();
-      while (browseFileWindow->shown()) {
+      w = browseFileWindow;
+      while (w->shown()) {
         Fl::unlock();
-        Ep128Emu::Timer::wait(0.01);
-      }
-      browseFileWindow->directory(dirName.c_str());
-      browseFileWindow->filter(pattern);
-      browseFileWindow->type(type);
-      browseFileWindow->label(title);
-      browseFileWindow->show();
-      if (type == Fl_File_Chooser::CREATE)
-        browseFileWindow->value(dirName.c_str());
-      Fl::unlock();
-      while (true) {
         updateDisplay();
         Fl::lock();
-        if (!browseFileWindow->shown()) {
-          try {
-            const char  *s = browseFileWindow->value();
-            if (s != (char *) 0) {
-              fileName = s;
-              Ep128Emu::stripString(fileName);
-              std::string tmp;
-              Ep128Emu::splitPath(fileName, dirName, tmp);
-              retval = true;
-            }
-          }
-          catch (...) {
-            Fl::unlock();
-            throw;
-          }
-          Fl::unlock();
-          break;
-        }
+      }
+      w->directory(dirName.c_str());
+      w->filter(pattern);
+      w->type(type);
+      w->label(title);
+      browseFileWindowShowFlag = true;
+      while (true) {
+        bool  tmp = browseFileWindowShowFlag;
         Fl::unlock();
+        if (!tmp)
+          break;
+        updateDisplay();
+        Fl::lock();
       }
     }
     else {
-      Fl_File_Chooser *w =
-          new Fl_File_Chooser(dirName.c_str(), pattern, type, title);
-      try {
-        w->show();
-        if (type == Fl_File_Chooser::CREATE)
-          w->value(dirName.c_str());
-        while (true) {
-          updateDisplay();
-          if (!w->shown()) {
-            const char  *s = w->value();
-            if (s != (char *) 0) {
-              fileName = s;
-              Ep128Emu::stripString(fileName);
-              std::string tmp;
-              Ep128Emu::splitPath(fileName, dirName, tmp);
-              retval = true;
-            }
-            break;
+      w = new Fl_File_Chooser(dirName.c_str(), pattern, type, title);
+      w->show();
+    }
+    Fl::lock();
+    while (true) {
+      Fl::unlock();
+      updateDisplay();
+      Fl::lock();
+      if (!w->shown()) {
+        try {
+          const char  *s = w->value();
+          if (s != (char *) 0) {
+            fileName = s;
+            Ep128Emu::stripString(fileName);
+            std::string tmp;
+            Ep128Emu::splitPath(fileName, dirName, tmp);
+            retval = true;
           }
         }
+        catch (...) {
+          Fl::unlock();
+          throw;
+        }
+        Fl::unlock();
+        break;
       }
-      catch (...) {
-        if (w->shown())
-          w->hide();
-        delete w;
-        throw;
-      }
-      delete w;
     }
+    if (currentThreadID == mainThreadID)
+      delete w;
   }
   catch (std::exception& e) {
+    if (w != (Fl_File_Chooser *) 0 && w != browseFileWindow) {
+      if (w->shown())
+        w->hide();
+      delete w;
+    }
     errorMessage(e.what());
   }
   return retval;
@@ -742,6 +788,55 @@ bool Ep128EmuGUI::closeDemoFile(bool stopDemo_)
   }
   demoRecordFileName.clear();
   return true;
+}
+
+void Ep128EmuGUI::updateDisplaySettingsWindow()
+{
+  globalBrightnessValuator->value(config.display.brightness);
+  globalBrightnessValueDisplay->value(config.display.brightness);
+  redBrightnessValuator->value(config.display.red.brightness);
+  redBrightnessValueDisplay->value(config.display.red.brightness);
+  greenBrightnessValuator->value(config.display.green.brightness);
+  greenBrightnessValueDisplay->value(config.display.green.brightness);
+  blueBrightnessValuator->value(config.display.blue.brightness);
+  blueBrightnessValueDisplay->value(config.display.blue.brightness);
+  globalContrastValuator->value(config.display.contrast);
+  globalContrastValueDisplay->value(config.display.contrast);
+  redContrastValuator->value(config.display.red.contrast);
+  redContrastValueDisplay->value(config.display.red.contrast);
+  greenContrastValuator->value(config.display.green.contrast);
+  greenContrastValueDisplay->value(config.display.green.contrast);
+  blueContrastValuator->value(config.display.blue.contrast);
+  blueContrastValueDisplay->value(config.display.blue.contrast);
+  globalGammaValuator->value(config.display.gamma);
+  globalGammaValueDisplay->value(config.display.gamma);
+  redGammaValuator->value(config.display.red.gamma);
+  redGammaValueDisplay->value(config.display.red.gamma);
+  greenGammaValuator->value(config.display.green.gamma);
+  greenGammaValueDisplay->value(config.display.green.gamma);
+  blueGammaValuator->value(config.display.blue.gamma);
+  blueGammaValueDisplay->value(config.display.blue.gamma);
+  enableDisplayValuator->value(config.display.enabled ? 1 : 0);
+  displayDoubleBufferedValuator->value(config.display.doubleBuffered ? 1 : 0);
+  displayQualityValuator->value(double(config.display.quality));
+  pixelAspectRatioValuator->value(config.display.pixelAspectRatio);
+  displaySaturationValuator->value(config.display.saturation);
+  displayFXParam1Valuator->value(config.display.effects.param1);
+  displayFXParam2Valuator->value(config.display.effects.param2);
+  displayFXParam3Valuator->value(config.display.effects.param3);
+}
+
+void Ep128EmuGUI::fileNameCallback(void *userData, std::string& fileName)
+{
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(userData));
+  try {
+    std::string tmp(gui_.config.fileio.workingDirectory);
+    gui_.browseFile(fileName, tmp, "All files (*)",
+                    Fl_File_Chooser::CREATE, "Open file");
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -1123,7 +1218,8 @@ void Ep128EmuGUI::menuCallback_Machine_OpenTape(Fl_Widget *o, void *v)
   try {
     std::string tmp;
     if (gui_.browseFile(tmp, gui_.tapeImageDirectory, "Tape files (*.tap)",
-                        Fl_File_Chooser::SINGLE, "Select tape image file")) {
+                        Fl_File_Chooser::CREATE, "Select tape image file")) {
+      Ep128EmuGUI::menuCallback_Machine_TapeStop(o, v);
       gui_.config["tape.imageFile"] = tmp;
       gui_.applyEmulatorConfiguration();
     }
@@ -1402,6 +1498,18 @@ void Ep128EmuGUI::menuCallback_Machine_ResetAll(Fl_Widget *o, void *v)
   }
 }
 
+void Ep128EmuGUI::menuCallback_Machine_Configure(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
 void Ep128EmuGUI::menuCallback_Options_DpyMode(Fl_Widget *o, void *v)
 {
   (void) o;
@@ -1420,6 +1528,96 @@ void Ep128EmuGUI::menuCallback_Options_DpyMode(Fl_Widget *o, void *v)
     gui_.displayMode = 0;
     break;
   }
+}
+
+void Ep128EmuGUI::menuCallback_Options_DpySize1(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  gui_.resizeWindow(384, 288);
+}
+
+void Ep128EmuGUI::menuCallback_Options_DpySize2(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  gui_.resizeWindow(768, 576);
+}
+
+void Ep128EmuGUI::menuCallback_Options_DpySize3(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  gui_.resizeWindow(1152, 864);
+}
+
+void Ep128EmuGUI::menuCallback_Options_DpyConfig(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  gui_.updateDisplaySettingsWindow();
+  gui_.displaySettingsWindow->show();
+}
+
+void Ep128EmuGUI::menuCallback_Options_SndIncVol(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    Ep128Emu::ConfigurationDB::ConfigurationVariable& cv =
+        gui_.config["sound.volume"];
+    cv = double(cv) * 1.1892;
+    gui_.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Options_SndDecVol(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    Ep128Emu::ConfigurationDB::ConfigurationVariable& cv =
+        gui_.config["sound.volume"];
+    cv = double(cv) * 0.8409;
+    gui_.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Options_SndConfig(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Options_FloppyCfg(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Options_ThreadMode(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  gui_.setSingleThreadedMode(!gui_.singleThreadedMode);
 }
 
 void Ep128EmuGUI::menuCallback_Debug_OpenDebugger(Fl_Widget *o, void *v)
