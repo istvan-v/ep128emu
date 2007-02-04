@@ -205,9 +205,9 @@ namespace Plus4 {
         line_buf_pos = 0;
         break;
       case 109:                         // start DMA and/or bitmap fetch
-        if (renderWindow) {
+        if (renderWindow | displayWindow) {
           renderingDisplay = true;
-          singleClockMode = true;
+          singleClockMode = renderWindow;
           character_column = 0;
         }
         break;
@@ -287,7 +287,7 @@ namespace Plus4 {
               (void) readMemory(addr_);
             }
           }
-          else {
+          else if (singleClockMode || !doubleClockModeEnabled) {
             memoryReadMap = tedDMAReadMap;  // not sure if this is correct
             (void) readMemory(0xFFFF);
           }
