@@ -194,6 +194,29 @@ static void setTextureParameters(int displayQuality)
   glPixelTransferf(GL_ALPHA_BIAS, GLfloat(0));
 }
 
+static void initializeTexture(const Ep128Emu::VideoDisplay::DisplayParameters&
+                                  dp,
+                              const uint16_t *textureBuffer)
+{
+  GLsizei txtWidth = 1024;
+  GLsizei txtHeight = 1024;
+  switch (dp.displayQuality) {
+  case 0:
+    txtWidth = 512;
+    txtHeight = (dp.useDoubleBuffering ? 512 : 16);
+    break;
+  case 1:
+    txtWidth = 512;
+    txtHeight = 512;
+    break;
+  case 2:
+    txtHeight = 512;
+    break;
+  }
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, txtWidth, txtHeight, 0,
+               GL_RGB, GL_UNSIGNED_SHORT_5_6_5, (const GLvoid *) textureBuffer);
+}
+
 namespace Ep128Emu {
 
   OpenGLDisplay::Colormap::Colormap()
@@ -592,13 +615,13 @@ namespace Ep128Emu {
         double  ycf1 = y0 + ((double(int(yc << 1) + 16) * (1.0 / 576.0))
                              * (y1 - y0));
         glBegin(GL_QUADS);
-        glTexCoord2f(GLfloat(0.0), GLfloat(0.001 / 1024.0));
+        glTexCoord2f(GLfloat(0.0), GLfloat(0.001 / 16.0));
         glVertex2f(GLfloat(x0), GLfloat(ycf0));
-        glTexCoord2f(GLfloat(384.0 / 1024.0), GLfloat(0.001 / 1024.0));
+        glTexCoord2f(GLfloat(384.0 / 512.0), GLfloat(0.001 / 16.0));
         glVertex2f(GLfloat(x1), GLfloat(ycf0));
-        glTexCoord2f(GLfloat(384.0 / 1024.0), GLfloat(7.999 / 1024.0));
+        glTexCoord2f(GLfloat(384.0 / 512.0), GLfloat(7.999 / 16.0));
         glVertex2f(GLfloat(x1), GLfloat(ycf1));
-        glTexCoord2f(GLfloat(0.0), GLfloat(7.999 / 1024.0));
+        glTexCoord2f(GLfloat(0.0), GLfloat(7.999 / 16.0));
         glVertex2f(GLfloat(x0), GLfloat(ycf1));
         glEnd();
       }
@@ -684,11 +707,11 @@ namespace Ep128Emu {
       else if (displayParameters.displayQuality < 2) {
         glTexCoord2f(GLfloat(0.0), GLfloat(0.0));
         glVertex2f(GLfloat(x0), GLfloat(y0));
-        glTexCoord2f(GLfloat(384.0 / 1024.0), GLfloat(0.0));
+        glTexCoord2f(GLfloat(384.0 / 512.0), GLfloat(0.0));
         glVertex2f(GLfloat(x1), GLfloat(y0));
-        glTexCoord2f(GLfloat(384.0 / 1024.0), GLfloat(288.0 / 1024.0));
+        glTexCoord2f(GLfloat(384.0 / 512.0), GLfloat(288.0 / 512.0));
         glVertex2f(GLfloat(x1), GLfloat(y1));
-        glTexCoord2f(GLfloat(0.0), GLfloat(288.0 / 1024.0));
+        glTexCoord2f(GLfloat(0.0), GLfloat(288.0 / 512.0));
         glVertex2f(GLfloat(x0), GLfloat(y1));
       }
       else {
@@ -696,9 +719,9 @@ namespace Ep128Emu {
         glVertex2f(GLfloat(x0), GLfloat(y0));
         glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(0.0));
         glVertex2f(GLfloat(x1), GLfloat(y0));
-        glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(288.0 / 1024.0));
+        glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(288.0 / 512.0));
         glVertex2f(GLfloat(x1), GLfloat(y1));
-        glTexCoord2f(GLfloat(0.0), GLfloat(288.0 / 1024.0));
+        glTexCoord2f(GLfloat(0.0), GLfloat(288.0 / 512.0));
         glVertex2f(GLfloat(x0), GLfloat(y1));
       }
       glEnd();
@@ -735,8 +758,7 @@ namespace Ep128Emu {
       glGetIntegerv(GL_TEXTURE_BINDING_2D, &savedTextureID);
       glBindTexture(GL_TEXTURE_2D, tmp);
       setTextureParameters(displayParameters.displayQuality);
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 1024, 0,
-                   GL_RGB, GL_UNSIGNED_SHORT_5_6_5, (GLvoid *) textureBuffer);
+      initializeTexture(displayParameters, textureBuffer);
       glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
       // clear display
       glDisable(GL_TEXTURE_2D);
@@ -841,9 +863,7 @@ namespace Ep128Emu {
           glGetIntegerv(GL_TEXTURE_BINDING_2D, &savedTextureID);
           glBindTexture(GL_TEXTURE_2D, GLuint(textureID));
           setTextureParameters(msg->dp.displayQuality);
-          glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 1024, 0,
-                       GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
-                       (GLvoid *) textureBuffer);
+          initializeTexture(msg->dp, textureBuffer);
           glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
           for (size_t yc = 0; yc < 289; yc++)
             linesChanged[yc] = true;
