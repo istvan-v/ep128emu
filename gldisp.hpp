@@ -156,7 +156,7 @@ namespace Ep128Emu {
     // for 578 lines (576 + 2 border)
     Message_LineData  **lineBuffers;
     bool          *linesChanged;
-    // 1024x1024 texture in 16-bit (R5G6B5) format
+    // 1024x16 texture in 16-bit (R5G6B5) format
     uint16_t      *textureBuffer;
     unsigned long textureID;
     int           curLine;

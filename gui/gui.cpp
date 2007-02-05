@@ -749,6 +749,19 @@ void Ep128EmuGUI::errorMessageCallback(void *userData, const char *msg)
   reinterpret_cast<Ep128EmuGUI *>(userData)->errorMessage(msg);
 }
 
+void Ep128EmuGUI::fileNameCallback(void *userData, std::string& fileName)
+{
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(userData));
+  try {
+    std::string tmp(gui_.config.fileio.workingDirectory);
+    gui_.browseFile(fileName, tmp, "All files (*)",
+                    Fl_File_Chooser::CREATE, "Open file");
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
 bool Ep128EmuGUI::closeDemoFile(bool stopDemo_)
 {
   if (demoRecordFile) {
@@ -826,17 +839,22 @@ void Ep128EmuGUI::updateDisplaySettingsWindow()
   displayFXParam3Valuator->value(config.display.effects.param3);
 }
 
-void Ep128EmuGUI::fileNameCallback(void *userData, std::string& fileName)
+void Ep128EmuGUI::updateSoundSettingsWindow()
 {
-  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(userData));
-  try {
-    std::string tmp(gui_.config.fileio.workingDirectory);
-    gui_.browseFile(fileName, tmp, "All files (*)",
-                    Fl_File_Chooser::CREATE, "Open file");
+  {
+    int   n = config.sound.device + 1;
+    if (n >= 0 && (n + 1) < soundDeviceValuator->size())
+      soundDeviceValuator->value(n);
+    else
+      soundDeviceValuator->value(-1);
   }
-  catch (std::exception& e) {
-    gui_.errorMessage(e.what());
-  }
+  enableSoundValuator->value(config.sound.enabled ? 1 : 0);
+  soundHighQualityValuator->value(config.sound.highQuality ? 1 : 0);
+  soundSampleRateValuator->value(config.sound.sampleRate);
+  soundOutputFileValuator->value(config.sound.file.c_str());
+  soundLatencyValuator->value(config.sound.latency * 1000.0);
+  soundHWPeriodsValuator->value(double(config.sound.hwPeriods));
+  soundSWPeriodsValuator->value(double(config.sound.swPeriods));
 }
 
 // ----------------------------------------------------------------------------
@@ -1594,7 +1612,28 @@ void Ep128EmuGUI::menuCallback_Options_SndConfig(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
+    {
+      std::vector< std::string >  sndDeviceList =
+          gui_.audioOutput.getDeviceList();
+      size_t  i = size_t(gui_.soundDeviceValuator->size());
+      size_t  j = sndDeviceList.size();
+      i = (i > 0 ? (i - 1) : i);
+      j = (j < 999 ? j : 999);
+      while (i > 0) {
+        i--;
+        gui_.soundDeviceValuator->remove(int(i));
+      }
+      for (i = 0; i <= j; i++) {
+        char    tmpBuf[4];
+        std::sprintf(&(tmpBuf[0]), "%d", int(i));
+        gui_.soundDeviceValuator->add(&(tmpBuf[0]), int(0), (Fl_Callback *) 0);
+      }
+      gui_.soundDeviceValuator->replace(0, "<none>");
+      for (i = 1; i <= j; i++)
+        gui_.soundDeviceValuator->replace(int(i), sndDeviceList[i - 1].c_str());
+    }
+    gui_.updateSoundSettingsWindow();
+    gui_.soundSettingsWindow->show();
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());

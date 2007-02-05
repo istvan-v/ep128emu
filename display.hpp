@@ -28,7 +28,7 @@ namespace Ep128Emu {
    public:
     class DisplayParameters {
      public:
-      // 0: half horizontal resolution, no interlace (384x288),
+      // 0: full horizontal resolution, no interlace (768x288),
       //    no texture filtering, no blend effects
       // 1: half horizontal resolution, no interlace (384x288)
       // 2: full horizontal resolution, no interlace (768x288)

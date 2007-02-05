@@ -101,11 +101,13 @@ class Ep128EmuGUI {open
   }
   decl {static void errorMessageCallback(void *userData, const char *msg);} {public
   }
+  decl {static void fileNameCallback(void *userData, std::string& fileName);} {public
+  }
   decl {bool closeDemoFile(bool stopDemo_);} {public
   }
   decl {void updateDisplaySettingsWindow();} {public
   }
-  decl {static void fileNameCallback(void *userData, std::string& fileName);} {public
+  decl {void updateSoundSettingsWindow();} {public
   }
   decl {static void menuCallback_File_SetFileIODir(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_LoadFile(Fl_Widget *o, void *v);} {}
@@ -562,6 +564,151 @@ class Ep128EmuGUI {open
     emulatorWindow->cursor(FL_CURSOR_DEFAULT);
   else
     emulatorWindow->cursor(FL_CURSOR_NONE);
+}}
+        xywh {325 415 60 25} color 38 selection_color 39 labelcolor 52
+      }
+    }
+    Fl_Window soundSettingsWindow {
+      label {Sound settings}
+      callback {{
+  try {
+    applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    errorMessage(e.what());
+  }
+  updateSoundSettingsWindow();
+  soundSettingsWindow->hide();
+}} open
+      xywh {730 361 400 450} type Double color 37 visible
+    } {
+      Fl_Group {} {open
+        xywh {10 10 380 185} box THIN_UP_BOX color 38 labelcolor 52
+      } {
+        Fl_Choice soundDeviceValuator {
+          callback {{
+  if (o->value() >= 0) {
+    config.sound.device = o->value() - 1;
+    config.soundSettingsChanged = true;
+  }
+}} open
+          xywh {20 20 235 25} down_box BORDER_BOX color 0 selection_color 236 labelcolor 3 align 8 textcolor 52
+        } {}
+        Fl_Box {} {
+          label {Audio device}
+          xywh {265 20 115 25} color 38 labelcolor 52 align 20
+        }
+        Fl_Light_Button enableSoundValuator {
+          label {Enable sound output}
+          callback {{
+  config.sound.enabled = (o->value() != 0);
+  config.soundSettingsChanged = true;
+}}
+          tooltip {Note: disabling sound output will also make the emulation run faster than real time} xywh {20 55 170 25} color 39 labelcolor 52
+        }
+        Fl_Light_Button soundHighQualityValuator {
+          label {High quality}
+          callback {{
+  config.sound.highQuality = (o->value() != 0);
+  config.soundSettingsChanged = true;
+}}
+          tooltip {Using high quality sample rate conversion reduces aliasing, but also increases CPU usage} xywh {20 90 170 25} color 39 labelcolor 52
+        }
+        Fl_Value_Input soundSampleRateValuator {
+          label {Sample rate}
+          callback {{
+  config.sound.sampleRate = o->clamp(o->value());
+  o->value(config.sound.sampleRate);
+  config.soundSettingsChanged = true;
+}}
+          xywh {20 125 75 25} color 0 selection_color 236 labelcolor 52 align 8 when 4 minimum 11025 maximum 192000 step 1 value 48000 textcolor 52
+        }
+        Fl_Input soundOutputFileValuator {
+          callback {{
+  try {
+    config.sound.file = o->value();
+    Ep128Emu::stripString(config.sound.file);
+  }
+  catch (std::exception& e) {
+    errorMessage(e.what());
+  }
+  config.soundSettingsChanged = true;
+}}
+          tooltip {Record sound output to this file in 16 bit WAV format; if left blank, no sound file is written} xywh {20 160 205 25} color 0 selection_color 236 labelcolor 52 textcolor 52
+        }
+        Fl_Button {} {
+          label {...}
+          callback {{
+  try {
+    std::string tmp;
+    if (browseFile(tmp, soundFileDirectory,
+                   "Sound files (*.wav)",
+                   Fl_File_Chooser::CREATE,
+                   "Select sound output file"))
+      config["sound.file"] = tmp;
+  }
+  catch (std::exception& e) {
+    errorMessage(e.what());
+  }
+}}
+          xywh {230 160 25 25} color 39 selection_color 40 labelcolor 52
+        }
+        Fl_Box {} {
+          label {Audio output file}
+          xywh {265 160 115 25} color 38 labelcolor 52 align 20
+        }
+        Fl_Value_Slider soundLatencyValuator {
+          label Latency
+          callback {{
+  config.sound.latency = o->value() / 1000.0;
+  config.soundSettingsChanged = true;
+}}
+          tooltip {Audio output latency in milliseconds; smaller values improve the responsiveness of the emulator, but may cause the sound to skip} xywh {200 55 120 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 8 minimum 5 maximum 500 step 1 value 100 textcolor 52
+        }
+        Fl_Value_Output soundHWPeriodsValuator {
+          label {Hardware buffers}
+          callback {{
+  config.sound.hwPeriods = int(o->value() + 0.5);
+  config.soundSettingsChanged = true;
+}}
+          tooltip {Number of sound card buffers; click and drag to change the value} xywh {200 90 35 25} color 0 selection_color 236 labelcolor 52 align 8 minimum 2 maximum 16 step 1 value 4 textcolor 52
+        }
+        Fl_Value_Output soundSWPeriodsValuator {
+          label {Software buffers}
+          callback {{
+  config.sound.swPeriods = int(o->value() + 0.5);
+  config.soundSettingsChanged = true;
+}}
+          tooltip {Number of buffers in emulator ring buffer; click and drag to change the value} xywh {200 125 35 25} color 0 selection_color 236 labelcolor 52 align 8 minimum 2 maximum 16 step 1 value 4 textcolor 52
+        }
+      }
+      Fl_Group {} {open
+        xywh {10 205 380 200} box THIN_UP_BOX color 38 labelcolor 52
+      } {}
+      Fl_Button {} {
+        label Apply
+        callback {{
+  try {
+    applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    errorMessage(e.what());
+  }
+  updateSoundSettingsWindow();
+}}
+        xywh {255 415 60 25} color 38 selection_color 39 labelcolor 52
+      }
+      Fl_Button {} {
+        label OK
+        callback {{
+  try {
+    applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    errorMessage(e.what());
+  }
+  updateSoundSettingsWindow();
+  soundSettingsWindow->hide();
 }}
         xywh {325 415 60 25} color 38 selection_color 39 labelcolor 52
       }
