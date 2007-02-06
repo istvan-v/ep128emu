@@ -1612,12 +1612,13 @@ void Ep128EmuGUI::menuCallback_Options_SndConfig(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
+    gui_.soundDeviceValuator->value(-1);
     {
       std::vector< std::string >  sndDeviceList =
           gui_.audioOutput.getDeviceList();
       size_t  i = size_t(gui_.soundDeviceValuator->size());
       size_t  j = sndDeviceList.size();
-      i = (i > 0 ? (i - 1) : i);
+      i = (i > 0 ? (i - 1) : 0);
       j = (j < 999 ? j : 999);
       while (i > 0) {
         i--;

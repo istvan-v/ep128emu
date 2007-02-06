@@ -722,12 +722,14 @@ class Ep128EmuGUI {open
   errorMessageWindow->hide();
   browseFileWindow->hide();
   displaySettingsWindow->hide();
+  soundSettingsWindow->hide();
   mainWindow->hide();
   Fl::wait(0.0);
   emulatorWindowGroup->remove(*emulatorWindow);
   delete errorMessageWindow;
   delete browseFileWindow;
   delete displaySettingsWindow;
+  delete soundSettingsWindow;
   delete mainWindow;
   config.sound.file = "";
 }} {}
