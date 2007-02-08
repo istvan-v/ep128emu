@@ -23,6 +23,8 @@ if win32CrossCompile:
     ep128emuLibEnvironment['RANLIB'] = 'wine D:/MinGW/bin/ranlib.exe'
     ep128emuLibEnvironment.Append(LIBS = ['ole32', 'uuid', 'ws2_32',
                                           'gdi32', 'user32', 'kernel32'])
+    ep128emuLibEnvironment.Prepend(CCFLAGS = ['-mthreads'])
+    ep128emuLibEnvironment.Prepend(LINKFLAGS = ['-mthreads'])
 
 ep128emuGUIEnvironment = ep128emuLibEnvironment.Copy()
 if win32CrossCompile:
@@ -169,6 +171,8 @@ if haveDotconf:
 ep128emuEnvironment.Append(LIBS = ['portaudio', 'sndfile'])
 if not win32CrossCompile:
     ep128emuEnvironment.Append(LIBS = ['jack', 'asound', 'pthread'])
+else:
+    ep128emuEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
 
 Command(['gui/gui_fl.cpp', 'gui/gui_fl.hpp'], 'gui/gui.fl',
         'fluid -c -o gui/gui_fl.cpp -h gui/gui_fl.hpp $SOURCES')
