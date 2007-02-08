@@ -36,7 +36,15 @@
 #include "plus4/plus4vm.hpp"
 
 #include <FL/Fl_File_Chooser.H>
+
+class Ep128EmuGUI_DisplayConfigWindow;
+class Ep128EmuGUI_SoundConfigWindow;
+class Ep128EmuGUI_MachineConfigWindow;
+
 #include "gui_fl.hpp"
+#include "disp_cfg.hpp"
+#include "snd_cfg.hpp"
+#include "vm_cfg.hpp"
 
 #endif  // EP128EMU_GUI_HPP
 

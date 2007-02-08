@@ -1,0 +1,1104 @@
+# data file for the Fltk User Interface Designer (fluid)
+version 1.0107 
+do_not_include_H_from_C 
+header_name {.hpp} 
+code_name {.cpp}
+decl {\#include "gui.hpp"} {selected
+} 
+
+class Ep128EmuGUI_MachineConfigWindow {open
+} {
+  decl {Ep128EmuGUI& gui;} {}
+  Function {Ep128EmuGUI_MachineConfigWindow(Ep128EmuGUI& gui_) : gui(gui_)} {open
+  } {
+    Fl_Window window {
+      label {Machine configuration}
+      callback {{
+  try {
+    gui.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+  updateWindow();
+  window->hide();
+}} open
+      xywh {428 237 400 450} type Double color 37 visible
+    } {
+      Fl_Button {} {
+        label Apply
+        callback {{
+  try {
+    gui.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+  updateWindow();
+}}
+        xywh {255 415 60 25} color 38 selection_color 39 labelcolor 52
+      }
+      Fl_Button {} {
+        label OK
+        callback {{
+  try {
+    gui.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+  updateWindow();
+  window->hide();
+}}
+        xywh {325 415 60 25} color 38 selection_color 39 labelcolor 52
+      }
+      Fl_Tabs {} {open
+        xywh {10 10 380 395} color 38 selection_color 38 labelcolor 52
+      } {
+        Fl_Group {} {
+          label General open
+          xywh {10 35 380 370} color 38 selection_color 38 labelcolor 52
+        } {
+          Fl_Group {} {
+            label {Clock frequency and timing settings} open
+            tooltip {Note: some of these settings may be ignored, depending on the type of machine being emulated} xywh {20 45 360 205} box ENGRAVED_FRAME color 38 labelcolor 52 align 21
+          } {
+            Fl_Value_Input vmCPUFrequencyValuator {
+              label {CPU frequency (Hz)}
+              callback {{
+  try {
+    gui.config["vm.cpuClockFrequency"] = (unsigned int) (o->clamp(o->value()) + 0.5);
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+  o->value(double(gui.config.vm.cpuClockFrequency));
+}}
+              xywh {30 75 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 100000 maximum 5e+08 step 1 value 4e+06 textcolor 52
+            }
+            Fl_Value_Input vmVideoFrequencyValuator {
+              label {Video clock frequency (Hz)}
+              callback {{
+  try {
+    gui.config["vm.videoClockFrequency"] = (unsigned int) (o->clamp(o->value()) + 0.5);
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+  updateWindow();
+}}
+              tooltip {Horizontal refresh rate * 57} xywh {30 110 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 100000 maximum 2e+06 step 1 value 890625 textcolor 52
+            }
+            Fl_Value_Input vmSoundClockFrequencyValuator {
+              label {Sound clock frequency (Hz)}
+              callback {{
+  try {
+    gui.config["vm.soundClockFrequency"] = (unsigned int) (o->clamp(o->value()) + 0.5);
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+  o->value(double(gui.config.vm.soundClockFrequency));
+}}
+              xywh {30 145 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 100000 maximum 2e+06 step 1 value 500000 textcolor 52
+            }
+            Fl_Value_Input vmVideoMemoryLatencyValuator {
+              label {Video memory latency (ns)}
+              callback {{
+  try {
+    gui.config["vm.videoMemoryLatency"] = (unsigned int) (o->clamp(o->value()) + 0.5);
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+  o->value(double(gui.config.vm.videoMemoryLatency));
+}}
+              xywh {30 180 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 maximum 500 step 1 value 62 textcolor 52
+            }
+            Fl_Light_Button enableMemoryTimingValuator {
+              label {Enable memory timing emulation}
+              callback {{
+  gui.config.vm.enableMemoryTimingEmulation = (o->value() != 0);
+  gui.config.vmConfigurationChanged = true;
+}}
+              xywh {30 215 240 25} color 39 labelcolor 52
+            }
+          }
+          Fl_Group {} {
+            label {Tape emulation} open
+            xywh {20 260 360 135} box ENGRAVED_FRAME color 38 labelcolor 52 align 21
+          } {
+            Fl_Light_Button tapeEnableFastModeValuator {
+              label {Enable fast tape mode}
+              callback {{
+  gui.config.tape.fastMode = (o->value() != 0);
+  gui.config.fastTapeModeChanged = true;
+}}
+              tooltip {Allow the emulation to run faster than real time while recording or playing tape} xywh {30 290 240 25} color 39 labelcolor 52
+            }
+            Fl_Value_Input tapeDefaultSampleRateValuator {
+              label {Default tape sample rate (Hz)}
+              callback {{
+  gui.config.tape.defaultSampleRate = int(o->clamp(o->value()) + 0.5);
+  gui.config.tapeDefaultSampleRateChanged = true;
+  o->value(double(gui.config.tape.defaultSampleRate));
+}}
+              xywh {30 330 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 10000 maximum 120000 step 1 value 24000 textcolor 52
+            }
+          }
+        }
+        Fl_Group {} {
+          label Memory open
+          xywh {10 35 380 370} color 38 selection_color 38 labelcolor 52 hide
+        } {
+          Fl_Value_Input memoryRAMSizeValuator {
+            label {RAM size in kilobytes}
+            callback {{
+  try {
+    gui.config["memory.ram.size"] = int(o->clamp(o->value()) + 0.5);
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+  o->value(double(gui.config.memory.ram.size));
+}}
+            xywh {20 45 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 16 maximum 4096 step 16 value 64 textcolor 52
+          }
+          Fl_Scroll {} {
+            label {ROM images} open
+            xywh {20 95 360 300} box DOWN_BOX color 36 selection_color 40 labelcolor 52 align 5
+          } {
+            Fl_Group {} {open
+              xywh {25 100 325 635} box FLAT_BOX color 36 labelcolor 52
+            } {
+              Fl_Box {} {
+                label Segment
+                xywh {30 105 80 20} color 36 labelcolor 52 align 20
+              }
+              Fl_Box {} {
+                label {File name}
+                xywh {110 105 80 20} color 36 labelcolor 52 align 20
+              }
+              Fl_Box {} {
+                label {File offset}
+                xywh {270 105 75 20} color 36 labelcolor 52 align 20
+              }
+              Fl_Box {} {
+                label 00
+                xywh {30 130 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM00FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.00.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 130 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.00.file"] = tmp;
+      memoryROM00FileNameValuator->value(gui.config.memory.rom[0x00].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 130 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM00OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x00].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x00].offset));
+}}
+                xywh {280 130 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 01
+                xywh {30 160 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM01FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.01.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 160 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.01.file"] = tmp;
+      memoryROM01FileNameValuator->value(gui.config.memory.rom[0x01].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 160 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM01OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x01].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x01].offset));
+}}
+                xywh {280 160 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 02
+                xywh {30 190 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM02FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.02.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 190 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.02.file"] = tmp;
+      memoryROM02FileNameValuator->value(gui.config.memory.rom[0x02].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 190 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM02OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x02].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x02].offset));
+}}
+                xywh {280 190 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 03
+                xywh {30 220 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM03FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.03.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 220 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.03.file"] = tmp;
+      memoryROM03FileNameValuator->value(gui.config.memory.rom[0x03].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 220 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM03OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x03].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x03].offset));
+}}
+                xywh {280 220 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 04
+                xywh {30 250 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM04FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.04.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 250 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.04.file"] = tmp;
+      memoryROM04FileNameValuator->value(gui.config.memory.rom[0x04].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 250 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM04OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x04].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x04].offset));
+}}
+                xywh {280 250 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 05
+                xywh {30 280 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM05FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.05.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 280 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.05.file"] = tmp;
+      memoryROM05FileNameValuator->value(gui.config.memory.rom[0x05].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 280 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM05OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x05].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x05].offset));
+}}
+                xywh {280 280 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 06
+                xywh {30 310 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM06FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.06.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 310 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.06.file"] = tmp;
+      memoryROM06FileNameValuator->value(gui.config.memory.rom[0x06].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 310 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM06OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x06].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x06].offset));
+}}
+                xywh {280 310 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 07
+                xywh {30 340 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM07FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.07.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 340 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.07.file"] = tmp;
+      memoryROM07FileNameValuator->value(gui.config.memory.rom[0x07].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 340 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM07OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x07].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x07].offset));
+}}
+                xywh {280 340 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 10
+                xywh {30 370 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM10FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.10.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 370 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.10.file"] = tmp;
+      memoryROM10FileNameValuator->value(gui.config.memory.rom[0x10].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 370 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM10OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x10].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x10].offset));
+}}
+                xywh {280 370 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 11
+                xywh {30 400 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM11FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.11.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 400 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.11.file"] = tmp;
+      memoryROM11FileNameValuator->value(gui.config.memory.rom[0x11].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 400 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM11OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x11].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x11].offset));
+}}
+                xywh {280 400 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 12
+                xywh {30 430 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM12FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.12.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 430 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.12.file"] = tmp;
+      memoryROM12FileNameValuator->value(gui.config.memory.rom[0x12].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 430 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM12OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x12].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x12].offset));
+}}
+                xywh {280 430 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 13
+                xywh {30 460 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM13FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.13.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 460 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.13.file"] = tmp;
+      memoryROM13FileNameValuator->value(gui.config.memory.rom[0x13].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 460 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM13OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x13].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x13].offset));
+}}
+                xywh {280 460 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 20
+                xywh {30 490 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM20FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.20.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 490 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.20.file"] = tmp;
+      memoryROM20FileNameValuator->value(gui.config.memory.rom[0x20].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 490 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM20OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x20].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x20].offset));
+}}
+                xywh {280 490 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 21
+                xywh {30 520 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM21FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.21.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 520 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.21.file"] = tmp;
+      memoryROM21FileNameValuator->value(gui.config.memory.rom[0x21].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 520 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM21OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x21].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x21].offset));
+}}
+                xywh {280 520 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 22
+                xywh {30 550 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM22FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.22.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 550 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.22.file"] = tmp;
+      memoryROM22FileNameValuator->value(gui.config.memory.rom[0x22].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 550 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM22OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x22].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x22].offset));
+}}
+                xywh {280 550 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 23
+                xywh {30 580 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM23FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.23.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 580 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.23.file"] = tmp;
+      memoryROM23FileNameValuator->value(gui.config.memory.rom[0x23].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 580 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM23OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x23].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x23].offset));
+}}
+                xywh {280 580 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 30
+                xywh {30 610 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM30FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.30.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 610 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.30.file"] = tmp;
+      memoryROM30FileNameValuator->value(gui.config.memory.rom[0x30].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 610 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM30OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x30].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x30].offset));
+}}
+                xywh {280 610 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 31
+                xywh {30 640 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM31FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.31.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 640 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.31.file"] = tmp;
+      memoryROM31FileNameValuator->value(gui.config.memory.rom[0x31].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 640 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM31OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x31].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x31].offset));
+}}
+                xywh {280 640 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 32
+                xywh {30 670 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM32FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.32.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 670 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.32.file"] = tmp;
+      memoryROM32FileNameValuator->value(gui.config.memory.rom[0x32].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 670 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM32OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x32].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x32].offset));
+}}
+                xywh {280 670 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+              Fl_Box {} {
+                label 33
+                xywh {30 700 35 25} box DOWN_BOX color 0 labelcolor 52
+              }
+              Fl_Input memoryROM33FileNameValuator {
+                callback {{
+  try {
+    gui.config["memory.rom.33.file"] = o->value();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {75 700 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Select ROM image file")) {
+      gui.config["memory.rom.33.file"] = tmp;
+      memoryROM33FileNameValuator->value(gui.config.memory.rom[0x33].file.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {245 700 25 25} color 38 selection_color 39 labelcolor 52
+              }
+              Fl_Value_Input memoryROM33OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x33].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x33].offset));
+}}
+                xywh {280 700 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  Function {~Ep128EmuGUI_MachineConfigWindow()} {open
+  } {
+    code {{
+  delete window;
+}} {}
+  }
+  Function {show()} {open return_type void
+  } {
+    code {{
+  updateWindow();
+  window->show();
+}} {}
+  }
+  Function {hide()} {open return_type void
+  } {
+    code {{
+  window->hide();
+}} {}
+  }
+  Function {updateWindow()} {open private return_type void
+  } {
+    code {{
+  vmCPUFrequencyValuator->value(double(gui.config.vm.cpuClockFrequency));
+  vmVideoFrequencyValuator->value(double(gui.config.vm.videoClockFrequency));
+  vmSoundClockFrequencyValuator->value(double(gui.config.vm.soundClockFrequency));
+  vmVideoMemoryLatencyValuator->value(double(gui.config.vm.videoMemoryLatency));
+  enableMemoryTimingValuator->value(gui.config.vm.enableMemoryTimingEmulation ? 1 : 0);
+  tapeEnableFastModeValuator->value(gui.config.tape.fastMode ? 1 : 0);
+  tapeDefaultSampleRateValuator->value(double(gui.config.tape.defaultSampleRate));
+  memoryRAMSizeValuator->value(double(gui.config.memory.ram.size));
+  memoryROM00FileNameValuator->value(gui.config.memory.rom[0x00].file.c_str());
+  memoryROM00OffsetValuator->value(double(gui.config.memory.rom[0x00].offset));
+  memoryROM01FileNameValuator->value(gui.config.memory.rom[0x01].file.c_str());
+  memoryROM01OffsetValuator->value(double(gui.config.memory.rom[0x01].offset));
+  memoryROM02FileNameValuator->value(gui.config.memory.rom[0x02].file.c_str());
+  memoryROM02OffsetValuator->value(double(gui.config.memory.rom[0x02].offset));
+  memoryROM03FileNameValuator->value(gui.config.memory.rom[0x03].file.c_str());
+  memoryROM03OffsetValuator->value(double(gui.config.memory.rom[0x03].offset));
+  memoryROM04FileNameValuator->value(gui.config.memory.rom[0x04].file.c_str());
+  memoryROM04OffsetValuator->value(double(gui.config.memory.rom[0x04].offset));
+  memoryROM05FileNameValuator->value(gui.config.memory.rom[0x05].file.c_str());
+  memoryROM05OffsetValuator->value(double(gui.config.memory.rom[0x05].offset));
+  memoryROM06FileNameValuator->value(gui.config.memory.rom[0x06].file.c_str());
+  memoryROM06OffsetValuator->value(double(gui.config.memory.rom[0x06].offset));
+  memoryROM07FileNameValuator->value(gui.config.memory.rom[0x07].file.c_str());
+  memoryROM07OffsetValuator->value(double(gui.config.memory.rom[0x07].offset));
+  memoryROM10FileNameValuator->value(gui.config.memory.rom[0x10].file.c_str());
+  memoryROM10OffsetValuator->value(double(gui.config.memory.rom[0x10].offset));
+  memoryROM11FileNameValuator->value(gui.config.memory.rom[0x11].file.c_str());
+  memoryROM11OffsetValuator->value(double(gui.config.memory.rom[0x11].offset));
+  memoryROM12FileNameValuator->value(gui.config.memory.rom[0x12].file.c_str());
+  memoryROM12OffsetValuator->value(double(gui.config.memory.rom[0x12].offset));
+  memoryROM13FileNameValuator->value(gui.config.memory.rom[0x13].file.c_str());
+  memoryROM13OffsetValuator->value(double(gui.config.memory.rom[0x13].offset));
+  memoryROM20FileNameValuator->value(gui.config.memory.rom[0x20].file.c_str());
+  memoryROM20OffsetValuator->value(double(gui.config.memory.rom[0x20].offset));
+  memoryROM21FileNameValuator->value(gui.config.memory.rom[0x21].file.c_str());
+  memoryROM21OffsetValuator->value(double(gui.config.memory.rom[0x21].offset));
+  memoryROM22FileNameValuator->value(gui.config.memory.rom[0x22].file.c_str());
+  memoryROM22OffsetValuator->value(double(gui.config.memory.rom[0x22].offset));
+  memoryROM23FileNameValuator->value(gui.config.memory.rom[0x23].file.c_str());
+  memoryROM23OffsetValuator->value(double(gui.config.memory.rom[0x23].offset));
+  memoryROM30FileNameValuator->value(gui.config.memory.rom[0x30].file.c_str());
+  memoryROM30OffsetValuator->value(double(gui.config.memory.rom[0x30].offset));
+  memoryROM31FileNameValuator->value(gui.config.memory.rom[0x31].file.c_str());
+  memoryROM31OffsetValuator->value(double(gui.config.memory.rom[0x31].offset));
+  memoryROM32FileNameValuator->value(gui.config.memory.rom[0x32].file.c_str());
+  memoryROM32OffsetValuator->value(double(gui.config.memory.rom[0x32].offset));
+  memoryROM33FileNameValuator->value(gui.config.memory.rom[0x33].file.c_str());
+  memoryROM33OffsetValuator->value(double(gui.config.memory.rom[0x33].offset));
+}} {}
+  }
+} 

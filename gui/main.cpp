@@ -124,14 +124,14 @@ int main(int argc, char **argv)
     if (isPlus4) {
       Ep128Emu::ConfigurationDB::ConfigurationVariable  *cv;
       cv = &((*config)["vm.cpuClockFrequency"]);
-      (*cv).setRange(1500000.0, 150000000.0, 0.0);
+      (*cv).setRange(886724.0, 150000000.0, 0.0);
       (*cv) = (unsigned int) 1773448;
       cv = &((*config)["vm.videoClockFrequency"]);
-      (*cv).setRange(768000.0, 1024000.0, 4.0);
+      (*cv).setRange(443364.0, 1773448.0, 4.0);
       (*cv) = (unsigned int) 886724;
       (*cv).setCallback(&plus4ClockFreqChangeCallback, config, true);
       cv = &((*config)["vm.soundClockFrequency"]);
-      (*cv).setRange(192000.0, 256000.0, 0.0);
+      (*cv).setRange(110841.0, 443362.0, 0.0);
       (*cv) = (unsigned int) 221681;
       (*cv).setCallback(&plus4ClockFreqChangeCallback, config, true);
       cv = &((*config)["vm.videoMemoryLatency"]);

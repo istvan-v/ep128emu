@@ -72,6 +72,9 @@ void Ep128EmuGUI::init_()
   browseFileWindowShowFlag = false;
   browseFileWindow = (Fl_File_Chooser *) 0;
   windowToShow = (Fl_Window *) 0;
+  displaySettingsWindow = (Ep128EmuGUI_DisplayConfigWindow *) 0;
+  soundSettingsWindow = (Ep128EmuGUI_SoundConfigWindow *) 0;
+  machineConfigWindow = (Ep128EmuGUI_MachineConfigWindow *) 0;
   snapshotDirectory = "";
   demoDirectory = "";
   soundFileDirectory = "";
@@ -803,60 +806,6 @@ bool Ep128EmuGUI::closeDemoFile(bool stopDemo_)
   return true;
 }
 
-void Ep128EmuGUI::updateDisplaySettingsWindow()
-{
-  globalBrightnessValuator->value(config.display.brightness);
-  globalBrightnessValueDisplay->value(config.display.brightness);
-  redBrightnessValuator->value(config.display.red.brightness);
-  redBrightnessValueDisplay->value(config.display.red.brightness);
-  greenBrightnessValuator->value(config.display.green.brightness);
-  greenBrightnessValueDisplay->value(config.display.green.brightness);
-  blueBrightnessValuator->value(config.display.blue.brightness);
-  blueBrightnessValueDisplay->value(config.display.blue.brightness);
-  globalContrastValuator->value(config.display.contrast);
-  globalContrastValueDisplay->value(config.display.contrast);
-  redContrastValuator->value(config.display.red.contrast);
-  redContrastValueDisplay->value(config.display.red.contrast);
-  greenContrastValuator->value(config.display.green.contrast);
-  greenContrastValueDisplay->value(config.display.green.contrast);
-  blueContrastValuator->value(config.display.blue.contrast);
-  blueContrastValueDisplay->value(config.display.blue.contrast);
-  globalGammaValuator->value(config.display.gamma);
-  globalGammaValueDisplay->value(config.display.gamma);
-  redGammaValuator->value(config.display.red.gamma);
-  redGammaValueDisplay->value(config.display.red.gamma);
-  greenGammaValuator->value(config.display.green.gamma);
-  greenGammaValueDisplay->value(config.display.green.gamma);
-  blueGammaValuator->value(config.display.blue.gamma);
-  blueGammaValueDisplay->value(config.display.blue.gamma);
-  enableDisplayValuator->value(config.display.enabled ? 1 : 0);
-  displayDoubleBufferedValuator->value(config.display.doubleBuffered ? 1 : 0);
-  displayQualityValuator->value(double(config.display.quality));
-  pixelAspectRatioValuator->value(config.display.pixelAspectRatio);
-  displaySaturationValuator->value(config.display.saturation);
-  displayFXParam1Valuator->value(config.display.effects.param1);
-  displayFXParam2Valuator->value(config.display.effects.param2);
-  displayFXParam3Valuator->value(config.display.effects.param3);
-}
-
-void Ep128EmuGUI::updateSoundSettingsWindow()
-{
-  {
-    int   n = config.sound.device + 1;
-    if (n >= 0 && (n + 1) < soundDeviceValuator->size())
-      soundDeviceValuator->value(n);
-    else
-      soundDeviceValuator->value(-1);
-  }
-  enableSoundValuator->value(config.sound.enabled ? 1 : 0);
-  soundHighQualityValuator->value(config.sound.highQuality ? 1 : 0);
-  soundSampleRateValuator->value(config.sound.sampleRate);
-  soundOutputFileValuator->value(config.sound.file.c_str());
-  soundLatencyValuator->value(config.sound.latency * 1000.0);
-  soundHWPeriodsValuator->value(double(config.sound.hwPeriods));
-  soundSWPeriodsValuator->value(double(config.sound.swPeriods));
-}
-
 // ----------------------------------------------------------------------------
 
 void Ep128EmuGUI::menuCallback_File_SetFileIODir(Fl_Widget *o, void *v)
@@ -1520,12 +1469,7 @@ void Ep128EmuGUI::menuCallback_Machine_Configure(Fl_Widget *o, void *v)
 {
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
-  try {
-    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
-  }
-  catch (std::exception& e) {
-    gui_.errorMessage(e.what());
-  }
+  gui_.machineConfigWindow->show();
 }
 
 void Ep128EmuGUI::menuCallback_Options_DpyMode(Fl_Widget *o, void *v)
@@ -1573,7 +1517,6 @@ void Ep128EmuGUI::menuCallback_Options_DpyConfig(Fl_Widget *o, void *v)
 {
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
-  gui_.updateDisplaySettingsWindow();
   gui_.displaySettingsWindow->show();
 }
 
@@ -1611,34 +1554,7 @@ void Ep128EmuGUI::menuCallback_Options_SndConfig(Fl_Widget *o, void *v)
 {
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
-  try {
-    gui_.soundDeviceValuator->value(-1);
-    {
-      std::vector< std::string >  sndDeviceList =
-          gui_.audioOutput.getDeviceList();
-      size_t  i = size_t(gui_.soundDeviceValuator->size());
-      size_t  j = sndDeviceList.size();
-      i = (i > 0 ? (i - 1) : 0);
-      j = (j < 999 ? j : 999);
-      while (i > 0) {
-        i--;
-        gui_.soundDeviceValuator->remove(int(i));
-      }
-      for (i = 0; i <= j; i++) {
-        char    tmpBuf[4];
-        std::sprintf(&(tmpBuf[0]), "%d", int(i));
-        gui_.soundDeviceValuator->add(&(tmpBuf[0]), int(0), (Fl_Callback *) 0);
-      }
-      gui_.soundDeviceValuator->replace(0, "<none>");
-      for (i = 1; i <= j; i++)
-        gui_.soundDeviceValuator->replace(int(i), sndDeviceList[i - 1].c_str());
-    }
-    gui_.updateSoundSettingsWindow();
-    gui_.soundSettingsWindow->show();
-  }
-  catch (std::exception& e) {
-    gui_.errorMessage(e.what());
-  }
+  gui_.soundSettingsWindow->show();
 }
 
 void Ep128EmuGUI::menuCallback_Options_FloppyCfg(Fl_Widget *o, void *v)
