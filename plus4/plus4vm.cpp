@@ -99,6 +99,9 @@ namespace Plus4 {
 
   bool Plus4VM::TED7360_::systemCallback(uint8_t n)
   {
+    if (getMemoryPage(int(reg_PC >> 14)) >= 0x80 ||
+        !(reg_PC >= 0x8004 && reg_PC < 0xFD00))
+      return false;
     switch (n) {
     case 0x01:                          // load file
     case 0x02:                          // verify file
@@ -471,8 +474,8 @@ namespace Plus4 {
 
   void Plus4VM::setCPUFrequency(size_t freq_)
   {
-    size_t  freq = (freq_ > 1500000 ? (freq_ < 150000000 ? freq_ : 150000000)
-                                      : 1500000);
+    size_t  freq = (freq_ > 886724 ? (freq_ < 150000000 ? freq_ : 150000000)
+                                     : 886724);
     if (freq == cpuClockFrequency)
       return;
     size_t  oldFreqMult, newFreqMult;
@@ -490,8 +493,8 @@ namespace Plus4 {
 
   void Plus4VM::setVideoFrequency(size_t freq_)
   {
-    size_t  freq = (freq_ > 768000 ? (freq_ < 1024000 ? freq_ : 1024000)
-                                     : 768000);
+    size_t  freq = (freq_ > 443364 ? (freq_ < 1773448 ? freq_ : 1773448)
+                                     : 443364);
     freq = ((freq + 2) >> 2) << 2;
     if (freq != tedFrequency) {
       stopDemoPlayback();       // changing configuration implies stopping

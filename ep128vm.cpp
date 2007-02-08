@@ -214,6 +214,9 @@ namespace Ep128 {
 
   void Ep128VM::Z80_::tapePatch()
   {
+    if ((R.PC.W.l & 0x3FFF) > 0x3FFC ||
+        !vm.memory.isSegmentROM(vm.getMemoryPage(int(R.PC.W.l >> 14))))
+      return;
     if (vm.readMemory((uint16_t(R.PC.W.l) + 2) & 0xFFFF, true) != 0xFE)
       return;
     uint8_t n = vm.readMemory((uint16_t(R.PC.W.l) + 3) & 0xFFFF, true);

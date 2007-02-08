@@ -118,7 +118,7 @@ namespace Ep128Emu {
       maxValue = (max >= 0.0 ?
                   (max < 2147483646.5 ? int(max + 0.5) : 2147483647)
                   : (max > -2147483647.5 ? int(max - 0.5) : (-1 - 2147483647)));
-      if (minValue >= maxValue) {
+      if (minValue > maxValue) {
         minValue = (-1 - 2147483647);
         maxValue = 2147483647;
       }
@@ -209,7 +209,7 @@ namespace Ep128Emu {
                   (max < 4294967294.5 ?
                    (unsigned int) (max + 0.5) : 0xFFFFFFFFU)
                   : 0U);
-      if (minValue >= maxValue) {
+      if (minValue > maxValue) {
         minValue = 0U;
         maxValue = 0xFFFFFFFFU;
       }
@@ -290,7 +290,7 @@ namespace Ep128Emu {
     {
       minValue = (min >= -2147483648.0      ? min : -2147483648.0);
       maxValue = (max <=  2147483647.999999 ? max :  2147483647.999999);
-      if (minValue >= maxValue) {
+      if (minValue > maxValue) {
         minValue = -2147483648.0;
         maxValue =  2147483647.999999;
       }

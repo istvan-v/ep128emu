@@ -172,10 +172,19 @@ if not win32CrossCompile:
 
 Command(['gui/gui_fl.cpp', 'gui/gui_fl.hpp'], 'gui/gui.fl',
         'fluid -c -o gui/gui_fl.cpp -h gui/gui_fl.hpp $SOURCES')
+Command(['gui/disp_cfg.cpp', 'gui/disp_cfg.hpp'], 'gui/disp_cfg.fl',
+        'fluid -c -o gui/disp_cfg.cpp -h gui/disp_cfg.hpp $SOURCES')
+Command(['gui/snd_cfg.cpp', 'gui/snd_cfg.hpp'], 'gui/snd_cfg.fl',
+        'fluid -c -o gui/snd_cfg.cpp -h gui/snd_cfg.hpp $SOURCES')
+Command(['gui/vm_cfg.cpp', 'gui/vm_cfg.hpp'], 'gui/vm_cfg.fl',
+        'fluid -c -o gui/vm_cfg.cpp -h gui/vm_cfg.hpp $SOURCES')
 
 ep128emu = ep128emuEnvironment.Program('ep128emu', Split('''
     gui/gui.cpp
     gui/gui_fl.cpp
+    gui/disp_cfg.cpp
+    gui/snd_cfg.cpp
+    gui/vm_cfg.cpp
     gui/main.cpp
 '''))
 Depends(ep128emu, ep128Lib)

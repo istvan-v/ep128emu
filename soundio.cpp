@@ -193,6 +193,7 @@ namespace Ep128Emu {
 
   AudioOutput_PortAudio::~AudioOutput_PortAudio()
   {
+    paLockTimeout = 0U;
     if (paStream) {
       Pa_StopStream(paStream);
       closeDeviceLock.wait();
@@ -201,7 +202,6 @@ namespace Ep128Emu {
       paStream = (PaStream *) 0;
     }
     disableRingBuffer = false;
-    paLockTimeout = 0U;
     writeBufIndex = 0;
     readBufIndex = 0;
     buffers.clear();
@@ -246,6 +246,7 @@ namespace Ep128Emu {
 
   void AudioOutput_PortAudio::closeDevice()
   {
+    paLockTimeout = 0U;
     if (paStream) {
       Pa_StopStream(paStream);
       closeDeviceLock.wait();
@@ -254,7 +255,6 @@ namespace Ep128Emu {
       paStream = (PaStream *) 0;
     }
     disableRingBuffer = false;
-    paLockTimeout = 0U;
     writeBufIndex = 0;
     readBufIndex = 0;
     buffers.clear();
