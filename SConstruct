@@ -170,7 +170,7 @@ if haveDotconf:
     ep128emuEnvironment.Append(LIBS = ['dotconf'])
 ep128emuEnvironment.Append(LIBS = ['portaudio', 'sndfile'])
 if not win32CrossCompile:
-    ep128emuEnvironment.Append(LIBS = ['jack', 'asound', 'pthread'])
+    ep128emuEnvironment.Append(LIBS = ['jack', 'asound', 'pthread', 'rt'])
 else:
     ep128emuEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
 
@@ -219,4 +219,9 @@ tapeedit = tapeeditEnvironment.Program('tapeedit', Split('''
     tapeutil/tapeio.cpp
 '''))
 Depends(tapeedit, ep128emuLib)
+
+tapconvEnvironment = ep128emuLibEnvironment.Copy()
+tapconvEnvironment.Prepend(LIBS = ['ep128emu'])
+tapconv = tapconvEnvironment.Program('tapconv', ['plus4/util/tapconv.cpp'])
+Depends(tapconv, ep128emuLib)
 
