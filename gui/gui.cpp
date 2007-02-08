@@ -95,6 +95,7 @@ void Ep128EmuGUI::init_()
   guiConfig.createKey("gui.romImageDirectory", romImageDirectory);
   guiConfig.createKey("gui.prgFileDirectory", prgFileDirectory);
   browseFileWindow = new Fl_File_Chooser("", "*", Fl_File_Chooser::SINGLE, "");
+  Fl::add_check(&fltkCheckCallback, (void *) this);
 }
 
 void Ep128EmuGUI::updateDisplay(double t)
@@ -118,19 +119,7 @@ void Ep128EmuGUI::updateDisplay(double t)
   }
   if (updateDisplayEntered) {
     // if re-entering this function:
-    try {
-      if (flDisplay) {
-        if (flDisplay->checkEvents())
-          flDisplay->redraw();
-      }
-      else if (glDisplay) {
-        if (glDisplay->checkEvents())
-          glDisplay->redraw();
-      }
-      Fl::wait(t);
-    }
-    catch (...) {
-    }
+    Fl::wait(t);
     return;
   }
   updateDisplayEntered = true;
@@ -304,14 +293,6 @@ void Ep128EmuGUI::updateDisplay(double t)
       std::sprintf(&(tmpBuf[0]), " -:--:--.-");
     tapePositionDisplay->value(&(tmpBuf[0]));
     tapeStatusDisplayGroup->redraw();
-  }
-  if (flDisplay) {
-    if (flDisplay->checkEvents())
-      flDisplay->redraw();
-  }
-  else if (glDisplay) {
-    if (glDisplay->checkEvents())
-      glDisplay->redraw();
   }
   Fl::wait(t);
   updateDisplayEntered = false;
@@ -762,6 +743,23 @@ void Ep128EmuGUI::fileNameCallback(void *userData, std::string& fileName)
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::fltkCheckCallback(void *userData)
+{
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(userData));
+  try {
+    if (gui_.flDisplay) {
+      if (gui_.flDisplay->checkEvents())
+        gui_.flDisplay->redraw();
+    }
+    else if (gui_.glDisplay) {
+      if (gui_.glDisplay->checkEvents())
+        gui_.glDisplay->redraw();
+    }
+  }
+  catch (...) {
   }
 }
 

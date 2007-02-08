@@ -108,10 +108,9 @@ class Ep128EmuGUI {open
   }
   decl {void applyEmulatorConfiguration();} {public
   }
-  decl {static void errorMessageCallback(void *userData, const char *msg);} {public
-  }
-  decl {static void fileNameCallback(void *userData, std::string& fileName);} {public
-  }
+  decl {static void errorMessageCallback(void *userData, const char *msg);} {}
+  decl {static void fileNameCallback(void *userData, std::string& fileName);} {}
+  decl {static void fltkCheckCallback(void *userData);} {}
   decl {bool closeDemoFile(bool stopDemo_);} {public
   }
   decl {static void menuCallback_File_SetFileIODir(Fl_Widget *o, void *v);} {}
@@ -240,6 +239,7 @@ class Ep128EmuGUI {open
   soundSettingsWindow->hide();
   machineConfigWindow->hide();
   mainWindow->hide();
+  Fl::remove_check(&fltkCheckCallback, (void *) this);
   Fl::wait(0.0);
   emulatorWindowGroup->remove(*emulatorWindow);
   delete errorMessageWindow;
