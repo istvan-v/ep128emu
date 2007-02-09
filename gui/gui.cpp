@@ -70,11 +70,16 @@ void Ep128EmuGUI::init_()
   updateDisplayEntered = false;
   singleThreadedMode = false;
   browseFileWindowShowFlag = false;
+  debugWindowShowFlag = false;
+  debugWindowOpenFlag = false;
   browseFileWindow = (Fl_File_Chooser *) 0;
   windowToShow = (Fl_Window *) 0;
+  diskConfigWindow = (Ep128EmuGUI_DiskConfigWindow *) 0;
   displaySettingsWindow = (Ep128EmuGUI_DisplayConfigWindow *) 0;
   soundSettingsWindow = (Ep128EmuGUI_SoundConfigWindow *) 0;
   machineConfigWindow = (Ep128EmuGUI_MachineConfigWindow *) 0;
+  debugWindow = (Ep128EmuGUI_DebugWindow *) 0;
+  aboutWindow = (Ep128EmuGUI_AboutWindow *) 0;
   snapshotDirectory = "";
   demoDirectory = "";
   soundFileDirectory = "";
@@ -109,9 +114,15 @@ void Ep128EmuGUI::updateDisplay(double t)
     Ep128Emu::Timer::wait(t * 0.5);
     return;
   }
-  if (browseFileWindowShowFlag) {
-    browseFileWindow->show();
-    browseFileWindowShowFlag = false;
+  if (browseFileWindowShowFlag | debugWindowShowFlag) {
+    if (browseFileWindowShowFlag) {
+      browseFileWindow->show();
+      browseFileWindowShowFlag = false;
+    }
+    if (debugWindowShowFlag) {
+      debugWindow->show();
+      debugWindowShowFlag = false;
+    }
   }
   if (windowToShow) {
     windowToShow->show();
@@ -409,6 +420,11 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Machine_ResetFreqs, (void *) this);
   mainMenuBar->add("Machine/Reset/Reset machine configuration (Ctrl+F12)",
                    (char *) 0, &menuCallback_Machine_ResetAll, (void *) this);
+  if (typeid(vm) == typeid(Plus4::Plus4VM)) {
+    mainMenuBar->add("Machine/Enable SID emulation",
+                     (char *) 0, &menuCallback_Machine_EnableSID,
+                     (void *) this);
+  }
   mainMenuBar->add("Machine/Configure...",
                    (char *) 0, &menuCallback_Machine_Configure, (void *) this);
   mainMenuBar->add("Options/Display/Cycle display mode (F9)",
@@ -429,6 +445,14 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Options_SndConfig, (void *) this);
   mainMenuBar->add("Options/Floppy/Configure...",
                    (char *) 0, &menuCallback_Options_FloppyCfg, (void *) this);
+  mainMenuBar->add("Options/Floppy/Remove disk A",
+                   (char *) 0, &menuCallback_Options_FloppyRmA, (void *) this);
+  mainMenuBar->add("Options/Floppy/Remove disk B",
+                   (char *) 0, &menuCallback_Options_FloppyRmB, (void *) this);
+  mainMenuBar->add("Options/Floppy/Remove disk C",
+                   (char *) 0, &menuCallback_Options_FloppyRmC, (void *) this);
+  mainMenuBar->add("Options/Floppy/Remove disk D",
+                   (char *) 0, &menuCallback_Options_FloppyRmD, (void *) this);
   mainMenuBar->add("Options/Toggle single threaded mode",
                    (char *) 0, &menuCallback_Options_ThreadMode, (void *) this);
   mainMenuBar->add("Debug/Start debugger",
@@ -454,6 +478,7 @@ void Ep128EmuGUI::run()
   vmThread.setUserData((void *) this);
   vmThread.setErrorCallback(&errorMessageCallback);
   vm.setFileNameCallback(&fileNameCallback, (void *) this);
+  vm.setBreakPointCallback(&breakPointCallback, (void *) this);
   if (!singleThreadedMode)
     vmThread.unlock();
   // run emulation
@@ -475,6 +500,13 @@ void Ep128EmuGUI::run()
   windowToShow = (Fl_Window *) 0;
   if (errorMessageWindow->shown())
     errorMessageWindow->hide();
+  debugWindowShowFlag = false;
+  if (debugWindow->shown())
+    debugWindow->hide();
+  if (debugWindowOpenFlag) {
+    debugWindowOpenFlag = false;
+    unlockVMThread();
+  }
   updateDisplay();
   Fl::unlock();
   vmThread.quit(true);
@@ -760,6 +792,34 @@ void Ep128EmuGUI::fltkCheckCallback(void *userData)
     }
   }
   catch (...) {
+  }
+}
+
+void Ep128EmuGUI::breakPointCallback(void *userData,
+                                     bool isIO, bool isWrite,
+                                     uint16_t addr, uint8_t value)
+{
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(userData));
+  Fl::lock();
+  if (!gui_.debugWindow->shown())
+    gui_.debugWindowShowFlag = true;
+//gui_.debugWindow->breakPoint(isIO, isWrite, addr, value);
+  (void) isIO;
+  (void) isWrite;
+  (void) addr;
+  (void) value;
+  while (gui_.debugWindowShowFlag) {
+    Fl::unlock();
+    gui_.updateDisplay();
+    Fl::lock();
+  }
+  while (true) {
+    bool  tmp = gui_.debugWindow->shown();
+    Fl::unlock();
+    if (!tmp)
+      break;
+    gui_.updateDisplay();
+    Fl::lock();
   }
 }
 
@@ -1463,6 +1523,20 @@ void Ep128EmuGUI::menuCallback_Machine_ResetAll(Fl_Widget *o, void *v)
   }
 }
 
+void Ep128EmuGUI::menuCallback_Machine_EnableSID(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  if (gui_.lockVMThread()) {
+    try {
+      gui_.vm.writeMemory(0xFD40, 0x00, true);
+    }
+    catch (...) {
+    }
+    gui_.unlockVMThread();
+  }
+}
+
 void Ep128EmuGUI::menuCallback_Machine_Configure(Fl_Widget *o, void *v)
 {
   (void) o;
@@ -1559,8 +1633,55 @@ void Ep128EmuGUI::menuCallback_Options_FloppyCfg(Fl_Widget *o, void *v)
 {
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  gui_.diskConfigWindow->show();
+}
+
+void Ep128EmuGUI::menuCallback_Options_FloppyRmA(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
+    gui_.config["floppy.a.imageFile"] = "";
+    gui_.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Options_FloppyRmB(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    gui_.config["floppy.b.imageFile"] = "";
+    gui_.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Options_FloppyRmC(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    gui_.config["floppy.c.imageFile"] = "";
+    gui_.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Options_FloppyRmD(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    gui_.config["floppy.d.imageFile"] = "";
+    gui_.applyEmulatorConfiguration();
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -1578,11 +1699,13 @@ void Ep128EmuGUI::menuCallback_Debug_OpenDebugger(Fl_Widget *o, void *v)
 {
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
-  try {
-    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
-  }
-  catch (std::exception& e) {
-    gui_.errorMessage(e.what());
+  if (!gui_.debugWindow->shown()) {
+    if (!gui_.debugWindowShowFlag) {
+      if (gui_.lockVMThread()) {
+        gui_.debugWindowOpenFlag = true;
+        gui_.debugWindow->show();
+      }
+    }
   }
 }
 
@@ -1590,11 +1713,6 @@ void Ep128EmuGUI::menuCallback_Help_About(Fl_Widget *o, void *v)
 {
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
-  try {
-    throw Ep128Emu::Exception("FIXME: this function is not implemented yet");
-  }
-  catch (std::exception& e) {
-    gui_.errorMessage(e.what());
-  }
+  gui_.aboutWindow->show();
 }
 

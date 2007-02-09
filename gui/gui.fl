@@ -37,11 +37,17 @@ class EmulatorWindowGroup {open : {public Fl_Group}
 
 class Ep128EmuGUI {open
 } {
+  decl {friend class Ep128EmuGUI_DiskConfigWindow;} {public
+  }
   decl {friend class Ep128EmuGUI_DisplayConfigWindow;} {public
   }
   decl {friend class Ep128EmuGUI_SoundConfigWindow;} {public
   }
   decl {friend class Ep128EmuGUI_MachineConfigWindow;} {public
+  }
+  decl {friend class Ep128EmuGUI_DebugWindow;} {public
+  }
+  decl {friend class Ep128EmuGUI_AboutWindow;} {public
   }
   decl {Ep128Emu::VideoDisplay& display;} {}
   decl {Ep128Emu::AudioOutput& audioOutput;} {}
@@ -73,6 +79,8 @@ class Ep128EmuGUI {open
   decl {bool updateDisplayEntered;} {}
   decl {bool singleThreadedMode;} {}
   decl {bool browseFileWindowShowFlag;} {}
+  decl {bool debugWindowShowFlag;} {}
+  decl {bool debugWindowOpenFlag;} {}
   decl {Fl_File_Chooser *browseFileWindow;} {}
   decl {Fl_Window *windowToShow;} {}
   decl {std::string snapshotDirectory;} {}
@@ -85,9 +93,12 @@ class Ep128EmuGUI {open
   decl {std::string romImageDirectory;} {}
   decl {std::string prgFileDirectory;} {}
   decl {Ep128Emu::ConfigurationDB guiConfig;} {}
+  decl {Ep128EmuGUI_DiskConfigWindow *diskConfigWindow;} {}
   decl {Ep128EmuGUI_DisplayConfigWindow *displaySettingsWindow;} {}
   decl {Ep128EmuGUI_SoundConfigWindow *soundSettingsWindow;} {}
   decl {Ep128EmuGUI_MachineConfigWindow *machineConfigWindow;} {}
+  decl {Ep128EmuGUI_DebugWindow *debugWindow;} {}
+  decl {Ep128EmuGUI_AboutWindow *aboutWindow;} {}
   decl {void init_();} {}
   decl {void updateDisplay(double t = 0.025);} {public
   }
@@ -111,6 +122,7 @@ class Ep128EmuGUI {open
   decl {static void errorMessageCallback(void *userData, const char *msg);} {}
   decl {static void fileNameCallback(void *userData, std::string& fileName);} {}
   decl {static void fltkCheckCallback(void *userData);} {}
+  decl {static void breakPointCallback(void *userData, bool isIO, bool isWrite, uint16_t addr, uint8_t value);} {}
   decl {bool closeDemoFile(bool stopDemo_);} {public
   }
   decl {static void menuCallback_File_SetFileIODir(Fl_Widget *o, void *v);} {}
@@ -149,6 +161,7 @@ class Ep128EmuGUI {open
   decl {static void menuCallback_Machine_ColdReset(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Machine_ResetFreqs(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Machine_ResetAll(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_EnableSID(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Machine_Configure(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_DpyMode(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_DpySize1(Fl_Widget *o, void *v);} {}
@@ -159,6 +172,10 @@ class Ep128EmuGUI {open
   decl {static void menuCallback_Options_SndDecVol(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_SndConfig(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_FloppyCfg(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_FloppyRmA(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_FloppyRmB(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_FloppyRmC(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_FloppyRmD(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_ThreadMode(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Debug_OpenDebugger(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Help_About(Fl_Widget *o, void *v);} {}
@@ -223,30 +240,39 @@ class Ep128EmuGUI {open
       }
     }
     code {{
+  diskConfigWindow = new Ep128EmuGUI_DiskConfigWindow(*this);
   displaySettingsWindow = new Ep128EmuGUI_DisplayConfigWindow(*this);
   soundSettingsWindow = new Ep128EmuGUI_SoundConfigWindow(*this);
   machineConfigWindow = new Ep128EmuGUI_MachineConfigWindow(*this);
+  debugWindow = new Ep128EmuGUI_DebugWindow(*this);
+  aboutWindow = new Ep128EmuGUI_AboutWindow(*this);
 }} {}
   }
   Function {~Ep128EmuGUI()} {open
   } {
     code {{
+  debugWindow->hide();
   setSingleThreadedMode(false);
   vmThread.quit(true);
   errorMessageWindow->hide();
   browseFileWindow->hide();
+  diskConfigWindow->hide();
   displaySettingsWindow->hide();
   soundSettingsWindow->hide();
   machineConfigWindow->hide();
+  aboutWindow->hide();
   mainWindow->hide();
   Fl::remove_check(&fltkCheckCallback, (void *) this);
   Fl::wait(0.0);
   emulatorWindowGroup->remove(*emulatorWindow);
   delete errorMessageWindow;
   delete browseFileWindow;
+  delete diskConfigWindow;
   delete displaySettingsWindow;
   delete soundSettingsWindow;
   delete machineConfigWindow;
+  delete debugWindow;
+  delete aboutWindow;
   delete mainWindow;
   config.sound.file = "";
 }} {}

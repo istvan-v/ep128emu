@@ -37,14 +37,20 @@
 
 #include <FL/Fl_File_Chooser.H>
 
+class Ep128EmuGUI_DiskConfigWindow;
 class Ep128EmuGUI_DisplayConfigWindow;
 class Ep128EmuGUI_SoundConfigWindow;
 class Ep128EmuGUI_MachineConfigWindow;
+class Ep128EmuGUI_DebugWindow;
+class Ep128EmuGUI_AboutWindow;
 
 #include "gui_fl.hpp"
+#include "disk_cfg.hpp"
 #include "disp_cfg.hpp"
 #include "snd_cfg.hpp"
 #include "vm_cfg.hpp"
+#include "debug_fl.hpp"
+#include "about_fl.hpp"
 
 #endif  // EP128EMU_GUI_HPP
 

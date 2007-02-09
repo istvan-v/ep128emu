@@ -1,0 +1,57 @@
+# data file for the Fltk User Interface Designer (fluid)
+version 1.0107 
+do_not_include_H_from_C 
+header_name {.hpp} 
+code_name {.cpp}
+decl {\#include "gui.hpp"} {selected
+} 
+
+class Ep128EmuGUI_DebugWindow {open
+} {
+  decl {Ep128EmuGUI& gui;} {}
+  Function {Ep128EmuGUI_DebugWindow(Ep128EmuGUI& gui_) : gui(gui_)} {open
+  } {
+    Fl_Window window {
+      callback {{
+  this->hide();
+}} open
+      xywh {224 231 400 300} type Double color 37 visible
+    } {
+      Fl_Button {} {
+        label Continue
+        callback {{
+  this->hide();
+}}
+        xywh {310 265 80 25} color 38 selection_color 39 labelcolor 52
+      }
+    }
+  }
+  Function {~Ep128EmuGUI_DebugWindow()} {open
+  } {
+    code {{
+  delete window;
+}} {}
+  }
+  Function {show()} {open return_type void
+  } {
+    code {{
+  window->show();
+}} {}
+  }
+  Function {shown()} {open return_type bool
+  } {
+    code {{
+  return !!(window->shown());
+}} {}
+  }
+  Function {hide()} {open return_type void
+  } {
+    code {{
+  window->hide();
+  if (gui.debugWindowOpenFlag) {
+    gui.debugWindowOpenFlag = false;
+    gui.unlockVMThread();
+  }
+}} {}
+  }
+} 
