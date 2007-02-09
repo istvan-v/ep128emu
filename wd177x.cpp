@@ -167,6 +167,7 @@ namespace Ep128Emu {
         throw Exception("wd177x: invalid or inconsistent "
                         "disk image size parameters");
       std::fseek(imageFile, 0L, SEEK_SET);
+      imageFileName = fileName_;
     }
     catch (...) {
       if (imageFile) {
