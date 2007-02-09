@@ -89,7 +89,9 @@ namespace Plus4 {
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
     ted.dataBusState = value;
     ted.timer1_run = true;
-    ted.timer1_state = (ted.timer1_state & 0x00FF) | (int(value) << 8);
+    int   tmp = int(value) << 8;
+    ted.timer1_state = (ted.timer1_state & 0x00FF) | tmp;
+    ted.timer1_reload_value = (ted.timer1_reload_value & 0x00FF) | tmp;
   }
 
   void TED7360::write_register_FF02(void *userData,
