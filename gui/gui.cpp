@@ -801,13 +801,15 @@ void Ep128EmuGUI::breakPointCallback(void *userData,
 {
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(userData));
   Fl::lock();
-  if (!gui_.debugWindow->shown())
+  if (gui_.exitFlag || !gui_.mainWindow->shown()) {
+    Fl::unlock();
+    return;
+  }
+  gui_.debugWindow->breakPoint(isIO, isWrite, addr, value);
+  if (!gui_.debugWindow->shown()) {
     gui_.debugWindowShowFlag = true;
-//gui_.debugWindow->breakPoint(isIO, isWrite, addr, value);
-  (void) isIO;
-  (void) isWrite;
-  (void) addr;
-  (void) value;
+    Fl::awake();
+  }
   while (gui_.debugWindowShowFlag) {
     Fl::unlock();
     gui_.updateDisplay();

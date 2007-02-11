@@ -9,22 +9,82 @@ decl {\#include "gui.hpp"} {selected
 class Ep128EmuGUI_DebugWindow {open
 } {
   decl {Ep128EmuGUI& gui;} {}
+  decl {char windowTitle[64];} {}
+  decl {int savedWindowPositionX;} {}
+  decl {int savedWindowPositionY;} {}
   Function {Ep128EmuGUI_DebugWindow(Ep128EmuGUI& gui_) : gui(gui_)} {open
   } {
+    code {{
+  for (size_t i = 0; i < sizeof(windowTitle); i++)
+    windowTitle[i] = '\\0';
+  std::strcpy(&(windowTitle[0]), "ep128emu debugger");
+  savedWindowPositionX = 32;
+  savedWindowPositionY = 32;
+}} {}
     Fl_Window window {
       callback {{
+  gui.vm.setSingleStepMode(false);
   this->hide();
 }} open
-      xywh {224 231 400 300} type Double color 37 visible
+      xywh {308 146 540 450} type Double color 37 visible
     } {
+      Fl_Tabs {} {open
+        xywh {10 10 520 395} color 38 selection_color 38 labelcolor 52
+      } {
+        Fl_Group {} {
+          label General open
+          xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52
+        } {
+          Fl_Output cpuRegisterDisplay {
+            label {CPU registers}
+            xywh {20 63 363 80} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+          }
+          Fl_Output memoryPagingDisplay {
+            label {Memory paging}
+            xywh {393 63 127 80} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+          }
+          Fl_Output codeMemoryDumpDisplay {
+            label Code
+            xywh {20 168 500 100} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+          }
+          Fl_Output stackMemoryDumpDisplay {
+            label Stack
+            xywh {20 293 500 100} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+          }
+        }
+        Fl_Group {} {
+          label Memory open
+          xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52 hide
+        } {}
+        Fl_Group {} {
+          label Disassemble open
+          xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52 hide
+        } {}
+        Fl_Group {} {
+          label Watchpoints open
+          xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52 hide
+        } {}
+      }
+      Fl_Button {} {
+        label Step
+        callback {{
+  gui.vm.setSingleStepMode(true);
+  this->hide();
+}}
+        xywh {355 415 80 25} color 38 selection_color 39 labelcolor 52
+      }
       Fl_Button {} {
         label Continue
         callback {{
+  gui.vm.setSingleStepMode(false);
   this->hide();
 }}
-        xywh {310 265 80 25} color 38 selection_color 39 labelcolor 52
+        xywh {445 415 80 25} color 38 selection_color 39 labelcolor 52
       }
     }
+    code {{
+  window->label(&(windowTitle[0]));
+}} {}
   }
   Function {~Ep128EmuGUI_DebugWindow()} {open
   } {
@@ -35,6 +95,9 @@ class Ep128EmuGUI_DebugWindow {open
   Function {show()} {open return_type void
   } {
     code {{
+  updateWindow();
+  if (!window->shown())
+    window->resize(savedWindowPositionX, savedWindowPositionY, 540, 450);
   window->show();
 }} {}
   }
@@ -47,10 +110,119 @@ class Ep128EmuGUI_DebugWindow {open
   Function {hide()} {open return_type void
   } {
     code {{
+  if (window->shown()) {
+    savedWindowPositionX = window->x();
+    savedWindowPositionY = window->y();
+  }
   window->hide();
   if (gui.debugWindowOpenFlag) {
     gui.debugWindowOpenFlag = false;
     gui.unlockVMThread();
+  }
+  std::strcpy(&(windowTitle[0]), "ep128emu debugger");
+  window->label(&(windowTitle[0]));
+}} {}
+  }
+  Function {breakPoint(bool isIO, bool isWrite, uint16_t addr, uint8_t value)} {open return_type void
+  } {
+    code {{
+  if (isIO) {
+    if (isWrite)
+      std::sprintf(&(windowTitle[0]), "Break on writing %02X to I/O address %02X",
+                   (unsigned int) (value & 0xFF), (unsigned int) (addr & 0xFF));
+    else
+      std::sprintf(&(windowTitle[0]), "Break on reading %02X from I/O address %02X",
+                   (unsigned int) (value & 0xFF), (unsigned int) (addr & 0xFF));
+  }
+  else {
+    if (isWrite)
+      std::sprintf(&(windowTitle[0]), "Break on writing %02X to memory address %04X",
+                   (unsigned int) (value & 0xFF), (unsigned int) (addr & 0xFFFF));
+    else
+      std::sprintf(&(windowTitle[0]), "Break on reading %02X from memory address %04X",
+                   (unsigned int) (value & 0xFF), (unsigned int) (addr & 0xFFFF));
+  }
+  window->label(&(windowTitle[0]));
+}} {}
+  }
+  Function {updateWindow()} {open private return_type void
+  } {
+    code {{
+  try {
+    std::string buf;
+    gui.vm.listCPURegisters(buf);
+    cpuRegisterDisplay->value(buf.c_str());
+    {
+      char  tmpBuf[64];
+      std::sprintf(&(tmpBuf[0]), "0000-3FFF: %02X\\n4000-7FFF: %02X\\n"
+                                 "8000-BFFF: %02X\\nC000-FFFF: %02X",
+                   (unsigned int) gui.vm.getMemoryPage(0),
+                   (unsigned int) gui.vm.getMemoryPage(1),
+                   (unsigned int) gui.vm.getMemoryPage(2),
+                   (unsigned int) gui.vm.getMemoryPage(3));
+      memoryPagingDisplay->value(&(tmpBuf[0]));
+    }
+    uint32_t  tmp = gui.vm.getProgramCounter();
+    uint32_t  startAddr = (tmp + 0xFFECU) & 0xFFF8U;
+    uint32_t  endAddr = (startAddr + 0x0030U) & 0xFFF8U;
+    dumpMemory(buf, startAddr, endAddr, tmp, true, true);
+    codeMemoryDumpDisplay->value(buf.c_str());
+    tmp = gui.vm.getStackPointer();
+    startAddr = (tmp + 0xFFF4U) & 0xFFF8U;
+    endAddr = (startAddr + 0x0030U) & 0xFFF8U;
+    dumpMemory(buf, startAddr, endAddr, tmp, true, true);
+    stackMemoryDumpDisplay->value(buf.c_str());
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}} {}
+  }
+  Function {dumpMemory(std::string& buf, uint32_t startAddr, uint32_t endAddr, uint32_t cursorAddr, bool showCursor, bool isCPUAddress)} {open private return_type void
+  } {
+    code {{
+  try {
+    char      tmpBuf[8];
+    buf = "";
+    int       cnt = 0;
+    uint32_t  addrMask = uint32_t(isCPUAddress ? 0x0000FFFFU : 0x003FFFFFU);
+    endAddr &= addrMask;
+    cursorAddr &= addrMask;
+    while (true) {
+      startAddr &= addrMask;
+      if (startAddr == endAddr)
+        break;
+      if (cnt == 8) {
+        cnt = 0;
+        buf += '\\n';
+      }
+      if (!cnt) {
+        if (isCPUAddress)
+          std::sprintf(&(tmpBuf[0]), "  %04X", (unsigned int) startAddr);
+        else
+          std::sprintf(&(tmpBuf[0]), "%06X", (unsigned int) startAddr);
+        buf += &(tmpBuf[0]);
+      }
+      if (!(cnt & 3)) {
+        if (showCursor && startAddr == cursorAddr)
+          std::sprintf(&(tmpBuf[0]), "  *%02X", (unsigned int) gui.vm.readMemory(startAddr, isCPUAddress));
+        else
+          std::sprintf(&(tmpBuf[0]), "   %02X", (unsigned int) gui.vm.readMemory(startAddr, isCPUAddress));
+      }
+      else {
+        if (showCursor && startAddr == cursorAddr)
+          std::sprintf(&(tmpBuf[0]), " *%02X", (unsigned int) gui.vm.readMemory(startAddr, isCPUAddress));
+        else
+          std::sprintf(&(tmpBuf[0]), "  %02X", (unsigned int) gui.vm.readMemory(startAddr, isCPUAddress));
+      }
+      buf += &(tmpBuf[0]);
+      startAddr++;
+      cnt++;
+    }
+  }
+  catch (std::exception& e) {
+    buf.clear();
+    gui.errorMessage(e.what());
   }
 }} {}
   }
