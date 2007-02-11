@@ -159,10 +159,15 @@ namespace Ep128Emu {
       fileSize =
           long(nTracks_) * long(nSides_) * long(nSectorsPerTrack_) * 512L;
       bool    err = true;
-      if (std::fseek(imageFile, fileSize - 1L, SEEK_SET) >= 0)
-        if (std::fgetc(imageFile) != EOF)
-          if (std::fgetc(imageFile) == EOF)
-            err = false;
+      if (std::fseek(imageFile, fileSize - 512L, SEEK_SET) >= 0) {
+        int   i = 512;
+        do {
+          if (std::fgetc(imageFile) == EOF) {
+            err = (i != 0);
+            break;
+          }
+        } while (--i >= 0);
+      }
       if (err)
         throw Exception("wd177x: invalid or inconsistent "
                         "disk image size parameters");
