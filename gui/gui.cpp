@@ -89,6 +89,7 @@ void Ep128EmuGUI::init_()
   diskImageDirectory = "";
   romImageDirectory = "";
   prgFileDirectory = "";
+  debuggerDirectory = "";
   guiConfig.createKey("gui.singleThreadedMode", singleThreadedMode);
   guiConfig.createKey("gui.snapshotDirectory", snapshotDirectory);
   guiConfig.createKey("gui.demoDirectory", demoDirectory);
@@ -99,6 +100,7 @@ void Ep128EmuGUI::init_()
   guiConfig.createKey("gui.diskImageDirectory", diskImageDirectory);
   guiConfig.createKey("gui.romImageDirectory", romImageDirectory);
   guiConfig.createKey("gui.prgFileDirectory", prgFileDirectory);
+  guiConfig.createKey("gui.debuggerDirectory", debuggerDirectory);
   browseFileWindow = new Fl_File_Chooser("", "*", Fl_File_Chooser::SINGLE, "");
   Fl::add_check(&fltkCheckCallback, (void *) this);
 }

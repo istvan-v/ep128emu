@@ -75,6 +75,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.vm.cpuClockFrequency));
 }}
               xywh {30 75 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 100000 maximum 5e+08 step 1 value 4e+06 textcolor 52
+              code0 {o->cursor_color(FL_YELLOW);}
             }
             Fl_Value_Input vmVideoFrequencyValuator {
               label {Video clock frequency (Hz)}
@@ -88,6 +89,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   updateWindow();
 }}
               tooltip {Horizontal refresh rate * 57} xywh {30 110 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 100000 maximum 2e+06 step 1 value 890625 textcolor 52
+              code0 {o->cursor_color(FL_YELLOW);}
             }
             Fl_Value_Input vmSoundClockFrequencyValuator {
               label {Sound clock frequency (Hz)}
@@ -101,6 +103,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.vm.soundClockFrequency));
 }}
               xywh {30 145 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 100000 maximum 2e+06 step 1 value 500000 textcolor 52
+              code0 {o->cursor_color(FL_YELLOW);}
             }
             Fl_Value_Input vmVideoMemoryLatencyValuator {
               label {Video memory latency (ns)}
@@ -114,6 +117,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.vm.videoMemoryLatency));
 }}
               xywh {30 180 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 maximum 500 step 1 value 62 textcolor 52
+              code0 {o->cursor_color(FL_YELLOW);}
             }
             Fl_Light_Button enableMemoryTimingValuator {
               label {Enable memory timing emulation}
@@ -144,6 +148,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.tape.defaultSampleRate));
 }}
               xywh {30 330 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 10000 maximum 120000 step 1 value 24000 textcolor 52
+              code0 {o->cursor_color(FL_YELLOW);}
             }
           }
         }
@@ -163,6 +168,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.ram.size));
 }}
             xywh {20 45 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 16 maximum 4096 step 16 value 64 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
           }
           Fl_Scroll {} {
             label {ROM images} open
@@ -197,6 +203,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 130 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -224,6 +231,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x00].offset));
 }}
                 xywh {280 130 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 01
@@ -239,6 +247,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 160 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -266,6 +275,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x01].offset));
 }}
                 xywh {280 160 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 02
@@ -281,6 +291,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 190 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -308,6 +319,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x02].offset));
 }}
                 xywh {280 190 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 03
@@ -323,6 +335,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 220 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -350,6 +363,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x03].offset));
 }}
                 xywh {280 220 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 04
@@ -365,6 +379,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 250 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -392,6 +407,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x04].offset));
 }}
                 xywh {280 250 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 05
@@ -407,6 +423,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 280 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -434,6 +451,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x05].offset));
 }}
                 xywh {280 280 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 06
@@ -449,6 +467,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 310 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -476,6 +495,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x06].offset));
 }}
                 xywh {280 310 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 07
@@ -491,6 +511,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 340 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -518,6 +539,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x07].offset));
 }}
                 xywh {280 340 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 10
@@ -533,6 +555,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 370 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -560,6 +583,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x10].offset));
 }}
                 xywh {280 370 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 11
@@ -575,6 +599,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 400 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -602,6 +627,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x11].offset));
 }}
                 xywh {280 400 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 12
@@ -617,6 +643,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 430 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -644,6 +671,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x12].offset));
 }}
                 xywh {280 430 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 13
@@ -659,6 +687,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 460 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -686,6 +715,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x13].offset));
 }}
                 xywh {280 460 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 20
@@ -701,6 +731,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 490 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -728,6 +759,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x20].offset));
 }}
                 xywh {280 490 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 21
@@ -743,6 +775,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 520 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -770,6 +803,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x21].offset));
 }}
                 xywh {280 520 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 22
@@ -785,6 +819,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 550 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -812,6 +847,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x22].offset));
 }}
                 xywh {280 550 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 23
@@ -827,6 +863,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 580 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -854,6 +891,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x23].offset));
 }}
                 xywh {280 580 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 30
@@ -869,6 +907,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 610 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -896,6 +935,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x30].offset));
 }}
                 xywh {280 610 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 31
@@ -911,6 +951,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 640 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -938,6 +979,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x31].offset));
 }}
                 xywh {280 640 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 32
@@ -953,6 +995,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 670 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -980,6 +1023,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x32].offset));
 }}
                 xywh {280 670 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Box {} {
                 label 33
@@ -995,6 +1039,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
 }}
                 xywh {75 700 165 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
               Fl_Button {} {
                 label {...}
@@ -1022,6 +1067,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   o->value(double(gui.config.memory.rom[0x33].offset));
 }}
                 xywh {280 700 65 25} color 0 selection_color 238 labelcolor 52 when 4 maximum 999999 step 1 textcolor 52
+                code0 {o->cursor_color(FL_YELLOW);}
               }
             }
           }

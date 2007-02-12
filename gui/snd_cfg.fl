@@ -67,6 +67,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
   gui.config.soundSettingsChanged = true;
 }}
           xywh {20 125 75 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 11025 maximum 192000 step 1 value 48000 textcolor 52
+          code0 {o->cursor_color(FL_YELLOW);}
         }
         Fl_Input soundOutputFileValuator {
           callback {{
@@ -78,6 +79,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
   }
 }}
           tooltip {Record sound output to this file in 16 bit WAV format; if left blank, no sound file is written} xywh {20 160 205 25} color 0 selection_color 238 labelcolor 52 textcolor 52
+          code0 {o->cursor_color(FL_YELLOW);}
         }
         Fl_Button {} {
           label {...}
@@ -137,7 +139,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
   gui.config.soundSettingsChanged = true;
   soundVolumeValueDisplay->value(o->value());
 }}
-          xywh {25 215 35 35} color 46 selection_color 54 labelcolor 52 align 8 minimum 0.01 step 0.001 value 0.707
+          xywh {25 215 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 8 minimum 0.01 step 0.001 value 0.707
         }
         Fl_Value_Output soundVolumeValueDisplay {
           callback {{
@@ -154,7 +156,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
   gui.config.soundSettingsChanged = true;
   soundDCFilter1ValueDisplay->value(o->value());
 }}
-          xywh {30 285 25 25} color 46 selection_color 54 labelcolor 52 align 8 minimum 1 maximum 1000 step 1 value 10
+          xywh {30 285 25 25} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 8 minimum 1 maximum 1000 step 1 value 10
         }
         Fl_Value_Output soundDCFilter1ValueDisplay {
           callback {{
@@ -171,7 +173,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
   gui.config.soundSettingsChanged = true;
   soundDCFilter2ValueDisplay->value(o->value());
 }}
-          xywh {30 345 25 25} color 46 selection_color 54 labelcolor 52 align 8 minimum 1 maximum 1000 step 1 value 10
+          xywh {30 345 25 25} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 8 minimum 1 maximum 1000 step 1 value 10
         }
         Fl_Value_Output soundDCFilter2ValueDisplay {
           callback {{

@@ -12,6 +12,17 @@ class Ep128EmuGUI_DebugWindow {open
   decl {char windowTitle[64];} {}
   decl {int savedWindowPositionX;} {}
   decl {int savedWindowPositionY;} {}
+  decl {uint32_t memoryDumpStartAddress;} {}
+  decl {uint32_t memoryDumpEndAddress;} {}
+  decl {uint32_t memoryDumpViewAddress;} {}
+  decl {bool memoryDumpCPUAddressMode;} {}
+  decl {bool memoryDumpASCIIFileFormat;} {}
+  decl {bool disassemblyCPUAddressMode;} {}
+  decl {uint32_t disassemblyStartAddress;} {}
+  decl {int32_t disassemblyAddressOffset;} {}
+  decl {uint32_t disassemblyEndAddress;} {}
+  decl {uint32_t disassemblyViewAddress;} {}
+  decl {uint32_t disassemblyNextAddress;} {}
   Function {Ep128EmuGUI_DebugWindow(Ep128EmuGUI& gui_) : gui(gui_)} {open
   } {
     code {{
@@ -20,6 +31,17 @@ class Ep128EmuGUI_DebugWindow {open
   std::strcpy(&(windowTitle[0]), "ep128emu debugger");
   savedWindowPositionX = 32;
   savedWindowPositionY = 32;
+  memoryDumpStartAddress = 0x00000000U;
+  memoryDumpEndAddress = 0x00000080U;
+  memoryDumpViewAddress = 0x00000000U;
+  memoryDumpCPUAddressMode = true;
+  memoryDumpASCIIFileFormat = false;
+  disassemblyCPUAddressMode = true;
+  disassemblyStartAddress = 0x00000000U;
+  disassemblyAddressOffset = 0;
+  disassemblyEndAddress = 0x00000040U;
+  disassemblyViewAddress = 0x00000000U;
+  disassemblyNextAddress = 0x00000000U;
 }} {}
     Fl_Window window {
       callback {{
@@ -37,29 +59,291 @@ class Ep128EmuGUI_DebugWindow {open
         } {
           Fl_Output cpuRegisterDisplay {
             label {CPU registers}
-            xywh {20 63 363 80} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            xywh {20 63 363 80} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 5 textcolor 159
           }
           Fl_Output memoryPagingDisplay {
             label {Memory paging}
-            xywh {393 63 127 80} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            xywh {393 63 127 80} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 5 textcolor 159
           }
           Fl_Output codeMemoryDumpDisplay {
             label Code
-            xywh {20 168 500 100} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            xywh {20 168 500 100} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 5 textcolor 159
           }
           Fl_Output stackMemoryDumpDisplay {
             label Stack
-            xywh {20 293 500 100} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            xywh {20 293 500 100} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 5 textcolor 159
           }
         }
         Fl_Group {} {
           label Memory open
           xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52 hide
-        } {}
+        } {
+          Fl_Input {} {
+            label {Modify memory}
+            callback {{
+  parseMemoryDump(o->value());
+  o->value("");
+  updateWindow();
+}}
+            tooltip {Enter memory address followed by the bytes to be written, separated by spaces; leave blank to make no changes to memory} xywh {20 63 500 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
+          }
+          Fl_Output memoryDumpDisplay {
+            label {Memory dump}
+            xywh {20 113 375 280} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 5 textcolor 159
+          }
+          Fl_Light_Button {} {
+            label {CPU address}
+            callback {{
+  memoryDumpCPUAddressMode = (o->value() != 0);
+  updateMemoryDumpDisplay();
+}}
+            tooltip {Select if 16 bit CPU, or 22 bit physical addresses are to be used} xywh {405 115 115 25} value 1 color 39 labelcolor 52
+          }
+          Fl_Input memoryDumpStartAddressValuator {
+            label {Start address}
+            callback {{
+  if (parseHexNumber(memoryDumpStartAddress, o->value()) > 0L)
+    memoryDumpViewAddress = memoryDumpStartAddress;
+  updateMemoryDumpDisplay();
+}}
+            xywh {405 160 115 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
+            code1 {o->value("0000");}
+          }
+          Fl_Input memoryDumpEndAddressValuator {
+            label {End address}
+            callback {{
+  parseHexNumber(memoryDumpEndAddress, o->value());
+  updateMemoryDumpDisplay();
+}}
+            tooltip {End address of memory dump (for file I/O only); this address is already not included} xywh {405 205 115 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
+            code1 {o->value("0080");}
+          }
+          Fl_Button {} {
+            label {@<}
+            callback {{
+  memoryDumpViewAddress = (memoryDumpViewAddress + 0x003FFF80U) & 0x003FFFFFU;
+  updateMemoryDumpDisplay();
+}}
+            tooltip {View previous page} xywh {405 250 55 25} color 39 selection_color 40 labelcolor 52
+          }
+          Fl_Button {} {
+            label {@>}
+            callback {{
+  memoryDumpViewAddress = (memoryDumpViewAddress + 0x80U) & 0x003FFFFFU;
+  updateMemoryDumpDisplay();
+}}
+            tooltip {View next page} xywh {465 250 55 25} color 39 selection_color 40 labelcolor 52
+          }
+          Fl_Light_Button {} {
+            label {ASCII format}
+            callback {{
+  memoryDumpASCIIFileFormat = (o->value() != 0);
+}}
+            tooltip {Select if memory dump file format should be ASCII or binary} xywh {405 295 115 25} color 39 labelcolor 52
+          }
+          Fl_Button {} {
+            label {Load from file}
+            callback {{
+  std::FILE *f = (std::FILE *) 0;
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.debuggerDirectory,
+                       "All files (*)", Fl_File_Chooser::SINGLE,
+                       "Load memory")) {
+      f = std::fopen(tmp.c_str(), "rb");
+      if (!f)
+        throw Ep128Emu::Exception("cannot open file");
+      if (memoryDumpASCIIFileFormat) {
+        tmp = "";
+        while (true) {
+          int   c = std::fgetc(f);
+          if (c == EOF)
+            break;
+          if (char(c) != '\\0')
+            tmp += char(c);
+        }
+        parseMemoryDump(tmp.c_str());
+      }
+      else {
+        uint32_t  addr = memoryDumpStartAddress;
+        uint32_t  addrMask = uint32_t(memoryDumpCPUAddressMode ? 0x00FFFFU : 0x3FFFFFU);
+        while (((addr ^ memoryDumpEndAddress) & addrMask) != 0U) {
+          int   c = std::fgetc(f);
+          if (c == EOF)
+            break;
+          gui.vm.writeMemory(addr, uint8_t(c & 0xFF), memoryDumpCPUAddressMode);
+          addr++;
+        }
+      }
+      std::fclose(f);
+    }
+  }
+  catch (std::exception& e) {
+    if (f)
+      std::fclose(f);
+    gui.errorMessage(e.what());
+  }
+  updateWindow();
+}}
+            xywh {405 330 115 25} color 39 selection_color 40 labelcolor 52
+          }
+          Fl_Button {} {
+            label {Save to file}
+            callback {{
+  std::FILE *f = (std::FILE *) 0;
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.debuggerDirectory,
+                       "All files (*)", Fl_File_Chooser::CREATE,
+                       "Save memory")) {
+      if (memoryDumpASCIIFileFormat)
+        f = std::fopen(tmp.c_str(), "w");
+      else
+        f = std::fopen(tmp.c_str(), "wb");
+      if (!f)
+        throw Ep128Emu::Exception("cannot open file");
+      if (memoryDumpASCIIFileFormat) {
+        dumpMemory(tmp, memoryDumpStartAddress, memoryDumpEndAddress,
+                   0U, false, memoryDumpCPUAddressMode);
+        tmp += '\\n';
+        for (size_t i = 0; i < tmp.length(); i++) {
+          if (std::fputc(tmp[i], f) == EOF)
+            throw Ep128Emu::Exception("error writing file - is the disk full ?");
+        }
+      }
+      else {
+        uint32_t  addr = memoryDumpStartAddress;
+        uint32_t  addrMask = uint32_t(memoryDumpCPUAddressMode ? 0x00FFFFU : 0x3FFFFFU);
+        while (((addr ^ memoryDumpEndAddress) & addrMask) != 0U) {
+          uint8_t c = gui.vm.readMemory(addr, memoryDumpCPUAddressMode);
+          if (std::fputc(c, f) == EOF)
+            throw Ep128Emu::Exception("error writing file - is the disk full ?");
+          addr++;
+        }
+      }
+      std::fclose(f);
+    }
+  }
+  catch (std::exception& e) {
+    if (f)
+      std::fclose(f);
+    gui.errorMessage(e.what());
+  }
+}}
+            xywh {405 365 115 25} color 39 selection_color 40 labelcolor 52
+          }
+        }
         Fl_Group {} {
           label Disassemble open
           xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52 hide
-        } {}
+        } {
+          Fl_Output disassemblyDisplay {
+            xywh {20 48 375 345} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 5 textcolor 159
+          }
+          Fl_Light_Button {} {
+            label {CPU address}
+            callback {{
+  disassemblyCPUAddressMode = (o->value() != 0);
+  updateDisassemblyDisplay();
+}}
+            tooltip {Select if 16 bit CPU, or 22 bit physical addresses are to be used} xywh {405 50 115 25} value 1 color 39 labelcolor 52
+          }
+          Fl_Input disassemblyStartAddressValuator {
+            label {Start address}
+            callback {{
+  if (parseHexNumber(disassemblyStartAddress, o->value()) > 0L)
+    disassemblyViewAddress = disassemblyStartAddress;
+  updateDisassemblyDisplay();
+}}
+            xywh {405 95 115 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
+            code1 {o->value("0000");}
+          }
+          Fl_Input disassemblyRuntimeAddressValuator {
+            label {Runtime address}
+            callback {{
+  uint32_t  tmp = 0U;
+  if (parseHexNumber(tmp, o->value()) > 0L) {
+    disassemblyAddressOffset =
+        int32_t(tmp & 0x3FFFFFU) - int32_t(disassemblyStartAddress & 0x3FFFFFU);
+  }
+  updateDisassemblyDisplay();
+}}
+            tooltip {The address where the disassembled code will actually run} xywh {405 140 115 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
+            code1 {o->value("0000");}
+          }
+          Fl_Input disassemblyEndAddressValuator {
+            label {End address}
+            callback {{
+  parseHexNumber(disassemblyEndAddress, o->value());
+  updateDisassemblyDisplay();
+}}
+            tooltip {End address of disassembly (for file I/O only); this address is already not included} xywh {405 185 115 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
+            code1 {o->value("0040");}
+          }
+          Fl_Button {} {
+            label {@|<}
+            callback {{
+  if (disassemblyViewAddress != disassemblyStartAddress) {
+    disassemblyViewAddress = disassemblyStartAddress;
+    updateDisassemblyDisplay();
+  }
+}}
+            tooltip {Return to start address} xywh {405 230 55 25} color 39 selection_color 40 labelcolor 52
+          }
+          Fl_Button {} {
+            label {@>}
+            callback {{
+  disassemblyViewAddress = disassemblyNextAddress;
+  updateDisassemblyDisplay();
+}}
+            tooltip {View next page} xywh {465 230 55 25} color 39 selection_color 40 labelcolor 52
+          }
+          Fl_Button {} {
+            label {Save to file}
+            callback {{
+  std::FILE *f = (std::FILE *) 0;
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.debuggerDirectory,
+                       "All files (*)", Fl_File_Chooser::CREATE,
+                       "Disassemble to file")) {
+      f = std::fopen(tmp.c_str(), "w");
+      if (!f)
+        throw Ep128Emu::Exception("cannot open file");
+      uint32_t  addr = disassemblyStartAddress;
+      uint32_t  addrMask = uint32_t(disassemblyCPUAddressMode ? 0x00FFFFU : 0x3FFFFFU);
+      uint32_t  nextAddr = addr;
+      while (true) {
+        while (addr != nextAddr && ((addr ^ disassemblyEndAddress) & addrMask) != 0U)
+          addr = (addr + 1U) & addrMask;
+        if (((addr ^ disassemblyEndAddress) & addrMask) == 0U)
+          break;
+        nextAddr = gui.vm.disassembleInstruction(tmp, addr, disassemblyCPUAddressMode,
+                                                 disassemblyAddressOffset);
+        tmp += '\\n';
+        for (size_t i = 0; i < tmp.length(); i++) {
+          if (std::fputc(tmp[i], f) == EOF)
+            throw Ep128Emu::Exception("error writing file - is the disk full ?");
+        }
+      }
+      std::fclose(f);
+    }
+  }
+  catch (std::exception& e) {
+    if (f)
+      std::fclose(f);
+    gui.errorMessage(e.what());
+  }
+}}
+            xywh {405 275 115 25} color 39 selection_color 40 labelcolor 52
+          }
+        }
         Fl_Group {} {
           label Watchpoints open
           xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52 hide
@@ -172,6 +456,8 @@ class Ep128EmuGUI_DebugWindow {open
     endAddr = (startAddr + 0x0030U) & 0xFFF8U;
     dumpMemory(buf, startAddr, endAddr, tmp, true, true);
     stackMemoryDumpDisplay->value(buf.c_str());
+    updateMemoryDumpDisplay();
+    updateDisassemblyDisplay();
   }
   catch (std::exception& e) {
     gui.errorMessage(e.what());
@@ -222,6 +508,149 @@ class Ep128EmuGUI_DebugWindow {open
   }
   catch (std::exception& e) {
     buf.clear();
+    gui.errorMessage(e.what());
+  }
+}} {}
+  }
+  Function {updateMemoryDumpDisplay()} {open private return_type void
+  } {
+    code {{
+  try {
+    uint32_t  addrMask = uint32_t(memoryDumpCPUAddressMode ? 0x00FFFFU : 0x3FFFFFU);
+    memoryDumpStartAddress &= addrMask;
+    memoryDumpEndAddress &= addrMask;
+    memoryDumpViewAddress &= addrMask;
+    const char  *fmt = (memoryDumpCPUAddressMode ? "%04X" : "%06X");
+    char  tmpBuf[8];
+    std::sprintf(&(tmpBuf[0]), fmt, (unsigned int) memoryDumpStartAddress);
+    memoryDumpStartAddressValuator->value(&(tmpBuf[0]));
+    std::sprintf(&(tmpBuf[0]), fmt, (unsigned int) memoryDumpEndAddress);
+    memoryDumpEndAddressValuator->value(&(tmpBuf[0]));
+    std::string buf;
+    dumpMemory(buf, memoryDumpViewAddress, memoryDumpViewAddress + 0x88U,
+               0U, false, memoryDumpCPUAddressMode);
+    memoryDumpDisplay->value(buf.c_str());
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}} {}
+  }
+  Function {parseHexNumber(uint32_t& value, const char *s)} {open private return_type long
+  } {
+    code {{
+  long  cnt = 0L;
+  if (!s)
+    return 0L;
+  while (*s == ' ' || *s == '\\t') {
+    s++;
+    cnt++;
+  }
+  if (*s == '\\0')
+    return 0L;
+  if (*s == '\\r' || *s == '\\n')
+    return (-(cnt + 1L));
+  uint32_t  tmpVal = 0U;
+  while (true) {
+    char  c = *s;
+    if (c == ' ' || c == '\\t' || c == '\\r' || c == '\\n' || c == '\\0') {
+      value = tmpVal;
+      return cnt;
+    }
+    tmpVal = (tmpVal << 4) & 0xFFFFFFFFU;
+    if (c >= '0' && c <= '9')
+      tmpVal += uint32_t(c - '0');
+    else if (c >= 'A' && c <= 'F')
+      tmpVal += uint32_t((c - 'A') + 10);
+    else if (c >= 'a' && c <= 'f')
+      tmpVal += uint32_t((c - 'a') + 10);
+    else {
+      gui.errorMessage("invalid hexadecimal number format");
+      return 0L;
+    }
+    s++;
+    cnt++;
+  }
+  return 0L;
+}} {}
+  }
+  Function {parseMemoryDump(const char *s)} {open private return_type void
+  } {
+    code {{
+  uint32_t  addr = 0U;
+  bool      haveAddress = false;
+  try {
+    while (true) {
+      uint32_t  tmp = 0U;
+      long      n = parseHexNumber(tmp, s);
+      if (!n)           // end of string or error
+        break;
+      if (n < 0L) {     // end of line
+        n = (-n);
+        haveAddress = false;
+        s = s + n;
+      }
+      else {
+        s = s + n;
+        if (!haveAddress) {
+          addr = tmp & 0x3FFFFFU;
+          haveAddress = true;
+        }
+        else {
+          gui.vm.writeMemory(addr, uint8_t(tmp & 0xFFU), memoryDumpCPUAddressMode);
+          addr++;
+        }
+      }
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}} {}
+  }
+  Function {updateDisassemblyDisplay()} {open private return_type void
+  } {
+    code {{
+  try {
+    uint32_t  addrMask = uint32_t(disassemblyCPUAddressMode ? 0x00FFFFU : 0x3FFFFFU);
+    disassemblyStartAddress &= addrMask;
+    if (disassemblyAddressOffset >= 0)
+      disassemblyAddressOffset &= int32_t(addrMask);
+    else {
+      disassemblyAddressOffset = (-disassemblyAddressOffset) - 1;
+      disassemblyAddressOffset &= int32_t(addrMask);
+      disassemblyAddressOffset = (-disassemblyAddressOffset) - 1;
+    }
+    disassemblyEndAddress &= addrMask;
+    disassemblyViewAddress &= addrMask;
+    disassemblyNextAddress &= addrMask;
+    const char  *fmt = (disassemblyCPUAddressMode ? "%04X" : "%06X");
+    char  tmpBuf[8];
+    std::sprintf(&(tmpBuf[0]), fmt, (unsigned int) disassemblyStartAddress);
+    disassemblyStartAddressValuator->value(&(tmpBuf[0]));
+    std::sprintf(&(tmpBuf[0]), fmt,
+                 (unsigned int) ((int32_t(disassemblyStartAddress)
+                                  + disassemblyAddressOffset) & int32_t(addrMask)));
+    disassemblyRuntimeAddressValuator->value(&(tmpBuf[0]));
+    std::sprintf(&(tmpBuf[0]), fmt, (unsigned int) disassemblyEndAddress);
+    disassemblyEndAddressValuator->value(&(tmpBuf[0]));
+    std::string tmp1;
+    std::string tmp2;
+    tmp2.reserve(864);
+    uint32_t  addr = disassemblyViewAddress;
+    for (int i = 0; i < 21; i++) {
+      addr = gui.vm.disassembleInstruction(tmp1, addr, disassemblyCPUAddressMode,
+                                           disassemblyAddressOffset);
+      tmp2 += tmp1;
+      tmp2 += '\\n';
+    }
+    disassemblyNextAddress = addr;
+    gui.vm.disassembleInstruction(tmp1, addr, disassemblyCPUAddressMode,
+                                  disassemblyAddressOffset);
+    tmp2 += tmp1;
+    disassemblyDisplay->value(tmp2.c_str());
+  }
+  catch (std::exception& e) {
     gui.errorMessage(e.what());
   }
 }} {}

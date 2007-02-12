@@ -92,6 +92,7 @@ class Ep128EmuGUI {open
   decl {std::string diskImageDirectory;} {}
   decl {std::string romImageDirectory;} {}
   decl {std::string prgFileDirectory;} {}
+  decl {std::string debuggerDirectory;} {}
   decl {Ep128Emu::ConfigurationDB guiConfig;} {}
   decl {Ep128EmuGUI_DiskConfigWindow *diskConfigWindow;} {}
   decl {Ep128EmuGUI_DisplayConfigWindow *displaySettingsWindow;} {}

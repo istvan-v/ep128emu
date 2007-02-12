@@ -42,6 +42,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   }
 }}
             tooltip {File names like /dev/fd0u720 (Linux) or \\\\.\\A: (Windows) can be used for direct access to actual floppy disks; leave the file name blank to have no disk emulated in this drive} xywh {55 33 205 25} color 0 selection_color 238 labelfont 1 labelcolor 52 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
           }
           Fl_Button {} {
             label {...}
@@ -74,6 +75,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   o->value(double(gui.config.floppy.a.tracks));
 }}
             xywh {30 69 40 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum -1 maximum 240 step 1 value -1 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
           }
           Fl_Value_Input floppyASidesValuator {
             label Sides
@@ -83,6 +85,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   o->value(double(gui.config.floppy.a.sides));
 }}
             xywh {130 69 35 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum -1 maximum 2 step 1 value 2 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
           }
           Fl_Value_Input floppyASectorsPerTrackValuator {
             label {Sectors per track}
@@ -92,6 +95,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   o->value(double(gui.config.floppy.a.sectorsPerTrack));
 }}
             xywh {215 69 40 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum -1 maximum 240 step 1 value 9 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
           }
         }
         Fl_Group {} {open
@@ -108,6 +112,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   }
 }}
             tooltip {File names like /dev/fd0u720 (Linux) or \\\\.\\A: (Windows) can be used for direct access to actual floppy disks; leave the file name blank to have no disk emulated in this drive} xywh {55 129 205 25} color 0 selection_color 238 labelfont 1 labelcolor 52 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
           }
           Fl_Button {} {
             label {...}
@@ -140,6 +145,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   o->value(double(gui.config.floppy.b.tracks));
 }}
             xywh {30 165 40 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum -1 maximum 240 step 1 value -1 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
           }
           Fl_Value_Input floppyBSidesValuator {
             label Sides
@@ -149,6 +155,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   o->value(double(gui.config.floppy.b.sides));
 }}
             xywh {130 165 35 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum -1 maximum 2 step 1 value 2 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
           }
           Fl_Value_Input floppyBSectorsPerTrackValuator {
             label {Sectors per track}
@@ -158,6 +165,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   o->value(double(gui.config.floppy.b.sectorsPerTrack));
 }}
             xywh {215 165 40 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum -1 maximum 240 step 1 value 9 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
           }
         }
         Fl_Group {} {open
@@ -174,6 +182,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   }
 }}
             tooltip {File names like /dev/fd0u720 (Linux) or \\\\.\\A: (Windows) can be used for direct access to actual floppy disks; leave the file name blank to have no disk emulated in this drive} xywh {55 225 205 25} color 0 selection_color 238 labelfont 1 labelcolor 52 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
           }
           Fl_Button {} {
             label {...}
@@ -206,6 +215,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   o->value(double(gui.config.floppy.c.tracks));
 }}
             xywh {30 261 40 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum -1 maximum 240 step 1 value -1 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
           }
           Fl_Value_Input floppyCSidesValuator {
             label Sides
@@ -215,6 +225,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   o->value(double(gui.config.floppy.c.sides));
 }}
             xywh {130 261 35 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum -1 maximum 2 step 1 value 2 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
           }
           Fl_Value_Input floppyCSectorsPerTrackValuator {
             label {Sectors per track}
@@ -224,6 +235,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   o->value(double(gui.config.floppy.c.sectorsPerTrack));
 }}
             xywh {215 261 40 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum -1 maximum 240 step 1 value 9 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
           }
         }
         Fl_Group {} {open
@@ -240,6 +252,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   }
 }}
             tooltip {File names like /dev/fd0u720 (Linux) or \\\\.\\A: (Windows) can be used for direct access to actual floppy disks; leave the file name blank to have no disk emulated in this drive} xywh {55 321 205 25} color 0 selection_color 238 labelfont 1 labelcolor 52 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
           }
           Fl_Button {} {
             label {...}
@@ -272,6 +285,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   o->value(double(gui.config.floppy.d.tracks));
 }}
             xywh {30 357 40 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum -1 maximum 240 step 1 value -1 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
           }
           Fl_Value_Input floppyDSidesValuator {
             label Sides
@@ -281,6 +295,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   o->value(double(gui.config.floppy.d.sides));
 }}
             xywh {130 357 35 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum -1 maximum 2 step 1 value 2 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
           }
           Fl_Value_Input floppyDSectorsPerTrackValuator {
             label {Sectors per track}
@@ -290,6 +305,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   o->value(double(gui.config.floppy.d.sectorsPerTrack));
 }}
             xywh {215 357 40 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum -1 maximum 240 step 1 value 9 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
           }
         }
       }
