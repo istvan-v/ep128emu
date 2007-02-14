@@ -47,10 +47,8 @@ namespace Ep128Emu {
         curToken += ch;
       wasSpace = isSpace;
     }
-    if (!wasSpace) {
-      curToken += ch;
+    if (!wasSpace)
       tokens.push_back(curToken);
-    }
 
     std::map<uint32_t, BreakPoint>  bpList;
 

@@ -907,6 +907,7 @@ namespace Plus4 {
     else if (breakPointTable) {
       if (breakPointTable[addr]) {
         // remove a previously existing breakpoint
+        breakPointTable[addr] = mode;
         breakPointCnt--;
         if (!breakPointCnt)
           haveBreakPoints = false;
