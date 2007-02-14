@@ -6,6 +6,8 @@ code_name {.cpp}
 decl {\#include "gui.hpp"} {selected
 } 
 
+decl {\#include <FL/Fl_Text_Buffer.H>} {} 
+
 class Ep128EmuGUI_DebugWindow {open
 } {
   decl {Ep128EmuGUI& gui;} {}
@@ -23,6 +25,7 @@ class Ep128EmuGUI_DebugWindow {open
   decl {uint32_t disassemblyEndAddress;} {}
   decl {uint32_t disassemblyViewAddress;} {}
   decl {uint32_t disassemblyNextAddress;} {}
+  decl {Fl_Text_Buffer *bpEditBuffer;} {}
   Function {Ep128EmuGUI_DebugWindow(Ep128EmuGUI& gui_) : gui(gui_)} {open
   } {
     code {{
@@ -42,6 +45,7 @@ class Ep128EmuGUI_DebugWindow {open
   disassemblyEndAddress = 0x00000040U;
   disassemblyViewAddress = 0x00000000U;
   disassemblyNextAddress = 0x00000000U;
+  bpEditBuffer = new Fl_Text_Buffer();
 }} {}
     Fl_Window window {
       callback {{
@@ -50,10 +54,10 @@ class Ep128EmuGUI_DebugWindow {open
 }} open
       xywh {308 146 540 450} type Double color 37 visible
     } {
-      Fl_Tabs {} {open
+      Fl_Tabs debugTabs {open
         xywh {10 10 520 395} color 38 selection_color 38 labelcolor 52
       } {
-        Fl_Group {} {
+        Fl_Group mainTab {
           label General open
           xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52
         } {
@@ -347,7 +351,142 @@ class Ep128EmuGUI_DebugWindow {open
         Fl_Group {} {
           label Watchpoints open
           xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52 hide
-        } {}
+        } {
+          Fl_Text_Editor breakPointEditor {
+            callback {{
+  applyBreakPointList();
+}}
+            tooltip {Enter watchpoint definitions, separated by spaces or newlines. Allowed formats include NN (I/O), NNNN (memory, CPU address), and NN:NNNN (memory, physical address as segment:offset); each N is a hexadecimal digit. Address ranges (separated by a - character) can also be specified. Use the following suffixes to check for read or write access only, or set priority: r, w, p0, p1, p2, p3.} xywh {20 48 345 345} box DOWN_BOX color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            code0 {o->cursor_color(FL_YELLOW);}
+            code1 {o->buffer(bpEditBuffer);}
+          }
+          Fl_Light_Button noBreakOnDataReadValuator {
+            label {Ignore data reads}
+            callback {{
+  gui.config.debug.noBreakOnDataRead = (o->value() != 0);
+  gui.config.debugSettingsChanged = true;
+  try {
+    gui.config.applySettings();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+            xywh {375 50 145 25} color 39 labelcolor 52
+          }
+          Fl_Value_Slider bpPriorityThresholdValuator {
+            label {Priority threshold}
+            callback {{
+  gui.config.debug.bpPriorityThreshold = int(o->value() + 0.5);
+  gui.config.debugSettingsChanged = true;
+  try {
+    gui.config.applySettings();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+            xywh {375 95 145 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 5 maximum 4 step 1 textcolor 52
+          }
+          Fl_Button {} {
+            label {Load from file}
+            callback {{
+  std::FILE *f = (std::FILE *) 0;
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.debuggerDirectory,
+                       "All files (*)",
+                       Fl_File_Chooser::SINGLE,
+                       "Load watchpoint definitions from file")) {
+      f = std::fopen(tmp.c_str(), "rb");
+      if (!f)
+        throw Ep128Emu::Exception("cannot open file");
+      tmp = "";
+      bool  crFlag = false;
+      while (true) {
+        int   c = std::fgetc(f);
+        if (crFlag) {
+          crFlag = false;
+          if (c == '\\n')
+            continue;
+        }
+        if (c == EOF)
+          break;
+        if (char(c) == '\\0')
+          continue;
+        if (c == '\\r') {
+          tmp += '\\n';
+          crFlag = true;
+        }
+        else
+          tmp += char(c);
+      }
+      std::fclose(f);
+      f = (std::FILE *) 0;
+      bpEditBuffer->text(tmp.c_str());
+      Ep128Emu::BreakPointList  bpList(tmp);
+      gui.vm.clearBreakPoints();
+      gui.vm.setBreakPoints(bpList);
+    }
+  }
+  catch (std::exception& e) {
+    if (f)
+      std::fclose(f);
+    gui.errorMessage(e.what());
+  }
+}}
+            xywh {375 140 145 25} color 39 selection_color 40 labelcolor 52
+          }
+          Fl_Button {} {
+            label {Save to file}
+            callback {{
+  std::FILE   *f = (std::FILE *) 0;
+  const char  *buf = (char *) 0;
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.debuggerDirectory,
+                       "All files (*)",
+                       Fl_File_Chooser::CREATE,
+                       "Save watchpoint definitions to file")) {
+      f = std::fopen(tmp.c_str(), "w");
+      if (!f)
+        throw Ep128Emu::Exception("cannot open file");
+      buf = bpEditBuffer->text();
+      if (!buf)
+        throw std::bad_alloc();
+      const char  *bufp = buf;
+      char        c = '\\0';
+      while ((*bufp) != '\\0') {
+        c = *(bufp++);
+        if (std::fputc(c, f) == EOF)
+          throw Ep128Emu::Exception("error writing file - is the disk full ?");
+      }
+      if (c != '\\n') {
+        if (std::fputc('\\n', f) == EOF)
+          throw Ep128Emu::Exception("error writing file - is the disk full ?");
+      }
+      std::free(const_cast<char *>(buf));
+      std::fclose(f);
+    }
+  }
+  catch (std::exception& e) {
+    if (buf)
+      std::free(const_cast<char *>(buf));
+    if (f)
+      std::fclose(f);
+    gui.errorMessage(e.what());
+  }
+}}
+            xywh {375 185 145 25} color 39 selection_color 40 labelcolor 52
+          }
+          Fl_Button {} {
+            label Apply
+            callback {{
+  applyBreakPointList();
+}}
+            tooltip {Reset watchpoints from text format definition} xywh {375 365 145 25} color 39 selection_color 40 labelcolor 52
+          }
+        }
       }
       Fl_Button {} {
         label Step
@@ -374,6 +513,7 @@ class Ep128EmuGUI_DebugWindow {open
   } {
     code {{
   delete window;
+  delete bpEditBuffer;
 }} {}
   }
   Function {show()} {open return_type void
@@ -427,6 +567,7 @@ class Ep128EmuGUI_DebugWindow {open
                    (unsigned int) (value & 0xFF), (unsigned int) (addr & 0xFFFF));
   }
   window->label(&(windowTitle[0]));
+  debugTabs->value(mainTab);
 }} {}
   }
   Function {updateWindow()} {open private return_type void
@@ -458,6 +599,8 @@ class Ep128EmuGUI_DebugWindow {open
     stackMemoryDumpDisplay->value(buf.c_str());
     updateMemoryDumpDisplay();
     updateDisassemblyDisplay();
+    noBreakOnDataReadValuator->value(gui.config.debug.noBreakOnDataRead ? 1 : 0);
+    bpPriorityThresholdValuator->value(double(gui.config.debug.bpPriorityThreshold));
   }
   catch (std::exception& e) {
     gui.errorMessage(e.what());
@@ -651,6 +794,28 @@ class Ep128EmuGUI_DebugWindow {open
     disassemblyDisplay->value(tmp2.c_str());
   }
   catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}} {}
+  }
+  Function {applyBreakPointList()} {open private return_type void
+  } {
+    code {{
+  const char  *buf = (char *) 0;
+  try {
+    buf = bpEditBuffer->text();
+    if (!buf)
+      throw std::bad_alloc();
+    std::string bpListText(buf);
+    std::free(const_cast<char *>(buf));
+    buf = (char *) 0;
+    Ep128Emu::BreakPointList  bpList(bpListText);
+    gui.vm.clearBreakPoints();
+    gui.vm.setBreakPoints(bpList);
+  }
+  catch (std::exception& e) {
+    if (buf)
+      std::free(const_cast<char *>(buf));
     gui.errorMessage(e.what());
   }
 }} {}
