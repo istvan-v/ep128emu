@@ -22,18 +22,15 @@
 #include "cpu.hpp"
 #include "ted.hpp"
 
+#include <cmath>
+
 static const float brightnessToYTable[8] = {
-   0.20f,  0.25f,  0.27f,  0.33f,  0.45f,  0.57f,  0.65f,  0.83f
+   0.180f,  0.235f,  0.261f,  0.341f,  0.506f,  0.661f,  0.753f,  0.993f
 };
 
-static const float colorToUTable[16] = {
-   0.00f,  0.00f, -0.04f,  0.03f,  0.09f, -0.08f,  0.14f, -0.12f,
-  -0.10f, -0.12f, -0.12f,  0.01f,  0.00f,  0.11f,  0.14f, -0.12f
-};
-
-static const float colorToVTable[16] = {
-   0.00f,  0.00f,  0.14f, -0.14f,  0.11f, -0.13f, -0.04f,  0.03f,
-   0.11f,  0.08f, -0.05f,  0.14f, -0.15f, -0.09f,  0.00f, -0.09f
+static const float colorPhaseTable[16] = {
+     0.0f,    0.0f,  103.0f,  283.0f,   53.0f,  241.0f,  347.0f,  167.0f,
+   123.0f,  148.0f,  195.0f,   83.0f,  265.0f,  323.0f,    5.0f,  213.0f
 };
 
 namespace Plus4 {
@@ -43,12 +40,16 @@ namespace Plus4 {
   {
     uint8_t c = color & 0x0F;
     uint8_t b = (color & 0x70) >> 4;
-    float   y = 0.06f;
-    float   u, v;
+    float   y = 0.035f;
+    float   u = 0.0f, v = 0.0f;
     if (c)
       y = brightnessToYTable[b];
-    u = colorToUTable[c];
-    v = colorToVTable[c];
+    if (c > 1) {
+      float   phs = colorPhaseTable[c] * 3.14159265f / 180.0f;
+      u = float(std::cos(phs)) * 0.18f;
+      v = float(std::sin(phs)) * 0.18f;
+    }
+    y *= 0.95f;
     // R = (V / 0.877) + Y
     // B = (U / 0.492) + Y
     // G = (Y - ((R * 0.299) + (B * 0.114))) / 0.587
@@ -187,7 +188,7 @@ namespace Plus4 {
                   | (uint8_t(cpuMemoryReadMap >> 11) & uint8_t(0x0F)));
     // save internal registers
     buf.writeUInt32(tedRegisterWriteMask);
-    buf.writeUInt32(uint32_t(cycle_count));
+    buf.writeByte(cycle_count);
     buf.writeByte(video_column);
     buf.writeUInt32(uint32_t(video_line));
     buf.writeByte(uint8_t(character_line));
@@ -204,7 +205,7 @@ namespace Plus4 {
     buf.writeBoolean(displayActive);
     buf.writeBoolean(horizontalBlanking);
     buf.writeBoolean(verticalBlanking);
-    buf.writeBoolean(singleClockMode);
+    buf.writeBoolean(!!(singleClockModeFlags & uint8_t(0x01)));
     buf.writeBoolean(timer1_run);
     buf.writeBoolean(timer2_run);
     buf.writeBoolean(timer3_run);
@@ -304,10 +305,8 @@ namespace Plus4 {
         writeMemory(uint16_t(0xFF00) | uint16_t(i), tedRegisters[i]);
       // load remaining internal registers from snapshot data
       tedRegisterWriteMask = buf.readUInt32();
-      cycle_count = buf.readUInt32();
+      cycle_count = buf.readByte() & 0x03;
       video_column = buf.readByte() & 0x7F;
-      cycle_count = (cycle_count & 0xFFFFFFFEUL)
-                    | (unsigned long) (video_column & uint8_t(0x01));
       video_line = int(buf.readUInt32() & 0x01FF);
       character_line = buf.readByte() & 7;
       character_position = int(buf.readUInt32() & 0x03FF);
@@ -324,7 +323,8 @@ namespace Plus4 {
       displayActive = buf.readBoolean();
       horizontalBlanking = buf.readBoolean();
       verticalBlanking = buf.readBoolean();
-      singleClockMode = buf.readBoolean();
+      singleClockModeFlags &= uint8_t(0x02);
+      singleClockModeFlags |= uint8_t(buf.readBoolean() ? 0x01 : 0x00);
       timer1_run = buf.readBoolean();
       timer2_run = buf.readBoolean();
       timer3_run = buf.readBoolean();
@@ -360,6 +360,8 @@ namespace Plus4 {
                                   "Plus/4 snapshot data");
     }
     catch (...) {
+      for (int i = 0; i < 16; i++)
+        keyboard_matrix[i] = 0xFF;
       try {
         this->reset(true);
       }

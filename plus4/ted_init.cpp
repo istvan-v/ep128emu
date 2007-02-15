@@ -189,11 +189,11 @@ namespace Plus4 {
     tedRegisters[0x12] = uint8_t(0xC4);
     tedRegisters[0x13] = uint8_t(0x01);
     tedRegisters[0x1D] = uint8_t(0xE0);
-    tedRegisters[0x1E] = uint8_t(0xC0);
+    tedRegisters[0x1E] = uint8_t(0xC6);
     // set internal TED registers
     render_func = &render_invalid_mode;
-    cycle_count = 0UL;
-    video_column = 96;
+    cycle_count = 0;
+    video_column = 99;
     video_line = 224;
     character_line = 0;
     character_position = 0x0000;
@@ -215,8 +215,7 @@ namespace Plus4 {
     displayActive = false;
     horizontalBlanking = true;
     verticalBlanking = true;
-    singleClockMode = true;
-    doubleClockModeEnabled = true;
+    singleClockModeFlags = 0x01;
     timer1_run = true;                          // timers
     timer2_run = true;
     timer3_run = true;
@@ -241,7 +240,9 @@ namespace Plus4 {
       pixel_buf[i] = uint8_t(0);
     for (int i = 0; i < 432; i++)
       line_buf[i] = uint8_t(0x08);
-    line_buf_pos = 0;
+    for (int i = 0; i < 4; i++)
+      line_buf_tmp[i] = uint8_t(0);
+    line_buf_pos = 432;
     bitmapMode = false;
     currentCharacter = uint8_t(0x00);
     characterMask = uint8_t(0xFF);

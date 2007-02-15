@@ -400,7 +400,7 @@ namespace Plus4 {
           ted->setTapeInput(runTape(ted->getTapeOutput() ? 1 : 0) > 0);
         }
       }
-      ted->run(2);
+      ted->runOneCycle();
       if (sidEnabled) {
         sid_->clock();
         soundOutputAccumulator += (uint32_t(sid_->output() + 32768));

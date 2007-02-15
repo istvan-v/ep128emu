@@ -127,7 +127,7 @@ namespace Plus4 {
   {
     (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    ted.dataBusState = ted.tedRegisters[0x06] & uint8_t(0x7F);
+    ted.dataBusState = ted.tedRegisters[0x06];
     return ted.dataBusState;
   }
 

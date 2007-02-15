@@ -191,10 +191,10 @@ namespace Plus4 {
     uint8_t     tedRegisters[32];
     // currently selected render function (depending on bits of FF06 and FF07)
     void        (*render_func)(void *ted_);
-    // TED cycle counter
-    unsigned long cycle_count;
     // CPU clock multiplier
     int         cpu_clock_multiplier;
+    // TED cycle counter (0 to 3)
+    uint8_t     cycle_count;
     // current video column (0 to 113, = (FF1E) / 2)
     uint8_t     video_column;
     // current video line (0 to 311, = (FF1D, FF1C)
@@ -229,8 +229,9 @@ namespace Plus4 {
     bool        displayActive;
     bool        horizontalBlanking;
     bool        verticalBlanking;
-    bool        singleClockMode;
-    bool        doubleClockModeEnabled;
+    // bit 0: single clock mode controlled by TED
+    // bit 1: copied from FF13 bit 1
+    uint8_t     singleClockModeFlags;
     // timers (FF00 to FF05)
     bool        timer1_run;
     bool        timer2_run;
@@ -254,6 +255,7 @@ namespace Plus4 {
     uint8_t     char_buf[40];
     uint8_t     pixel_buf[64];
     uint8_t     line_buf[432];
+    uint8_t     line_buf_tmp[4];
     int         line_buf_pos;
     bool        bitmapMode;
     uint8_t     currentCharacter;
@@ -330,7 +332,7 @@ namespace Plus4 {
     // Resize RAM to 'n' kilobytes (16, 32, 64, 256, or 1024), and clear all
     // RAM data.
     void setRAMSize(size_t n);
-    void run(int nCycles = 1);
+    void runOneCycle();
     virtual void reset(bool cold_reset = false);
     void setCPUClockMultiplier(int clk);
     void setKeyState(int keyNum, bool isPressed);
