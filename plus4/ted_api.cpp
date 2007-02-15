@@ -30,7 +30,7 @@ static const float brightnessToYTable[8] = {
 
 static const float colorPhaseTable[16] = {
      0.0f,    0.0f,  103.0f,  283.0f,   53.0f,  241.0f,  347.0f,  167.0f,
-   123.0f,  148.0f,  195.0f,   83.0f,  265.0f,  323.0f,    5.0f,  213.0f
+   124.5f,  148.0f,  195.0f,   83.0f,  265.0f,  323.0f,    1.5f,  213.0f
 };
 
 namespace Plus4 {
