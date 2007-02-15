@@ -407,10 +407,13 @@ namespace Ep128Emu {
       fl_rectf(0, y1, windowWidth_, (windowHeight_ - y1));
     }
 
+    if (displayWidth_ <= 0 || displayHeight_ <= 0)
+      return;
+
     unsigned char lineBuf_[768];
     unsigned char *pixelBuf_ =
-        (unsigned char *) std::malloc(sizeof(unsigned char)
-                                      * size_t(displayWidth_ * 3));
+        (unsigned char *) std::calloc(size_t(displayWidth_ * 3),
+                                      sizeof(unsigned char));
     if (pixelBuf_) {
       int   prvLine_ = -1;
       int   curLine_ = 0;
@@ -434,64 +437,66 @@ namespace Ep128Emu {
                    lBuf_ != (Message_LineData *) 0 &&
                    (*lBuf_) == (*prvLineRendered_)))) {
               prvLineRendered_ = lBuf_;
-              // decode video data
               if (lBuf_) {
+                // decode video data
                 const unsigned char *bufp = (unsigned char *) 0;
                 size_t  nBytes = 0;
                 lBuf_->getLineData(bufp, nBytes);
                 decodeLine(&(lineBuf_[0]), bufp, nBytes);
+                // convert to RGB
+                bufp = &(lineBuf_[0]);
+                unsigned char *p = pixelBuf_;
+                uint32_t      c = 0U;
+                fracX_ = displayWidth_;
+                if (!halfResolutionX_) {
+                  while (true) {
+                    if (fracX_ >= displayWidth_) {
+                      if (bufp >= &(lineBuf_[768]))
+                        break;
+                      do {
+                        c = colormap(*bufp);
+                        fracX_ -= displayWidth_;
+                        bufp++;
+                      } while (fracX_ >= displayWidth_);
+                    }
+                    {
+                      uint32_t  tmp = c;
+                      p[2] = (unsigned char) tmp & (unsigned char) 0xFF;
+                      tmp = tmp >> 8;
+                      p[1] = (unsigned char) tmp & (unsigned char) 0xFF;
+                      tmp = tmp >> 8;
+                      p[0] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    }
+                    fracX_ += 768;
+                    p += 3;
+                  }
+                }
+                else {
+                  while (true) {
+                    if (fracX_ >= displayWidth_) {
+                      if (bufp >= &(lineBuf_[768]))
+                        break;
+                      do {
+                        c = colormap(bufp[0], bufp[1]);
+                        fracX_ -= displayWidth_;
+                        bufp += 2;
+                      } while (fracX_ >= displayWidth_);
+                    }
+                    {
+                      uint32_t  tmp = c;
+                      p[2] = (unsigned char) tmp & (unsigned char) 0xFF;
+                      tmp = tmp >> 8;
+                      p[1] = (unsigned char) tmp & (unsigned char) 0xFF;
+                      tmp = tmp >> 8;
+                      p[0] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    }
+                    fracX_ += 384;
+                    p += 3;
+                  }
+                }
               }
               else
-                std::memset(&(lineBuf_[0]), 0, 768);
-              // convert to RGB
-              const unsigned char *bufp = &(lineBuf_[0]);
-              unsigned char       *p = pixelBuf_;
-              uint32_t            c = 0U;
-              fracX_ = displayWidth_;
-              if (!halfResolutionX_) {
-                for (int xc = 0; xc < displayWidth_; xc++, p += 3) {
-                  if (fracX_ >= displayWidth_) {
-                    if (bufp >= &(lineBuf_[768]))
-                      break;
-                    do {
-                      c = colormap(*bufp);
-                      fracX_ -= displayWidth_;
-                      bufp++;
-                    } while (fracX_ >= displayWidth_);
-                  }
-                  {
-                    uint32_t  tmp = c;
-                    p[2] = (unsigned char) tmp & (unsigned char) 0xFF;
-                    tmp = tmp >> 8;
-                    p[1] = (unsigned char) tmp & (unsigned char) 0xFF;
-                    tmp = tmp >> 8;
-                    p[0] = (unsigned char) tmp & (unsigned char) 0xFF;
-                  }
-                  fracX_ += 768;
-                }
-              }
-              else {
-                for (int xc = 0; xc < displayWidth_; xc++, p += 3) {
-                  if (fracX_ >= displayWidth_) {
-                    if (bufp >= &(lineBuf_[768]))
-                      break;
-                    do {
-                      c = colormap(bufp[0], bufp[1]);
-                      fracX_ -= displayWidth_;
-                      bufp += 2;
-                    } while (fracX_ >= displayWidth_);
-                  }
-                  {
-                    uint32_t  tmp = c;
-                    p[2] = (unsigned char) tmp & (unsigned char) 0xFF;
-                    tmp = tmp >> 8;
-                    p[1] = (unsigned char) tmp & (unsigned char) 0xFF;
-                    tmp = tmp >> 8;
-                    p[0] = (unsigned char) tmp & (unsigned char) 0xFF;
-                  }
-                  fracX_ += 384;
-                }
-              }
+                std::memset(pixelBuf_, 0, size_t(displayWidth_ * 3));
             }
           }
         }
