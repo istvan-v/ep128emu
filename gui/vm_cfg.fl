@@ -64,7 +64,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
             tooltip {Note: some of these settings may be ignored, depending on the type of machine being emulated} xywh {20 45 360 205} box ENGRAVED_FRAME color 38 labelcolor 52 align 21
           } {
             Fl_Value_Input vmCPUFrequencyValuator {
-              label {CPU frequency (Hz)}
+              label {CPU frequency}
               callback {{
   try {
     gui.config["vm.cpuClockFrequency"] = (unsigned int) (o->clamp(o->value()) + 0.5);
@@ -74,7 +74,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
   o->value(double(gui.config.vm.cpuClockFrequency));
 }}
-              xywh {30 75 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 100000 maximum 5e+08 step 1 value 4e+06 textcolor 52
+              xywh {30 75 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 1 maximum 5e+08 step 1 value 4e+06 textcolor 52
               code0 {o->cursor_color(FL_YELLOW);}
             }
             Fl_Value_Input vmVideoFrequencyValuator {
@@ -88,7 +88,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
   updateWindow();
 }}
-              tooltip {Horizontal refresh rate * 57} xywh {30 110 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 100000 maximum 2e+06 step 1 value 890625 textcolor 52
+              xywh {30 110 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 100000 maximum 4e+07 step 1 value 890625 textcolor 52
               code0 {o->cursor_color(FL_YELLOW);}
             }
             Fl_Value_Input vmSoundClockFrequencyValuator {
@@ -102,7 +102,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
   o->value(double(gui.config.vm.soundClockFrequency));
 }}
-              xywh {30 145 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 100000 maximum 2e+06 step 1 value 500000 textcolor 52
+              xywh {30 145 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 maximum 2e+06 step 1 value 500000 textcolor 52
               code0 {o->cursor_color(FL_YELLOW);}
             }
             Fl_Value_Input vmVideoMemoryLatencyValuator {
