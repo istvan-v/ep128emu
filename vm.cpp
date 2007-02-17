@@ -144,34 +144,33 @@ namespace Ep128Emu {
   void VirtualMachine::run(size_t microseconds)
   {
     (void) microseconds;
-    if ((audioConverter == (AudioConverter *) 0 && audioOutputEnabled) ||
-        (audioConverter != (AudioConverter *) 0 &&
-         audioOutput.getSampleRate() != audioOutputSampleRate)) {
-      // open or re-open audio converter if needed
-      if (audioConverter) {
-        delete audioConverter;
-        audioConverter = (AudioConverter *) 0;
+    if (audioConverter == (AudioConverter *) 0) {
+      if (audioOutputEnabled) {
+        // open audio converter if needed
+        audioOutputSampleRate = audioOutput.getSampleRate();
+        if (audioConverterSampleRate > 0.0f && audioOutputSampleRate > 0.0f) {
+          if (audioOutputHighQuality)
+            audioConverter = new AudioConverter_<AudioConverterHighQuality>(
+                audioOutput,
+                audioConverterSampleRate, audioOutputSampleRate,
+                audioOutputFilter1Freq, audioOutputFilter2Freq,
+                audioOutputVolume);
+          else
+            audioConverter = new AudioConverter_<AudioConverterLowQuality>(
+                audioOutput,
+                audioConverterSampleRate, audioOutputSampleRate,
+                audioOutputFilter1Freq, audioOutputFilter2Freq,
+                audioOutputVolume);
+          audioConverter->setEqualizerParameters(audioOutputEQMode,
+                                                 audioOutputEQFrequency,
+                                                 audioOutputEQLevel,
+                                                 audioOutputEQ_Q);
+        }
       }
+    }
+    else if (audioOutput.getSampleRate() != audioOutputSampleRate) {
       audioOutputSampleRate = audioOutput.getSampleRate();
-      if (audioOutputEnabled &&
-          audioConverterSampleRate > 0.0f && audioOutputSampleRate > 0.0f) {
-        if (audioOutputHighQuality)
-          audioConverter = new AudioConverter_<AudioConverterHighQuality>(
-              audioOutput,
-              audioConverterSampleRate, audioOutputSampleRate,
-              audioOutputFilter1Freq, audioOutputFilter2Freq,
-              audioOutputVolume);
-        else
-          audioConverter = new AudioConverter_<AudioConverterLowQuality>(
-              audioOutput,
-              audioConverterSampleRate, audioOutputSampleRate,
-              audioOutputFilter1Freq, audioOutputFilter2Freq,
-              audioOutputVolume);
-        audioConverter->setEqualizerParameters(audioOutputEQMode,
-                                               audioOutputEQFrequency,
-                                               audioOutputEQLevel,
-                                               audioOutputEQ_Q);
-      }
+      audioConverter->setOutputSampleRate(audioOutputSampleRate);
     }
     writingAudioOutput =
         (audioConverter != (AudioConverter *) 0 && audioOutputEnabled &&
@@ -670,11 +669,11 @@ namespace Ep128Emu {
   void VirtualMachine::setAudioConverterSampleRate(float sampleRate_)
   {
     if (sampleRate_ != audioConverterSampleRate) {
-      if (audioConverter) {
-        delete audioConverter;
-        audioConverter = (AudioConverter *) 0;
-      }
       audioConverterSampleRate = sampleRate_;
+      if (audioConverter) {
+        audioConverter->setInputSampleRate(audioConverterSampleRate);
+        return;
+      }
       audioOutputSampleRate = audioOutput.getSampleRate();
       if (audioOutputEnabled &&
           audioConverterSampleRate > 0.0f && audioOutputSampleRate > 0.0f) {

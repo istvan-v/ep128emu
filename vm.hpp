@@ -273,6 +273,11 @@ namespace Ep128Emu {
         this->audioConverter->sendInputSignal(uint32_t(left)
                                               | (uint32_t(right) << 16));
     }
+    inline void sendMonoAudioOutput(int32_t audioData)
+    {
+      if (this->writingAudioOutput)
+        this->audioConverter->sendMonoInputSignal(audioData);
+    }
     // this function is similar to the public setTapeFileName(), but allows
     // derived classes to use a different sample size than the default of 1 bit
     void setTapeFileName(const std::string& fileName, int bitsPerSample);

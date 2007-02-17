@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -187,6 +187,16 @@ namespace Ep128Emu {
   {
   }
 
+  void AudioConverter::setInputSampleRate(float sampleRate_)
+  {
+    inputSampleRate = sampleRate_;
+  }
+
+  void AudioConverter::setOutputSampleRate(float sampleRate_)
+  {
+    outputSampleRate = sampleRate_;
+  }
+
   void AudioConverter::setDCBlockFilters(float frq1, float frq2)
   {
     dcBlock1L.setCutoffFrequency(frq1);
@@ -242,6 +252,27 @@ namespace Ep128Emu {
     prvInputR = right;
   }
 
+  void AudioConverterLowQuality::sendMonoInputSignal(int32_t audioInput)
+  {
+    float   left = float(audioInput);
+    phs += 1.0f;
+    if (phs < nxtPhs) {
+      outLeft += (prvInputL + left);
+    }
+    else {
+      float   phsFrac = nxtPhs - (phs - 1.0f);
+      float   left2 = prvInputL + ((left - prvInputL) * phsFrac);
+      outLeft += ((prvInputL + left2) * phsFrac);
+      outLeft /= (downsampleRatio * 2.0f);
+      float   tmp = eqL.process(dcBlock2L.process(dcBlock1L.process(outLeft)));
+      sendOutputSignal(tmp, tmp);
+      outLeft = (left2 + left) * (1.0f - phsFrac);
+      nxtPhs = (nxtPhs + downsampleRatio) - phs;
+      phs = 0.0f;
+    }
+    prvInputL = left;
+  }
+
   AudioConverterLowQuality::AudioConverterLowQuality(float inputSampleRate_,
                                                      float outputSampleRate_,
                                                      float dcBlockFreq1,
@@ -263,6 +294,18 @@ namespace Ep128Emu {
   {
   }
 
+  void AudioConverterLowQuality::setInputSampleRate(float sampleRate_)
+  {
+    inputSampleRate = sampleRate_;
+    downsampleRatio = inputSampleRate / outputSampleRate;
+  }
+
+  void AudioConverterLowQuality::setOutputSampleRate(float sampleRate_)
+  {
+    outputSampleRate = sampleRate_;
+    downsampleRatio = inputSampleRate / outputSampleRate;
+  }
+
   inline void AudioConverterHighQuality::ResampleWindow::processSample(
       float inL, float inR, float *outBufL, float *outBufR,
       int outBufSize, float bufPos)
@@ -281,6 +324,28 @@ namespace Ep128Emu {
                      * winPosFrac);
       outBufL[writePos] += inL * w;
       outBufR[writePos] += inR * w;
+      if (++writePos >= outBufSize)
+        writePos = 0;
+      winPosInt += (windowSize / 12);
+    } while (winPosInt < windowSize);
+  }
+
+  inline void AudioConverterHighQuality::ResampleWindow::processSample(
+      float inL, float *outBufL, int outBufSize, float bufPos)
+  {
+    int      writePos = int(bufPos);
+    float    posFrac = bufPos - writePos;
+    float    winPos = (1.0f - posFrac) * float(windowSize / 12);
+    int      winPosInt = int(winPos);
+    float    winPosFrac = winPos - winPosInt;
+    writePos -= 5;
+    while (writePos < 0)
+      writePos += outBufSize;
+    do {
+      float   w = windowTable[winPosInt]
+                  + ((windowTable[winPosInt + 1] - windowTable[winPosInt])
+                     * winPosFrac);
+      outBufL[writePos] += inL * w;
       if (++writePos >= outBufSize)
         writePos = 0;
       winPosInt += (windowSize / 12);
@@ -327,6 +392,25 @@ namespace Ep128Emu {
     }
   }
 
+  void AudioConverterHighQuality::sendMonoInputSignal(int32_t audioInput)
+  {
+    float   left = float(audioInput);
+    window.processSample(left, bufL, bufSize, bufPos);
+    bufPos += resampleRatio;
+    if (bufPos >= nxtPos) {
+      if (bufPos >= float(bufSize))
+        bufPos -= float(bufSize);
+      nxtPos = float(int(bufPos) + 1);
+      int     readPos = int(bufPos) - 6;
+      while (readPos < 0)
+        readPos += bufSize;
+      left = bufL[readPos] * resampleRatio;
+      bufL[readPos] = 0.0f;
+      float   tmp = eqL.process(dcBlock2L.process(dcBlock1L.process(left)));
+      sendOutputSignal(tmp, tmp);
+    }
+  }
+
   AudioConverterHighQuality::AudioConverterHighQuality(float inputSampleRate_,
                                                        float outputSampleRate_,
                                                        float dcBlockFreq1,
@@ -346,6 +430,18 @@ namespace Ep128Emu {
 
   AudioConverterHighQuality::~AudioConverterHighQuality()
   {
+  }
+
+  void AudioConverterHighQuality::setInputSampleRate(float sampleRate_)
+  {
+    inputSampleRate = sampleRate_;
+    resampleRatio = outputSampleRate / inputSampleRate;
+  }
+
+  void AudioConverterHighQuality::setOutputSampleRate(float sampleRate_)
+  {
+    outputSampleRate = sampleRate_;
+    resampleRatio = outputSampleRate / inputSampleRate;
   }
 
 }       // namespace Ep128Emu

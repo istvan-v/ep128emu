@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -60,6 +60,9 @@ namespace Ep128Emu {
                    float ampScale_ = 0.7071f);
     virtual ~AudioConverter();
     virtual void sendInputSignal(uint32_t audioInput) = 0;
+    virtual void sendMonoInputSignal(int32_t audioInput) = 0;
+    virtual void setInputSampleRate(float sampleRate_);
+    virtual void setOutputSampleRate(float sampleRate_);
     void setDCBlockFilters(float frq1, float frq2);
     void setEqualizerParameters(int mode_, float freq_, float level_, float q_);
     void setOutputVolume(float ampScale_);
@@ -75,13 +78,16 @@ namespace Ep128Emu {
     float   downsampleRatio;
     float   outLeft, outRight;
    public:
-    virtual void sendInputSignal(uint32_t audioInput);
     AudioConverterLowQuality(float inputSampleRate_,
                              float outputSampleRate_,
                              float dcBlockFreq1 = 10.0f,
                              float dcBlockFreq2 = 10.0f,
                              float ampScale_ = 0.7071f);
     virtual ~AudioConverterLowQuality();
+    virtual void sendInputSignal(uint32_t audioInput);
+    virtual void sendMonoInputSignal(int32_t audioInput);
+    virtual void setInputSampleRate(float sampleRate_);
+    virtual void setOutputSampleRate(float sampleRate_);
   };
 
   class AudioConverterHighQuality : public AudioConverter {
@@ -95,6 +101,8 @@ namespace Ep128Emu {
       inline void processSample(float inL, float inR,
                                 float *outBufL, float *outBufR,
                                 int outBufSize, float bufPos);
+      inline void processSample(float inL, float *outBufL,
+                                int outBufSize, float bufPos);
     };
     static ResampleWindow window;
     static const int bufSize = 16;
@@ -104,13 +112,16 @@ namespace Ep128Emu {
     float   resampleRatio;
     // ----------------
    public:
-    virtual void sendInputSignal(uint32_t audioInput);
     AudioConverterHighQuality(float inputSampleRate_,
                               float outputSampleRate_,
                               float dcBlockFreq1 = 10.0f,
                               float dcBlockFreq2 = 10.0f,
                               float ampScale_ = 0.7071f);
     virtual ~AudioConverterHighQuality();
+    virtual void sendInputSignal(uint32_t audioInput);
+    virtual void sendMonoInputSignal(int32_t audioInput);
+    virtual void setInputSampleRate(float sampleRate_);
+    virtual void setOutputSampleRate(float sampleRate_);
   };
 
 }       // namespace Ep128Emu
