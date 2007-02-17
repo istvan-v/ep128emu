@@ -321,6 +321,10 @@ namespace Plus4 {
       (void) newState_;
       (void) currentSlot_;
     }
+    virtual void ntscModeChangeCallback(bool isNTSC_)
+    {
+      (void) isNTSC_;
+    }
    public:
     TED7360();
     virtual ~TED7360();
@@ -381,6 +385,10 @@ namespace Plus4 {
     inline bool getTapeMotorState() const
     {
       return tape_motor_state;
+    }
+    inline bool getIsNTSCMode() const
+    {
+      return !!(tedRegisters[0x07] & 0x40);
     }
     static void convertPixelToRGB(uint8_t color,
                                   float& red, float& green, float& blue);

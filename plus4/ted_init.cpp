@@ -159,11 +159,12 @@ namespace Plus4 {
     setMemoryWriteCallback(0xFF3E, &write_register_FF3E);
     setMemoryWriteCallback(0xFF3F, &write_register_FF3F);
     // set internal TED registers
+    tedRegisters[0x07] = uint8_t(0x00);     // default to PAL mode
     this->initRegisters();
     cpu_clock_multiplier = 1;
     for (int i = 0; i < 16; i++)                // keyboard matrix
-      keyboard_matrix[i] = (uint8_t) 0xFF;
-    user_port_state = (uint8_t) 0xFF;           // external ports
+      keyboard_matrix[i] = uint8_t(0xFF);
+    user_port_state = uint8_t(0xFF);            // external ports
     tape_read_state = false;
     tape_button_state = false;
   }
@@ -180,6 +181,10 @@ namespace Plus4 {
     // clear memory used by TED registers
     ioRegister_0000 = uint8_t(0x0F);
     ioRegister_0001 = uint8_t(0xC8);
+    if (tedRegisters[0x07] & uint8_t(0x40)) {
+      tedRegisters[0x07] = uint8_t(0x00);
+      ntscModeChangeCallback(false);
+    }
     tedRegisterWriteMask = 0U;
     for (uint8_t i = 0x00; i <= 0x1F; i++)
       tedRegisters[i] = uint8_t(0x00);

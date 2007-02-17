@@ -77,11 +77,10 @@ namespace Plus4 {
 
   void Plus4VM::TED7360_::playSample(int16_t sampleValue)
   {
-    uint16_t  tmp = uint16_t(uint32_t(sampleValue)
-                             + (vm.soundOutputAccumulator >> 3)
-                             + (vm.soundOutputAccumulator >> 4));
-    vm.soundOutputAccumulator = 0U;
-    vm.sendAudioOutput(tmp, tmp);
+    int32_t tmp = vm.soundOutputAccumulator + 16777216;
+    tmp = ((tmp >> 3) + (tmp >> 4) - 3145728) + int32_t(sampleValue);
+    vm.soundOutputAccumulator = 0;
+    vm.sendMonoAudioOutput(tmp);
   }
 
   void Plus4VM::TED7360_::drawLine(const uint8_t *buf, size_t nBytes)
@@ -95,6 +94,11 @@ namespace Plus4 {
   {
     if (vm.getIsDisplayEnabled())
       vm.display.vsyncStateChange(newState_, currentSlot_);
+  }
+
+  void Plus4VM::TED7360_::ntscModeChangeCallback(bool isNTSC_)
+  {
+    vm.updateTimingParameters(isNTSC_);
   }
 
   bool Plus4VM::TED7360_::systemCallback(uint8_t n)
@@ -283,16 +287,38 @@ namespace Plus4 {
     }
   }
 
+  void Plus4VM::updateTimingParameters(bool ntscMode_)
+  {
+    size_t  singleClockFreq = tedInputClockFrequency;
+    if (!ntscMode_)
+      singleClockFreq = ((singleClockFreq + 40) / 80) << 2;
+    else
+      singleClockFreq = ((singleClockFreq + 32) / 64) << 2;
+    tedTimesliceLength = int64_t(((uint64_t(1000000) << 32)
+                                  + (singleClockFreq >> 1))
+                                 / singleClockFreq);
+    size_t  freqMult = cpuClockFrequency;
+    if (freqMult > 1000)
+      freqMult = (freqMult + singleClockFreq) / (singleClockFreq << 1);
+    freqMult = (freqMult > 1 ? (freqMult < 100 ? freqMult : 100) : 1);
+    ted->setCPUClockMultiplier(freqMult);
+    if ((singleClockFreq >> 2) != soundClockFrequency) {
+      soundClockFrequency = singleClockFreq >> 2;
+      setAudioConverterSampleRate(float(long(soundClockFrequency)));
+    }
+  }
+
   Plus4VM::Plus4VM(Ep128Emu::VideoDisplay& display_,
                    Ep128Emu::AudioOutput& audioOutput_)
     : VirtualMachine(display_, audioOutput_),
       ted((TED7360_ *) 0),
-      cpuClockFrequency(1773448),
-      tedFrequency(886724),
-      soundClockFrequency(221681),
-      tedCyclesRemaining(0),
-      tapeSamplesPerTEDCycle(0),
-      tapeSamplesRemaining(0),
+      cpuClockFrequency(1),
+      tedInputClockFrequency(17734475),
+      soundClockFrequency(0),
+      tedTimesliceLength(0),
+      tedTimeRemaining(0),
+      tapeTimesliceLength(0),
+      tapeTimeRemaining(0),
       demoFile((Ep128Emu::File *) 0),
       demoBuffer(),
       isRecordingDemo(false),
@@ -300,11 +326,12 @@ namespace Plus4 {
       snapshotLoadFlag(false),
       demoTimeCnt(0U),
       sid_((SID *) 0),
-      soundOutputAccumulator(0U),
+      soundOutputAccumulator(0),
       sidEnabled(false)
   {
     ted = new TED7360_(*this);
     try {
+      updateTimingParameters(false);
       // reset
       ted->reset(true);
       // use PLUS/4 colormap
@@ -312,7 +339,6 @@ namespace Plus4 {
           dp(display.getDisplayParameters());
       dp.indexToRGBFunc = &TED7360::convertPixelToRGB;
       display.setDisplayParameters(dp);
-      setAudioConverterSampleRate(float(long(soundClockFrequency)));
       sid_ = new SID();
       sid_->set_chip_model(MOS8580);
       sid_->enable_external_filter(false);
@@ -350,10 +376,8 @@ namespace Plus4 {
           ted->setKeyState(i, false);
       }
     }
-    tedCyclesRemaining +=
-        ((int64_t(microseconds) << 26) * int64_t(tedFrequency)
-         / int64_t(15625));     // 10^6 / 2^6
-    while (tedCyclesRemaining > 0) {
+    tedTimeRemaining += (int64_t(microseconds) << 32);
+    while (tedTimeRemaining > 0) {
       if (isPlayingDemo) {
         while (!demoTimeCnt) {
           if (haveTape() && getIsTapeMotorOn() && getTapeButtonState() != 0)
@@ -392,10 +416,10 @@ namespace Plus4 {
           demoTimeCnt--;
       }
       if (haveTape()) {
-        tapeSamplesRemaining += tapeSamplesPerTEDCycle;
-        if (tapeSamplesRemaining > 0) {
-          // assume tape sample rate < tedFrequency
-          tapeSamplesRemaining -= (int64_t(1) << 32);
+        tapeTimeRemaining += tedTimesliceLength;
+        if (tapeTimeRemaining > 0) {
+          // assume tape sample rate < single clock frequency
+          tapeTimeRemaining -= tapeTimesliceLength;
           setTapeMotorState(ted->getTapeMotorState());
           ted->setTapeInput(runTape(ted->getTapeOutput() ? 1 : 0) > 0);
         }
@@ -403,9 +427,9 @@ namespace Plus4 {
       ted->runOneCycle();
       if (sidEnabled) {
         sid_->clock();
-        soundOutputAccumulator += (uint32_t(sid_->output() + 32768));
+        soundOutputAccumulator += int32_t(sid_->output());
       }
-      tedCyclesRemaining -= (int64_t(1) << 32);
+      tedTimeRemaining -= tedTimesliceLength;
       if (isRecordingDemo)
         demoTimeCnt++;
     }
@@ -474,45 +498,25 @@ namespace Plus4 {
 
   void Plus4VM::setCPUFrequency(size_t freq_)
   {
-    size_t  freq = (freq_ > 886724 ? (freq_ < 150000000 ? freq_ : 150000000)
-                                     : 886724);
+    size_t  freq = (freq_ > 1 ? (freq_ < 150000000 ? freq_ : 150000000) : 1);
     if (freq == cpuClockFrequency)
       return;
-    size_t  oldFreqMult, newFreqMult;
-    oldFreqMult = (cpuClockFrequency + tedFrequency) / (tedFrequency << 1);
+    stopDemoPlayback();         // changing configuration implies stopping
+    stopDemoRecording(false);   // any demo playback or recording
     cpuClockFrequency = freq;
-    newFreqMult = (freq + tedFrequency) / (tedFrequency << 1);
-    newFreqMult = (newFreqMult > 1 ? (newFreqMult < 100 ? newFreqMult : 100)
-                                     : 1);
-    if (newFreqMult != oldFreqMult) {
-      stopDemoPlayback();       // changing configuration implies stopping
-      stopDemoRecording(false); // any demo playback or recording
-      ted->setCPUClockMultiplier(int(newFreqMult));
-    }
+    updateTimingParameters(ted->getIsNTSCMode());
   }
 
   void Plus4VM::setVideoFrequency(size_t freq_)
   {
-    size_t  freq = (freq_ > 443364 ? (freq_ < 1773448 ? freq_ : 1773448)
-                                     : 443364);
-    freq = ((freq + 2) >> 2) << 2;
-    if (freq != tedFrequency) {
-      stopDemoPlayback();       // changing configuration implies stopping
-      stopDemoRecording(false); // any demo playback or recording
-      tedFrequency = freq;
-      soundClockFrequency = freq >> 2;
-      size_t  cpuFreqMult;
-      cpuFreqMult = (cpuClockFrequency + tedFrequency) / (tedFrequency << 1);
-      cpuFreqMult = (cpuFreqMult > 1 ? (cpuFreqMult < 100 ? cpuFreqMult : 100)
-                                       : 1);
-      ted->setCPUClockMultiplier(int(cpuFreqMult));
-      if (haveTape()) {
-        tapeSamplesPerTEDCycle =
-            (int64_t(getTapeSampleRate()) << 32) / int64_t(tedFrequency);
-      }
-      tapeSamplesRemaining = 0;
-      setAudioConverterSampleRate(float(long(soundClockFrequency)));
-    }
+    size_t  freq = (freq_ > 7159090 ? (freq_ < 35468950 ? freq_ : 35468950)
+                                      : 7159090);
+    if (freq == tedInputClockFrequency)
+      return;
+    stopDemoPlayback();         // changing configuration implies stopping
+    stopDemoRecording(false);   // any demo playback or recording
+    tedInputClockFrequency = freq;
+    updateTimingParameters(ted->getIsNTSCMode());
   }
 
   void Plus4VM::setVideoMemoryLatency(size_t t_)
@@ -549,10 +553,12 @@ namespace Plus4 {
     Ep128Emu::VirtualMachine::setTapeFileName(fileName);
     setTapeMotorState(ted->getTapeMotorState());
     if (haveTape()) {
-      tapeSamplesPerTEDCycle =
-          (int64_t(getTapeSampleRate()) << 32) / int64_t(tedFrequency);
+      int64_t tmp = getTapeSampleRate();
+      tapeTimesliceLength = ((int64_t(1000000) << 32) + (tmp >> 1)) / tmp;
     }
-    tapeSamplesRemaining = 0;
+    else
+      tapeTimesliceLength = 0;
+    tapeTimeRemaining = 0;
   }
 
   void Plus4VM::tapePlay()
@@ -689,7 +695,7 @@ namespace Plus4 {
       buf.setPosition(0);
       buf.writeUInt32(0x01000000);      // version number
       buf.writeUInt32(uint32_t(cpuClockFrequency));
-      buf.writeUInt32(uint32_t(tedFrequency));
+      buf.writeUInt32(uint32_t(tedInputClockFrequency));
       buf.writeUInt32(uint32_t(soundClockFrequency));
       buf.writeBoolean(sidEnabled);
       f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_P4VM_STATE, buf);
@@ -702,7 +708,7 @@ namespace Plus4 {
     buf.setPosition(0);
     buf.writeUInt32(0x01000000);        // version number
     buf.writeUInt32(uint32_t(cpuClockFrequency));
-    buf.writeUInt32(uint32_t(tedFrequency));
+    buf.writeUInt32(uint32_t(tedInputClockFrequency));
     buf.writeUInt32(uint32_t(soundClockFrequency));
     f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_P4VM_CONFIG, buf);
   }
@@ -779,10 +785,10 @@ namespace Plus4 {
     snapshotLoadFlag = true;
     try {
       uint32_t  tmpCPUClockFrequency = buf.readUInt32();
-      uint32_t  tmpTEDFrequency = buf.readUInt32();
+      uint32_t  tmpTEDInputClockFrequency = buf.readUInt32();
       uint32_t  tmpSoundClockFrequency = buf.readUInt32();
       (void) tmpCPUClockFrequency;
-      (void) tmpTEDFrequency;
+      (void) tmpTEDInputClockFrequency;
       (void) tmpSoundClockFrequency;
       sidEnabled = buf.readBoolean();
       if (buf.getPosition() != buf.getDataSize())
@@ -807,11 +813,11 @@ namespace Plus4 {
     }
     try {
       uint32_t  tmpCPUClockFrequency = buf.readUInt32();
-      uint32_t  tmpTEDFrequency = buf.readUInt32();
+      uint32_t  tmpTEDInputClockFrequency = buf.readUInt32();
       uint32_t  tmpSoundClockFrequency = buf.readUInt32();
       (void) tmpSoundClockFrequency;
       setCPUFrequency(tmpCPUClockFrequency);
-      setVideoFrequency(tmpTEDFrequency);
+      setVideoFrequency(tmpTEDInputClockFrequency);
       if (buf.getPosition() != buf.getDataSize())
         throw Ep128Emu::Exception("trailing garbage at end of "
                                   "plus4 machine configuration data");

@@ -46,18 +46,20 @@ namespace Plus4 {
       virtual void playSample(int16_t sampleValue);
       virtual void drawLine(const uint8_t *buf, size_t nBytes);
       virtual void verticalSync(bool newState_, unsigned int currentSlot_);
+      virtual void ntscModeChangeCallback(bool isNTSC_);
       virtual bool systemCallback(uint8_t n);
       virtual void breakPointCallback(bool isWrite,
                                       uint16_t addr, uint8_t value);
     };
     // ----------------
     TED7360_  *ted;
-    size_t    cpuClockFrequency;        // defaults to 1773448 Hz
-    size_t    tedFrequency;             // defaults to 886724 Hz
-    size_t    soundClockFrequency;      // fixed at tedFrequency / 4
-    int64_t   tedCyclesRemaining;       // in 2^-32 TED cycle units
-    int64_t   tapeSamplesPerTEDCycle;
-    int64_t   tapeSamplesRemaining;
+    size_t    cpuClockFrequency;        // defaults to 1
+    size_t    tedInputClockFrequency;   // defaults to 17734475 Hz
+    size_t    soundClockFrequency;      // fixed at single clock frequency / 4
+    int64_t   tedTimesliceLength;       // in 2^-32 microsecond units
+    int64_t   tedTimeRemaining;         // -"-
+    int64_t   tapeTimesliceLength;      // -"-
+    int64_t   tapeTimeRemaining;        // -"-
     Ep128Emu::File  *demoFile;
     // contains demo data, which is the emulator version number as a 32-bit
     // integer ((MAJOR << 16) + (MINOR << 8) + PATCHLEVEL), followed by a
@@ -83,11 +85,12 @@ namespace Plus4 {
     // used for counting time between demo events (in TED cycles)
     uint64_t  demoTimeCnt;
     SID       *sid_;
-    uint32_t  soundOutputAccumulator;
+    int32_t   soundOutputAccumulator;
     bool      sidEnabled;
     // ----------------
     void stopDemoPlayback();
     void stopDemoRecording(bool writeFile_);
+    void updateTimingParameters(bool ntscMode_);
    public:
     Plus4VM(Ep128Emu::VideoDisplay&, Ep128Emu::AudioOutput&);
     virtual ~Plus4VM();
@@ -100,11 +103,12 @@ namespace Plus4 {
     virtual void resetMemoryConfiguration(size_t memSize);
     // load ROM segment 'n' from the specified file, skipping 'offs' bytes
     virtual void loadROMSegment(uint8_t n, const char *fileName, size_t offs);
-    // set CPU clock frequency (in Hz); defaults to 1773448 Hz
+    // set CPU clock frequency (in Hz, or clock multiplier if a small value
+    // is specified); defaults to 1
     virtual void setCPUFrequency(size_t freq_);
-    // set the number of video 'slots' per second (defaults to 886724 Hz)
+    // set TED input clock frequency (defaults to 17734475 Hz)
     virtual void setVideoFrequency(size_t freq_);
-    // set parameter used for tuning video memory timing (defaults to 62 ns)
+    // set parameter used for tuning video memory timing
     virtual void setVideoMemoryLatency(size_t t_);
     // set if emulation of memory timing is enabled
     virtual void setEnableMemoryTimingEmulation(bool isEnabled);

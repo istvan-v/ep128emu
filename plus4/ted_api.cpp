@@ -285,8 +285,15 @@ namespace Plus4 {
       // load I/O and TED registers
       ioRegister_0000 = buf.readByte();
       ioRegister_0001 = buf.readByte();
-      for (uint8_t i = 0x00; i <= 0x1F; i++)
-        tedRegisters[i] = buf.readByte();
+      writeMemory(0x0000, ioRegister_0000);
+      writeMemory(0x0001, ioRegister_0001);
+      for (uint8_t i = 0x00; i <= 0x1F; i++) {
+        uint8_t c = buf.readByte();
+        if (i == 0x06 || i == 0x07 || (i >= 0x0A && i <= 0x19))
+          writeMemory(uint16_t(0xFF00) | uint16_t(i), c);
+        else
+          tedRegisters[i] = c;
+      }
       // load memory paging
       hannesRegister = buf.readByte();
       uint8_t romSelect_ = buf.readByte() & uint8_t(0x8F);
@@ -297,12 +304,6 @@ namespace Plus4 {
       else
         write_register_FF3F(this, 0xFF3F, 0x00);
       write_register_FDDx(this, uint16_t(0xFDD0) | uint16_t(romSelect_), 0x00);
-      writeMemory(0x0000, ioRegister_0000);
-      writeMemory(0x0001, ioRegister_0001);
-      writeMemory(0xFF06, tedRegisters[0x06]);
-      writeMemory(0xFF07, tedRegisters[0x07]);
-      for (uint8_t i = 0x0A; i < 0x1A; i++)
-        writeMemory(uint16_t(0xFF00) | uint16_t(i), tedRegisters[i]);
       // load remaining internal registers from snapshot data
       tedRegisterWriteMask = buf.readUInt32();
       cycle_count = buf.readByte() & 0x03;

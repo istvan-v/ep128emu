@@ -182,18 +182,22 @@ namespace Plus4 {
     (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
     ted.dataBusState = value;
+    uint8_t   bitsChanged = value ^ ted.tedRegisters[0x07];
     ted.tedRegisters[0x07] = value;
     ted.horiz_scroll = int(value & uint8_t(0x07));
-    bool      tedWasDisabled = ted.ted_disabled;
-    ted.ted_disabled = ((value & uint8_t(0x20)) ? true : false);
-    if (ted.ted_disabled != tedWasDisabled) {
-      if (ted.ted_disabled) {
-        if (ted.video_column & uint8_t(0x01)) {
-          ted.singleClockModeFlags |= uint8_t(0x01);
-          ted.video_column++;
-          ted.video_column &= uint8_t(0x7F);
+    ted.ted_disabled = !!(value & uint8_t(0x20));
+    if (bitsChanged & uint8_t(0x60)) {
+      if (bitsChanged & uint8_t(0x20)) {
+        if (ted.ted_disabled) {
+          if (ted.video_column & uint8_t(0x01)) {
+            ted.singleClockModeFlags |= uint8_t(0x01);
+            ted.video_column++;
+            ted.video_column &= uint8_t(0x7F);
+          }
         }
       }
+      if (bitsChanged & uint8_t(0x40))
+        ted.ntscModeChangeCallback(!!(value & uint8_t(0x40)));
     }
     ted.selectRenderer();
   }
