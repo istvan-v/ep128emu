@@ -6,6 +6,8 @@ code_name {.cpp}
 decl {\#include "gui.hpp"} {selected
 } 
 
+decl {\#include <vector>} {} 
+
 decl {\#include <FL/Fl_Text_Buffer.H>} {} 
 
 class Ep128EmuGUI_DebugWindow {open
@@ -35,14 +37,14 @@ class Ep128EmuGUI_DebugWindow {open
   savedWindowPositionX = 32;
   savedWindowPositionY = 32;
   memoryDumpStartAddress = 0x00000000U;
-  memoryDumpEndAddress = 0x00000080U;
+  memoryDumpEndAddress = 0x0000007FU;
   memoryDumpViewAddress = 0x00000000U;
   memoryDumpCPUAddressMode = true;
   memoryDumpASCIIFileFormat = false;
   disassemblyCPUAddressMode = true;
   disassemblyStartAddress = 0x00000000U;
   disassemblyAddressOffset = 0;
-  disassemblyEndAddress = 0x00000040U;
+  disassemblyEndAddress = 0x0000003FU;
   disassemblyViewAddress = 0x00000000U;
   disassemblyNextAddress = 0x00000000U;
   bpEditBuffer = new Fl_Text_Buffer();
@@ -83,13 +85,13 @@ class Ep128EmuGUI_DebugWindow {open
           xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52 hide
         } {
           Fl_Input {} {
-            label {Modify memory}
+            label Command
             callback {{
-  parseMemoryDump(o->value());
+  parseCommand(o->value());
   o->value("");
   updateWindow();
 }}
-            tooltip {Enter memory address followed by the bytes to be written, separated by spaces; leave blank to make no changes to memory} xywh {20 63 500 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            tooltip {Enter command followed by space separated list of hexadecimal arguments. The available commands are: >ADDRESS VALUE1 ... (modify memory), F START END VALUE1 ... (fill memory area with pattern), and H START END VALUE1 ... (find pattern in memory area). Leave blank to execute no command.} xywh {20 63 500 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
             code0 {o->cursor_color(FL_YELLOW);}
           }
           Fl_Output memoryDumpDisplay {
@@ -121,9 +123,9 @@ class Ep128EmuGUI_DebugWindow {open
   parseHexNumber(memoryDumpEndAddress, o->value());
   updateMemoryDumpDisplay();
 }}
-            tooltip {End address of memory dump (for file I/O only); this address is already not included} xywh {405 205 115 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            tooltip {End address of memory dump (for file I/O only); this address is still included} xywh {405 205 115 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
             code0 {o->cursor_color(FL_YELLOW);}
-            code1 {o->value("0080");}
+            code1 {o->value("007F");}
           }
           Fl_Button {} {
             label {@<}
@@ -174,11 +176,13 @@ class Ep128EmuGUI_DebugWindow {open
       else {
         uint32_t  addr = memoryDumpStartAddress;
         uint32_t  addrMask = uint32_t(memoryDumpCPUAddressMode ? 0x00FFFFU : 0x3FFFFFU);
-        while (((addr ^ memoryDumpEndAddress) & addrMask) != 0U) {
+        while (true) {
           int   c = std::fgetc(f);
           if (c == EOF)
             break;
           gui.vm.writeMemory(addr, uint8_t(c & 0xFF), memoryDumpCPUAddressMode);
+          if (((addr ^ memoryDumpEndAddress) & addrMask) == 0U)
+            break;
           addr++;
         }
       }
@@ -221,10 +225,12 @@ class Ep128EmuGUI_DebugWindow {open
       else {
         uint32_t  addr = memoryDumpStartAddress;
         uint32_t  addrMask = uint32_t(memoryDumpCPUAddressMode ? 0x00FFFFU : 0x3FFFFFU);
-        while (((addr ^ memoryDumpEndAddress) & addrMask) != 0U) {
+        while (true) {
           uint8_t c = gui.vm.readMemory(addr, memoryDumpCPUAddressMode);
           if (std::fputc(c, f) == EOF)
             throw Ep128Emu::Exception("error writing file - is the disk full ?");
+          if (((addr ^ memoryDumpEndAddress) & addrMask) == 0U)
+            break;
           addr++;
         }
       }
@@ -286,9 +292,9 @@ class Ep128EmuGUI_DebugWindow {open
   parseHexNumber(disassemblyEndAddress, o->value());
   updateDisassemblyDisplay();
 }}
-            tooltip {End address of disassembly (for file I/O only); this address is already not included} xywh {405 185 115 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            tooltip {End address of disassembly (for file I/O only); this address is still included} xywh {405 185 115 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
             code0 {o->cursor_color(FL_YELLOW);}
-            code1 {o->value("0040");}
+            code1 {o->value("003F");}
           }
           Fl_Button {} {
             label {@|<}
@@ -323,11 +329,8 @@ class Ep128EmuGUI_DebugWindow {open
       uint32_t  addr = disassemblyStartAddress;
       uint32_t  addrMask = uint32_t(disassemblyCPUAddressMode ? 0x00FFFFU : 0x3FFFFFU);
       uint32_t  nextAddr = addr;
-      while (true) {
-        while (addr != nextAddr && ((addr ^ disassemblyEndAddress) & addrMask) != 0U)
-          addr = (addr + 1U) & addrMask;
-        if (((addr ^ disassemblyEndAddress) & addrMask) == 0U)
-          break;
+      bool      endFlag = false;
+      do {
         nextAddr = gui.vm.disassembleInstruction(tmp, addr, disassemblyCPUAddressMode,
                                                  disassemblyAddressOffset);
         tmp += '\\n';
@@ -335,7 +338,12 @@ class Ep128EmuGUI_DebugWindow {open
           if (std::fputc(tmp[i], f) == EOF)
             throw Ep128Emu::Exception("error writing file - is the disk full ?");
         }
-      }
+        while (addr != nextAddr) {
+          if (((addr ^ disassemblyEndAddress) & addrMask) == 0U)
+            endFlag = true;
+          addr = (addr + 1U) & addrMask;
+        }
+      } while (!endFlag);
       std::fclose(f);
     }
   }
@@ -589,12 +597,12 @@ class Ep128EmuGUI_DebugWindow {open
     }
     uint32_t  tmp = gui.vm.getProgramCounter();
     uint32_t  startAddr = (tmp + 0xFFECU) & 0xFFF8U;
-    uint32_t  endAddr = (startAddr + 0x0030U) & 0xFFF8U;
+    uint32_t  endAddr = (startAddr + 0x002FU) & 0xFFFFU;
     dumpMemory(buf, startAddr, endAddr, tmp, true, true);
     codeMemoryDumpDisplay->value(buf.c_str());
     tmp = gui.vm.getStackPointer();
     startAddr = (tmp + 0xFFF4U) & 0xFFF8U;
-    endAddr = (startAddr + 0x0030U) & 0xFFF8U;
+    endAddr = (startAddr + 0x002FU) & 0xFFFFU;
     dumpMemory(buf, startAddr, endAddr, tmp, true, true);
     stackMemoryDumpDisplay->value(buf.c_str());
     updateMemoryDumpDisplay();
@@ -619,8 +627,6 @@ class Ep128EmuGUI_DebugWindow {open
     cursorAddr &= addrMask;
     while (true) {
       startAddr &= addrMask;
-      if (startAddr == endAddr)
-        break;
       if (cnt == 8) {
         cnt = 0;
         buf += '\\n';
@@ -645,6 +651,8 @@ class Ep128EmuGUI_DebugWindow {open
           std::sprintf(&(tmpBuf[0]), "  %02X", (unsigned int) gui.vm.readMemory(startAddr, isCPUAddress));
       }
       buf += &(tmpBuf[0]);
+      if (startAddr == endAddr)
+        break;
       startAddr++;
       cnt++;
     }
@@ -670,7 +678,7 @@ class Ep128EmuGUI_DebugWindow {open
     std::sprintf(&(tmpBuf[0]), fmt, (unsigned int) memoryDumpEndAddress);
     memoryDumpEndAddressValuator->value(&(tmpBuf[0]));
     std::string buf;
-    dumpMemory(buf, memoryDumpViewAddress, memoryDumpViewAddress + 0x88U,
+    dumpMemory(buf, memoryDumpViewAddress, memoryDumpViewAddress + 0x87U,
                0U, false, memoryDumpCPUAddressMode);
     memoryDumpDisplay->value(buf.c_str());
   }
@@ -781,7 +789,7 @@ class Ep128EmuGUI_DebugWindow {open
     std::string tmp2;
     tmp2.reserve(864);
     uint32_t  addr = disassemblyViewAddress;
-    for (int i = 0; i < 21; i++) {
+    for (int i = 0; i < 20; i++) {
       addr = gui.vm.disassembleInstruction(tmp1, addr, disassemblyCPUAddressMode,
                                            disassemblyAddressOffset);
       tmp2 += tmp1;
@@ -816,6 +824,105 @@ class Ep128EmuGUI_DebugWindow {open
   catch (std::exception& e) {
     if (buf)
       std::free(const_cast<char *>(buf));
+    gui.errorMessage(e.what());
+  }
+}} {}
+  }
+  Function {parseCommand(const char *s)} {open private return_type void
+  } {
+    code {{
+  try {
+    if (!s)
+      return;
+    while (*s == ' ' || *s == '\\t' || *s == '\\r' || *s == '\\n')
+      s++;
+    if (*s == '\\0')
+      return;
+    char    c = *(s++);
+    std::vector<uint32_t> args;
+    while (true) {
+      uint32_t  tmp = 0U;
+      long      n = parseHexNumber(tmp, s);
+      if (!n)           // end of string or error
+        break;
+      if (n < 0L)       // end of line
+        n = (-n);
+      else
+        args.push_back(tmp);
+      s = s + n;
+    }
+    uint32_t  addrMask = uint32_t(memoryDumpCPUAddressMode ? 0x00FFFFU : 0x3FFFFFU);
+    switch (c) {
+    case '>':
+      if (args.size() < 2)
+        throw Ep128Emu::Exception("too few arguments");
+      else {
+        uint32_t  addr = args[0] & addrMask;
+        size_t    byteCnt = 0;
+        do {
+          gui.vm.writeMemory(addr, uint8_t(args[byteCnt + 1] & 0xFFU),
+                             memoryDumpCPUAddressMode);
+          addr++;
+          addr &= addrMask;
+          byteCnt++;
+        } while ((byteCnt + 1) < args.size());
+      }
+      break;
+    case 'F':
+    case 'f':
+      if (args.size() < 3)
+        throw Ep128Emu::Exception("too few arguments");
+      else {
+        uint32_t  addr = args[0] & addrMask;
+        uint32_t  endAddr = args[1] & addrMask;
+        size_t    byteCnt = 0;
+        while (true) {
+          gui.vm.writeMemory(addr, uint8_t(args[byteCnt + 2] & 0xFFU),
+                             memoryDumpCPUAddressMode);
+          if (addr == endAddr)
+            break;
+          addr++;
+          addr &= addrMask;
+          byteCnt++;
+          if ((byteCnt + 2) >= args.size())
+            byteCnt = 0;
+        }
+      }
+      break;
+    case 'H':
+    case 'h':
+      if (args.size() < 3)
+        throw Ep128Emu::Exception("too few arguments");
+      else {
+        uint32_t  addr = args[0] & addrMask;
+        uint32_t  addrFound = addr;
+        uint32_t  endAddr = args[1] & addrMask;
+        size_t    byteCnt = 0;
+        while (true) {
+          if (gui.vm.readMemory(addr, memoryDumpCPUAddressMode)
+              != uint8_t(args[byteCnt + 2] & 0xFFU))
+            byteCnt = 0;
+          else {
+            if (!byteCnt)
+              addrFound = addr;
+            byteCnt++;
+            if ((byteCnt + 2) >= args.size()) {
+              memoryDumpViewAddress = addrFound;
+              break;
+            }
+          }
+          if (addr == endAddr)
+            throw Ep128Emu::Exception("search string not found");
+          addr++;
+          addr &= addrMask;
+        }
+      }
+      break;
+    default:
+      throw Ep128Emu::Exception("unknown command");
+    }
+  }
+  catch (std::exception& e) {
     gui.errorMessage(e.what());
   }
 }} {}
