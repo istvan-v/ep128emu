@@ -37,9 +37,11 @@ static void plus4ClockFreqChangeCallback(void *userData,
   (void) name;
   Ep128Emu::EmulatorConfiguration&  cfg =
       *(reinterpret_cast<Ep128Emu::EmulatorConfiguration *>(userData));
-  if (value == cfg.vm.videoClockFrequency)
-    cfg.vmConfigurationChanged = true;
-  cfg.vm.soundClockFrequency = (cfg.vm.videoClockFrequency + 2U) >> 2;
+  if (value <= 1000U)
+    cfg.vm.cpuClockFrequency = (value < 100U ? value : 100U);
+  else
+    cfg.vm.cpuClockFrequency = (value > 700000U ? value : 700000U);
+  cfg.vmConfigurationChanged = true;
 }
 
 int main(int argc, char **argv)
@@ -54,6 +56,7 @@ int main(int argc, char **argv)
   bool      isPlus4 = false;
   bool      glEnabled = true;
   const char  *cfgFileName = "ep128cfg.dat";
+  int       prgNameIndex = 0;
   int       retval = 0;
   bool      configLoaded = false;
 
@@ -61,6 +64,9 @@ int main(int argc, char **argv)
     // find out machine type to be emulated
     for (int i = 1; i < argc; i++) {
       if (std::strcmp(argv[i], "-cfg") == 0 && i < (argc - 1)) {
+        i++;
+      }
+      if (std::strcmp(argv[i], "-prg") == 0 && i < (argc - 1)) {
         i++;
       }
       else if (std::strcmp(argv[i], "-ep128") == 0) {
@@ -89,6 +95,8 @@ int main(int argc, char **argv)
                   << std::endl;
         std::cerr << "    -cfg <FILENAME>     "
                      "load ASCII format configuration file" << std::endl;
+        std::cerr << "    -prg <FILENAME>     "
+                     "load program file on startup (Plus/4 only)" << std::endl;
         std::cerr << "    -opengl             "
                      "use OpenGL video driver (this is the default)"
                   << std::endl;
@@ -124,15 +132,15 @@ int main(int argc, char **argv)
     if (isPlus4) {
       Ep128Emu::ConfigurationDB::ConfigurationVariable  *cv;
       cv = &((*config)["vm.cpuClockFrequency"]);
-      (*cv).setRange(886724.0, 150000000.0, 0.0);
-      (*cv) = (unsigned int) 1773448;
-      cv = &((*config)["vm.videoClockFrequency"]);
-      (*cv).setRange(443364.0, 1773448.0, 4.0);
-      (*cv) = (unsigned int) 886724;
+      (*cv).setRange(1.0, 150000000.0, 0.0);
+      (*cv) = (unsigned int) 1;
       (*cv).setCallback(&plus4ClockFreqChangeCallback, config, true);
+      cv = &((*config)["vm.videoClockFrequency"]);
+      (*cv).setRange(7159090.0, 35468950.0, 1.0);
+      (*cv) = (unsigned int) 17734475;
       cv = &((*config)["vm.soundClockFrequency"]);
-      (*cv).setRange(110841.0, 443362.0, 0.0);
-      (*cv) = (unsigned int) 221681;
+      (*cv).setRange(0.0, 0.0, 0.0);
+      (*cv) = (unsigned int) 0;
       (*cv).setCallback(&plus4ClockFreqChangeCallback, config, true);
       cv = &((*config)["vm.videoMemoryLatency"]);
       (*cv).setRange(0.0, 0.0, 0.0);
@@ -164,6 +172,11 @@ int main(int argc, char **argv)
           throw Ep128Emu::Exception("missing configuration file name");
         config->loadState(argv[i], false);
       }
+      if (std::strcmp(argv[i], "-prg") == 0) {
+        if (++i >= argc)
+          throw Ep128Emu::Exception("missing program file name");
+        prgNameIndex = i;
+      }
       else {
         const char  *s = argv[i];
         if (*s == '-')
@@ -185,6 +198,21 @@ int main(int argc, char **argv)
       }
     }
     config->applySettings();
+    if (prgNameIndex >= 1) {
+      if (!isPlus4) {
+        throw Ep128Emu::Exception("loading program file is "
+                                  "not supported by this machine type");
+      }
+      vm->run(400000);
+      dynamic_cast<Plus4::Plus4VM *>(vm)->loadProgram(argv[prgNameIndex]);
+      uint32_t  tmp = 0x01271E11U;      // RUN + RETURN
+      for (int i = 0; i < 8; i++) {
+        vm->run(50000);
+        vm->setKeyboardState(uint8_t(tmp & 0xFFU), !(i & 1));
+        if (i & 1)
+          tmp = tmp >> 8;
+      }
+    }
     vmThread = new Ep128Emu::VMThread(*vm);
     gui_ = new Ep128EmuGUI(*(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
                            *audioOutput, *vm, *vmThread, *config);
