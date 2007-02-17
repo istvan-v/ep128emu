@@ -362,6 +362,7 @@ namespace Ep128Emu {
       prvLineCnt(0),
       framesPending(0),
       skippingFrame(false),
+      vsyncState(false),
       displayParameters(),
       savedDisplayParameters(),
       exitFlag(false),
@@ -923,8 +924,6 @@ namespace Ep128Emu {
           setTextureParameters(msg->dp.displayQuality);
           initializeTexture(msg->dp, textureBuffer);
           glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
-          for (size_t yc = 0; yc < 289; yc++)
-            linesChanged[yc] = true;
         }
         displayParameters = msg->dp;
         if (displayParameters.displayQuality > 1)
@@ -934,6 +933,8 @@ namespace Ep128Emu {
           tmp_dp.blendScale1 = 0.5;
           colormap.setParams(tmp_dp);
         }
+        for (size_t yc = 0; yc < 289; yc++)
+          linesChanged[yc] = true;
       }
       deleteMessage(m);
     }
@@ -963,8 +964,11 @@ namespace Ep128Emu {
 
   void OpenGLDisplay::setDisplayParameters(const DisplayParameters& dp)
   {
-    vsyncStateChange(true, 8);
-    vsyncStateChange(false, 28);
+    if (dp.displayQuality != savedDisplayParameters.displayQuality ||
+        dp.useDoubleBuffering != savedDisplayParameters.useDoubleBuffering) {
+      vsyncStateChange(true, 8);
+      vsyncStateChange(false, 28);
+    }
     Message_SetParameters *m = allocateMessage<Message_SetParameters>();
     m->dp = dp;
     savedDisplayParameters = dp;
@@ -997,6 +1001,9 @@ namespace Ep128Emu {
                                        unsigned int currentSlot_)
   {
     (void) currentSlot_;
+    if (newState == vsyncState)
+      return;
+    vsyncState = newState;
     if (newState) {
       curLine = (savedDisplayParameters.displayQuality == 0 ? 272 : 274)
                 - prvLineCnt;

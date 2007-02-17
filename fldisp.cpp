@@ -303,6 +303,7 @@ namespace Ep128Emu {
       prvLineCnt(0),
       framesPending(0),
       skippingFrame(false),
+      vsyncState(false),
       displayParameters(),
       savedDisplayParameters(),
       exitFlag(false),
@@ -613,6 +614,8 @@ namespace Ep128Emu {
         DisplayParameters tmp_dp(displayParameters);
         tmp_dp.blendScale1 = 0.5;
         colormap.setParams(tmp_dp);
+        for (size_t n = 0; n < 576; n++)
+          linesChanged[n] = true;
       }
       deleteMessage(m);
     }
@@ -642,8 +645,6 @@ namespace Ep128Emu {
 
   void FLTKDisplay::setDisplayParameters(const DisplayParameters& dp)
   {
-    vsyncStateChange(true, 8);
-    vsyncStateChange(false, 28);
     Message_SetParameters *m = allocateMessage<Message_SetParameters>();
     m->dp = dp;
     savedDisplayParameters = dp;
@@ -675,6 +676,9 @@ namespace Ep128Emu {
   void FLTKDisplay::vsyncStateChange(bool newState, unsigned int currentSlot_)
   {
     (void) currentSlot_;
+    if (newState == vsyncState)
+      return;
+    vsyncState = newState;
     if (newState) {
       curLine = 272 - prvLineCnt;
       prvLineCnt = lineCnt;

@@ -164,6 +164,7 @@ namespace Ep128Emu {
     int           prvLineCnt;
     int           framesPending;
     bool          skippingFrame;
+    bool          vsyncState;
     DisplayParameters   displayParameters;
     DisplayParameters   savedDisplayParameters;
     volatile bool exitFlag;
