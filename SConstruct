@@ -123,6 +123,7 @@ plus4LibEnvironment = ep128emuLibEnvironment.Copy()
 plus4LibEnvironment.Append(CPPPATH = ['./plus4'])
 
 plus4Lib = plus4LibEnvironment.StaticLibrary('plus4', Split('''
+    plus4/cia8520.cpp
     plus4/cpu.cpp
     plus4/cpuoptbl.cpp
     plus4/disasm.cpp
@@ -134,6 +135,7 @@ plus4Lib = plus4LibEnvironment.StaticLibrary('plus4', Split('''
     plus4/ted_main.cpp
     plus4/ted_read.cpp
     plus4/ted_write.cpp
+    plus4/vc1581.cpp
 '''))
 
 # -----------------------------------------------------------------------------

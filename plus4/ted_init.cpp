@@ -158,15 +158,16 @@ namespace Plus4 {
     setMemoryWriteCallback(0xFF1F, &write_register_FF1F);
     setMemoryWriteCallback(0xFF3E, &write_register_FF3E);
     setMemoryWriteCallback(0xFF3F, &write_register_FF3F);
+    // initialize external ports
+    user_port_state = uint8_t(0xFF);
+    tape_read_state = false;
+    tape_button_state = false;
     // set internal TED registers
     tedRegisters[0x07] = uint8_t(0x00);     // default to PAL mode
     this->initRegisters();
     cpu_clock_multiplier = 1;
     for (int i = 0; i < 16; i++)                // keyboard matrix
       keyboard_matrix[i] = uint8_t(0xFF);
-    user_port_state = uint8_t(0xFF);            // external ports
-    tape_read_state = false;
-    tape_button_state = false;
   }
 
   void TED7360::initRegisters()
@@ -265,6 +266,8 @@ namespace Plus4 {
     keyboard_row_select_mask = 0xFFFF;
     tape_motor_state = false;
     tape_write_state = false;
+    serialPort.removeDevices(0xFFFF);
+    serialPort.setATN(true);
   }
 
   void TED7360::reset(bool cold_reset)

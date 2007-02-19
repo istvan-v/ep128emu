@@ -35,10 +35,10 @@ namespace Plus4 {
   {
     (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
-    ted.dataBusState =
-        uint8_t(0xC0) | (ted.tape_write_state ? uint8_t(0x02) : uint8_t(0x00))
-                      | (ted.tape_motor_state ? uint8_t(0x00) : uint8_t(0x08))
-                      | (ted.tape_read_state ? uint8_t(0x10) : uint8_t(0x00));
+    ted.dataBusState = ted.ioRegister_0001 & uint8_t(0x0F);
+    ted.dataBusState |= uint8_t(ted.tape_read_state ? 0x10 : 0x00);
+    ted.dataBusState |= (ted.serialPort.getCLK() & uint8_t(0x40));
+    ted.dataBusState |= (ted.serialPort.getDATA() & uint8_t(0x80));
     return ted.dataBusState;
   }
 

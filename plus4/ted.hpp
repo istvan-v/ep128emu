@@ -20,6 +20,7 @@
 #include "ep128emu.hpp"
 #include "fileio.hpp"
 #include "cpu.hpp"
+#include "serial.hpp"
 
 namespace Plus4 {
 
@@ -283,6 +284,7 @@ namespace Plus4 {
     bool        tape_read_state;
     bool        tape_write_state;
     bool        tape_button_state;
+    SerialBus   serialPort;
     // --------
     uint8_t     *segmentTable[256];
     // table of 4096 memory maps, indexed by a 12-bit value multiplied by 8:
@@ -389,6 +391,14 @@ namespace Plus4 {
     inline bool getIsNTSCMode() const
     {
       return !!(tedRegisters[0x07] & 0x40);
+    }
+    inline SerialBus& getSerialPort()
+    {
+      return serialPort;
+    }
+    inline const SerialBus& getSerialPort() const
+    {
+      return serialPort;
     }
     static void convertPixelToRGB(uint8_t color,
                                   float& red, float& green, float& blue);

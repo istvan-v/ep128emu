@@ -29,6 +29,7 @@
 namespace Plus4 {
 
   class SID;
+  class FloppyDrive;
 
   class Plus4VM : public Ep128Emu::VirtualMachine {
    private:
@@ -60,6 +61,7 @@ namespace Plus4 {
     int64_t   tedTimeRemaining;         // -"-
     int64_t   tapeTimesliceLength;      // -"-
     int64_t   tapeTimeRemaining;        // -"-
+    int64_t   floppyTimeRemaining;      // -"-
     Ep128Emu::File  *demoFile;
     // contains demo data, which is the emulator version number as a 32-bit
     // integer ((MAJOR << 16) + (MINOR << 8) + PATCHLEVEL), followed by a
@@ -87,6 +89,9 @@ namespace Plus4 {
     SID       *sid_;
     int32_t   soundOutputAccumulator;
     bool      sidEnabled;
+    FloppyDrive *floppyDrives[4];
+    uint8_t   *floppyROM_1581_0;
+    uint8_t   *floppyROM_1581_1;
     // ----------------
     void stopDemoPlayback();
     void stopDemoRecording(bool writeFile_);
@@ -114,6 +119,12 @@ namespace Plus4 {
     virtual void setEnableMemoryTimingEmulation(bool isEnabled);
     // Set state of key 'keyCode' (0 to 127).
     virtual void setKeyboardState(int keyCode, bool isPressed);
+    // -------------------------- DISK AND FILE I/O ---------------------------
+    // Load disk image for drive 'n' (counting from zero); an empty file
+    // name means no disk.
+    virtual void setDiskImageFile(int n, const std::string& fileName_,
+                                  int nTracks_ = -1, int nSides_ = 2,
+                                  int nSectorsPerTrack_ = 9);
     // ---------------------------- TAPE EMULATION ----------------------------
     // Set tape image file name (if the file name is NULL or empty, tape
     // emulation is disabled).

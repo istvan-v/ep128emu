@@ -26,7 +26,9 @@
 #include <cstdio>
 #include <vector>
 
-#include "plus4/resid/sid.hpp"
+#include "resid/sid.hpp"
+#include "p4floppy.hpp"
+#include "vc1581.hpp"
 
 static void writeDemoTimeCnt(Ep128Emu::File::Buffer& buf, uint64_t n)
 {
@@ -319,6 +321,7 @@ namespace Plus4 {
       tedTimeRemaining(0),
       tapeTimesliceLength(0),
       tapeTimeRemaining(0),
+      floppyTimeRemaining(0),
       demoFile((Ep128Emu::File *) 0),
       demoBuffer(),
       isRecordingDemo(false),
@@ -327,8 +330,12 @@ namespace Plus4 {
       demoTimeCnt(0U),
       sid_((SID *) 0),
       soundOutputAccumulator(0),
-      sidEnabled(false)
+      sidEnabled(false),
+      floppyROM_1581_0((uint8_t *) 0),
+      floppyROM_1581_1((uint8_t *) 0)
   {
+    for (int i = 0; i < 4; i++)
+      floppyDrives[i] = (FloppyDrive *) 0;
     ted = new TED7360_(*this);
     try {
       updateTimingParameters(false);
@@ -360,6 +367,16 @@ namespace Plus4 {
     }
     catch (...) {
     }
+    for (int i = 0; i < 4; i++) {
+      if (floppyDrives[i]) {
+        delete floppyDrives[i];
+        floppyDrives[i] = (FloppyDrive *) 0;
+      }
+    }
+    if (floppyROM_1581_0)
+      delete[] floppyROM_1581_0;
+    if (floppyROM_1581_1)
+      delete[] floppyROM_1581_1;
     delete sid_;
     delete ted;
   }
@@ -375,6 +392,11 @@ namespace Plus4 {
         for (int i = 0; i < 128; i++)
           ted->setKeyState(i, false);
       }
+    }
+    bool    haveFloppy = false;
+    for (int i = 0; i < 4; i++) {
+      if (floppyDrives[i])
+        haveFloppy = true;
     }
     tedTimeRemaining += (int64_t(microseconds) << 32);
     while (tedTimeRemaining > 0) {
@@ -429,6 +451,30 @@ namespace Plus4 {
         sid_->clock();
         soundOutputAccumulator += int32_t(sid_->output());
       }
+      if (haveFloppy) {
+        floppyTimeRemaining += tedTimesliceLength;
+        while (floppyTimeRemaining > 0) {
+          // use a timeslice of fixed 1 us length (1 or 2 cycles, depending
+          // on drive type)
+          floppyTimeRemaining -= (int64_t(1) << 32);
+          if (!(isRecordingDemo || isPlayingDemo)) {
+            for (int i = 0; i < 4; i++) {
+              if (floppyDrives[i])
+                floppyDrives[i]->run(ted->getSerialPort());
+            }
+          }
+          else {
+            // disable floppy disk I/O while recording or playing a demo
+            for (int i = 0; i < 4; i++) {
+              if (floppyDrives[i]) {
+                ted->getSerialPort().removeDevices(0xFFFE);
+                floppyDrives[i]->run(ted->getSerialPort());
+              }
+            }
+            ted->getSerialPort().removeDevices(0xFFFE);
+          }
+        }
+      }
       tedTimeRemaining -= tedTimesliceLength;
       if (isRecordingDemo)
         demoTimeCnt++;
@@ -442,8 +488,22 @@ namespace Plus4 {
     ted->reset(isColdReset);
     setTapeMotorState(false);
     sid_->reset();
-    if (isColdReset)
+    if (isColdReset) {
       sidEnabled = false;
+      // FIXME: should always reset floppy drives ?
+      for (int i = 0; i < 4; i++) {
+        if (floppyDrives[i]) {
+          if (floppyDrives[i]->haveDisk())
+            floppyDrives[i]->reset();
+          else {
+            // "garbage collect" unused floppy drives to improve performance
+            delete floppyDrives[i];
+            floppyDrives[i] = (FloppyDrive *) 0;
+            ted->getSerialPort().removeDevice(i + 8);
+          }
+        }
+      }
+    }
   }
 
   void Plus4VM::resetMemoryConfiguration(size_t memSize)
@@ -453,6 +513,20 @@ namespace Plus4 {
       // delete all ROM segments
       for (uint8_t n = 0; n < 8; n++)
         loadROMSegment(n, (char *) 0, 0);
+      for (int i = 0; i < 4; i++) {
+        if (floppyDrives[i]) {
+          for (int n = 0; n < 2; n++)
+            floppyDrives[i]->setROMImage(n, (uint8_t *) 0);
+        }
+      }
+      if (floppyROM_1581_0) {
+        delete[] floppyROM_1581_0;
+        floppyROM_1581_0 = (uint8_t *) 0;
+      }
+      if (floppyROM_1581_1) {
+        delete[] floppyROM_1581_1;
+        floppyROM_1581_1 = (uint8_t *) 0;
+      }
       // set new RAM size
       ted->setRAMSize(memSize);
     }
@@ -471,10 +545,32 @@ namespace Plus4 {
   void Plus4VM::loadROMSegment(uint8_t n, const char *fileName, size_t offs)
   {
     stopDemo();
-    if (n >= 8)
-      return;
+    int     floppyROMSegment = -1;
+    uint8_t **floppyROMPtr = (uint8_t **) 0;
+    if (n >= 8) {
+      switch (n) {
+      case 0x30:
+        floppyROMSegment = 0;
+        floppyROMPtr = &floppyROM_1581_0;
+        break;
+      case 0x31:
+        floppyROMSegment = 1;
+        floppyROMPtr = &floppyROM_1581_1;
+        break;
+      default:
+        return;
+      }
+    }
     // clear segment first
-    ted->loadROM(int(n >> 1), int(n & 1) << 14, 0, (uint8_t *) 0);
+    if (floppyROMSegment < 0) {
+      ted->loadROM(int(n >> 1), int(n & 1) << 14, 0, (uint8_t *) 0);
+    }
+    else {
+      for (int i = 0; i < 4; i++) {
+        if (floppyDrives[i])
+          floppyDrives[i]->setROMImage(floppyROMSegment, (uint8_t *) 0);
+      }
+    }
     if (fileName == (char *) 0 || fileName[0] == '\0') {
       // empty file name: delete segment
       return;
@@ -493,7 +589,19 @@ namespace Plus4 {
     std::fseek(f, long(offs), SEEK_SET);
     std::fread(&(buf.front()), 1, 0x4000, f);
     std::fclose(f);
-    ted->loadROM(int(n) >> 1, int(n & 1) << 14, 16384, &(buf.front()));
+    if (floppyROMSegment < 0) {
+      ted->loadROM(int(n) >> 1, int(n & 1) << 14, 16384, &(buf.front()));
+    }
+    else {
+      if ((*floppyROMPtr) == (uint8_t *) 0)
+        (*floppyROMPtr) = new uint8_t[16384];
+      for (int i = 0; i < 16384; i++)
+        (*floppyROMPtr)[i] = buf[i];
+      for (int i = 0; i < 4; i++) {
+        if (floppyDrives[i])
+          floppyDrives[i]->setROMImage(floppyROMSegment, (*floppyROMPtr));
+      }
+    }
   }
 
   void Plus4VM::setCPUFrequency(size_t freq_)
@@ -545,6 +653,31 @@ namespace Plus4 {
       demoBuffer.writeByte(isPressed ? 0x01 : 0x02);
       demoBuffer.writeByte(0x01);
       demoBuffer.writeByte(uint8_t(keyCode & 0x7F));
+    }
+  }
+
+  void Plus4VM::setDiskImageFile(int n, const std::string& fileName_,
+                                 int nTracks_, int nSides_,
+                                 int nSectorsPerTrack_)
+  {
+    (void) nTracks_;
+    (void) nSides_;
+    (void) nSectorsPerTrack_;
+    if (n < 0 || n > 3)
+      throw Ep128Emu::Exception("invalid floppy drive number");
+    if (fileName_.length() == 0) {
+      // remove disk
+      if (floppyDrives[n])
+        floppyDrives[n]->setDiskImageFile(fileName_);
+    }
+    else {
+      // insert or replace disk
+      if (!floppyDrives[n]) {
+        floppyDrives[n] = new VC1581(n + 8);
+        floppyDrives[n]->setROMImage(0, floppyROM_1581_0);
+        floppyDrives[n]->setROMImage(1, floppyROM_1581_1);
+      }
+      floppyDrives[n]->setDiskImageFile(fileName_);
     }
   }
 
@@ -735,6 +868,7 @@ namespace Plus4 {
     ted->setTapeMotorState(false);
     ted->setTapeInput(false);
     setTapeMotorState(false);
+    ted->getSerialPort().removeDevices(0xFFFE);
     stopDemo();
     for (int i = 0; i < 128; i++)
       ted->setKeyState(i, false);
@@ -845,6 +979,7 @@ namespace Plus4 {
     ted->setTapeMotorState(false);
     ted->setTapeInput(false);
     setTapeMotorState(false);
+    ted->getSerialPort().removeDevices(0xFFFE);
     stopDemo();
     for (int i = 0; i < 128; i++)
       ted->setKeyState(i, false);

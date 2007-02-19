@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -16,6 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+#ifndef EP128EMU_WD177X_HPP
+#define EP128EMU_WD177X_HPP
 
 #include "ep128emu.hpp"
 
@@ -45,10 +48,14 @@ namespace Ep128Emu {
     bool        dataRequestFlag;
     bool        isWD1773;
     bool        steppingIn;
+    bool        busyFlagHackEnabled;
+    bool        busyFlagHack;
     std::vector< uint8_t >  buf;
     size_t      bufPos;
     bool setFilePosition();
     void doStep(bool updateFlag);
+    static uint16_t calculateCRC(const uint8_t *buf_, size_t nBytes,
+                                 uint16_t n = 0xFFFF);
    public:
     WD177x();
     virtual ~WD177x();
@@ -67,9 +74,15 @@ namespace Ep128Emu {
     virtual bool getDiskChangeFlag() const;
     virtual void clearDiskChangeFlag();
     virtual void setIsWD1773(bool isEnabled);
-    virtual void setSide(int n);
+    inline void setSide(int n)
+    {
+      currentSide = uint8_t(n) & 1;
+    }
     virtual bool getInterruptRequestFlag() const;
     virtual bool getDataRequestFlag() const;
+    virtual bool haveDisk() const;
+    virtual bool getIsWriteProtected() const;
+    void setEnableBusyFlagHack(bool isEnabled);
     virtual void reset();
    protected:
     virtual void interruptRequest();
@@ -77,4 +90,6 @@ namespace Ep128Emu {
   };
 
 }       // namespace Ep128Emu
+
+#endif  // EP128EMU_WD177X_HPP
 

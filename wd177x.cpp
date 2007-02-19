@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -45,6 +45,8 @@ namespace Ep128Emu {
       dataRequestFlag(false),
       isWD1773(false),
       steppingIn(false),
+      busyFlagHackEnabled(false),
+      busyFlagHack(false),
       bufPos(512)
   {
     buf.resize(512);
@@ -339,8 +341,9 @@ namespace Ep128Emu {
           buf[507] = currentSide;
           buf[508] = 0x01;          // assume first sector of track
           buf[509] = 0x02;          // 512 bytes per sector
-          buf[510] = 0xFF;          // FIXME: CRC is not implemented
-          buf[511] = 0xFF;
+          uint16_t  tmp = calculateCRC(&(buf[506]), 4, 0xB230);
+          buf[510] = uint8_t(tmp >> 8);         // CRC high byte
+          buf[511] = uint8_t(tmp & 0xFF);       // CRC low byte
           bufPos = 506;
           dataRequestFlag = true;
           statusRegister = statusRegister | 0x02;
@@ -412,6 +415,11 @@ namespace Ep128Emu {
       n = n & 0x7F;             // always ready
     else
       n = n | 0x80;             // motor is always on
+    if (busyFlagHackEnabled) {
+      busyFlagHack = !busyFlagHack;
+      if (busyFlagHack)
+        n = n | 0x01;
+    }
     return n;
   }
 
@@ -513,11 +521,6 @@ namespace Ep128Emu {
     isWD1773 = isEnabled;
   }
 
-  void WD177x::setSide(int n)
-  {
-    currentSide = uint8_t(n) & 1;
-  }
-
   bool WD177x::getInterruptRequestFlag() const
   {
     return interruptRequestFlag;
@@ -526,6 +529,43 @@ namespace Ep128Emu {
   bool WD177x::getDataRequestFlag() const
   {
     return dataRequestFlag;
+  }
+
+  bool WD177x::haveDisk() const
+  {
+    return (imageFile != (std::FILE *) 0);
+  }
+
+  bool WD177x::getIsWriteProtected() const
+  {
+    return writeProtectFlag;
+  }
+
+  void WD177x::setEnableBusyFlagHack(bool isEnabled)
+  {
+    busyFlagHackEnabled = isEnabled;
+  }
+
+  uint16_t WD177x::calculateCRC(const uint8_t *buf_, size_t nBytes, uint16_t n)
+  {
+    size_t  nBits = nBytes << 3;
+    int     bitCnt = 0;
+    uint8_t bitBuf = 0;
+
+    while (nBits--) {
+      if (bitCnt == 0) {
+        bitBuf = *(buf_++);
+        bitCnt = 8;
+      }
+      if ((bitBuf ^ uint8_t(n >> 8)) & 0x80)
+        n = (n << 1) ^ 0x1021;
+      else
+        n = (n << 1);
+      n = n & 0xFFFF;
+      bitBuf = (bitBuf << 1) & 0xFF;
+      bitCnt--;
+    }
+    return n;
   }
 
   void WD177x::reset()
@@ -554,6 +594,7 @@ namespace Ep128Emu {
     interruptRequestFlag = false;
     dataRequestFlag = false;
     steppingIn = false;
+    busyFlagHack = false;
     bufPos = 512;
   }
 

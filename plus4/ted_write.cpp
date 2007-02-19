@@ -41,6 +41,9 @@ namespace Plus4 {
     ted.ioRegister_0001 = (value & uint8_t(0x1F)) | uint8_t(0xC0);
     ted.tape_motor_state = ((value & uint8_t(0x08)) ? false : true);
     ted.tape_write_state = ((value & uint8_t(0x02)) ? true : false);
+    ted.serialPort.setDATA(0, !(value & uint8_t(0x01)));
+    ted.serialPort.setCLK(0, !(value & uint8_t(0x02)));
+    ted.serialPort.setATN(!(value & uint8_t(0x04)));
   }
 
   void TED7360::write_register_FD1x(void *userData,
