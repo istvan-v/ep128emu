@@ -310,6 +310,25 @@ namespace Plus4 {
     }
   }
 
+  void Plus4VM::resetFloppyDrives(uint8_t driveMask_, bool deleteUnusedDrives_)
+  {
+    for (int i = 0; i < 4; i++) {
+      if (driveMask_ & 0x01) {
+        if (floppyDrives[i]) {
+          if (floppyDrives[i]->haveDisk() || !deleteUnusedDrives_)
+            floppyDrives[i]->reset();
+          else {
+            // "garbage collect" unused floppy drives to improve performance
+            delete floppyDrives[i];
+            floppyDrives[i] = (FloppyDrive *) 0;
+            ted->getSerialPort().removeDevice(i + 8);
+          }
+        }
+      }
+      driveMask_ = driveMask_ >> 1;
+    }
+  }
+
   Plus4VM::Plus4VM(Ep128Emu::VideoDisplay& display_,
                    Ep128Emu::AudioOutput& audioOutput_)
     : VirtualMachine(display_, audioOutput_),
@@ -488,22 +507,9 @@ namespace Plus4 {
     ted->reset(isColdReset);
     setTapeMotorState(false);
     sid_->reset();
-    if (isColdReset) {
+    if (isColdReset)
       sidEnabled = false;
-      // FIXME: should always reset floppy drives ?
-      for (int i = 0; i < 4; i++) {
-        if (floppyDrives[i]) {
-          if (floppyDrives[i]->haveDisk())
-            floppyDrives[i]->reset();
-          else {
-            // "garbage collect" unused floppy drives to improve performance
-            delete floppyDrives[i];
-            floppyDrives[i] = (FloppyDrive *) 0;
-            ted->getSerialPort().removeDevice(i + 8);
-          }
-        }
-      }
-    }
+    resetFloppyDrives(0x0F, isColdReset);
   }
 
   void Plus4VM::resetMemoryConfiguration(size_t memSize)
@@ -917,6 +923,7 @@ namespace Plus4 {
     setTapeMotorState(false);
     stopDemo();
     snapshotLoadFlag = true;
+    resetFloppyDrives(0x0F, true);
     try {
       uint32_t  tmpCPUClockFrequency = buf.readUInt32();
       uint32_t  tmpTEDInputClockFrequency = buf.readUInt32();

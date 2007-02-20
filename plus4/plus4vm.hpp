@@ -96,6 +96,7 @@ namespace Plus4 {
     void stopDemoPlayback();
     void stopDemoRecording(bool writeFile_);
     void updateTimingParameters(bool ntscMode_);
+    void resetFloppyDrives(uint8_t driveMask_, bool deleteUnusedDrives_);
    public:
     Plus4VM(Ep128Emu::VideoDisplay&, Ep128Emu::AudioOutput&);
     virtual ~Plus4VM();
