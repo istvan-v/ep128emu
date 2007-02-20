@@ -54,10 +54,12 @@ namespace Plus4 {
         break;
       case 75:                          // DRAM refresh start
         singleClockModeFlags |= uint8_t(0x01);
+        // terminate DMA transfer
         dmaCycleCounter = 0;
         M7501::setIsCPURunning(true);
+        // update character position reload (FF1A, FF1B)
         if (bitmapFetchWindow && savedCharacterLine == uint8_t(7))
-          character_position_reload = (character_position_reload + 40) & 0x03FF;
+          character_position_reload = character_position & 0x03FF;
         break;
       case 77:                          // end of display (38 column mode)
         if ((tedRegisters[0x07] & uint8_t(0x08)) == uint8_t(0))
@@ -94,6 +96,7 @@ namespace Plus4 {
       case 99:
         if (savedVideoLine == 0) {
           dma_position = 0x0000;
+          dma_position_reload = 0x0000;
           dmaFlags = 0;
         }
         if (dmaWindow) {                // increment character sub-line
@@ -147,6 +150,7 @@ namespace Plus4 {
           singleClockModeFlags |= uint8_t(renderWindow ? 0x01 : 0x00);
           character_column = 0;
         }
+        dma_position = (dma_position & 0x0400) | dma_position_reload;
         break;
       case 113:                         // start display (40 column mode)
         if (displayWindow &&
@@ -189,10 +193,7 @@ namespace Plus4 {
       if (renderingDisplay && dmaCycleCounter >= 4) {
         if (dmaCycleCounter >= 7) {
           memoryReadMap = tedDMAReadMap;
-          (void) readMemory(uint16_t((attr_base_addr
-                                      | (dma_position & 0x0400))
-                                     | ((dma_position + character_column)
-                                        & 0x03FF)));
+          (void) readMemory(uint16_t(attr_base_addr | dma_position));
           memoryReadMap = cpuMemoryReadMap;
         }
         if (dmaFlags & 1)
@@ -200,6 +201,7 @@ namespace Plus4 {
         if (dmaFlags & 2)
           char_buf[character_column] = dataBusState;
       }
+      dma_position = (dma_position & 0x0400) | ((dma_position + 1) & 0x03FF);
       if (horizontalBlanking || verticalBlanking) {
         line_buf_tmp[0] = uint8_t(0x00);
         line_buf_tmp[1] = uint8_t(0x00);
@@ -268,12 +270,12 @@ namespace Plus4 {
 
     // -------- EVEN HALF-CYCLE (FF1E bit 1 == 0) --------
     switch (video_column) {
+    case 74:                            // update DMA read position
+      if (dmaWindow && character_line == 6)
+        dma_position_reload = dma_position & 0x03FF;
+      break;
     case 76:                            // initialize character position
       character_position = character_position_reload;
-                                        // update DMA read position
-      if (dmaWindow && character_line == 6)
-        dma_position = (dma_position & 0x0400)
-                       | ((dma_position + 40) & 0x03FF);
       break;
     case 88:                            // increment flash counter
       if (video_line == 205) {
@@ -392,16 +394,11 @@ namespace Plus4 {
       memoryReadMap = cpuMemoryReadMap;
       render_func(this);
       pixelBufWritePos = (pixelBufWritePos + 8) & 0x38;
-      if (++character_column >= 40) {
-        character_column = 39;
-        if (dmaCycleCounter) {
-          dmaCycleCounter = 0;
-          if (dmaFlags & 1) {
-            for (int j = 0; j < 40; j++)
-              attr_buf[j] = attr_buf_tmp[j];
-          }
-        }
-        M7501::setIsCPURunning(true);
+      attr_buf[character_column] = attr_buf_tmp[character_column];
+      character_column = (character_column + 1) & 0x3F;
+      if (video_column == 74) {
+        // render dummy video data to be shifted in at the left
+        // by horizontal scrolling
         currentBitmap = uint8_t(0x00);
         render_func(this);
         pixelBufWritePos = (pixelBufWritePos + 8) & 0x38;

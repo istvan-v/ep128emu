@@ -206,6 +206,7 @@ namespace Plus4 {
     character_position_reload = 0x0000;
     character_column = 0;
     dma_position = 0x0000;
+    dma_position_reload = 0x0000;
     attr_base_addr = 0x0000;
     bitmap_base_addr = 0x0000;
     charset_base_addr = 0x0000;
@@ -237,7 +238,7 @@ namespace Plus4 {
     sound_channel_2_state = uint8_t(1);
     sound_channel_2_noise_state = uint8_t(0xFF);
     sound_channel_2_noise_output = uint8_t(1);
-    for (int i = 0; i < 40; i++) {              // video buffers
+    for (int i = 0; i < 64; i++) {              // video buffers
       attr_buf[i] = uint8_t(0);
       attr_buf_tmp[i] = uint8_t(0);
       char_buf[i] = uint8_t(0);

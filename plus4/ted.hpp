@@ -207,6 +207,7 @@ namespace Plus4 {
     int         character_position_reload;
     int         character_column;
     int         dma_position;
+    int         dma_position_reload;
     // base address for attribute data (FF14 bits 3..7)
     int         attr_base_addr;
     // base address for bitmap data (FF12 bits 3..5)
@@ -251,9 +252,9 @@ namespace Plus4 {
     uint8_t     sound_channel_2_noise_state;
     uint8_t     sound_channel_2_noise_output;
     // video buffers
-    uint8_t     attr_buf[40];
-    uint8_t     attr_buf_tmp[40];
-    uint8_t     char_buf[40];
+    uint8_t     attr_buf[64];
+    uint8_t     attr_buf_tmp[64];
+    uint8_t     char_buf[64];
     uint8_t     pixel_buf[64];
     uint8_t     line_buf[432];
     uint8_t     line_buf_tmp[4];

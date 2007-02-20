@@ -196,6 +196,7 @@ namespace Plus4 {
     buf.writeUInt32(uint32_t(character_position_reload));
     buf.writeByte(uint8_t(character_column));
     buf.writeUInt32(uint32_t(dma_position));
+    buf.writeUInt32(uint32_t(dma_position_reload));
     buf.writeBoolean(flash_state);
     buf.writeBoolean(renderWindow);
     buf.writeBoolean(dmaWindow);
@@ -312,9 +313,9 @@ namespace Plus4 {
       character_line = buf.readByte() & 7;
       character_position = int(buf.readUInt32() & 0x03FF);
       character_position_reload = int(buf.readUInt32() & 0x03FF);
-      character_column = buf.readByte();
-      character_column = (character_column < 39 ? character_column : 39);
+      character_column = buf.readByte() & 0x3F;
       dma_position = int(buf.readUInt32() & 0x07FF);
+      dma_position_reload = int(buf.readUInt32() & 0x03FF);
       flash_state = buf.readBoolean();
       renderWindow = buf.readBoolean();
       dmaWindow = buf.readBoolean();
