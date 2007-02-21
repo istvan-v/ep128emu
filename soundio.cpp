@@ -26,6 +26,36 @@
 #include <cstring>
 #include <vector>
 
+#ifdef ENABLE_SOUND_DEBUG
+
+static bool isPortAudioError(const char *msg, PaError paError)
+{
+  std::cerr << " === " << msg << std::endl;
+  if (paError == paNoError)
+    return false;
+  std::cerr << " *** PortAudio error (error code = " << int(paError) << ")"
+            << std::endl;
+  std::cerr << " ***   " << Pa_GetErrorText(paError) << std::endl;
+#  ifndef USING_OLD_PORTAUDIO_API
+  if (paError == paUnanticipatedHostError) {
+    const PaHostErrorInfo   *errInfo = Pa_GetLastHostErrorInfo();
+    std::cerr << " *** host API error:" << std::endl;
+    std::cerr << " ***   " << errInfo->errorText << std::endl;
+  }
+#  endif
+  return true;
+}
+
+#else
+
+static inline bool isPortAudioError(const char *msg, PaError paError)
+{
+  (void) msg;
+  return (paError != paNoError);
+}
+
+#endif
+
 namespace Ep128Emu {
 
   AudioOutput::AudioOutput()
@@ -186,7 +216,7 @@ namespace Ep128Emu {
       closeDeviceLock(true)
   {
     // initialize PortAudio
-    if (Pa_Initialize() != paNoError)
+    if (isPortAudioError("calling Pa_Initialize()", Pa_Initialize()))
       throw Exception("error initializing PortAudio");
     paInitialized = true;
   }
@@ -195,9 +225,11 @@ namespace Ep128Emu {
   {
     paLockTimeout = 0U;
     if (paStream) {
-      Pa_StopStream(paStream);
+      (void) isPortAudioError("calling Pa_StopStream()",
+                              Pa_StopStream(paStream));
       closeDeviceLock.wait();
-      Pa_CloseStream(paStream);
+      (void) isPortAudioError("calling Pa_CloseStream()",
+                              Pa_CloseStream(paStream));
       closeDeviceLock.notify();
       paStream = (PaStream *) 0;
     }
@@ -206,7 +238,7 @@ namespace Ep128Emu {
     readBufIndex = 0;
     buffers.clear();
     if (paInitialized) {
-      Pa_Terminate();
+      (void) isPortAudioError("calling Pa_Terminate()", Pa_Terminate());
       paInitialized = false;
     }
   }
@@ -248,9 +280,11 @@ namespace Ep128Emu {
   {
     paLockTimeout = 0U;
     if (paStream) {
-      Pa_StopStream(paStream);
+      (void) isPortAudioError("calling Pa_StopStream()",
+                              Pa_StopStream(paStream));
       closeDeviceLock.wait();
-      Pa_CloseStream(paStream);
+      (void) isPortAudioError("calling Pa_CloseStream()",
+                              Pa_CloseStream(paStream));
       closeDeviceLock.notify();
       paStream = (PaStream *) 0;
     }
@@ -446,7 +480,7 @@ namespace Ep128Emu {
                       sampleRate, unsigned(periodSize), unsigned(nPeriodsHW),
                       paNoFlag, &portAudioCallback, (void *) this);
 #endif
-    if (err != paNoError) {
+    if (isPortAudioError("calling Pa_OpenStream()", err)) {
       paStream = (PaStream *) 0;
       throw Exception("error opening audio device");
     }
