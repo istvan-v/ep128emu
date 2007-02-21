@@ -628,7 +628,12 @@ namespace Ep128Emu {
       }
       redrawFlag = true;
     }
-    if (forceUpdateTimer.getRealTime() >= 0.125) {
+    if (this->damage() & FL_DAMAGE_EXPOSE) {
+      forceUpdateLineMask = 0xFF;
+      forceUpdateLineCnt = 0;
+      forceUpdateTimer.reset();
+    }
+    else if (forceUpdateTimer.getRealTime() >= 0.125) {
       forceUpdateLineMask |= (uint8_t(1) << forceUpdateLineCnt);
       forceUpdateLineCnt++;
       forceUpdateLineCnt &= uint8_t(7);
