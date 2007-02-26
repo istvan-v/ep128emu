@@ -31,7 +31,7 @@ namespace Plus4 {
     uint8_t   bitmap = ted.currentBitmap;
     uint8_t   c0 = (a & uint8_t(0x70)) + (c & uint8_t(0x0F));
     uint8_t   c1 = ((a & uint8_t(0x07)) << 4) + ((c & uint8_t(0xF0)) >> 4);
-    uint8_t   *buf = &(ted.pixel_buf[ted.pixelBufWritePos]);
+    unsigned char *buf = reinterpret_cast<unsigned char *>(&(ted.pixelBuf1[0]));
     buf[0] = ((bitmap & uint8_t(0x80)) ? c1 : c0);
     buf[1] = ((bitmap & uint8_t(0x40)) ? c1 : c0);
     buf[2] = ((bitmap & uint8_t(0x20)) ? c1 : c0);
@@ -53,7 +53,7 @@ namespace Plus4 {
     c_[1] = ((a & uint8_t(0x07)) << 4) + ((c & uint8_t(0xF0)) >> 4);
     c_[2] = (a & uint8_t(0x70)) + (c & uint8_t(0x0F));
     c_[3] = uint8_t(0x81);
-    uint8_t   *buf = &(ted.pixel_buf[ted.pixelBufWritePos]);
+    unsigned char *buf = reinterpret_cast<unsigned char *>(&(ted.pixelBuf1[0]));
     buf[1] = buf[0] = c_[(bitmap & uint8_t(0xC0)) >> 6];
     buf[3] = buf[2] = c_[(bitmap & uint8_t(0x30)) >> 4];
     buf[5] = buf[4] = c_[(bitmap & uint8_t(0x0C)) >> 2];
@@ -78,7 +78,7 @@ namespace Plus4 {
       bitmap ^= uint8_t(0xFF);
     uint8_t   c0 = uint8_t(0x80);
     uint8_t   c1 = a & uint8_t(0x7F);
-    uint8_t   *buf = &(ted.pixel_buf[ted.pixelBufWritePos]);
+    unsigned char *buf = reinterpret_cast<unsigned char *>(&(ted.pixelBuf1[0]));
     buf[0] = ((bitmap & uint8_t(0x80)) ? c1 : c0);
     buf[1] = ((bitmap & uint8_t(0x40)) ? c1 : c0);
     buf[2] = ((bitmap & uint8_t(0x20)) ? c1 : c0);
@@ -104,7 +104,7 @@ namespace Plus4 {
     }
     uint8_t   c0 = uint8_t(0x80);
     uint8_t   c1 = a & uint8_t(0x7F);
-    uint8_t   *buf = &(ted.pixel_buf[ted.pixelBufWritePos]);
+    unsigned char *buf = reinterpret_cast<unsigned char *>(&(ted.pixelBuf1[0]));
     buf[0] = ((bitmap & uint8_t(0x80)) ? c1 : c0);
     buf[1] = ((bitmap & uint8_t(0x40)) ? c1 : c0);
     buf[2] = ((bitmap & uint8_t(0x20)) ? c1 : c0);
@@ -123,7 +123,7 @@ namespace Plus4 {
     uint8_t   bitmap = ted.currentBitmap;
     uint8_t   c0 = uint8_t(0x80) | ((c & uint8_t(0xC0)) >> 6);
     uint8_t   c1 = a & uint8_t(0x7F);
-    uint8_t   *buf = &(ted.pixel_buf[ted.pixelBufWritePos]);
+    unsigned char *buf = reinterpret_cast<unsigned char *>(&(ted.pixelBuf1[0]));
     buf[0] = ((bitmap & uint8_t(0x80)) ? c1 : c0);
     buf[1] = ((bitmap & uint8_t(0x40)) ? c1 : c0);
     buf[2] = ((bitmap & uint8_t(0x20)) ? c1 : c0);
@@ -139,7 +139,7 @@ namespace Plus4 {
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
     uint8_t   a = ted.currentAttribute;
     uint8_t   bitmap = ted.currentBitmap;
-    uint8_t   *buf = &(ted.pixel_buf[ted.pixelBufWritePos]);
+    unsigned char *buf = reinterpret_cast<unsigned char *>(&(ted.pixelBuf1[0]));
     if (a & uint8_t(0x08)) {
       uint8_t c_[4];
       c_[0] = uint8_t(0x80);
@@ -170,7 +170,7 @@ namespace Plus4 {
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
     uint8_t   a = ted.currentAttribute;
     uint8_t   bitmap = ted.currentBitmap;
-    uint8_t   *buf = &(ted.pixel_buf[ted.pixelBufWritePos]);
+    unsigned char *buf = reinterpret_cast<unsigned char *>(&(ted.pixelBuf1[0]));
     if (a & uint8_t(0x08)) {
       uint8_t c_[4];
       c_[0] = uint8_t(0x80);
@@ -199,7 +199,7 @@ namespace Plus4 {
   void TED7360::render_invalid_mode(void *ted_)
   {
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
-    uint8_t   *buf = &(ted.pixel_buf[ted.pixelBufWritePos]);
+    unsigned char *buf = reinterpret_cast<unsigned char *>(&(ted.pixelBuf1[0]));
     buf[0] = uint8_t(0);
     buf[1] = uint8_t(0);
     buf[2] = uint8_t(0);

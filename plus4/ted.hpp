@@ -255,7 +255,8 @@ namespace Plus4 {
     uint8_t     attr_buf[64];
     uint8_t     attr_buf_tmp[64];
     uint8_t     char_buf[64];
-    uint8_t     pixel_buf[64];
+    uint32_t    pixelBuf1[2];   // 2x4 pixels for rendering display
+    uint32_t    pixelBuf2[4];   // 4x4 pixels for delay/horizontal scroll
     uint8_t     line_buf[432];
     uint8_t     line_buf_tmp[4];
     int         line_buf_pos;
@@ -264,8 +265,6 @@ namespace Plus4 {
     uint8_t     characterMask;
     uint8_t     currentAttribute;
     uint8_t     currentBitmap;
-    uint8_t     pixelBufReadPos;
-    uint8_t     pixelBufWritePos;
     uint8_t     dmaCycleCounter;
     uint8_t     dmaFlags;       // sum of: 1: attribute DMA; 2: character DMA
     uint8_t     savedCharacterLine;

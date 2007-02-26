@@ -223,8 +223,6 @@ namespace Plus4 {
     buf.writeByte(currentCharacter);
     buf.writeByte(currentAttribute);
     buf.writeByte(currentBitmap);
-    buf.writeByte(pixelBufReadPos);
-    buf.writeByte(pixelBufWritePos);
     buf.writeByte(dmaCycleCounter);
     buf.writeByte(dmaFlags);
     buf.writeByte(savedCharacterLine);
@@ -344,8 +342,6 @@ namespace Plus4 {
       currentCharacter = buf.readByte();
       currentAttribute = buf.readByte();
       currentBitmap = buf.readByte();
-      pixelBufReadPos = buf.readByte() & 0x3C;
-      pixelBufWritePos = buf.readByte() & 0x38;
       dmaCycleCounter = buf.readByte();
       dmaFlags = buf.readByte() & 3;
       savedCharacterLine = buf.readByte() & 7;

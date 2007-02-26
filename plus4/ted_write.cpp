@@ -151,11 +151,17 @@ namespace Plus4 {
       // if vertical scroll has changed:
       if (ted.renderWindow) {
         // check if DMA should be requested
-        uint8_t tmp = (uint8_t(ted.savedVideoLine) + (value ^ uint8_t(0x07)))
-                      & uint8_t(0x07);
-        if (tmp == uint8_t(7)) {
-          ted.dmaWindow = true;
-          if (!(ted.video_column >= 95 && ted.video_column < 99)) {
+        if (!((uint8_t(ted.savedVideoLine) ^ value) & uint8_t(0x07))) {
+          switch (ted.video_column) {
+          case 95:
+          case 96:
+            ted.dmaWindow = true;
+            break;
+          case 97:
+          case 98:
+            break;
+          default:
+            ted.dmaWindow = true;
             if (ted.savedVideoLine != 203) {
               if (ted.dmaCycleCounter == 0 &&
                   (ted.video_column >= 99 || ted.video_column < 75))
@@ -163,13 +169,14 @@ namespace Plus4 {
               ted.dmaFlags = ted.dmaFlags | 1;
               ted.dma_position = ted.dma_position & 0x03FF;
             }
+            break;
           }
         }
-        else if (tmp != uint8_t(0)) {
-          if (!(ted.video_column >= 95 && ted.video_column < 99)) {
-            // abort an already started DMA transfer
+        else if (ted.dmaFlags & 1) {
+          // abort an already started DMA transfer
+          ted.dmaFlags = ted.dmaFlags & 2;
+          if (!ted.dmaFlags) {
             ted.dmaCycleCounter = 0;
-            ted.dmaFlags = 0;
             ted.setIsCPURunning(true);
           }
         }

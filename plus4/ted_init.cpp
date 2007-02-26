@@ -243,8 +243,12 @@ namespace Plus4 {
       attr_buf_tmp[i] = uint8_t(0);
       char_buf[i] = uint8_t(0);
     }
-    for (int i = 0; i < 64; i++)
-      pixel_buf[i] = uint8_t(0);
+    pixelBuf1[0] = 0U;
+    pixelBuf1[1] = 0U;
+    pixelBuf2[0] = 0U;
+    pixelBuf2[1] = 0U;
+    pixelBuf2[2] = 0U;
+    pixelBuf2[3] = 0U;
     for (int i = 0; i < 432; i++)
       line_buf[i] = uint8_t(0x08);
     for (int i = 0; i < 4; i++)
@@ -255,8 +259,6 @@ namespace Plus4 {
     characterMask = uint8_t(0xFF);
     currentAttribute = uint8_t(0x00);
     currentBitmap = uint8_t(0x00);
-    pixelBufReadPos = 0;
-    pixelBufWritePos = 0;
     dmaCycleCounter = 0;
     dmaFlags = 0;
     savedCharacterLine = 0;
