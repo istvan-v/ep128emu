@@ -70,7 +70,7 @@ class Ep128EmuGUI {open
   decl {int oldTapeSampleSize;} {}
   decl {bool oldTapeReadOnlyFlag;} {}
   decl {long oldTapePosition;} {}
-  decl {bool functionKeyState[12];} {}
+  decl {uint32_t functionKeyState;} {}
   decl {int tapeButtonState;} {}
   decl {int oldTapeButtonState;} {}
   decl {std::string demoRecordFileName;} {}

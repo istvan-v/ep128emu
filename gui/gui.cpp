@@ -60,8 +60,7 @@ void Ep128EmuGUI::init_()
   oldTapeSampleSize = -1;
   oldTapeReadOnlyFlag = false;
   oldTapePosition = -2L;
-  for (int i = 0; i < 12; i++)
-    functionKeyState[i] = false;
+  functionKeyState = 0U;
   tapeButtonState = 0;
   oldTapeButtonState = -1;
   demoRecordFileName = "";
@@ -367,7 +366,7 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_File_SaveSnapshot, (void *) this);
   mainMenuBar->add("File/Record demo",
                    (char *) 0, &menuCallback_File_RecordDemo, (void *) this);
-  mainMenuBar->add("File/Stop demo (Ctrl+F11)",
+  mainMenuBar->add("File/Stop demo (Ctrl+F12)",
                    (char *) 0, &menuCallback_File_StopDemo, (void *) this);
   mainMenuBar->add("File/Record sound file",
                    (char *) 0, &menuCallback_File_RecordSound, (void *) this);
@@ -391,7 +390,7 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Machine_TapePlay, (void *) this);
   mainMenuBar->add("Machine/Tape/Stop (Shift + F10)",
                    (char *) 0, &menuCallback_Machine_TapeStop, (void *) this);
-  mainMenuBar->add("Machine/Tape/Record (Shift + F11)",
+  mainMenuBar->add("Machine/Tape/Record (Shift + F12)",
                    (char *) 0, &menuCallback_Machine_TapeRecord, (void *) this);
   mainMenuBar->add("Machine/Tape/Rewind/To beginning of tape",
                    (char *) 0, &menuCallback_Machine_TapeRewind, (void *) this);
@@ -401,7 +400,7 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Machine_TapeBwd10s, (void *) this);
   mainMenuBar->add("Machine/Tape/Rewind/By 60 seconds",
                    (char *) 0, &menuCallback_Machine_TapeBwd60s, (void *) this);
-  mainMenuBar->add("Machine/Tape/Fast forward/To next marker (F11)",
+  mainMenuBar->add("Machine/Tape/Fast forward/To next marker (F12)",
                    (char *) 0, &menuCallback_Machine_TapeNxtCP, (void *) this);
   mainMenuBar->add("Machine/Tape/Fast forward/By 10 seconds",
                    (char *) 0, &menuCallback_Machine_TapeFwd10s, (void *) this);
@@ -415,13 +414,13 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Machine_DeleteCPs, (void *) this);
   mainMenuBar->add("Machine/Tape/Close",
                    (char *) 0, &menuCallback_Machine_TapeClose, (void *) this);
-  mainMenuBar->add("Machine/Reset/Reset (F12)",
+  mainMenuBar->add("Machine/Reset/Reset (F11)",
                    (char *) 0, &menuCallback_Machine_Reset, (void *) this);
-  mainMenuBar->add("Machine/Reset/Force reset (Shift+F12)",
+  mainMenuBar->add("Machine/Reset/Force reset (Ctrl+F11)",
                    (char *) 0, &menuCallback_Machine_ColdReset, (void *) this);
   mainMenuBar->add("Machine/Reset/Reset clock frequencies",
                    (char *) 0, &menuCallback_Machine_ResetFreqs, (void *) this);
-  mainMenuBar->add("Machine/Reset/Reset machine configuration (Ctrl+F12)",
+  mainMenuBar->add("Machine/Reset/Reset machine configuration (Shift+F11)",
                    (char *) 0, &menuCallback_Machine_ResetAll, (void *) this);
   if (typeid(vm) == typeid(Plus4::Plus4VM)) {
     mainMenuBar->add("Machine/Enable SID emulation",
@@ -562,8 +561,7 @@ int Ep128EmuGUI::handleFLTKEvent(int event)
   if (event == FL_FOCUS)
     return 1;
   if (event == FL_UNFOCUS) {
-    for (int i = 0; i < 12; i++)
-      functionKeyState[i] = false;
+    functionKeyState = 0U;
     try {
       vmThread.resetKeyboard();
     }
@@ -575,65 +573,143 @@ int Ep128EmuGUI::handleFLTKEvent(int event)
   if (event == FL_KEYUP || event == FL_KEYDOWN) {
     int   keyCode = Fl::event_key();
     bool  isKeyPress = (event == FL_KEYDOWN);
-    if (keyCode >= (FL_F + 9) && keyCode <= (FL_F + 12)) {
-      int   n = keyCode - (FL_F + 9);
-      if (Fl::event_shift() != 0)
-        n += 4;
-      if (Fl::event_ctrl() != 0)
-        n += 8;
-      if (n >= 0 && n < 12) {
-        if (functionKeyState[n] != isKeyPress) {
-          functionKeyState[n] = isKeyPress;
-          if (isKeyPress) {
-            switch (n) {
-            case 0:                                     // F9:
-              menuCallback_Options_DpyMode((Fl_Widget *) 0, (void *) this);
-              break;
-            case 1:                                     // F10:
-              menuCallback_Machine_Pause((Fl_Widget *) 0, (void *) this);
-              break;
-            case 2:                                     // F11:
-              menuCallback_Machine_TapeNxtCP((Fl_Widget *) 0, (void *) this);
-              break;
-            case 3:                                     // F12:
-              menuCallback_Machine_Reset((Fl_Widget *) 0, (void *) this);
-              break;
-            case 4:                                     // Shift + F9:
-              menuCallback_Machine_TapePlay((Fl_Widget *) 0, (void *) this);
-              break;
-            case 5:                                     // Shift + F10:
-              menuCallback_Machine_TapeStop((Fl_Widget *) 0, (void *) this);
-              break;
-            case 6:                                     // Shift + F11:
-              menuCallback_Machine_TapeRecord((Fl_Widget *) 0, (void *) this);
-              break;
-            case 7:                                     // Shift + F12:
-              menuCallback_Machine_ColdReset((Fl_Widget *) 0, (void *) this);
-              break;
-            case 8:                                     // Control + F9:
-              menuCallback_File_QSSave((Fl_Widget *) 0, (void *) this);
-              break;
-            case 9:                                     // Control + F10:
-              menuCallback_File_QSLoad((Fl_Widget *) 0, (void *) this);
-              break;
-            case 10:                                    // Control + F11:
-              menuCallback_File_StopDemo((Fl_Widget *) 0, (void *) this);
-              break;
-            case 11:                                    // Control + F12:
-              menuCallback_Machine_ResetAll((Fl_Widget *) 0, (void *) this);
-              break;
-            }
-          }
+    if (!(keyCode >= (FL_F + 9) && keyCode <= (FL_F + 12))) {
+      int   n = config.convertKeyCode(keyCode);
+      if (n >= 0 && (functionKeyState == 0U || !isKeyPress)) {
+        try {
+          vmThread.setKeyboardState(uint8_t(n), isKeyPress);
         }
+        catch (std::exception& e) {
+          errorMessage(e.what());
+        }
+        if (functionKeyState == 0U || isKeyPress)
+          return 1;
       }
     }
-    else {
-      try {
-        vmThread.setKeyboardState(uint8_t(config.convertKeyCode(keyCode)),
-                                  isKeyPress);
-      }
-      catch (std::exception& e) {
-        errorMessage(e.what());
+    int   n = -1;
+    switch (keyCode) {
+    case FL_Alt_L:
+      n = 28;
+      break;
+    case FL_Alt_R:
+      n = 29;
+      break;
+    case (FL_F + 5):
+    case (FL_F + 6):
+    case (FL_F + 7):
+    case (FL_F + 8):
+    case (FL_F + 9):
+    case (FL_F + 10):
+    case (FL_F + 11):
+    case (FL_F + 12):
+      n = keyCode - (FL_F + 5);
+      if (Fl::event_shift())
+        n += 8;
+      else if (Fl::event_ctrl())
+        n += 16;
+      break;
+    case 0x64:
+      if (Fl::event_alt() || !isKeyPress)
+        n = 24;
+      break;
+    case 0x6D:
+      if (Fl::event_alt() || !isKeyPress)
+        n = 25;
+      break;
+    case 0x77:
+      if (Fl::event_alt() || !isKeyPress)
+        n = 26;
+      break;
+    case FL_Pause:
+      n = 27;
+      break;
+    }
+    if (n >= 0) {
+      uint32_t  bitMask = 1U << n;
+      bool      wasPressed = !!(functionKeyState & bitMask);
+      if (isKeyPress != wasPressed) {
+        if (isKeyPress)
+          functionKeyState |= bitMask;
+        else
+          functionKeyState &= (bitMask ^ uint32_t(0xFFFFFFFFU));
+        if (isKeyPress) {
+          switch (n) {
+          case 0:                                       // F5:
+            menuCallback_Machine_TapePlay((Fl_Widget *) 0, (void *) this);
+            break;
+          case 1:                                       // F6:
+            menuCallback_Machine_OpenTape((Fl_Widget *) 0, (void *) this);
+            break;
+          case 2:                                       // F7:
+            menuCallback_File_LoadFile((Fl_Widget *) 0, (void *) this);
+            break;
+          case 3:                                       // F8:
+            if (typeid(vm) == typeid(Plus4::Plus4VM))
+              menuCallback_File_LoadPRG((Fl_Widget *) 0, (void *) this);
+            break;
+          case 4:                                       // F9:
+            menuCallback_Options_DpyMode((Fl_Widget *) 0, (void *) this);
+            break;
+          case 5:                                       // F10:
+            menuCallback_Machine_Pause((Fl_Widget *) 0, (void *) this);
+            break;
+          case 6:                                       // F11:
+            menuCallback_Machine_Reset((Fl_Widget *) 0, (void *) this);
+            break;
+          case 7:                                       // F12:
+            menuCallback_Machine_TapeNxtCP((Fl_Widget *) 0, (void *) this);
+            break;
+          case 8:                                       // Shift + F5:
+            menuCallback_Machine_TapeStop((Fl_Widget *) 0, (void *) this);
+            break;
+          case 9:                                       // Shift + F6:
+            menuCallback_Machine_TapeRecord((Fl_Widget *) 0, (void *) this);
+            break;
+          case 10:                                      // Shift + F7:
+            menuCallback_File_SaveSnapshot((Fl_Widget *) 0, (void *) this);
+            break;
+          case 11:                                      // Shift + F8:
+            if (typeid(vm) == typeid(Plus4::Plus4VM))
+              menuCallback_File_SavePRG((Fl_Widget *) 0, (void *) this);
+            break;
+          case 12:                                      // Shift + F9:
+            menuCallback_Machine_TapePlay((Fl_Widget *) 0, (void *) this);
+            break;
+          case 13:                                      // Shift + F10:
+            menuCallback_Machine_TapeStop((Fl_Widget *) 0, (void *) this);
+            break;
+          case 14:                                      // Shift + F11:
+            menuCallback_Machine_ResetAll((Fl_Widget *) 0, (void *) this);
+            break;
+          case 15:                                      // Shift + F12:
+            menuCallback_Machine_TapeRecord((Fl_Widget *) 0, (void *) this);
+            break;
+          case 20:                                      // Ctrl + F9:
+            menuCallback_File_QSSave((Fl_Widget *) 0, (void *) this);
+            break;
+          case 21:                                      // Ctrl + F10:
+            menuCallback_File_QSLoad((Fl_Widget *) 0, (void *) this);
+            break;
+          case 22:                                      // Ctrl + F11:
+            menuCallback_Machine_ColdReset((Fl_Widget *) 0, (void *) this);
+            break;
+          case 23:                                      // Ctrl + F12:
+            menuCallback_File_StopDemo((Fl_Widget *) 0, (void *) this);
+            break;
+          case 24:                                      // Alt + D:
+            menuCallback_Options_FloppyCfg((Fl_Widget *) 0, (void *) this);
+            break;
+          case 25:                                      // Alt + M:
+            menuCallback_Debug_OpenDebugger((Fl_Widget *) 0, (void *) this);
+            break;
+          case 26:                                      // Alt + W:
+            menuCallback_Machine_FullSpeed((Fl_Widget *) 0, (void *) this);
+            break;
+          case 27:                                      // Pause:
+            menuCallback_Machine_Pause((Fl_Widget *) 0, (void *) this);
+            break;
+          }
+        }
       }
     }
     return 1;
