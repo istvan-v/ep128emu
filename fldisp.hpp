@@ -159,6 +159,8 @@ namespace Ep128Emu {
     int           curLine;
     int           lineCnt;      // nr. of lines received so far in this frame
     int           prvLineCnt;
+    float         avgLineCnt;
+    int           lineReload;
     int           framesPending;
     bool          skippingFrame;
     bool          vsyncState;

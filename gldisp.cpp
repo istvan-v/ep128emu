@@ -359,7 +359,9 @@ namespace Ep128Emu {
       textureID(0UL),
       curLine(0),
       lineCnt(0),
-      prvLineCnt(0),
+      prvLineCnt(312),
+      avgLineCnt(312.0f),
+      lineReload(-40),
       framesPending(0),
       skippingFrame(false),
       vsyncState(false),
@@ -1010,8 +1012,26 @@ namespace Ep128Emu {
       return;
     vsyncState = newState;
     if (newState) {
-      curLine = (savedDisplayParameters.displayQuality == 0 ? 272 : 274)
-                - prvLineCnt;
+      avgLineCnt = (avgLineCnt * 0.95f) + (float(prvLineCnt) * 0.05f);
+      int   tmp = int(avgLineCnt + 0.5f);
+      tmp = (savedDisplayParameters.displayQuality == 0 ? 272 : 274) - tmp;
+      if (lineCnt == (prvLineCnt + 1))
+        lineReload = lineReload | 1;
+      else
+        lineReload = lineReload & (~(int(1)));
+      if (tmp <= (lineReload - 2)) {
+        if (tmp <= (lineReload - 16))
+          lineReload = lineReload - 8;
+        else
+          lineReload = lineReload - 2;
+      }
+      else if (tmp >= (lineReload + 2)) {
+        if (tmp >= (lineReload + 16))
+          lineReload = lineReload + 8;
+        else
+          lineReload = lineReload + 2;
+      }
+      curLine = lineReload;
       prvLineCnt = lineCnt;
       lineCnt = 0;
       return;
