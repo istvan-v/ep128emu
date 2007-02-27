@@ -55,12 +55,13 @@ namespace Plus4 {
         break;
       case 75:                          // DRAM refresh start
         singleClockModeFlags |= uint8_t(0x01);
+        renderingDisplay = false;
         // terminate DMA transfer
         dmaCycleCounter = 0;
         M7501::setIsCPURunning(true);
         // update character position reload (FF1A, FF1B)
         if (bitmapFetchWindow && savedCharacterLine == uint8_t(7))
-          character_position_reload = (character_position + 1) & 0x03FF;
+          character_position_reload = character_position & 0x03FF;
         break;
       case 77:                          // end of display (38 column mode)
         if ((tedRegisters[0x07] & uint8_t(0x08)) == uint8_t(0))
@@ -203,6 +204,9 @@ namespace Plus4 {
           char_buf[character_column] = dataBusState;
       }
       dma_position = (dma_position & 0x0400) | ((dma_position + 1) & 0x03FF);
+      pixelBuf2[0] = pixelBuf2[1];
+      pixelBuf2[1] = pixelBuf2[2];
+      pixelBuf2[2] = pixelBuf1[0];
       if (horizontalBlanking | verticalBlanking) {
         line_buf_tmp[0] = uint8_t(0x00);
         line_buf_tmp[1] = uint8_t(0x00);
@@ -238,10 +242,6 @@ namespace Plus4 {
         line_buf_tmp[3] = (c < uint8_t(0x80) ?
                            c : tedRegisters[c - uint8_t(0x6B)]);
       }
-      pixelBuf2[0] = pixelBuf2[1];
-      pixelBuf2[1] = pixelBuf2[2];
-      pixelBuf2[2] = pixelBuf2[3];
-      pixelBuf2[3] = pixelBuf1[0];
       // check timer interrupts
       if (!timer1_state) {
         if (timer1_run) {
@@ -281,7 +281,7 @@ namespace Plus4 {
         tedRegisters[0x1F] =
             (tedRegisters[0x1F] & uint8_t(0x7F)) + uint8_t(0x08);
         if (tedRegisters[0x1F] & uint8_t(0x80))
-          flash_state = !flash_state;
+          flashState = uint8_t(flashState == 0x00 ? 0xFF : 0x00);
       }
       break;
     case 98:
@@ -356,6 +356,9 @@ namespace Plus4 {
         M7501::interruptRequest();
       M7501::run(cpu_clock_multiplier);
     }
+    pixelBuf2[0] = pixelBuf2[1];
+    pixelBuf2[1] = pixelBuf2[2];
+    pixelBuf2[2] = pixelBuf1[1];
     if (line_buf_pos < 425) {
       if (line_buf_pos >= 0) {
         uint8_t *bufp = &(line_buf[line_buf_pos]);
@@ -397,11 +400,9 @@ namespace Plus4 {
       }
       line_buf_pos += 9;
     }
-    pixelBuf2[0] = pixelBuf2[1];
-    pixelBuf2[1] = pixelBuf2[2];
-    pixelBuf2[2] = pixelBuf2[3];
-    pixelBuf2[3] = pixelBuf1[1];
     // bitmap fetches and rendering display are done on even cycle counts
+    render_func(*this);
+    currentBitmap = 0x00;
     if (renderingDisplay) {
       currentCharacter = char_buf[character_column];
       currentAttribute = attr_buf[character_column];
@@ -434,23 +435,14 @@ namespace Plus4 {
         memoryReadMap = tedDMAReadMap;  // not sure if this is correct
         (void) readMemory(0xFFFF);
       }
-      currentBitmap = (video_column != 76 ? dataBusState : uint8_t(0x00));
+      currentBitmap = dataBusState;
       memoryReadMap = cpuMemoryReadMap;
-      render_func(this);
+      cursorFlag = (cursor_position == character_position);
       attr_buf[character_column] = attr_buf_tmp[character_column];
-      switch (video_column) {
-      case 74:
-        break;
-      case 76:
-        renderingDisplay = false;
-        break;
-      default:
-        if (bitmapFetchWindow)
-          character_position = (character_position + 1) & 0x03FF;
-        else
-          character_position = 0x03FF;
-        break;
-      }
+      if (bitmapFetchWindow)
+        character_position = (character_position + 1) & 0x03FF;
+      else
+        character_position = 0x03FF;
     }
     character_column = (character_column + 1) & 0x3F;
     // update timer 2 and 3 on even cycle count (884 kHz rate)

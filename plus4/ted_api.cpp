@@ -197,7 +197,7 @@ namespace Plus4 {
     buf.writeByte(uint8_t(character_column));
     buf.writeUInt32(uint32_t(dma_position));
     buf.writeUInt32(uint32_t(dma_position_reload));
-    buf.writeBoolean(flash_state);
+    buf.writeByte(flashState);
     buf.writeBoolean(renderWindow);
     buf.writeBoolean(dmaWindow);
     buf.writeBoolean(bitmapFetchWindow);
@@ -223,6 +223,7 @@ namespace Plus4 {
     buf.writeByte(currentCharacter);
     buf.writeByte(currentAttribute);
     buf.writeByte(currentBitmap);
+    buf.writeBoolean(cursorFlag);
     buf.writeByte(dmaCycleCounter);
     buf.writeByte(dmaFlags);
     buf.writeByte(savedCharacterLine);
@@ -314,7 +315,7 @@ namespace Plus4 {
       character_column = buf.readByte() & 0x3F;
       dma_position = int(buf.readUInt32() & 0x07FF);
       dma_position_reload = int(buf.readUInt32() & 0x03FF);
-      flash_state = buf.readBoolean();
+      flashState = uint8_t(buf.readByte() == 0x00 ? 0x00 : 0xFF);
       renderWindow = buf.readBoolean();
       dmaWindow = buf.readBoolean();
       bitmapFetchWindow = buf.readBoolean();
@@ -342,6 +343,7 @@ namespace Plus4 {
       currentCharacter = buf.readByte();
       currentAttribute = buf.readByte();
       currentBitmap = buf.readByte();
+      cursorFlag = buf.readBoolean();
       dmaCycleCounter = buf.readByte();
       dmaFlags = buf.readByte() & 3;
       savedCharacterLine = buf.readByte() & 7;

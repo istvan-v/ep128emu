@@ -154,14 +154,14 @@ namespace Plus4 {
     static void     write_register_FF3F(void *userData,
                                         uint16_t addr, uint8_t value);
     // render functions
-    static void render_BMM_hires(void *ted_);
-    static void render_BMM_multicolor(void *ted_);
-    static void render_char_128(void *ted_);
-    static void render_char_256(void *ted_);
-    static void render_char_ECM(void *ted_);
-    static void render_char_MCM_128(void *ted_);
-    static void render_char_MCM_256(void *ted_);
-    static void render_invalid_mode(void *ted_);
+    static void render_BMM_hires(TED7360& ted);
+    static void render_BMM_multicolor(TED7360& ted);
+    static void render_char_128(TED7360& ted);
+    static void render_char_256(TED7360& ted);
+    static void render_char_ECM(TED7360& ted);
+    static void render_char_MCM_128(TED7360& ted);
+    static void render_char_MCM_256(TED7360& ted);
+    static void render_invalid_mode(TED7360& ted);
     // -----------------------------------------------------------------
     // CPU I/O registers
     uint8_t     ioRegister_0000;
@@ -191,7 +191,7 @@ namespace Plus4 {
     uint32_t    tedRegisterWriteMask;
     uint8_t     tedRegisters[32];
     // currently selected render function (depending on bits of FF06 and FF07)
-    void        (*render_func)(void *ted_);
+    void        (*render_func)(TED7360& ted);
     // CPU clock multiplier
     int         cpu_clock_multiplier;
     // TED cycle counter (0 to 3)
@@ -220,8 +220,9 @@ namespace Plus4 {
     int         cursor_position;
     // FF07 bit 5
     bool        ted_disabled;
-    // flash state for cursor etc., updated on every 16th video frame
-    bool        flash_state;
+    // flash state (0x00 or 0xFF) for cursor etc.,
+    // updated on every 16th video frame
+    uint8_t     flashState;
     // display state flags, set depending on video line and column
     bool        renderWindow;
     bool        dmaWindow;
@@ -256,7 +257,7 @@ namespace Plus4 {
     uint8_t     attr_buf_tmp[64];
     uint8_t     char_buf[64];
     uint32_t    pixelBuf1[2];   // 2x4 pixels for rendering display
-    uint32_t    pixelBuf2[4];   // 4x4 pixels for delay/horizontal scroll
+    uint32_t    pixelBuf2[3];   // 3x4 pixels for delay/horizontal scroll
     uint8_t     line_buf[432];
     uint8_t     line_buf_tmp[4];
     int         line_buf_pos;
@@ -265,6 +266,7 @@ namespace Plus4 {
     uint8_t     characterMask;
     uint8_t     currentAttribute;
     uint8_t     currentBitmap;
+    bool        cursorFlag;     // true if cursor is at current character
     uint8_t     dmaCycleCounter;
     uint8_t     dmaFlags;       // sum of: 1: attribute DMA; 2: character DMA
     uint8_t     savedCharacterLine;

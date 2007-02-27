@@ -23,9 +23,8 @@
 
 namespace Plus4 {
 
-  void TED7360::render_BMM_hires(void *ted_)
+  void TED7360::render_BMM_hires(TED7360& ted)
   {
-    TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
     uint8_t   a = ted.currentAttribute;
     uint8_t   c = ted.currentCharacter;
     uint8_t   bitmap = ted.currentBitmap;
@@ -42,9 +41,8 @@ namespace Plus4 {
     buf[7] = ((bitmap & uint8_t(0x01)) ? c1 : c0);
   }
 
-  void TED7360::render_BMM_multicolor(void *ted_)
+  void TED7360::render_BMM_multicolor(TED7360& ted)
   {
-    TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
     uint8_t   a = ted.currentAttribute;
     uint8_t   c = ted.currentCharacter;
     uint8_t   bitmap = ted.currentBitmap;
@@ -60,20 +58,15 @@ namespace Plus4 {
     buf[7] = buf[6] = c_[bitmap & uint8_t(0x03)];
   }
 
-  void TED7360::render_char_128(void *ted_)
+  void TED7360::render_char_128(TED7360& ted)
   {
-    TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
     uint8_t   a = ted.currentAttribute;
     uint8_t   c = ted.currentCharacter;
     uint8_t   bitmap = ted.currentBitmap;
-    if (ted.cursor_position == ted.character_position) {
-      if (ted.flash_state)
-        bitmap ^= uint8_t(0xFF);
-    }
-    else if (a & uint8_t(0x80)) {
-      if (!ted.flash_state)
-        bitmap = uint8_t(0x00);
-    }
+    if (ted.cursorFlag)
+      bitmap ^= ted.flashState;
+    else if (a & uint8_t(0x80))
+      bitmap &= ted.flashState;
     if (c & uint8_t(0x80))
       bitmap ^= uint8_t(0xFF);
     uint8_t   c0 = uint8_t(0x80);
@@ -89,19 +82,14 @@ namespace Plus4 {
     buf[7] = ((bitmap & uint8_t(0x01)) ? c1 : c0);
   }
 
-  void TED7360::render_char_256(void *ted_)
+  void TED7360::render_char_256(TED7360& ted)
   {
-    TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
     uint8_t   a = ted.currentAttribute;
     uint8_t   bitmap = ted.currentBitmap;
-    if (ted.cursor_position == ted.character_position) {
-      if (ted.flash_state)
-        bitmap ^= uint8_t(0xFF);
-    }
-    else if (a & uint8_t(0x80)) {
-      if (!ted.flash_state)
-        bitmap = uint8_t(0x00);
-    }
+    if (ted.cursorFlag)
+      bitmap ^= ted.flashState;
+    else if (a & uint8_t(0x80))
+      bitmap &= ted.flashState;
     uint8_t   c0 = uint8_t(0x80);
     uint8_t   c1 = a & uint8_t(0x7F);
     unsigned char *buf = reinterpret_cast<unsigned char *>(&(ted.pixelBuf1[0]));
@@ -115,9 +103,8 @@ namespace Plus4 {
     buf[7] = ((bitmap & uint8_t(0x01)) ? c1 : c0);
   }
 
-  void TED7360::render_char_ECM(void *ted_)
+  void TED7360::render_char_ECM(TED7360& ted)
   {
-    TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
     uint8_t   a = ted.currentAttribute;
     uint8_t   c = ted.currentCharacter;
     uint8_t   bitmap = ted.currentBitmap;
@@ -134,9 +121,8 @@ namespace Plus4 {
     buf[7] = ((bitmap & uint8_t(0x01)) ? c1 : c0);
   }
 
-  void TED7360::render_char_MCM_128(void *ted_)
+  void TED7360::render_char_MCM_128(TED7360& ted)
   {
-    TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
     uint8_t   a = ted.currentAttribute;
     uint8_t   bitmap = ted.currentBitmap;
     unsigned char *buf = reinterpret_cast<unsigned char *>(&(ted.pixelBuf1[0]));
@@ -165,9 +151,8 @@ namespace Plus4 {
     }
   }
 
-  void TED7360::render_char_MCM_256(void *ted_)
+  void TED7360::render_char_MCM_256(TED7360& ted)
   {
-    TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
     uint8_t   a = ted.currentAttribute;
     uint8_t   bitmap = ted.currentBitmap;
     unsigned char *buf = reinterpret_cast<unsigned char *>(&(ted.pixelBuf1[0]));
@@ -196,9 +181,8 @@ namespace Plus4 {
     }
   }
 
-  void TED7360::render_invalid_mode(void *ted_)
+  void TED7360::render_invalid_mode(TED7360& ted)
   {
-    TED7360&  ted = *(reinterpret_cast<TED7360 *>(ted_));
     unsigned char *buf = reinterpret_cast<unsigned char *>(&(ted.pixelBuf1[0]));
     buf[0] = uint8_t(0);
     buf[1] = uint8_t(0);

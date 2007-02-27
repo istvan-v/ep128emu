@@ -205,15 +205,15 @@ namespace Plus4 {
     character_position = 0x0000;
     character_position_reload = 0x0000;
     character_column = 0;
-    dma_position = 0x0000;
-    dma_position_reload = 0x0000;
+    dma_position = 0x03FB;
+    dma_position_reload = 0x03FE;
     attr_base_addr = 0x0000;
     bitmap_base_addr = 0x0000;
     charset_base_addr = 0x0000;
     horiz_scroll = 0;
     cursor_position = 0x03FF;
     ted_disabled = false;
-    flash_state = false;
+    flashState = 0x00;
     renderWindow = false;
     dmaWindow = false;
     bitmapFetchWindow = false;
@@ -248,7 +248,6 @@ namespace Plus4 {
     pixelBuf2[0] = 0U;
     pixelBuf2[1] = 0U;
     pixelBuf2[2] = 0U;
-    pixelBuf2[3] = 0U;
     for (int i = 0; i < 432; i++)
       line_buf[i] = uint8_t(0x08);
     for (int i = 0; i < 4; i++)
@@ -259,6 +258,7 @@ namespace Plus4 {
     characterMask = uint8_t(0xFF);
     currentAttribute = uint8_t(0x00);
     currentBitmap = uint8_t(0x00);
+    cursorFlag = false;
     dmaCycleCounter = 0;
     dmaFlags = 0;
     savedCharacterLine = 0;
