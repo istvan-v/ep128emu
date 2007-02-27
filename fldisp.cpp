@@ -300,7 +300,9 @@ namespace Ep128Emu {
       linesChanged((bool *) 0),
       curLine(0),
       lineCnt(0),
-      prvLineCnt(0),
+      prvLineCnt(312),
+      avgLineCnt(312.0f),
+      lineReload(-40),
       framesPending(0),
       skippingFrame(false),
       vsyncState(false),
@@ -450,6 +452,7 @@ namespace Ep128Emu {
                 uint32_t      c = 0U;
                 fracX_ = displayWidth_;
                 if (!halfResolutionX_) {
+                  fracX_ = (fracX_ >= 768 ? fracX_ : 768);
                   while (true) {
                     if (fracX_ >= displayWidth_) {
                       if (bufp >= &(lineBuf_[768]))
@@ -473,6 +476,7 @@ namespace Ep128Emu {
                   }
                 }
                 else {
+                  fracX_ = (fracX_ >= 384 ? fracX_ : 384);
                   while (true) {
                     if (fracX_ >= displayWidth_) {
                       if (bufp >= &(lineBuf_[768]))
@@ -685,7 +689,25 @@ namespace Ep128Emu {
       return;
     vsyncState = newState;
     if (newState) {
-      curLine = 272 - prvLineCnt;
+      avgLineCnt = (avgLineCnt * 0.95f) + (float(prvLineCnt) * 0.05f);
+      int   tmp = 272 - int(avgLineCnt + 0.5f);
+      if (lineCnt == (prvLineCnt + 1))
+        lineReload = lineReload | 1;
+      else
+        lineReload = lineReload & (~(int(1)));
+      if (tmp <= (lineReload - 2)) {
+        if (tmp <= (lineReload - 16))
+          lineReload = lineReload - 8;
+        else
+          lineReload = lineReload - 2;
+      }
+      else if (tmp >= (lineReload + 2)) {
+        if (tmp >= (lineReload + 16))
+          lineReload = lineReload + 8;
+        else
+          lineReload = lineReload + 2;
+      }
+      curLine = lineReload;
       prvLineCnt = lineCnt;
       lineCnt = 0;
       return;
