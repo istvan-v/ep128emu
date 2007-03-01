@@ -100,6 +100,10 @@ namespace Plus4 {
         line_buf_pos = -35;
         break;
       case 99:
+        if (dmaWindow) {                // increment character sub-line
+          character_line = (character_line + 1) & 7;
+          savedCharacterLine = uint8_t(character_line);
+        }
         if (video_line == 205) {
           dma_position = 0x03FB;
           dma_position_reload = 0x03FE;
@@ -111,10 +115,6 @@ namespace Plus4 {
           bitmapFetchWindow = false;
         }
         else if (renderWindow) {
-          if (dmaWindow) {              // increment character sub-line
-            character_line = (character_line + 1) & 7;
-            savedCharacterLine = uint8_t(character_line);
-          }
           if (dmaFlags & 2)
             bitmapFetchWindow = true;
           // check if DMA should be requested
