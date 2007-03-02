@@ -135,7 +135,9 @@ plus4Lib = plus4LibEnvironment.StaticLibrary('plus4', Split('''
     plus4/ted_main.cpp
     plus4/ted_read.cpp
     plus4/ted_write.cpp
+    plus4/vc1541.cpp
     plus4/vc1581.cpp
+    plus4/via6522.cpp
 '''))
 
 # -----------------------------------------------------------------------------

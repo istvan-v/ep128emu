@@ -28,6 +28,7 @@
 
 #include "resid/sid.hpp"
 #include "p4floppy.hpp"
+#include "vc1541.hpp"
 #include "vc1581.hpp"
 
 static void writeDemoTimeCnt(Ep128Emu::File::Buffer& buf, uint64_t n)
@@ -350,6 +351,7 @@ namespace Plus4 {
       sid_((SID *) 0),
       soundOutputAccumulator(0),
       sidEnabled(false),
+      floppyROM_1541((uint8_t *) 0),
       floppyROM_1581_0((uint8_t *) 0),
       floppyROM_1581_1((uint8_t *) 0)
   {
@@ -392,6 +394,8 @@ namespace Plus4 {
         floppyDrives[i] = (FloppyDrive *) 0;
       }
     }
+    if (floppyROM_1541)
+      delete[] floppyROM_1541;
     if (floppyROM_1581_0)
       delete[] floppyROM_1581_0;
     if (floppyROM_1581_1)
@@ -521,9 +525,13 @@ namespace Plus4 {
         loadROMSegment(n, (char *) 0, 0);
       for (int i = 0; i < 4; i++) {
         if (floppyDrives[i]) {
-          for (int n = 0; n < 2; n++)
+          for (int n = 0; n < 3; n++)
             floppyDrives[i]->setROMImage(n, (uint8_t *) 0);
         }
+      }
+      if (floppyROM_1541) {
+        delete[] floppyROM_1541;
+        floppyROM_1541 = (uint8_t *) 0;
       }
       if (floppyROM_1581_0) {
         delete[] floppyROM_1581_0;
@@ -555,6 +563,10 @@ namespace Plus4 {
     uint8_t **floppyROMPtr = (uint8_t **) 0;
     if (n >= 8) {
       switch (n) {
+      case 0x10:
+        floppyROMSegment = 2;
+        floppyROMPtr = &floppyROM_1541;
+        break;
       case 0x30:
         floppyROMSegment = 0;
         floppyROMPtr = &floppyROM_1581_0;
@@ -678,10 +690,35 @@ namespace Plus4 {
     }
     else {
       // insert or replace disk
+      bool    isD64 = false;
+      {
+        // find out file type
+        std::FILE *f = std::fopen(fileName_.c_str(), "rb");
+        if (f) {
+          if (std::fseek(f, 0L, SEEK_END) >= 0)
+            isD64 = (std::ftell(f) == 174848);
+          std::fclose(f);
+        }
+        else
+          throw Ep128Emu::Exception("error opening disk image file");
+      }
+      if (floppyDrives[n]) {
+        if ((typeid(*(floppyDrives[n])) == typeid(VC1581) && isD64) ||
+            (typeid(*(floppyDrives[n])) != typeid(VC1581) && !isD64)) {
+          // need to change drive type
+          delete floppyDrives[n];
+          floppyDrives[n] = (FloppyDrive *) 0;
+          ted->getSerialPort().removeDevice(n + 8);
+        }
+      }
       if (!floppyDrives[n]) {
-        floppyDrives[n] = new VC1581(n + 8);
+        if (isD64)
+          floppyDrives[n] = new VC1541(n + 8);
+        else
+          floppyDrives[n] = new VC1581(n + 8);
         floppyDrives[n]->setROMImage(0, floppyROM_1581_0);
         floppyDrives[n]->setROMImage(1, floppyROM_1581_1);
+        floppyDrives[n]->setROMImage(2, floppyROM_1541);
       }
       floppyDrives[n]->setDiskImageFile(fileName_);
     }

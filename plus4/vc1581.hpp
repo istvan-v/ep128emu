@@ -76,6 +76,7 @@ namespace Plus4 {
     // values for 'n' are:
     //   0: 1581 low
     //   1: 1581 high
+    //   2: 1541
     // if this drive type does not use the selected ROM bank, the function call
     // is ignored
     virtual void setROMImage(int n, const uint8_t *romData_);

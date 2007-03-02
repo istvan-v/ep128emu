@@ -199,6 +199,10 @@ namespace Plus4 {
     {
       return *(static_cast<const M7501Registers *>(this));
     }
+    inline void setOverflowFlag()
+    {
+      reg_SR |= uint8_t(0x40);
+    }
     void setBreakPoint(uint16_t addr, int priority, bool r, bool w);
     void clearBreakPoints();
     void setBreakPointPriorityThreshold(int n);

@@ -90,6 +90,7 @@ namespace Plus4 {
     int32_t   soundOutputAccumulator;
     bool      sidEnabled;
     FloppyDrive *floppyDrives[4];
+    uint8_t   *floppyROM_1541;
     uint8_t   *floppyROM_1581_0;
     uint8_t   *floppyROM_1581_1;
     // ----------------
