@@ -594,6 +594,7 @@ namespace Plus4 {
     via1PortBInput = uint8_t(0x9F | ((deviceNumber & 0x03) << 5));
     via1.setPortB(via1PortBInput);
     via1.setPortA(0xFE);
+    via2.setPortB(0xEF);
     this->reset();
   }
 
@@ -686,33 +687,27 @@ namespace Plus4 {
         shiftRegisterBitCntFrac = shiftRegisterBitCntFrac & 0xFFFF;
         shiftRegisterBitCnt = (shiftRegisterBitCnt + 1) & 7;
         if (shiftRegisterBitCnt == 0) {
-          uint8_t writeByte = via2.getPortA();
-          uint8_t readByte = 0x00;
-          bool    writeMode = !(via2.getCB2());
-          if (headLoadedFlag) {
-            if (!writeMode) {
-              readByte = trackBuffer_GCR[headPosition];
-            }
-            else {
-              trackDirtyFlag = true;
-              trackBuffer_GCR[headPosition] = writeByte;
-            }
-          }
-          if (!writeMode)
-            via2.setPortA(readByte);
-          else {
-            via2.setPortA(0xFF);
-            prvByteWasFF = false;
-          }
           syncFlag = false;
-          if (readByte == 0xFF) {
-            if (prvByteWasFF) {
-              syncFlag = true;
+          if (via2.getCB2()) {
+            // read mode
+            uint8_t readByte = 0x00;
+            if (headLoadedFlag) {
+              readByte = trackBuffer_GCR[headPosition];
+              if (readByte == 0xFF)
+                syncFlag = prvByteWasFF;
             }
-            prvByteWasFF = true;
+            prvByteWasFF = (readByte == 0xFF);
+            via2.setPortA(readByte);
           }
-          else
+          else {
+            // write mode
+            via2.setPortA(0xFF);
+            if (headLoadedFlag && !writeProtectFlag) {
+              trackDirtyFlag = true;
+              trackBuffer_GCR[headPosition] = via2.getPortA();
+            }
             prvByteWasFF = false;
+          }
           via2.setPortB(uint8_t((syncFlag ? 0x7F : 0xFF)
                                 & (writeProtectFlag ? 0xEF : 0xFF)));
           // set byte ready flag
@@ -730,12 +725,6 @@ namespace Plus4 {
         else if (shiftRegisterBitCnt == 1) {
           // clear byte ready flag
           via2.setCA1(true);
-        }
-        else {
-          via2.setCA1(true);
-          via2.setPortA(0x00);
-          syncFlag = false;
-          via2.setPortB(uint8_t(writeProtectFlag ? 0xEF : 0xFF));
         }
       }
     }
