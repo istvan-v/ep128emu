@@ -59,9 +59,6 @@ namespace Plus4 {
         // terminate DMA transfer
         dmaCycleCounter = 0;
         M7501::setIsCPURunning(true);
-        // update character position reload (FF1A, FF1B)
-        if (bitmapFetchWindow && savedCharacterLine == uint8_t(7))
-          character_position_reload = character_position & 0x03FF;
         break;
       case 77:                          // end of display (38 column mode)
         if ((tedRegisters[0x07] & uint8_t(0x08)) == uint8_t(0))
@@ -98,12 +95,11 @@ namespace Plus4 {
               (savedVideoLine != 261 ? ((video_line + 1) & 0x01FF) : 0);
         }
         line_buf_pos = -35;
+        prvCharacterLine = uint8_t(character_line);
         break;
       case 99:
-        if (dmaWindow) {                // increment character sub-line
+        if (dmaWindow)                  // increment character sub-line
           character_line = (character_line + 1) & 7;
-          savedCharacterLine = uint8_t(character_line);
-        }
         if (video_line == 205) {
           dma_position = 0x03FB;
           dma_position_reload = 0x03FE;
@@ -140,7 +136,7 @@ namespace Plus4 {
           singleClockModeFlags |= uint8_t(0x01);
           if (savedVideoLine == 0) {    // initialize character sub-line
             character_line = 7;
-            savedCharacterLine = uint8_t(7);
+            prvCharacterLine = uint8_t(7);
           }
         }
         character_column = 0x3C;
@@ -153,7 +149,8 @@ namespace Plus4 {
         if (renderWindow | displayWindow | displayActive) {
           renderingDisplay = true;
           singleClockModeFlags |= uint8_t(renderWindow ? 0x01 : 0x00);
-        }
+        }                               // initialize character position
+        character_position = character_position_reload;
         break;
       case 113:                         // start display (40 column mode)
         if (displayWindow &&
@@ -273,8 +270,12 @@ namespace Plus4 {
       if (dmaWindow && character_line == 6)
         dma_position_reload = dma_position & 0x03FF;
       break;
-    case 76:                            // initialize character position
-      character_position = character_position_reload;
+    case 74:
+      // update character position reload (FF1A, FF1B)
+      if (dmaWindow && prvCharacterLine == uint8_t(6)) {
+        if (!(tedRegisterWriteMask & 0x0C000000U))
+          character_position_reload = (character_position + 1) & 0x03FF;
+      }
       break;
     case 88:                            // increment flash counter
       if (video_line == 205) {
@@ -401,8 +402,11 @@ namespace Plus4 {
       line_buf_pos += 9;
     }
     // bitmap fetches and rendering display are done on even cycle counts
-    render_func(*this);
-    currentBitmap = 0x00;
+    if (renderCnt) {
+      renderCnt--;
+      render_func(*this);
+      currentBitmap = 0x00;
+    }
     if (renderingDisplay) {
       currentCharacter = char_buf[character_column];
       currentAttribute = attr_buf[character_column];
@@ -443,6 +447,7 @@ namespace Plus4 {
         character_position = (character_position + 1) & 0x03FF;
       else
         character_position = 0x03FF;
+      renderCnt = 2;
     }
     character_column = (character_column + 1) & 0x3F;
     // update timer 2 and 3 on even cycle count (884 kHz rate)

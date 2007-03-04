@@ -269,7 +269,8 @@ namespace Plus4 {
     bool        cursorFlag;     // true if cursor is at current character
     uint8_t     dmaCycleCounter;
     uint8_t     dmaFlags;       // sum of: 1: attribute DMA; 2: character DMA
-    uint8_t     savedCharacterLine;
+    uint8_t     prvCharacterLine;
+    uint8_t     renderCnt;
     int         savedVideoLine;
     int         videoInterruptLine;
     bool        prvVideoInterruptState;

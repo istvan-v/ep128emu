@@ -261,7 +261,8 @@ namespace Plus4 {
     cursorFlag = false;
     dmaCycleCounter = 0;
     dmaFlags = 0;
-    savedCharacterLine = 0;
+    prvCharacterLine = 0;
+    renderCnt = 0;
     savedVideoLine = 224;
     videoInterruptLine = 0;
     prvVideoInterruptState = false;

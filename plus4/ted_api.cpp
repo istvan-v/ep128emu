@@ -226,7 +226,8 @@ namespace Plus4 {
     buf.writeBoolean(cursorFlag);
     buf.writeByte(dmaCycleCounter);
     buf.writeByte(dmaFlags);
-    buf.writeByte(savedCharacterLine);
+    buf.writeByte(prvCharacterLine);
+    buf.writeByte(renderCnt);
     buf.writeUInt32(uint32_t(savedVideoLine));
     buf.writeBoolean(prvVideoInterruptState);
     buf.writeByte(dataBusState);
@@ -346,7 +347,8 @@ namespace Plus4 {
       cursorFlag = buf.readBoolean();
       dmaCycleCounter = buf.readByte();
       dmaFlags = buf.readByte() & 3;
-      savedCharacterLine = buf.readByte() & 7;
+      prvCharacterLine = buf.readByte() & 7;
+      renderCnt = buf.readByte() & 3;
       savedVideoLine = int(buf.readUInt32() & 0x01FF);
       prvVideoInterruptState = buf.readBoolean();
       dataBusState = buf.readByte();

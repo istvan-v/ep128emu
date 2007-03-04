@@ -368,6 +368,7 @@ namespace Plus4 {
     (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
     ted.dataBusState = value;
+    ted.tedRegisterWriteMask = ted.tedRegisterWriteMask | 0x04000000U;
     ted.character_position_reload &= 0x00FF;
     ted.character_position_reload |= (int(value & uint8_t(0x03)) << 8);
   }
@@ -378,6 +379,7 @@ namespace Plus4 {
     (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
     ted.dataBusState = value;
+    ted.tedRegisterWriteMask = ted.tedRegisterWriteMask | 0x08000000U;
     ted.character_position_reload &= 0x0300;
     ted.character_position_reload |= int(value);
   }

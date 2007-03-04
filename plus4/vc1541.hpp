@@ -66,6 +66,8 @@ namespace Plus4 {
                                         // 0: not stepping
     int         currentTrackStepperMotorPhase;
     int         spindleMotorSpeed;      // 0 (stopped) to 65536 (full speed)
+    uint8_t     idCharacter1;
+    uint8_t     idCharacter2;
     std::FILE   *imageFile;
     // ----------------
     static uint8_t readMemory_RAM(void *userData, uint16_t addr);

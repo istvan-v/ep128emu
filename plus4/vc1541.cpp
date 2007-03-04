@@ -224,8 +224,8 @@ namespace Plus4 {
       tmpBuf1[0] = 0x08;                // block ID
       tmpBuf1[2] = uint8_t(i);          // sector (0 to 20)
       tmpBuf1[3] = uint8_t(trackNum);   // track (1 to 35)
-      tmpBuf1[4] = uint8_t((diskID & 0x0F) + 'A');  // format ID
-      tmpBuf1[5] = uint8_t((diskID >> 4) + 'A');    // -"-
+      tmpBuf1[4] = idCharacter2;        // format ID
+      tmpBuf1[5] = idCharacter1;        // -"-
       tmpBuf1[6] = 0x0F;                // padding
       tmpBuf1[7] = 0x0F;                // -"-
       crcValue = 0;
@@ -359,6 +359,8 @@ namespace Plus4 {
           else {
             currentSector = int(tmpBuf2[2]);
             currentMode = 2;
+            idCharacter2 = tmpBuf2[4];
+            idCharacter1 = tmpBuf2[5];
           }
         }
         break;
@@ -555,6 +557,8 @@ namespace Plus4 {
       steppingDirection(0),
       currentTrackStepperMotorPhase(0),
       spindleMotorSpeed(0),
+      idCharacter1(0x41),
+      idCharacter2(0x41),
       imageFile((std::FILE *) 0)
   {
     // initialize memory map
@@ -651,6 +655,11 @@ namespace Plus4 {
       std::fseek(imageFile, 0L, SEEK_SET);
       writeProtectFlag = isReadOnly;
       diskID = (diskID + 1) & 0xFF;
+      if (((diskID >> 4) + 0x41) == idCharacter1 &&
+          ((diskID & 0x0F) + 0x41) == idCharacter2)
+        diskID = (diskID + 1) & 0xFF;   // make sure that the disk ID changes
+      idCharacter1 = (diskID >> 4) + 0x41;
+      idCharacter2 = (diskID & 0x0F) + 0x41;
       currentTrack = 40;
       (void) setCurrentTrack(18);       // FIXME: should report errors ?
       currentTrackStepperMotorPhase = 0;
