@@ -2,6 +2,8 @@
 ;Basic Example Script
 ;Written by Joost Verburg
 
+  SetCompressor /SOLID /FINAL LZMA
+
 ;--------------------------------
 ;Include Modern UI
 
@@ -92,12 +94,6 @@ Section "ep128emu2" SecMain
   ;Create uninstaller
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
-  WriteRegStr HKCR ".prg" "" "Ep128Emu.PRGFile"
-  WriteRegStr HKCR "Ep128Emu.PRGFile" "" "ep128emu Plus/4 program"
-  WriteRegStr HKCR "Ep128Emu.PRGFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,0"
-  WriteRegStr HKCR "Ep128Emu.PRGFile\shell" "" "open"
-  WriteRegStr HKCR "Ep128Emu.PRGFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -plus4 -prg "%1"'
-
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
 
     ;Create shortcuts
@@ -184,17 +180,66 @@ Section "Source code" SecSrc
 
 SectionEnd
 
+Section "Associate .prg files with ep128emu" SecAssoc
+
+  WriteRegStr HKCR ".prg" "" "Ep128Emu.PRGFile"
+  WriteRegStr HKCR "Ep128Emu.PRGFile" "" "ep128emu Plus/4 program"
+  WriteRegStr HKCR "Ep128Emu.PRGFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,0"
+  WriteRegStr HKCR "Ep128Emu.PRGFile\shell" "" "open"
+  WriteRegStr HKCR "Ep128Emu.PRGFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -plus4 -prg "%1"'
+
+SectionEnd
+
+Section "Download ROM images" SecDLRoms
+
+  SetOutPath "$INSTDIR\roms"
+
+  Push ""
+  Push "tasmon1.rom"
+  Push "tasmon0.rom"
+  Push "p4_ntsc.rom"
+  Push "p4kernal.rom"
+  Push "p4_basic.rom"
+  Push "exos1.rom"
+  Push "exos0.rom"
+  Push "exdos1.rom"
+  Push "exdos0.rom"
+  Push "ep_basic.rom"
+  Push "dos1581.rom"
+  Push "dos1541.rom"
+  Push "3plus1lo.rom"
+  Push "3plus1hi.rom"
+
+  downloadLoop:
+
+    Pop $0
+    StrCmp $0 "" downloadLoopDone 0
+    NSISdl::download "http://www.sharemation.com/IstvanV/roms/$0" "$INSTDIR\roms\$0"
+    Pop $R0
+    StrCmp $R0 "success" downloadLoop 0
+    StrCmp $R0 "cancel" downloadLoop 0
+    MessageBox MB_OK "Download failed: $R0"
+    Goto downloadLoop
+
+  downloadLoopDone:
+
+SectionEnd
+
 ;--------------------------------
 ;Descriptions
 
   ;Language strings
   LangString DESC_SecMain ${LANG_ENGLISH} "ep128emu binaries"
   LangString DESC_SecSrc ${LANG_ENGLISH} "ep128emu source code"
+  LangString DESC_SecAssoc ${LANG_ENGLISH} "Associate .prg files with ep128emu"
+  LangString DESC_SecDLRoms ${LANG_ENGLISH} "Download and install ROM images"
 
   ;Assign language strings to sections
   !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
     !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} $(DESC_SecMain)
     !insertmacro MUI_DESCRIPTION_TEXT ${SecSrc} $(DESC_SecSrc)
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecAssoc} $(DESC_SecAssoc)
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecDLRoms} $(DESC_SecDLRoms)
   !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 ;--------------------------------
@@ -258,8 +303,22 @@ Section "Uninstall"
   RMDir "$INSTDIR\demo"
   RMDir "$INSTDIR\disk"
   RMDir "$INSTDIR\progs"
+  Delete "$INSTDIR\roms\3plus1hi.rom"
+  Delete "$INSTDIR\roms\3plus1lo.rom"
+  Delete "$INSTDIR\roms\dos1541.rom"
+  Delete "$INSTDIR\roms\dos1581.rom"
+  Delete "$INSTDIR\roms\ep_basic.rom"
   Delete "$INSTDIR\roms\epfileio.rom"
+  Delete "$INSTDIR\roms\exdos0.rom"
+  Delete "$INSTDIR\roms\exdos1.rom"
+  Delete "$INSTDIR\roms\exos0.rom"
+  Delete "$INSTDIR\roms\exos1.rom"
+  Delete "$INSTDIR\roms\p4_basic.rom"
   Delete "$INSTDIR\roms\p4fileio.rom"
+  Delete "$INSTDIR\roms\p4kernal.rom"
+  Delete "$INSTDIR\roms\p4_ntsc.rom"
+  Delete "$INSTDIR\roms\tasmon0.rom"
+  Delete "$INSTDIR\roms\tasmon1.rom"
   RMDir "$INSTDIR\roms"
   RMDir /r "$INSTDIR\src"
   RMDir "$INSTDIR\tape"
