@@ -238,3 +238,26 @@ tapconvEnvironment.Prepend(LIBS = ['ep128emu'])
 tapconv = tapconvEnvironment.Program('tapconv', ['plus4/util/tapconv.cpp'])
 Depends(tapconv, ep128emuLib)
 
+# -----------------------------------------------------------------------------
+
+makecfgEnvironment = ep128emuGUIEnvironment.Copy()
+makecfgEnvironment.Append(CPPPATH = ['./installer'])
+makecfgEnvironment.Prepend(LIBS = ['ep128emu'])
+if haveDotconf:
+    makecfgEnvironment.Append(LIBS = ['dotconf'])
+makecfgEnvironment.Append(LIBS = ['sndfile'])
+if not win32CrossCompile:
+    makecfgEnvironment.Append(LIBS = ['pthread'])
+else:
+    makecfgEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
+
+Command(['installer/mkcfg_fl.cpp', 'installer/mkcfg_fl.hpp'],
+        'installer/mkcfg.fl',
+        'fluid -c -o installer/mkcfg_fl.cpp -h installer/mkcfg_fl.hpp $SOURCES')
+
+makecfg = makecfgEnvironment.Program('makecfg', Split('''
+    installer/makecfg.cpp
+    installer/mkcfg_fl.cpp
+'''))
+Depends(makecfg, ep128emuLib)
+
