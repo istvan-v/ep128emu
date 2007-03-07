@@ -98,13 +98,16 @@ Section "ep128emu2" SecMain
 
     ;Create shortcuts
     CreateDirectory "$SMPROGRAMS\$STARTMENU_FOLDER"
+    SetOutPath "$INSTDIR"
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\ep128emu - OpenGL mode.lnk" "$INSTDIR\ep128emu.exe" '-opengl'
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\ep128emu - software mode.lnk" "$INSTDIR\ep128emu.exe" '-no-opengl'
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\plus4 - OpenGL mode.lnk" "$INSTDIR\ep128emu.exe" '-plus4 -opengl'
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\plus4 - software mode.lnk" "$INSTDIR\ep128emu.exe" '-plus4 -no-opengl'
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\README.lnk" "$INSTDIR\readme.txt"
+    SetOutPath "$INSTDIR\tape"
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Tape editor.lnk" "$INSTDIR\tapeedit.exe"
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Reinstall configuration files.lnk" "$INSTDIR\makecfg.exe" "$INSTDIR"
+    SetOutPath "$INSTDIR"
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Reinstall configuration files.lnk" "$INSTDIR\makecfg.exe" '"$INSTDIR"'
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
 
   !insertmacro MUI_STARTMENU_WRITE_END

@@ -23,6 +23,13 @@
 #include "cfg_db.hpp"
 #include "mkcfg_fl.hpp"
 
+#ifdef WIN32
+#  undef WIN32
+#endif
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#  define WIN32 1
+#endif
+
 static int keyboardMap_EP[256] = {
   0x006E,     -1, 0x005C,     -1, 0x0062,     -1, 0x0063,     -1,
   0x0076,     -1, 0x0078,     -1, 0x007A,     -1, 0xFFE1,     -1,
@@ -93,6 +100,8 @@ static int keyboardMap_P4[256] = {
       -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1
 };
 
+#ifndef WIN32
+
 static int keyboardMap_P4_HU[256] = {
   0xFF08,     -1, 0xFF0D,     -1, 0xFFFF,     -1, 0xFFC1,     -1,
   0xFFBE,     -1, 0xFFBF,     -1, 0xFFC0,     -1, 0x00FC,     -1,
@@ -127,6 +136,45 @@ static int keyboardMap_P4_HU[256] = {
       -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
       -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1
 };
+
+#else   // WIN32
+
+static int keyboardMap_P4_HU[256] = {
+  0xFF08,     -1, 0xFF0D,     -1, 0xFFFF,     -1, 0xFFC1,     -1,
+  0xFFBE,     -1, 0xFFBF,     -1, 0xFFC0,     -1, 0x002D,     -1,
+  0x0033,     -1, 0x0077,     -1, 0x0061,     -1, 0x0034,     -1,
+  0x0079,     -1, 0x0073,     -1, 0x0065,     -1, 0xFFE1, 0xFFE2,
+  0x0035,     -1, 0x0072,     -1, 0x0064,     -1, 0x0036,     -1,
+  0x0063,     -1, 0x0066,     -1, 0x0074,     -1, 0x0078,     -1,
+  0x0037,     -1, 0x007A,     -1, 0x0067,     -1, 0x0038,     -1,
+  0x0062,     -1, 0x0068,     -1, 0x0075,     -1, 0x0076,     -1,
+  0x0039,     -1, 0x0069,     -1, 0x006A,     -1, 0x0030,     -1,
+  0x006D,     -1, 0x006B,     -1, 0x006F,     -1, 0x006E,     -1,
+  0xFF54,     -1, 0x0070,     -1, 0x006C,     -1, 0xFF52,     -1,
+  0x002E,     -1, 0x003B,     -1, 0x005D, 0xFFAD, 0x002C,     -1,
+  0xFF51,     -1, 0x005C, 0xFFAA, 0x0027,     -1, 0xFF53,     -1,
+  0xFF1B, 0x0060, 0x003D,     -1, 0x005B,     -1, 0x002F,     -1,
+  0x0031,     -1, 0xFF50,     -1, 0xFFE4,     -1, 0x0032,     -1,
+  0x0020,     -1, 0xFFE3,     -1, 0x0071,     -1, 0xFF61, 0xFF09,
+      -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
+      -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
+  0xFFB8,     -1, 0xFFB2,     -1, 0xFFB4,     -1, 0xFFB6,     -1,
+      -1,     -1,     -1,     -1,     -1,     -1, 0xFF8D, 0xFFB0,
+  0xFFAF,     -1, 0xFFB5,     -1, 0xFFB7,     -1, 0xFFB9,     -1,
+      -1,     -1,     -1,     -1, 0xFFAB,     -1,     -1,     -1,
+      -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
+      -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
+      -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
+      -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
+      -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
+      -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
+      -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
+      -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
+      -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
+      -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1
+};
+
+#endif  // WIN32
 
 static const char *keyboardConfigFileNames[8] = {
   "EP_Keyboard_US.cfg",         // 0
@@ -343,6 +391,14 @@ class Ep128EmuDisplaySndConfiguration {
     struct {
       double      latency;
       int         hwPeriods;
+      double      dcBlockFilter1Freq;
+      double      dcBlockFilter2Freq;
+      struct {
+        int       mode;
+        double    frequency;
+        double    level;
+        double    q;
+      } equalizer;
     } sound;
  public:
   Ep128EmuDisplaySndConfiguration(Ep128Emu::ConfigurationDB& config,
@@ -351,9 +407,31 @@ class Ep128EmuDisplaySndConfiguration {
     display.quality = (isPlus4 ? 1 : 2);
     sound.latency = 0.05;
     sound.hwPeriods = 8;
+    if (!isPlus4) {
+      sound.dcBlockFilter1Freq = 10.0;
+      sound.dcBlockFilter2Freq = 10.0;
+      sound.equalizer.mode = -1;
+      sound.equalizer.frequency = 1000.0;
+      sound.equalizer.level = 1.0;
+      sound.equalizer.q = 0.7071;
+    }
+    else {
+      sound.dcBlockFilter1Freq = 10.0;
+      sound.dcBlockFilter2Freq = 10.0;
+      sound.equalizer.mode = 2;
+      sound.equalizer.frequency = 14000.0;
+      sound.equalizer.level = 0.355;
+      sound.equalizer.q = 0.7071;
+    }
     config.createKey("display.quality", display.quality);
     config.createKey("sound.latency", sound.latency);
     config.createKey("sound.hwPeriods", sound.hwPeriods);
+    config.createKey("sound.dcBlockFilter1Freq", sound.dcBlockFilter1Freq);
+    config.createKey("sound.dcBlockFilter2Freq", sound.dcBlockFilter2Freq);
+    config.createKey("sound.equalizer.mode", sound.equalizer.mode);
+    config.createKey("sound.equalizer.frequency", sound.equalizer.frequency);
+    config.createKey("sound.equalizer.level", sound.equalizer.level);
+    config.createKey("sound.equalizer.q", sound.equalizer.q);
   }
 };
 
@@ -409,7 +487,7 @@ int main(int argc, char **argv)
     installDirectory = argv[argc - 1];
   if (installDirectory.length() == 0)
     return -1;
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
   uint8_t c = '\\';
 #else
   uint8_t c = '/';
