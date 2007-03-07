@@ -208,6 +208,7 @@ namespace Ep128Emu {
     : AudioOutput(),
       paInitialized(false),
       disableRingBuffer(false),
+      usingBlockingInterface(false),
       paLockTimeout(0U),
       writeBufIndex(0),
       readBufIndex(0),
@@ -234,6 +235,7 @@ namespace Ep128Emu {
       paStream = (PaStream *) 0;
     }
     disableRingBuffer = false;
+    usingBlockingInterface = false;
     writeBufIndex = 0;
     readBufIndex = 0;
     buffers.clear();
@@ -246,16 +248,35 @@ namespace Ep128Emu {
   void AudioOutput_PortAudio::sendAudioData(const int16_t *buf, size_t nFrames)
   {
     if (paStream) {
-      for (size_t i = 0; i < nFrames; i++) {
-        Buffer& buf_ = buffers[writeBufIndex];
-        buf_.audioData[buf_.writePos++] = buf[(i << 1) + 0];
-        buf_.audioData[buf_.writePos++] = buf[(i << 1) + 1];
-        if (buf_.writePos >= buf_.audioData.size()) {
-          buf_.writePos = 0;
-          buf_.paLock.notify();
-          if (buf_.epLock.wait(1000)) {
-            if (++writeBufIndex >= buffers.size())
-              writeBufIndex = 0;
+#ifndef USING_OLD_PORTAUDIO_API
+      if (usingBlockingInterface) {
+        for (size_t i = 0; i < nFrames; i++) {
+          // ring buffer is not used for blocking I/O,
+          // so assume nPeriodsSW == 1
+          Buffer& buf_ = buffers[0];
+          buf_.audioData[buf_.writePos++] = buf[(i << 1) + 0];
+          buf_.audioData[buf_.writePos++] = buf[(i << 1) + 1];
+          if (buf_.writePos >= buf_.audioData.size()) {
+            buf_.writePos = 0;
+            Pa_WriteStream(paStream,
+                           &(buf_.audioData[0]), buf_.audioData.size() >> 1);
+          }
+        }
+      }
+      else
+#endif
+      {
+        for (size_t i = 0; i < nFrames; i++) {
+          Buffer& buf_ = buffers[writeBufIndex];
+          buf_.audioData[buf_.writePos++] = buf[(i << 1) + 0];
+          buf_.audioData[buf_.writePos++] = buf[(i << 1) + 1];
+          if (buf_.writePos >= buf_.audioData.size()) {
+            buf_.writePos = 0;
+            buf_.paLock.notify();
+            if (buf_.epLock.wait(1000)) {
+              if (++writeBufIndex >= buffers.size())
+                writeBufIndex = 0;
+            }
           }
         }
       }
@@ -289,6 +310,7 @@ namespace Ep128Emu {
       paStream = (PaStream *) 0;
     }
     disableRingBuffer = false;
+    usingBlockingInterface = false;
     writeBufIndex = 0;
     readBufIndex = 0;
     buffers.clear();
@@ -417,6 +439,7 @@ namespace Ep128Emu {
     }
     if (devIndex >= devCnt)
       throw Exception("device number is out of range");
+    usingBlockingInterface = false;
 #ifndef USING_OLD_PORTAUDIO_API
     const PaDeviceInfo  *devInfo = Pa_GetDeviceInfo(PaDeviceIndex(devIndex));
     if (devInfo) {
@@ -427,6 +450,8 @@ namespace Ep128Emu {
             hostApiInfo->type == paOSS ||
             hostApiInfo->type == paALSA) {
           disableRingBuffer = true;
+          if (hostApiInfo->type != paDirectSound)
+            usingBlockingInterface = true;
         }
       }
     }
@@ -468,10 +493,15 @@ namespace Ep128Emu {
     streamParams.suggestedLatency = PaTime(double(periodSize) * nPeriodsHW
                                            / sampleRate);
     streamParams.hostApiSpecificStreamInfo = (void *) 0;
-    PaError err =
-        Pa_OpenStream(&paStream, (PaStreamParameters *) 0, &streamParams,
-                      sampleRate, unsigned(periodSize),
-                      paNoFlag, &portAudioCallback, (void *) this);
+    PaError err = paNoError;
+    if (usingBlockingInterface)
+      err = Pa_OpenStream(&paStream, (PaStreamParameters *) 0, &streamParams,
+                          sampleRate, unsigned(periodSize),
+                          paNoFlag, (PaStreamCallback *) 0, (void *) this);
+    else
+      err = Pa_OpenStream(&paStream, (PaStreamParameters *) 0, &streamParams,
+                          sampleRate, unsigned(periodSize),
+                          paNoFlag, &portAudioCallback, (void *) this);
 #else
     PaError err =
         Pa_OpenStream(&paStream,

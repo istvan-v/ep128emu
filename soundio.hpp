@@ -85,6 +85,7 @@ namespace Ep128Emu {
     };
     bool          paInitialized;
     bool          disableRingBuffer;
+    bool          usingBlockingInterface;
     unsigned int  paLockTimeout;
     std::vector< Buffer >   buffers;
     size_t        writeBufIndex;
