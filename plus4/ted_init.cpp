@@ -205,8 +205,8 @@ namespace Plus4 {
     character_position = 0x0000;
     character_position_reload = 0x0000;
     character_column = 0;
-    dma_position = 0x03FB;
-    dma_position_reload = 0x03FE;
+    dma_position = 0x03FF;
+    dma_position_reload = 0x03FF;
     attr_base_addr = 0x0000;
     bitmap_base_addr = 0x0000;
     charset_base_addr = 0x0000;
@@ -263,6 +263,7 @@ namespace Plus4 {
     dmaFlags = 0;
     prvCharacterLine = 0;
     renderCnt = 0;
+    incrementingDMAPosition = false;
     savedVideoLine = 224;
     videoInterruptLine = 0;
     prvVideoInterruptState = false;

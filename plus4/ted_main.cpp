@@ -27,6 +27,8 @@ namespace Plus4 {
   {
     if (ted_disabled) {
       tedRegisterWriteMask = 0U;
+      dmaCycleCounter = 0;
+      M7501::setIsCPURunning(true);
       M7501::run(cpu_clock_multiplier);
       if (!cycle_count)
         playSample(0);
@@ -101,8 +103,8 @@ namespace Plus4 {
         if (dmaWindow)                  // increment character sub-line
           character_line = (character_line + 1) & 7;
         if (video_line == 205) {
-          dma_position = 0x03FB;
-          dma_position_reload = 0x03FE;
+          dma_position = 0x03FF;
+          dma_position_reload = 0x03FF;
           dmaFlags = 0;
         }
         if (savedVideoLine == 204) {    // end of display
@@ -143,7 +145,10 @@ namespace Plus4 {
         break;
       case 105:                         // horizontal blanking end
         horizontalBlanking = false;
+        break;
+      case 107:
         dma_position = (dma_position & 0x0400) | dma_position_reload;
+        incrementingDMAPosition = renderWindow;
         break;
       case 109:                         // start DMA and/or bitmap fetch
         if (renderWindow | displayWindow | displayActive) {
@@ -200,7 +205,8 @@ namespace Plus4 {
         if (dmaFlags & 2)
           char_buf[character_column] = dataBusState;
       }
-      dma_position = (dma_position & 0x0400) | ((dma_position + 1) & 0x03FF);
+      if (incrementingDMAPosition)
+        dma_position = (dma_position & 0x0400) | ((dma_position + 1) & 0x03FF);
       pixelBuf2[0] = pixelBuf2[1];
       pixelBuf2[1] = pixelBuf2[2];
       pixelBuf2[2] = pixelBuf1[0];
@@ -268,7 +274,11 @@ namespace Plus4 {
     switch (video_column) {
     case 70:                            // update DMA read position
       if (dmaWindow && character_line == 6)
-        dma_position_reload = dma_position & 0x03FF;
+        dma_position_reload =
+            (dma_position + (incrementingDMAPosition ? 1 : 0)) & 0x03FF;
+      break;
+    case 72:
+      incrementingDMAPosition = false;
       break;
     case 74:
       // update character position reload (FF1A, FF1B)

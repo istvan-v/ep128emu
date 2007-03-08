@@ -271,6 +271,7 @@ namespace Plus4 {
     uint8_t     dmaFlags;       // sum of: 1: attribute DMA; 2: character DMA
     uint8_t     prvCharacterLine;
     uint8_t     renderCnt;
+    bool        incrementingDMAPosition;
     int         savedVideoLine;
     int         videoInterruptLine;
     bool        prvVideoInterruptState;
