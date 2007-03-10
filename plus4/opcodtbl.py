@@ -21,32 +21,16 @@ def generateOpcode(f, opNum, opName_):
             print >> f, '    CPU_OP_LSR,'
             print >> f, '    CPU_OP_LD_A_TMP,'
             cnt = cnt + 4
-        elif opName[:2] != 'ld':
+        else:
             print >> f, '    CPU_OP_%s,' % opName.upper()
             cnt = cnt + 1
-        else:
-            print >> f, '    CPU_OP_SET_NZ,'
-            print >> f, '    CPU_OP_LD_%s_TMP,' % opName[2].upper()
-            cnt = cnt + 2
         cnt = cnt + 1
     elif operand != '':
         if opName[0] == 'b' and opName != 'bit':
             print >> f, '    CPU_OP_RD_L,'
-            if opName in ['bpl', 'bvc', 'bne', 'bcc']:
-                print >> f, '    CPU_OP_LD_TMP_00,'
-            else:
-                print >> f, '    CPU_OP_LD_TMP_FF,'
-            if opName in ['bpl', 'bmi']:
-                print >> f, '    CPU_OP_TEST_N,'
-            elif opName in ['bvc', 'bvs']:
-                print >> f, '    CPU_OP_TEST_V,'
-            elif opName in ['bne', 'beq']:
-                print >> f, '    CPU_OP_TEST_Z,'
-            elif opName in ['bcc', 'bcs']:
-                print >> f, '    CPU_OP_TEST_C,'
-            print >> f, '    CPU_OP_BRANCH,'
+            print >> f, '    CPU_OP_%s,' % opName.upper()
             print >> f, '    CPU_OP_JMP_RELATIVE,'
-            cnt = cnt + 5
+            cnt = cnt + 3
         elif opName[0] != 'j':
             if operand == 'nn':
                 print >> f, '    CPU_OP_RD_L,'
@@ -88,9 +72,7 @@ def generateOpcode(f, opNum, opName_):
             elif operand == '(nn),y' or operand == '(nn), y':
                 print >> f, '    CPU_OP_RD_L,'
                 print >> f, '    CPU_OP_LD_TMP_MEM,'
-                print >> f, '    CPU_OP_INC_L,'
-                print >> f, '    CPU_OP_LD_H_MEM,'
-                print >> f, '    CPU_OP_LD_L_TMP,'
+                print >> f, '    CPU_OP_LD_H_MEMP1_L_TMP,'
                 if opName in writeInstructions:
                     if opName[:2] == 'sh':
                         print >> f, '    CPU_OP_ADDR_Y_%s,' % opName.upper()
@@ -98,15 +80,13 @@ def generateOpcode(f, opNum, opName_):
                         print >> f, '    CPU_OP_ADDR_Y_SLOW,'
                 else:
                     print >> f, '    CPU_OP_ADDR_Y,'
-                cnt = cnt + 6
+                cnt = cnt + 4
             elif operand == '(nn,x)' or operand == '(nn, x)':
                 print >> f, '    CPU_OP_RD_L,'
                 print >> f, '    CPU_OP_ADDR_X_ZEROPAGE,'
                 print >> f, '    CPU_OP_LD_TMP_MEM,'
-                print >> f, '    CPU_OP_INC_L,'
-                print >> f, '    CPU_OP_LD_H_MEM,'
-                print >> f, '    CPU_OP_LD_L_TMP,'
-                cnt = cnt + 6
+                print >> f, '    CPU_OP_LD_H_MEMP1_L_TMP,'
+                cnt = cnt + 4
             else:
                 print ' *** invalid addressing mode'
                 raise SystemExit(-1)
@@ -115,26 +95,12 @@ def generateOpcode(f, opNum, opName_):
                 cnt = cnt + 1
             if opName == 'nop':
                 pass
-            elif opName[:2] == 'ld':
-                print >> f, '    CPU_OP_SET_NZ,'
-                print >> f, '    CPU_OP_LD_%s_TMP,' % opName[2].upper()
-                cnt = cnt + 2
-            elif opName == 'lax':
-                print >> f, '    CPU_OP_SET_NZ,'
-                print >> f, '    CPU_OP_LD_A_TMP,'
-                print >> f, '    CPU_OP_LD_X_TMP,'
-                cnt = cnt + 3
             elif opName[:2] == 'sh':
                 print >> f, '    CPU_OP_LD_MEM_TMP,'
                 cnt = cnt + 1
-            elif opName[:2] == 'st':
-                print >> f, '    CPU_OP_LD_TMP_%s,' % opName[2].upper()
-                print >> f, '    CPU_OP_LD_MEM_TMP,'
-                cnt = cnt + 2
-            elif opName == 'sax':
-                print >> f, '    CPU_OP_SAX,'
-                print >> f, '    CPU_OP_LD_MEM_TMP,'
-                cnt = cnt + 2
+            elif opName[:2] == 'st' or opName == 'sax':
+                print >> f, '    CPU_OP_%s,' % opName.upper()
+                cnt = cnt + 1
             elif opName in writeInstructions:
                 print >> f, '    CPU_OP_LD_MEM_TMP_NODEBUG,'
                 if opName == 'slo':
@@ -178,14 +144,12 @@ def generateOpcode(f, opNum, opName_):
             print >> f, '    CPU_OP_RD_L,'
             print >> f, '    CPU_OP_RD_H,'
             print >> f, '    CPU_OP_LD_TMP_MEM,'
-            print >> f, '    CPU_OP_INC_L,'
-            print >> f, '    CPU_OP_LD_H_MEM,'
-            print >> f, '    CPU_OP_LD_L_TMP,'
+            print >> f, '    CPU_OP_LD_H_MEMP1_L_TMP,'
             print >> f, '    CPU_OP_LD_PC_HL,'
-            cnt = cnt + 7
+            cnt = cnt + 5
         elif opName == 'jsr' and operand == 'nnnn':
             print >> f, '    CPU_OP_RD_L,'
-            print >> f, '    CPU_OP_WAIT,'
+            print >> f, '    CPU_OP_LD_DUMMY_MEM_SP,'
             print >> f, '    CPU_OP_PUSH_PCH,'
             print >> f, '    CPU_OP_PUSH_PCL,'
             print >> f, '    CPU_OP_RD_H,'
@@ -202,35 +166,29 @@ def generateOpcode(f, opNum, opName_):
             print >> f, '    CPU_OP_BRK,'
             print >> f, '    CPU_OP_PUSH_TMP,'
             print >> f, '    CPU_OP_LD_TMP_MEM,'
-            print >> f, '    CPU_OP_INC_L,'
-            print >> f, '    CPU_OP_LD_H_MEM,'
-            print >> f, '    CPU_OP_LD_L_TMP,'
+            print >> f, '    CPU_OP_LD_H_MEMP1_L_TMP,'
             print >> f, '    CPU_OP_LD_PC_HL,'
-            cnt = cnt + 10
+            cnt = cnt + 8
         elif opName == 'int':
-            print >> f, '    CPU_OP_WAIT,'
-            print >> f, '    CPU_OP_WAIT,'
+            print >> f, '    CPU_OP_LD_DUMMY_MEM_PC,'
+            print >> f, '    CPU_OP_LD_DUMMY_MEM_SP,'
             print >> f, '    CPU_OP_PUSH_PCH,'
             print >> f, '    CPU_OP_PUSH_PCL,'
             print >> f, '    CPU_OP_INTERRUPT,'
             print >> f, '    CPU_OP_PUSH_TMP,'
             print >> f, '    CPU_OP_LD_TMP_MEM,'
-            print >> f, '    CPU_OP_INC_L,'
-            print >> f, '    CPU_OP_LD_H_MEM,'
-            print >> f, '    CPU_OP_LD_L_TMP,'
+            print >> f, '    CPU_OP_LD_H_MEMP1_L_TMP,'
             print >> f, '    CPU_OP_LD_PC_HL,'
-            cnt = cnt + 11
+            cnt = cnt + 9
         elif opName == 'rst':
             print >> f, '    CPU_OP_PUSH_PCH,'
             print >> f, '    CPU_OP_PUSH_PCL,'
             print >> f, '    CPU_OP_RESET,'
             print >> f, '    CPU_OP_PUSH_TMP,'
             print >> f, '    CPU_OP_LD_TMP_MEM,'
-            print >> f, '    CPU_OP_INC_L,'
-            print >> f, '    CPU_OP_LD_H_MEM,'
-            print >> f, '    CPU_OP_LD_L_TMP,'
+            print >> f, '    CPU_OP_LD_H_MEMP1_L_TMP,'
             print >> f, '    CPU_OP_LD_PC_HL,'
-            cnt = cnt + 9
+            cnt = cnt + 7
         elif opName == 'sys':
             print >> f, '    CPU_OP_RD_TMP,'
             print >> f, '    CPU_OP_RD_L,'
@@ -238,78 +196,60 @@ def generateOpcode(f, opNum, opName_):
             print >> f, '    CPU_OP_SYS,'
             cnt = cnt + 4
         elif opName[:2] == 'se' or opName[:2] == 'cl':
-            if opName[:2] == 'cl':
-                print >> f, '    CPU_OP_LD_TMP_00,'
-            else:
-                print >> f, '    CPU_OP_LD_TMP_FF,'
-            print >> f, '    CPU_OP_SET_%s,' % opName[2].upper()
-            print >> f, '    CPU_OP_WAIT,'
-            cnt = cnt + 3
+            print >> f, '    CPU_OP_%s,' % opName.upper()
+            cnt = cnt + 1
         elif opName[:2] == 'in' or opName[:2] == 'de':
-            print >> f, '    CPU_OP_LD_TMP_%s,' % opName[2].upper()
-            print >> f, '    CPU_OP_%sC,' % opName[:2].upper()
-            print >> f, '    CPU_OP_LD_%s_TMP,' % opName[2].upper()
-            print >> f, '    CPU_OP_WAIT,'
-            cnt = cnt + 4
+            print >> f, '    CPU_OP_%s,' % opName.upper()
+            cnt = cnt + 1
         elif opName[0] == 't':
-            if opName[1] != 's':
-                print >> f, '    CPU_OP_LD_TMP_%s,' % opName[1].upper()
-            else:
-                print >> f, '    CPU_OP_LD_TMP_SP,'
-            if opName[2] != 's':
-                print >> f, '    CPU_OP_SET_NZ,'
-                print >> f, '    CPU_OP_LD_%s_TMP,' % opName[2].upper()
-                cnt = cnt + 1
-            else:
-                print >> f, '    CPU_OP_LD_SP_TMP,'
-            print >> f, '    CPU_OP_WAIT,'
-            cnt = cnt + 3
+            print >> f, '    CPU_OP_%s,' % opName.upper()
+            cnt = cnt + 1
         elif opName in ['asl', 'lsr', 'rol', 'ror']:
             print >> f, '    CPU_OP_LD_TMP_A,'
             print >> f, '    CPU_OP_%s,' % opName.upper()
             print >> f, '    CPU_OP_LD_A_TMP,'
-            print >> f, '    CPU_OP_WAIT,'
+            print >> f, '    CPU_OP_LD_DUMMY_MEM_PC,'
             cnt = cnt + 4
         elif opName == 'rts':
-            print >> f, '    CPU_OP_RD_TMP_NODEBUG,'
-            print >> f, '    CPU_OP_WAIT,'
+            print >> f, '    CPU_OP_LD_DUMMY_MEM_PC,'
+            print >> f, '    CPU_OP_LD_DUMMY_MEM_SP,'
             print >> f, '    CPU_OP_POP_PCL,'
             print >> f, '    CPU_OP_POP_PCH,'
             print >> f, '    CPU_OP_RD_TMP_NODEBUG,'
             cnt = cnt + 5
         elif opName == 'rti':
-            print >> f, '    CPU_OP_RD_TMP_NODEBUG,'
-            print >> f, '    CPU_OP_WAIT,'
+            print >> f, '    CPU_OP_LD_DUMMY_MEM_PC,'
+            print >> f, '    CPU_OP_LD_DUMMY_MEM_SP,'
             print >> f, '    CPU_OP_POP_TMP,'
             print >> f, '    CPU_OP_LD_SR_TMP,'
             print >> f, '    CPU_OP_POP_PCL,'
             print >> f, '    CPU_OP_POP_PCH,'
             cnt = cnt + 6
         elif opName == 'pha':
-            print >> f, '    CPU_OP_WAIT,'
+            print >> f, '    CPU_OP_LD_DUMMY_MEM_PC,'
             print >> f, '    CPU_OP_LD_TMP_A,'
             print >> f, '    CPU_OP_PUSH_TMP,'
             cnt = cnt + 3
         elif opName == 'php':
-            print >> f, '    CPU_OP_WAIT,'
+            print >> f, '    CPU_OP_LD_DUMMY_MEM_PC,'
             print >> f, '    CPU_OP_LD_TMP_SR,'
             print >> f, '    CPU_OP_PUSH_TMP,'
             cnt = cnt + 3
         elif opName == 'pla':
-            print >> f, '    CPU_OP_WAIT,'
-            print >> f, '    CPU_OP_WAIT,'
+            print >> f, '    CPU_OP_LD_DUMMY_MEM_PC,'
+            print >> f, '    CPU_OP_LD_DUMMY_MEM_SP,'
             print >> f, '    CPU_OP_POP_TMP,'
             print >> f, '    CPU_OP_SET_NZ,'
             print >> f, '    CPU_OP_LD_A_TMP,'
             cnt = cnt + 5
         elif opName == 'plp':
-            print >> f, '    CPU_OP_WAIT,'
-            print >> f, '    CPU_OP_WAIT,'
+            print >> f, '    CPU_OP_LD_DUMMY_MEM_PC,'
+            print >> f, '    CPU_OP_LD_DUMMY_MEM_SP,'
             print >> f, '    CPU_OP_POP_TMP,'
             print >> f, '    CPU_OP_LD_SR_TMP,'
             cnt = cnt + 4
         elif opName == 'nop':
-            print >> f, '    CPU_OP_WAIT,'
+            print >> f, '    CPU_OP_LD_DUMMY_MEM_PC,'
             cnt = cnt + 1
         elif opName == '???':
             print >> f, '    CPU_OP_INVALID_OPCODE,'

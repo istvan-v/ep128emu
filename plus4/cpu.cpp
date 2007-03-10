@@ -90,13 +90,11 @@ namespace Plus4 {
           (reg_SR & uint8_t(0x04)) == uint8_t(0))
         interruptFlag = true;
       interruptDelayRegister >>= 1;
-      bool    doneCycle = false;
-      do {
+      while (true) {
         unsigned char n = *(currentOpcode++);
         switch (n) {
         case CPU_OP_RD_OPCODE:
           if (!(interruptFlag | resetFlag)) {
-            doneCycle = true;
             uint8_t opNum = readMemory(reg_PC);
             if (haltFlag) {
               currentOpcode--;
@@ -109,13 +107,15 @@ namespace Plus4 {
             reg_PC = (reg_PC + 1) & 0xFFFF;
             currentOpcode = &(opcodeTable[size_t(opNum) << 4]);
           }
-          else if (resetFlag)
-            currentOpcode = &(opcodeTable[size_t(0x101) << 4]);
-          else
-            currentOpcode = &(opcodeTable[size_t(0x100) << 4]);
+          else {
+            if (resetFlag)
+              currentOpcode = &(opcodeTable[size_t(0x101) << 4]);
+            else
+              currentOpcode = &(opcodeTable[size_t(0x100) << 4]);
+            continue;
+          }
           break;
         case CPU_OP_RD_TMP:
-          doneCycle = true;
           reg_TMP = readMemory(reg_PC);
           if (haltFlag) {
             currentOpcode--;
@@ -126,7 +126,6 @@ namespace Plus4 {
           reg_PC = (reg_PC + 1) & 0xFFFF;
           break;
         case CPU_OP_RD_TMP_NODEBUG:
-          doneCycle = true;
           reg_TMP = readMemory(reg_PC);
           if (haltFlag) {
             currentOpcode--;
@@ -135,7 +134,6 @@ namespace Plus4 {
           reg_PC = (reg_PC + 1) & 0xFFFF;
           break;
         case CPU_OP_RD_L:
-          doneCycle = true;
           reg_L = readMemory(reg_PC);
           reg_H = uint8_t(0x00);
           if (haltFlag) {
@@ -147,7 +145,6 @@ namespace Plus4 {
           reg_PC = (reg_PC + 1) & 0xFFFF;
           break;
         case CPU_OP_RD_H:
-          doneCycle = true;
           reg_H = readMemory(reg_PC);
           if (haltFlag) {
             currentOpcode--;
@@ -157,13 +154,7 @@ namespace Plus4 {
             checkReadBreakPoint(reg_PC, reg_H);
           reg_PC = (reg_PC + 1) & 0xFFFF;
           break;
-        case CPU_OP_WAIT:
-          doneCycle = true;
-          if (haltFlag)
-            currentOpcode--;
-          break;
         case CPU_OP_LD_TMP_MEM:
-          doneCycle = true;
           {
             uint16_t  addr = uint16_t(reg_L) | (uint16_t(reg_H) << 8);
             reg_TMP = readMemory(addr);
@@ -174,7 +165,6 @@ namespace Plus4 {
           }
           break;
         case CPU_OP_LD_TMP_MEM_NODEBUG:
-          doneCycle = true;
           reg_TMP = readMemory(uint16_t(reg_L) | (uint16_t(reg_H) << 8));
           if (haltFlag)
             currentOpcode--;
@@ -185,36 +175,43 @@ namespace Plus4 {
             if (haveBreakPoints)
               checkWriteBreakPoint(addr, reg_TMP);
             writeMemory(addr, reg_TMP);
-            doneCycle = true;
           }
           break;
         case CPU_OP_LD_MEM_TMP_NODEBUG:
           writeMemory(uint16_t(reg_L) | (uint16_t(reg_H) << 8), reg_TMP);
-          doneCycle = true;
           break;
-        case CPU_OP_LD_H_MEM:
-          doneCycle = true;
+        case CPU_OP_LD_H_MEMP1_L_TMP:
           {
-            uint16_t  addr = uint16_t(reg_L) | (uint16_t(reg_H) << 8);
+            uint16_t  addr = uint16_t((reg_L + uint8_t(1)) & uint8_t(0xFF))
+                             | (uint16_t(reg_H) << 8);
             uint8_t   tmp = readMemory(addr);
             if (haltFlag) {
               currentOpcode--;
               break;
             }
+            reg_L = reg_TMP;
             reg_H = tmp;
             if (haveBreakPoints)
               checkReadBreakPoint(addr, reg_H);
           }
           break;
+        case CPU_OP_LD_DUMMY_MEM_PC:
+          (void) readMemory(reg_PC);
+          if (haltFlag)
+            currentOpcode--;
+          break;
+        case CPU_OP_LD_DUMMY_MEM_SP:
+          (void) readMemory(uint16_t(0x0100) | uint16_t(reg_SP));
+          if (haltFlag)
+            currentOpcode--;
+          break;
         case CPU_OP_PUSH_TMP:
           // FIXME: should check breakpoints ?
           writeMemory(uint16_t(0x0100) | uint16_t(reg_SP), reg_TMP);
           reg_SP = (reg_SP - uint8_t(1)) & uint8_t(0xFF);
-          doneCycle = true;
           break;
         case CPU_OP_POP_TMP:
           // FIXME: should check breakpoints ?
-          doneCycle = true;
           if (!haltFlag) {
             reg_SP = (reg_SP + uint8_t(1)) & uint8_t(0xFF);
             reg_TMP = readMemory(uint16_t(0x0100) | uint16_t(reg_SP));
@@ -227,11 +224,9 @@ namespace Plus4 {
           writeMemory(uint16_t(0x0100) | uint16_t(reg_SP),
                       uint8_t(reg_PC) & uint8_t(0xFF));
           reg_SP = (reg_SP - uint8_t(1)) & uint8_t(0xFF);
-          doneCycle = true;
           break;
         case CPU_OP_POP_PCL:
           // FIXME: should check breakpoints ?
-          doneCycle = true;
           if (!haltFlag) {
             reg_SP = (reg_SP + uint8_t(1)) & uint8_t(0xFF);
             reg_PC = (reg_PC & uint16_t(0xFF00))
@@ -246,11 +241,9 @@ namespace Plus4 {
           writeMemory(uint16_t(0x0100) | uint16_t(reg_SP),
                       uint8_t(reg_PC >> 8) & uint8_t(0xFF));
           reg_SP = (reg_SP - uint8_t(1)) & uint8_t(0xFF);
-          doneCycle = true;
           break;
         case CPU_OP_POP_PCH:
           // FIXME: should check breakpoints ?
-          doneCycle = true;
           if (!haltFlag) {
             reg_SP = (reg_SP + uint8_t(1)) & uint8_t(0xFF);
             reg_PC = (reg_PC & uint16_t(0x00FF))
@@ -260,79 +253,55 @@ namespace Plus4 {
           else
             currentOpcode--;
           break;
-        case CPU_OP_LD_TMP_00:
-          reg_TMP = uint8_t(0x00);
-          break;
-        case CPU_OP_LD_TMP_FF:
-          reg_TMP = uint8_t(0xFF);
-          break;
-        case CPU_OP_LD_HL_PC:
-          reg_L = uint8_t(reg_PC) & uint8_t(0xFF);
-          reg_H = uint8_t(reg_PC >> 8) & uint8_t(0xFF);
-          break;
-        case CPU_OP_LD_TMP_L:
-          reg_TMP = reg_L;
-          break;
-        case CPU_OP_LD_TMP_H:
-          reg_TMP = reg_H;
-          break;
         case CPU_OP_LD_TMP_SR:
-          reg_TMP = reg_SR | uint8_t(0x20);
+          {
+            reg_TMP = reg_SR | uint8_t(0x20);
+            continue;
+          }
           break;
         case CPU_OP_LD_TMP_A:
-          reg_TMP = reg_AC;
-          break;
-        case CPU_OP_LD_TMP_X:
-          reg_TMP = reg_XR;
-          break;
-        case CPU_OP_LD_TMP_Y:
-          reg_TMP = reg_YR;
-          break;
-        case CPU_OP_LD_TMP_SP:
-          reg_TMP = reg_SP;
+          {
+            reg_TMP = reg_AC;
+            continue;
+          }
           break;
         case CPU_OP_LD_PC_HL:
-          reg_PC = (reg_PC & uint16_t(0xFF00)) | uint16_t(reg_L);
-          reg_PC = (reg_PC & uint16_t(0x00FF)) | (uint16_t(reg_H) << 8);
-          break;
-        case CPU_OP_LD_L_TMP:
-          reg_L = reg_TMP;
-          break;
-        case CPU_OP_LD_H_TMP:
-          reg_H = reg_TMP;
+          {
+            reg_PC = uint16_t(reg_L) | (uint16_t(reg_H) << 8);
+            continue;
+          }
           break;
         case CPU_OP_LD_SR_TMP:
-          reg_SR = reg_TMP | uint8_t(0x30);
+          {
+            reg_SR = reg_TMP | uint8_t(0x30);
+            continue;
+          }
           break;
         case CPU_OP_LD_A_TMP:
-          reg_AC = reg_TMP;
-          break;
-        case CPU_OP_LD_X_TMP:
-          reg_XR = reg_TMP;
-          break;
-        case CPU_OP_LD_Y_TMP:
-          reg_YR = reg_TMP;
-          break;
-        case CPU_OP_LD_SP_TMP:
-          reg_SP = reg_TMP;
+          {
+            reg_AC = reg_TMP;
+            continue;
+          }
           break;
         case CPU_OP_ADDR_X:
           {
             uint8_t tmp = (reg_L + reg_XR) & uint8_t(0xFF);
             if (tmp < reg_L) {
-              doneCycle = true;
               (void) readMemory(uint16_t(tmp) | (uint16_t(reg_H) << 8));
               if (haltFlag) {
                 currentOpcode--;
                 break;
               }
+              reg_L = tmp;
               reg_H = (reg_H + uint8_t(1)) & uint8_t(0xFF);
             }
-            reg_L = tmp;
+            else {
+              reg_L = tmp;
+              continue;
+            }
           }
           break;
         case CPU_OP_ADDR_X_SLOW:
-          doneCycle = true;
           {
             uint8_t tmp = (reg_L + reg_XR) & uint8_t(0xFF);
             (void) readMemory(uint16_t(tmp) | (uint16_t(reg_H) << 8));
@@ -346,7 +315,6 @@ namespace Plus4 {
           }
           break;
         case CPU_OP_ADDR_X_ZEROPAGE:
-          doneCycle = true;
           (void) readMemory(uint16_t(reg_L));
           if (!haltFlag) {
             reg_L = (reg_L + reg_XR) & uint8_t(0xFF);
@@ -356,7 +324,6 @@ namespace Plus4 {
             currentOpcode--;
           break;
         case CPU_OP_ADDR_X_SHY:
-          doneCycle = true;
           {
             uint8_t tmp = (reg_L + reg_XR) & uint8_t(0xFF);
             (void) readMemory(uint16_t(tmp) | (uint16_t(reg_H) << 8));
@@ -376,19 +343,21 @@ namespace Plus4 {
           {
             uint8_t tmp = (reg_L + reg_YR) & uint8_t(0xFF);
             if (tmp < reg_L) {
-              doneCycle = true;
               (void) readMemory(uint16_t(tmp) | (uint16_t(reg_H) << 8));
               if (haltFlag) {
                 currentOpcode--;
                 break;
               }
+              reg_L = tmp;
               reg_H = (reg_H + uint8_t(1)) & uint8_t(0xFF);
             }
-            reg_L = tmp;
+            else {
+              reg_L = tmp;
+              continue;
+            }
           }
           break;
         case CPU_OP_ADDR_Y_SLOW:
-          doneCycle = true;
           {
             uint8_t tmp = (reg_L + reg_YR) & uint8_t(0xFF);
             (void) readMemory(uint16_t(tmp) | (uint16_t(reg_H) << 8));
@@ -402,7 +371,6 @@ namespace Plus4 {
           }
           break;
         case CPU_OP_ADDR_Y_ZEROPAGE:
-          doneCycle = true;
           (void) readMemory(uint16_t(reg_L));
           if (!haltFlag) {
             reg_L = (reg_L + reg_YR) & uint8_t(0xFF);
@@ -412,7 +380,6 @@ namespace Plus4 {
             currentOpcode--;
           break;
         case CPU_OP_ADDR_Y_SHA:
-          doneCycle = true;
           {
             uint8_t tmp = (reg_L + reg_YR) & uint8_t(0xFF);
             (void) readMemory(uint16_t(tmp) | (uint16_t(reg_H) << 8));
@@ -429,7 +396,6 @@ namespace Plus4 {
           }
           break;
         case CPU_OP_ADDR_Y_SHS:
-          doneCycle = true;
           {
             uint8_t tmp = (reg_L + reg_YR) & uint8_t(0xFF);
             (void) readMemory(uint16_t(tmp) | (uint16_t(reg_H) << 8));
@@ -447,7 +413,6 @@ namespace Plus4 {
           }
           break;
         case CPU_OP_ADDR_Y_SHX:
-          doneCycle = true;
           {
             uint8_t tmp = (reg_L + reg_YR) & uint8_t(0xFF);
             (void) readMemory(uint16_t(tmp) | (uint16_t(reg_H) << 8));
@@ -463,102 +428,80 @@ namespace Plus4 {
             reg_L = tmp;
           }
           break;
-        case CPU_OP_TEST_N:
-          reg_TMP = (((reg_SR ^ reg_TMP) & uint8_t(0x80)) == uint8_t(0x00) ?
-                     uint8_t(0xFF) : uint8_t(0x00));
-          break;
-        case CPU_OP_TEST_V:
-          reg_TMP = (((reg_SR ^ reg_TMP) & uint8_t(0x40)) == uint8_t(0x00) ?
-                     uint8_t(0xFF) : uint8_t(0x00));
-          break;
-        case CPU_OP_TEST_Z:
-          reg_TMP = (((reg_SR ^ reg_TMP) & uint8_t(0x02)) == uint8_t(0x00) ?
-                     uint8_t(0xFF) : uint8_t(0x00));
-          break;
-        case CPU_OP_TEST_C:
-          reg_TMP = (((reg_SR ^ reg_TMP) & uint8_t(0x01)) == uint8_t(0x00) ?
-                     uint8_t(0xFF) : uint8_t(0x00));
-          break;
-        case CPU_OP_SET_N:
-          reg_SR = (reg_SR & uint8_t(0x7F)) | (reg_TMP & uint8_t(0x80));
-          break;
-        case CPU_OP_SET_V:
-          reg_SR = (reg_SR & uint8_t(0xBF)) | (reg_TMP & uint8_t(0x40));
-          break;
-        case CPU_OP_SET_B:
-          reg_SR = (reg_SR & uint8_t(0xEF)) | (reg_TMP & uint8_t(0x10));
-          break;
-        case CPU_OP_SET_D:
-          reg_SR = (reg_SR & uint8_t(0xF7)) | (reg_TMP & uint8_t(0x08));
-          break;
-        case CPU_OP_SET_I:
-          reg_SR = (reg_SR & uint8_t(0xFB)) | (reg_TMP & uint8_t(0x04));
-          break;
-        case CPU_OP_SET_Z:
-          reg_SR = (reg_SR & uint8_t(0xFD)) | (reg_TMP & uint8_t(0x02));
-          break;
-        case CPU_OP_SET_C:
-          reg_SR = (reg_SR & uint8_t(0xFE)) | (reg_TMP & uint8_t(0x01));
-          break;
         case CPU_OP_SET_NZ:
-          reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_TMP & uint8_t(0x80));
-          reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
-                             uint8_t(0x02) : uint8_t(0x00));
+          {
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_TMP & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
+          }
           break;
         case CPU_OP_ADC:
-          if (!(reg_SR & uint8_t(0x08))) {
-            // add in binary mode
-            unsigned int  result = (unsigned int) (reg_AC & uint8_t(0xFF))
-                                   + (unsigned int) (reg_TMP & uint8_t(0xFF))
-                                   + (unsigned int) (reg_SR & uint8_t(0x01));
-            reg_SR &= uint8_t(0x3C);
-            reg_SR |= (uint8_t(result >> 8) & uint8_t(0x01));           // C
-            reg_SR |= ((((reg_AC ^ ~reg_TMP) & (reg_AC ^ uint8_t(result)))
-                        & uint8_t(0x80)) >> 1);                         // V
-            reg_AC = uint8_t(result) & uint8_t(0xFF);
-            reg_SR |= (reg_AC & uint8_t(0x80));                         // N
-            reg_SR |= uint8_t(reg_AC == uint8_t(0x00) ? 0x02 : 0x00);   // Z
-          }
-          else {
-            // add in BCD mode
-            unsigned int  l = (unsigned int) (reg_SR & uint8_t(0x01))
-                              + (unsigned int) (reg_AC & uint8_t(0x0F))
-                              + (unsigned int) (reg_TMP & uint8_t(0x0F));
-            unsigned int  h = (unsigned int) (reg_AC & uint8_t(0xF0))
-                              + (unsigned int) (reg_TMP & uint8_t(0xF0));
-            reg_SR &= uint8_t(0x3C);
-            if (!(uint8_t(h + l) & uint8_t(0xFF)))
-              reg_SR |= uint8_t(0x02);                                  // Z
-            l += (l < 0x0AU ? 0x00U : 0x06U);
-            h += (l >= 0x10U ? 0x10U : 0x00U);
-            l &= 0x0FU;
-            reg_SR = reg_SR | (uint8_t(h) & uint8_t(0x80));             // N
-            reg_SR |= ((((reg_AC ^ ~reg_TMP) & (reg_AC ^ uint8_t(h)))
-                        & uint8_t(0x80)) >> 1);                         // V
-            h += (h < 0xA0U ? 0x00U : 0x60U);
-            reg_SR |= (h >= 0x0100U ? uint8_t(0x01) : uint8_t(0x00));   // C
-            reg_AC = uint8_t(h + l) & uint8_t(0xFF);
+          {
+            if (!(reg_SR & uint8_t(0x08))) {
+              // add in binary mode
+              unsigned int  result = (unsigned int) (reg_AC & uint8_t(0xFF))
+                                     + (unsigned int) (reg_TMP & uint8_t(0xFF))
+                                     + (unsigned int) (reg_SR & uint8_t(0x01));
+              reg_SR &= uint8_t(0x3C);
+              reg_SR |= (uint8_t(result >> 8) & uint8_t(0x01));         // C
+              reg_SR |= ((((reg_AC ^ ~reg_TMP) & (reg_AC ^ uint8_t(result)))
+                          & uint8_t(0x80)) >> 1);                       // V
+              reg_AC = uint8_t(result) & uint8_t(0xFF);
+              reg_SR |= (reg_AC & uint8_t(0x80));                       // N
+              reg_SR |= uint8_t(reg_AC == uint8_t(0x00) ? 0x02 : 0x00); // Z
+            }
+            else {
+              // add in BCD mode
+              unsigned int  l = (unsigned int) (reg_SR & uint8_t(0x01))
+                                + (unsigned int) (reg_AC & uint8_t(0x0F))
+                                + (unsigned int) (reg_TMP & uint8_t(0x0F));
+              unsigned int  h = (unsigned int) (reg_AC & uint8_t(0xF0))
+                                + (unsigned int) (reg_TMP & uint8_t(0xF0));
+              reg_SR &= uint8_t(0x3C);
+              if (!(uint8_t(h + l) & uint8_t(0xFF)))
+                reg_SR |= uint8_t(0x02);                                // Z
+              l += (l < 0x0AU ? 0x00U : 0x06U);
+              h += (l >= 0x10U ? 0x10U : 0x00U);
+              l &= 0x0FU;
+              reg_SR = reg_SR | (uint8_t(h) & uint8_t(0x80));           // N
+              reg_SR |= ((((reg_AC ^ ~reg_TMP) & (reg_AC ^ uint8_t(h)))
+                          & uint8_t(0x80)) >> 1);                       // V
+              h += (h < 0xA0U ? 0x00U : 0x60U);
+              reg_SR |= (h >= 0x0100U ? uint8_t(0x01) : uint8_t(0x00)); // C
+              reg_AC = uint8_t(h + l) & uint8_t(0xFF);
+            }
+            continue;
           }
           break;
         case CPU_OP_ANC:
-          reg_AC = reg_AC & reg_TMP;
-          reg_SR &= uint8_t(0x7C);
-          if (reg_AC & uint8_t(0x80))
-            reg_SR |= uint8_t(0x81);
-          else if (!reg_AC)
-            reg_SR |= uint8_t(0x02);
+          {
+            reg_AC = reg_AC & reg_TMP;
+            reg_SR &= uint8_t(0x7C);
+            if (reg_AC & uint8_t(0x80))
+              reg_SR |= uint8_t(0x81);
+            else if (!reg_AC)
+              reg_SR |= uint8_t(0x02);
+            continue;
+          }
           break;
         case CPU_OP_AND:
-          reg_AC = reg_AC & reg_TMP;
-          reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_AC & uint8_t(0x80));
-          reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
-                             uint8_t(0x02) : uint8_t(0x00));
+          {
+            reg_AC = reg_AC & reg_TMP;
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_AC & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
+          }
           break;
         case CPU_OP_ANE:
-          reg_AC = (reg_AC | uint8_t(0xEE)) & (reg_XR & reg_TMP);
-          reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_AC & uint8_t(0x80));
-          reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
-                             uint8_t(0x02) : uint8_t(0x00));
+          {
+            reg_AC = (reg_AC | uint8_t(0xEE)) & (reg_XR & reg_TMP);
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_AC & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
+          }
           break;
         case CPU_OP_ARR:
           {
@@ -582,6 +525,7 @@ namespace Plus4 {
                 reg_SR |= uint8_t(0x01);
               }
             }
+            continue;
           }
           break;
         case CPU_OP_ASL:
@@ -590,31 +534,145 @@ namespace Plus4 {
             tmp = tmp << 1;
             reg_SR = (reg_SR & uint8_t(0x7C)) | uint8_t(tmp >> 8);
             reg_TMP = uint8_t(tmp) & uint8_t(0xFF);
+            reg_SR = reg_SR | (reg_TMP & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
           }
-          reg_SR = reg_SR | (reg_TMP & uint8_t(0x80));
-          reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
-                             uint8_t(0x02) : uint8_t(0x00));
+          break;
+        case CPU_OP_BCC:
+          if (reg_SR & uint8_t(0x01)) {
+            currentOpcode++;
+            continue;
+          }
+          else {
+            (void) readMemory(reg_PC);
+            if (haltFlag)
+              currentOpcode--;
+          }
+          break;
+        case CPU_OP_BCS:
+          if (!(reg_SR & uint8_t(0x01))) {
+            currentOpcode++;
+            continue;
+          }
+          else {
+            (void) readMemory(reg_PC);
+            if (haltFlag)
+              currentOpcode--;
+          }
+          break;
+        case CPU_OP_BEQ:
+          if (!(reg_SR & uint8_t(0x02))) {
+            currentOpcode++;
+            continue;
+          }
+          else {
+            (void) readMemory(reg_PC);
+            if (haltFlag)
+              currentOpcode--;
+          }
           break;
         case CPU_OP_BIT:
-          reg_SR = (reg_SR & uint8_t(0x3D)) | (reg_TMP & uint8_t(0xC0));
-          reg_SR = reg_SR | ((reg_AC & reg_TMP) == uint8_t(0) ?
-                             uint8_t(0x02) : uint8_t(0x00));
+          {
+            reg_SR = (reg_SR & uint8_t(0x3D)) | (reg_TMP & uint8_t(0xC0));
+            reg_SR = reg_SR | ((reg_AC & reg_TMP) == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
+          }
           break;
-        case CPU_OP_BRANCH:
-          if (reg_TMP == uint8_t(0))
+        case CPU_OP_BMI:
+          if (!(reg_SR & uint8_t(0x80))) {
             currentOpcode++;
+            continue;
+          }
           else {
-            doneCycle = true;
+            (void) readMemory(reg_PC);
+            if (haltFlag)
+              currentOpcode--;
+          }
+          break;
+        case CPU_OP_BNE:
+          if (reg_SR & uint8_t(0x02)) {
+            currentOpcode++;
+            continue;
+          }
+          else {
+            (void) readMemory(reg_PC);
+            if (haltFlag)
+              currentOpcode--;
+          }
+          break;
+        case CPU_OP_BPL:
+          if (reg_SR & uint8_t(0x80)) {
+            currentOpcode++;
+            continue;
+          }
+          else {
+            (void) readMemory(reg_PC);
             if (haltFlag)
               currentOpcode--;
           }
           break;
         case CPU_OP_BRK:
-          interruptFlag = false;
-          reg_TMP = reg_SR | uint8_t(0x10);
-          reg_SR = reg_SR | uint8_t(0x34);
-          reg_L = uint8_t(0xFE);
-          reg_H = uint8_t(0xFF);
+          {
+            interruptFlag = false;
+            reg_TMP = reg_SR | uint8_t(0x10);
+            reg_SR = reg_SR | uint8_t(0x34);
+            reg_L = uint8_t(0xFE);
+            reg_H = uint8_t(0xFF);
+            continue;
+          }
+          break;
+        case CPU_OP_BVC:
+          if (reg_SR & uint8_t(0x40)) {
+            currentOpcode++;
+            continue;
+          }
+          else {
+            (void) readMemory(reg_PC);
+            if (haltFlag)
+              currentOpcode--;
+          }
+          break;
+        case CPU_OP_BVS:
+          if (!(reg_SR & uint8_t(0x40))) {
+            currentOpcode++;
+            continue;
+          }
+          else {
+            (void) readMemory(reg_PC);
+            if (haltFlag)
+              currentOpcode--;
+          }
+          break;
+        case CPU_OP_CLC:
+          (void) readMemory(reg_PC);
+          if (!haltFlag)
+            reg_SR = reg_SR & uint8_t(0xFE);
+          else
+            currentOpcode--;
+          break;
+        case CPU_OP_CLD:
+          (void) readMemory(reg_PC);
+          if (!haltFlag)
+            reg_SR = reg_SR & uint8_t(0xF7);
+          else
+            currentOpcode--;
+          break;
+        case CPU_OP_CLI:
+          (void) readMemory(reg_PC);
+          if (!haltFlag)
+            reg_SR = reg_SR & uint8_t(0xFB);
+          else
+            currentOpcode--;
+          break;
+        case CPU_OP_CLV:
+          (void) readMemory(reg_PC);
+          if (!haltFlag)
+            reg_SR = reg_SR & uint8_t(0xBF);
+          else
+            currentOpcode--;
           break;
         case CPU_OP_CMP:
           {
@@ -627,6 +685,7 @@ namespace Plus4 {
             tmp = tmp & uint16_t(0xFF);
             reg_SR = reg_SR | (tmp == uint16_t(0) ?
                                uint8_t(0x02) : uint8_t(0x00));
+            continue;
           }
           break;
         case CPU_OP_CPX:
@@ -640,6 +699,7 @@ namespace Plus4 {
             tmp = tmp & uint16_t(0xFF);
             reg_SR = reg_SR | (tmp == uint16_t(0) ?
                                uint8_t(0x02) : uint8_t(0x00));
+            continue;
           }
           break;
         case CPU_OP_CPY:
@@ -653,94 +713,196 @@ namespace Plus4 {
             tmp = tmp & uint16_t(0xFF);
             reg_SR = reg_SR | (tmp == uint16_t(0) ?
                                uint8_t(0x02) : uint8_t(0x00));
+            continue;
           }
           break;
         case CPU_OP_DEC:
-          reg_TMP = (reg_TMP - uint8_t(1)) & uint8_t(0xFF);
-          reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_TMP & uint8_t(0x80));
-          reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
-                             uint8_t(0x02) : uint8_t(0x00));
+          {
+            reg_TMP = (reg_TMP - uint8_t(1)) & uint8_t(0xFF);
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_TMP & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
+          }
           break;
-        case CPU_OP_DEC_HL:
-          reg_H = reg_H - (reg_L == uint8_t(0) ? uint8_t(1) : uint8_t(0));
-          reg_H = reg_H & uint8_t(0xFF);
-          reg_L = (reg_L - uint8_t(1)) & uint8_t(0xFF);
+        case CPU_OP_DEX:
+          (void) readMemory(reg_PC);
+          if (!haltFlag) {
+            reg_XR = (reg_XR - uint8_t(1)) & uint8_t(0xFF);
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_XR & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_XR == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+          }
+          else
+            currentOpcode--;
+          break;
+        case CPU_OP_DEY:
+          (void) readMemory(reg_PC);
+          if (!haltFlag) {
+            reg_YR = (reg_YR - uint8_t(1)) & uint8_t(0xFF);
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_YR & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_YR == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+          }
+          else
+            currentOpcode--;
           break;
         case CPU_OP_EOR:
-          reg_AC = reg_AC ^ reg_TMP;
-          reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_AC & uint8_t(0x80));
-          reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
-                             uint8_t(0x02) : uint8_t(0x00));
+          {
+            reg_AC = reg_AC ^ reg_TMP;
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_AC & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
+          }
           break;
         case CPU_OP_INC:
-          reg_TMP = (reg_TMP + uint8_t(1)) & uint8_t(0xFF);
-          reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_TMP & uint8_t(0x80));
-          reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
-                             uint8_t(0x02) : uint8_t(0x00));
-          break;
-        case CPU_OP_INC_L:
-          reg_L = (reg_L + uint8_t(1)) & uint8_t(0xFF);
+          {
+            reg_TMP = (reg_TMP + uint8_t(1)) & uint8_t(0xFF);
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_TMP & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
+          }
           break;
         case CPU_OP_INTERRUPT:
-          interruptFlag = false;
-          reg_TMP = reg_SR & uint8_t(0xEF);
-          reg_SR = reg_SR | uint8_t(0x34);
-          reg_L = uint8_t(0xFE);
-          reg_H = uint8_t(0xFF);
+          {
+            interruptFlag = false;
+            reg_TMP = reg_SR & uint8_t(0xEF);
+            reg_SR = reg_SR | uint8_t(0x34);
+            reg_L = uint8_t(0xFE);
+            reg_H = uint8_t(0xFF);
+            continue;
+          }
+          break;
+        case CPU_OP_INX:
+          (void) readMemory(reg_PC);
+          if (!haltFlag) {
+            reg_XR = (reg_XR + uint8_t(1)) & uint8_t(0xFF);
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_XR & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_XR == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+          }
+          else
+            currentOpcode--;
+          break;
+        case CPU_OP_INY:
+          (void) readMemory(reg_PC);
+          if (!haltFlag) {
+            reg_YR = (reg_YR + uint8_t(1)) & uint8_t(0xFF);
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_YR & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_YR == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+          }
+          else
+            currentOpcode--;
           break;
         case CPU_OP_JMP_RELATIVE:
           {
-            uint8_t tmp = (uint8_t(reg_PC) + reg_L) & uint8_t(0xFF);
-            if ((((tmp ^ uint8_t(reg_PC)) & (reg_L ^ uint8_t(reg_PC)))
-                 & uint8_t(0x80)) != uint8_t(0)) {
-              doneCycle = true;
+            unsigned int  tmp = reg_PC;
+            tmp = (tmp & 0xFF00U) | ((tmp + reg_L) & 0x00FFU);
+            if (((tmp ^ reg_PC) & ((unsigned int) reg_L ^ reg_PC)) & 0x80U) {
+              (void) readMemory(tmp);
               if (haltFlag) {
                 currentOpcode--;
                 break;
               }
-              reg_PC = reg_PC + ((reg_L & uint8_t(0x80)) == uint8_t(0) ?
-                                 uint16_t(0x0100) : uint16_t(0xFF00));
+              tmp = tmp + (!(reg_L & uint8_t(0x80)) ? 0x0100U : 0xFF00U);
+              reg_PC = uint16_t(tmp & 0xFFFFU);
             }
-            reg_PC = (reg_PC & uint16_t(0xFF00)) | uint16_t(tmp);
+            else {
+              reg_PC = uint16_t(tmp);
+              continue;
+            }
           }
           break;
         case CPU_OP_LAS:
-          reg_AC = reg_SP & reg_TMP;
-          reg_XR = reg_AC;
-          reg_SP = reg_AC;
-          reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_AC & uint8_t(0x80));
-          reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
-                             uint8_t(0x02) : uint8_t(0x00));
+          {
+            reg_AC = reg_SP & reg_TMP;
+            reg_XR = reg_AC;
+            reg_SP = reg_AC;
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_AC & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
+          }
+          break;
+        case CPU_OP_LAX:
+          {
+            reg_AC = reg_TMP;
+            reg_XR = reg_TMP;
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_TMP & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
+          }
+          break;
+        case CPU_OP_LDA:
+          {
+            reg_AC = reg_TMP;
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_TMP & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
+          }
+          break;
+        case CPU_OP_LDX:
+          {
+            reg_XR = reg_TMP;
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_TMP & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
+          }
+          break;
+        case CPU_OP_LDY:
+          {
+            reg_YR = reg_TMP;
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_TMP & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
+          }
           break;
         case CPU_OP_LSR:
           {
             uint16_t  tmp = uint16_t(reg_TMP);
             reg_SR = (reg_SR & uint8_t(0x7C)) | (uint8_t(tmp) & uint8_t(0x01));
             reg_TMP = uint8_t(tmp >> 1);
+            reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
           }
-          reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
-                             uint8_t(0x02) : uint8_t(0x00));
           break;
         case CPU_OP_LXA:
-          reg_AC = (reg_AC | uint8_t(0xEE)) & reg_TMP;
-          reg_XR = reg_AC;
-          reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_AC & uint8_t(0x80));
-          reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
-                             uint8_t(0x02) : uint8_t(0x00));
+          {
+            reg_AC = (reg_AC | uint8_t(0xEE)) & reg_TMP;
+            reg_XR = reg_AC;
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_AC & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
+          }
           break;
         case CPU_OP_ORA:
-          reg_AC = reg_AC | reg_TMP;
-          reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_AC & uint8_t(0x80));
-          reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
-                             uint8_t(0x02) : uint8_t(0x00));
+          {
+            reg_AC = reg_AC | reg_TMP;
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_AC & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
+          }
           break;
         case CPU_OP_RESET:
-          interruptFlag = false;
-          resetFlag = false;
-          reg_TMP = reg_SR & uint8_t(0xEF);
-          reg_SR = reg_SR | uint8_t(0x34);
-          reg_L = uint8_t(0xFC);
-          reg_H = uint8_t(0xFF);
+          {
+            interruptFlag = false;
+            resetFlag = false;
+            reg_TMP = reg_SR & uint8_t(0xEF);
+            reg_SR = reg_SR | uint8_t(0x34);
+            reg_L = uint8_t(0xFC);
+            reg_H = uint8_t(0xFF);
+            continue;
+          }
           break;
         case CPU_OP_ROL:
           {
@@ -748,10 +910,11 @@ namespace Plus4 {
             tmp = (tmp << 1) | uint16_t(reg_SR & uint8_t(0x01));
             reg_SR = (reg_SR & uint8_t(0x7C)) | uint8_t(tmp >> 8);
             reg_TMP = uint8_t(tmp) & uint8_t(0xFF);
+            reg_SR = reg_SR | (reg_TMP & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
           }
-          reg_SR = reg_SR | (reg_TMP & uint8_t(0x80));
-          reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
-                             uint8_t(0x02) : uint8_t(0x00));
           break;
         case CPU_OP_ROR:
           {
@@ -759,13 +922,20 @@ namespace Plus4 {
             tmp = tmp | (uint16_t(reg_SR & uint8_t(0x01)) << 8);
             reg_SR = (reg_SR & uint8_t(0x7C)) | (uint8_t(tmp) & uint8_t(0x01));
             reg_TMP = uint8_t(tmp >> 1);
+            reg_SR = reg_SR | (reg_TMP & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+            continue;
           }
-          reg_SR = reg_SR | (reg_TMP & uint8_t(0x80));
-          reg_SR = reg_SR | (reg_TMP == uint8_t(0) ?
-                             uint8_t(0x02) : uint8_t(0x00));
           break;
         case CPU_OP_SAX:
-          reg_TMP = reg_AC & reg_XR;
+          {
+            uint16_t  addr = uint16_t(reg_L) | (uint16_t(reg_H) << 8);
+            uint8_t   tmp = reg_AC & reg_XR;
+            if (haveBreakPoints)
+              checkWriteBreakPoint(addr, tmp);
+            writeMemory(addr, tmp);
+          }
           break;
         case CPU_OP_SBC:
           {
@@ -795,6 +965,7 @@ namespace Plus4 {
               result = (h + (l & 0x0FU)) & 0xFFU;
             }
             reg_AC = uint8_t(result);
+            continue;
           }
           break;
         case CPU_OP_SBX:
@@ -808,10 +979,55 @@ namespace Plus4 {
             reg_SR = reg_SR | (uint8_t(tmp >> 8) & uint8_t(0x01));
             reg_SR = reg_SR | (reg_XR == uint8_t(0) ?
                                uint8_t(0x02) : uint8_t(0x00));
+            continue;
+          }
+          break;
+        case CPU_OP_SEC:
+          (void) readMemory(reg_PC);
+          if (!haltFlag)
+            reg_SR = reg_SR | uint8_t(0x01);
+          else
+            currentOpcode--;
+          break;
+        case CPU_OP_SED:
+          (void) readMemory(reg_PC);
+          if (!haltFlag)
+            reg_SR = reg_SR | uint8_t(0x08);
+          else
+            currentOpcode--;
+          break;
+        case CPU_OP_SEI:
+          (void) readMemory(reg_PC);
+          if (!haltFlag)
+            reg_SR = reg_SR | uint8_t(0x04);
+          else
+            currentOpcode--;
+          break;
+        case CPU_OP_STA:
+          {
+            uint16_t  addr = uint16_t(reg_L) | (uint16_t(reg_H) << 8);
+            if (haveBreakPoints)
+              checkWriteBreakPoint(addr, reg_AC);
+            writeMemory(addr, reg_AC);
+          }
+          break;
+        case CPU_OP_STX:
+          {
+            uint16_t  addr = uint16_t(reg_L) | (uint16_t(reg_H) << 8);
+            if (haveBreakPoints)
+              checkWriteBreakPoint(addr, reg_XR);
+            writeMemory(addr, reg_XR);
+          }
+          break;
+        case CPU_OP_STY:
+          {
+            uint16_t  addr = uint16_t(reg_L) | (uint16_t(reg_H) << 8);
+            if (haveBreakPoints)
+              checkWriteBreakPoint(addr, reg_YR);
+            writeMemory(addr, reg_YR);
           }
           break;
         case CPU_OP_SYS:
-          doneCycle = true;
           if (!haltFlag) {
             uint32_t  nn = uint32_t(currentOpcode - &(opcodeTable[0])) >> 4;
             uint16_t  addr = (reg_PC + 0xFFFC) & 0xFFFF;
@@ -832,8 +1048,69 @@ namespace Plus4 {
           else
             currentOpcode--;
           break;
+        case CPU_OP_TAX:
+          (void) readMemory(reg_PC);
+          if (!haltFlag) {
+            reg_XR = reg_AC;
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_AC & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+          }
+          else
+            currentOpcode--;
+          break;
+        case CPU_OP_TAY:
+          (void) readMemory(reg_PC);
+          if (!haltFlag) {
+            reg_YR = reg_AC;
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_AC & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+          }
+          else
+            currentOpcode--;
+          break;
+        case CPU_OP_TSX:
+          (void) readMemory(reg_PC);
+          if (!haltFlag) {
+            reg_XR = reg_SP;
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_SP & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_SP == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+          }
+          else
+            currentOpcode--;
+          break;
+        case CPU_OP_TXA:
+          (void) readMemory(reg_PC);
+          if (!haltFlag) {
+            reg_AC = reg_XR;
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_AC & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+          }
+          else
+            currentOpcode--;
+          break;
+        case CPU_OP_TXS:
+          (void) readMemory(reg_PC);
+          if (!haltFlag)
+            reg_SP = reg_XR;
+          else
+            currentOpcode--;
+          break;
+        case CPU_OP_TYA:
+          (void) readMemory(reg_PC);
+          if (!haltFlag) {
+            reg_AC = reg_YR;
+            reg_SR = (reg_SR & uint8_t(0x7D)) | (reg_AC & uint8_t(0x80));
+            reg_SR = reg_SR | (reg_AC == uint8_t(0) ?
+                               uint8_t(0x02) : uint8_t(0x00));
+          }
+          else
+            currentOpcode--;
+          break;
         case CPU_OP_INVALID_OPCODE:
-          doneCycle = true;
           (void) readMemory(0xFFFF);
           if (!resetFlag)
             currentOpcode--;
@@ -841,7 +1118,8 @@ namespace Plus4 {
             currentOpcode = &(opcodeTable[size_t(0x0101) << 4]);
           break;
         }
-      } while (!doneCycle);
+        break;
+      }
     } while (--nCycles > 0);
   }
 
