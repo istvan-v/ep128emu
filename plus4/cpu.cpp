@@ -86,10 +86,12 @@ namespace Plus4 {
   void M7501::run(int nCycles)
   {
     do {
-      if ((interruptDelayRegister & 1U) != 0U &&
-          (reg_SR & uint8_t(0x04)) == uint8_t(0))
-        interruptFlag = true;
-      interruptDelayRegister >>= 1;
+      if (interruptDelayRegister != 0U) {
+        interruptDelayRegister &=
+            (unsigned int) (((reg_SR >> 1) & uint8_t(0x02)) ^ uint8_t(0xFF));
+        interruptFlag = interruptFlag | bool(interruptDelayRegister & 1U);
+        interruptDelayRegister >>= 1;
+      }
       while (true) {
         unsigned char n = *(currentOpcode++);
         switch (n) {
@@ -616,6 +618,7 @@ namespace Plus4 {
           break;
         case CPU_OP_BRK:
           {
+            interruptDelayRegister &= 0xFCU;
             interruptFlag = false;
             reg_TMP = reg_SR | uint8_t(0x10);
             reg_SR = reg_SR | uint8_t(0x34);
@@ -767,6 +770,7 @@ namespace Plus4 {
           break;
         case CPU_OP_INTERRUPT:
           {
+            interruptDelayRegister &= 0xFCU;
             interruptFlag = false;
             reg_TMP = reg_SR & uint8_t(0xEF);
             reg_SR = reg_SR | uint8_t(0x34);
@@ -895,6 +899,7 @@ namespace Plus4 {
           break;
         case CPU_OP_RESET:
           {
+            interruptDelayRegister &= 0xFCU;
             interruptFlag = false;
             resetFlag = false;
             reg_TMP = reg_SR & uint8_t(0xEF);

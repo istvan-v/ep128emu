@@ -198,6 +198,7 @@ namespace Plus4 {
     tedRegisters[0x1E] = uint8_t(0xC6);
     // set internal TED registers
     render_func = &render_invalid_mode;
+    prv_render_func = &render_invalid_mode;
     cycle_count = 0;
     video_column = 99;
     video_line = 224;
@@ -220,9 +221,7 @@ namespace Plus4 {
     displayWindow = false;
     renderingDisplay = false;
     displayActive = false;
-    horizontalBlanking = true;
-    verticalBlanking = true;
-    singleClockModeFlags = 0x01;
+    displayBlankingFlags = 0x03;
     timer1_run = true;                          // timers
     timer2_run = true;
     timer3_run = true;
@@ -243,22 +242,20 @@ namespace Plus4 {
       attr_buf_tmp[i] = uint8_t(0);
       char_buf[i] = uint8_t(0);
     }
-    pixelBuf1[0] = 0U;
-    pixelBuf1[1] = 0U;
-    pixelBuf2[0] = 0U;
-    pixelBuf2[1] = 0U;
-    pixelBuf2[2] = 0U;
+    attributeShiftRegister = 0U;
+    characterShiftRegister = 0U;
+    cursorShiftRegister = 0U;
+    bitmapHShiftRegister = 0U;
+    bitmapM0ShiftRegister = 0U;
+    bitmapM1ShiftRegister = 0U;
     for (int i = 0; i < 432; i++)
       line_buf[i] = uint8_t(0x08);
     for (int i = 0; i < 4; i++)
       line_buf_tmp[i] = uint8_t(0);
     line_buf_pos = 432;
     bitmapMode = false;
-    currentCharacter = uint8_t(0x00);
     characterMask = uint8_t(0xFF);
-    currentAttribute = uint8_t(0x00);
-    currentBitmap = uint8_t(0x00);
-    cursorFlag = false;
+    singleClockModeFlags = 0x01;
     dmaCycleCounter = 0;
     dmaFlags = 0;
     prvCharacterLine = 0;

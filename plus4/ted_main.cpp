@@ -74,7 +74,7 @@ namespace Plus4 {
         singleClockModeFlags &= uint8_t(0x02);
         break;
       case 87:                          // horizontal blanking start
-        horizontalBlanking = true;
+        displayBlankingFlags = displayBlankingFlags | 0x01;
         drawLine(&(line_buf[0]), 432);
         break;
       case 95:
@@ -95,6 +95,10 @@ namespace Plus4 {
         else {                                                      // NTSC
           savedVideoLine =
               (savedVideoLine != 261 ? ((video_line + 1) & 0x01FF) : 0);
+        }
+        if (savedVideoLine == 0) {      // end of screen
+          character_position = 0x0000;
+          character_position_reload = 0x0000;
         }
         line_buf_pos = -35;
         prvCharacterLine = uint8_t(character_line);
@@ -137,14 +141,16 @@ namespace Plus4 {
         if (renderWindow) {
           singleClockModeFlags |= uint8_t(0x01);
           if (savedVideoLine == 0) {    // initialize character sub-line
-            character_line = 7;
-            prvCharacterLine = uint8_t(7);
+            if (!dmaWindow) {
+              character_line = 7;
+              prvCharacterLine = uint8_t(7);
+            }
           }
         }
         character_column = 0x3C;
         break;
       case 105:                         // horizontal blanking end
-        horizontalBlanking = false;
+        displayBlankingFlags = displayBlankingFlags & 0x02;
         break;
       case 107:
         dma_position = (dma_position & 0x0400) | dma_position_reload;
@@ -207,10 +213,7 @@ namespace Plus4 {
       }
       if (incrementingDMAPosition)
         dma_position = (dma_position & 0x0400) | ((dma_position + 1) & 0x03FF);
-      pixelBuf2[0] = pixelBuf2[1];
-      pixelBuf2[1] = pixelBuf2[2];
-      pixelBuf2[2] = pixelBuf1[0];
-      if (horizontalBlanking | verticalBlanking) {
+      if (displayBlankingFlags) {
         line_buf_tmp[0] = uint8_t(0x00);
         line_buf_tmp[1] = uint8_t(0x00);
         line_buf_tmp[2] = uint8_t(0x00);
@@ -224,27 +227,9 @@ namespace Plus4 {
         line_buf_tmp[2] = c;
         line_buf_tmp[3] = c;
       }
-      else {
-        const unsigned char *pixelBufPtr =
-            reinterpret_cast<unsigned char *>(&(pixelBuf2[2]));
-        pixelBufPtr = pixelBufPtr - size_t(horiz_scroll);
-        uint8_t c = pixelBufPtr[0];
-        if (c >= uint8_t(0x80)) {
-          uint32_t  mask_ = uint32_t(0x00200000) << (c & uint8_t(0x1F));
-          c = (!(tedRegisterWriteMask & mask_) ?
-               tedRegisters[c - uint8_t(0x6B)] : uint8_t(0xFF));
-        }
-        line_buf_tmp[0] = c;
-        c = pixelBufPtr[1];
-        line_buf_tmp[1] = (c < uint8_t(0x80) ?
-                           c : tedRegisters[c - uint8_t(0x6B)]);
-        c = pixelBufPtr[2];
-        line_buf_tmp[2] = (c < uint8_t(0x80) ?
-                           c : tedRegisters[c - uint8_t(0x6B)]);
-        c = pixelBufPtr[3];
-        line_buf_tmp[3] = (c < uint8_t(0x80) ?
-                           c : tedRegisters[c - uint8_t(0x6B)]);
-      }
+      else
+        prv_render_func(*this, &(line_buf_tmp[0]), horiz_scroll + 15);
+      prv_render_func = render_func;
       // check timer interrupts
       if (!timer1_state) {
         if (timer1_run) {
@@ -299,7 +284,7 @@ namespace Plus4 {
       if ((tedRegisters[0x07] & uint8_t(0x40)) == uint8_t(0)) {     // PAL
         switch (savedVideoLine) {
         case 251:
-          verticalBlanking = true;
+          displayBlankingFlags = displayBlankingFlags | 0x02;
           break;
         case 254:
           verticalSync(true, 8);
@@ -308,14 +293,14 @@ namespace Plus4 {
           verticalSync(false, 28);
           break;
         case 269:
-          verticalBlanking = false;
+          displayBlankingFlags = displayBlankingFlags & 0x01;
           break;
         }
       }
       else {                                                        // NTSC
         switch (savedVideoLine) {
         case 226:
-          verticalBlanking = true;
+          displayBlankingFlags = displayBlankingFlags | 0x02;
           break;
         case 229:
           verticalSync(true, 8);
@@ -324,7 +309,7 @@ namespace Plus4 {
           verticalSync(false, 28);
           break;
         case 244:
-          verticalBlanking = false;
+          displayBlankingFlags = displayBlankingFlags & 0x01;
           break;
         }
       }
@@ -342,10 +327,6 @@ namespace Plus4 {
           (savedVideoLine == 204 &&
            (tedRegisters[0x06] & uint8_t(0x08)) != uint8_t(0)))
         displayWindow = false;
-      if (savedVideoLine == 0) {        // end of screen
-        character_position = 0x0000;
-        character_position_reload = 0x0000;
-      }
       if (!(tedRegisterWriteMask & uint32_t(0x30000000)))
         video_line = savedVideoLine;
       break;
@@ -367,9 +348,6 @@ namespace Plus4 {
         M7501::interruptRequest();
       M7501::run(cpu_clock_multiplier);
     }
-    pixelBuf2[0] = pixelBuf2[1];
-    pixelBuf2[1] = pixelBuf2[2];
-    pixelBuf2[2] = pixelBuf1[1];
     if (line_buf_pos < 425) {
       if (line_buf_pos >= 0) {
         uint8_t *bufp = &(line_buf[line_buf_pos]);
@@ -377,7 +355,7 @@ namespace Plus4 {
         bufp[1] = line_buf_tmp[1];
         bufp[2] = line_buf_tmp[2];
         bufp[3] = line_buf_tmp[3];
-        if (horizontalBlanking | verticalBlanking) {
+        if (displayBlankingFlags) {
           bufp[4] = uint8_t(0x00);
           bufp[5] = uint8_t(0x00);
           bufp[6] = uint8_t(0x00);
@@ -390,36 +368,18 @@ namespace Plus4 {
           bufp[6] = c;
           bufp[7] = c;
         }
-        else {
-          const unsigned char *pixelBufPtr =
-              reinterpret_cast<unsigned char *>(&(pixelBuf2[2]));
-          pixelBufPtr = pixelBufPtr - size_t(horiz_scroll);
-          uint8_t c = pixelBufPtr[0];
-          if (c >= uint8_t(0x80)) {
-            uint32_t  mask_ = uint32_t(0x00200000) << (c & uint8_t(0x1F));
-            c = (!(tedRegisterWriteMask & mask_) ?
-                 tedRegisters[c - uint8_t(0x6B)] : uint8_t(0xFF));
-          }
-          bufp[4] = c;
-          c = pixelBufPtr[1];
-          bufp[5] = (c < uint8_t(0x80) ? c : tedRegisters[c - uint8_t(0x6B)]);
-          c = pixelBufPtr[2];
-          bufp[6] = (c < uint8_t(0x80) ? c : tedRegisters[c - uint8_t(0x6B)]);
-          c = pixelBufPtr[3];
-          bufp[7] = (c < uint8_t(0x80) ? c : tedRegisters[c - uint8_t(0x6B)]);
-        }
+        else
+          prv_render_func(*this, &(bufp[4]), horiz_scroll + 11);
       }
       line_buf_pos += 9;
     }
+    prv_render_func = render_func;
     // bitmap fetches and rendering display are done on even cycle counts
-    if (renderCnt) {
-      renderCnt--;
-      render_func(*this);
-      currentBitmap = 0x00;
-    }
     if (renderingDisplay) {
-      currentCharacter = char_buf[character_column];
-      currentAttribute = attr_buf[character_column];
+      attributeShiftRegister =
+          (attributeShiftRegister << 8) | uint32_t(attr_buf[character_column]);
+      uint8_t c = char_buf[character_column];
+      characterShiftRegister = (characterShiftRegister << 8) | uint32_t(c);
       // read bitmap data from memory
       if (bitmapFetchWindow) {
         uint16_t  addr_ = uint16_t(character_line);
@@ -429,7 +389,7 @@ namespace Plus4 {
                               | (character_position << 3));
           else
             addr_ |= uint16_t(charset_base_addr
-                              | (int(currentCharacter & characterMask) << 3));
+                              | (int(c & characterMask) << 3));
         }
         else {
           // IC test mode (FF06 bit 7 set)
@@ -449,15 +409,36 @@ namespace Plus4 {
         memoryReadMap = tedDMAReadMap;  // not sure if this is correct
         (void) readMemory(0xFFFF);
       }
-      currentBitmap = dataBusState;
       memoryReadMap = cpuMemoryReadMap;
-      cursorFlag = (cursor_position == character_position);
+      uint8_t b = dataBusState;
+      bitmapHShiftRegister = (bitmapHShiftRegister << 8) | uint32_t(b);
+      b = dataBusState & uint8_t(0x55);
+      bitmapM0ShiftRegister =
+          (bitmapM0ShiftRegister << 8) | uint32_t(b | (b << 1));
+      b = dataBusState & uint8_t(0xAA);
+      bitmapM1ShiftRegister =
+          (bitmapM1ShiftRegister << 8) | uint32_t(b | (b >> 1));
+      cursorShiftRegister =
+          (cursorShiftRegister << 8)
+          | (cursor_position != character_position ? 0x00U : 0xFFU);
       attr_buf[character_column] = attr_buf_tmp[character_column];
       if (bitmapFetchWindow)
         character_position = (character_position + 1) & 0x03FF;
       else
         character_position = 0x03FF;
-      renderCnt = 2;
+      renderCnt = 3;
+    }
+    else if (renderCnt) {
+      renderCnt--;
+      attributeShiftRegister =
+          (attributeShiftRegister & 0xFFU) | (attributeShiftRegister << 8);
+      characterShiftRegister =
+          (characterShiftRegister & 0xFFU) | (characterShiftRegister << 8);
+      cursorShiftRegister =
+          (cursorShiftRegister & 0xFFU) | (cursorShiftRegister << 8);
+      bitmapHShiftRegister = bitmapHShiftRegister << 8;
+      bitmapM0ShiftRegister = bitmapM0ShiftRegister << 8;
+      bitmapM1ShiftRegister = bitmapM1ShiftRegister << 8;
     }
     character_column = (character_column + 1) & 0x3F;
     // update timer 2 and 3 on even cycle count (884 kHz rate)

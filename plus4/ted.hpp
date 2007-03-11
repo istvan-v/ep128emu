@@ -17,10 +17,22 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+#ifndef EP128EMU_PLUS4_TED_HPP
+#define EP128EMU_PLUS4_TED_HPP
+
 #include "ep128emu.hpp"
 #include "fileio.hpp"
 #include "cpu.hpp"
 #include "serial.hpp"
+
+#ifdef REGPARM
+#  undef REGPARM
+#endif
+#if defined(__GNUC__) && (__GNUC__ >= 3) && defined(__i386__) && !defined(__ICC)
+#  define REGPARM __attribute__ ((__regparm__ (3)))
+#else
+#  define REGPARM
+#endif
 
 namespace Plus4 {
 
@@ -154,14 +166,15 @@ namespace Plus4 {
     static void     write_register_FF3F(void *userData,
                                         uint16_t addr, uint8_t value);
     // render functions
-    static void render_BMM_hires(TED7360& ted);
-    static void render_BMM_multicolor(TED7360& ted);
-    static void render_char_128(TED7360& ted);
-    static void render_char_256(TED7360& ted);
-    static void render_char_ECM(TED7360& ted);
-    static void render_char_MCM_128(TED7360& ted);
-    static void render_char_MCM_256(TED7360& ted);
-    static void render_invalid_mode(TED7360& ted);
+    static REGPARM void render_BMM_hires(TED7360& ted, uint8_t *bufp, int offs);
+    static REGPARM void render_BMM_multicolor(TED7360& ted,
+                                              uint8_t *bufp, int offs);
+    static REGPARM void render_char_128(TED7360& ted, uint8_t *bufp, int offs);
+    static REGPARM void render_char_256(TED7360& ted, uint8_t *bufp, int offs);
+    static REGPARM void render_char_ECM(TED7360& ted, uint8_t *bufp, int offs);
+    static REGPARM void render_char_MCM(TED7360& ted, uint8_t *bufp, int offs);
+    static REGPARM void render_invalid_mode(TED7360& ted,
+                                            uint8_t *bufp, int offs);
     // -----------------------------------------------------------------
     // CPU I/O registers
     uint8_t     ioRegister_0000;
@@ -191,7 +204,9 @@ namespace Plus4 {
     uint32_t    tedRegisterWriteMask;
     uint8_t     tedRegisters[32];
     // currently selected render function (depending on bits of FF06 and FF07)
-    void        (*render_func)(TED7360& ted);
+    REGPARM void  (*render_func)(TED7360& ted, uint8_t *bufp, int offs);
+    // delay mode changes by one cycle
+    REGPARM void  (*prv_render_func)(TED7360& ted, uint8_t *bufp, int offs);
     // CPU clock multiplier
     int         cpu_clock_multiplier;
     // TED cycle counter (0 to 3)
@@ -230,11 +245,9 @@ namespace Plus4 {
     bool        displayWindow;
     bool        renderingDisplay;
     bool        displayActive;
-    bool        horizontalBlanking;
-    bool        verticalBlanking;
-    // bit 0: single clock mode controlled by TED
-    // bit 1: copied from FF13 bit 1
-    uint8_t     singleClockModeFlags;
+    // bit 0: horizontal blanking
+    // bit 1: vertical blanking
+    uint8_t     displayBlankingFlags;
     // timers (FF00 to FF05)
     bool        timer1_run;
     bool        timer2_run;
@@ -256,17 +269,20 @@ namespace Plus4 {
     uint8_t     attr_buf[64];
     uint8_t     attr_buf_tmp[64];
     uint8_t     char_buf[64];
-    uint32_t    pixelBuf1[2];   // 2x4 pixels for rendering display
-    uint32_t    pixelBuf2[3];   // 3x4 pixels for delay/horizontal scroll
+    uint32_t    attributeShiftRegister;
+    uint32_t    characterShiftRegister;
+    uint32_t    cursorShiftRegister;
+    uint32_t    bitmapHShiftRegister;
+    uint32_t    bitmapM0ShiftRegister;
+    uint32_t    bitmapM1ShiftRegister;
     uint8_t     line_buf[432];
     uint8_t     line_buf_tmp[4];
     int         line_buf_pos;
     bool        bitmapMode;
-    uint8_t     currentCharacter;
     uint8_t     characterMask;
-    uint8_t     currentAttribute;
-    uint8_t     currentBitmap;
-    bool        cursorFlag;     // true if cursor is at current character
+    // bit 0: single clock mode controlled by TED
+    // bit 1: copied from FF13 bit 1
+    uint8_t     singleClockModeFlags;
     uint8_t     dmaCycleCounter;
     uint8_t     dmaFlags;       // sum of: 1: attribute DMA; 2: character DMA
     uint8_t     prvCharacterLine;
@@ -422,4 +438,10 @@ namespace Plus4 {
   };
 
 }       // namespace Plus4
+
+#ifdef REGPARM
+#  undef REGPARM
+#endif
+
+#endif  // EP128EMU_PLUS4_TED_HPP
 
