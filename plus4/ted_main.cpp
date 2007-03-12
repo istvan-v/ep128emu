@@ -374,8 +374,6 @@ namespace Plus4 {
         M7501::interruptRequest();
       M7501::run(cpu_clock_multiplier);
     }
-    // delay horizontal scroll changes
-    horiz_scroll = tedRegisters[0x07] & 0x07;
     // calculate video output
     {
       bool    tmpFlag = videoShiftRegisterEnabled;
@@ -408,6 +406,8 @@ namespace Plus4 {
     }
     // delay video mode changes by one cycle
     prv_render_func = render_func;
+    // delay horizontal scroll changes
+    horiz_scroll = tedRegisters[0x07] & 0x07;
     // bitmap fetches and rendering display are done on even cycle counts
     if (videoShiftRegisterEnabled) {
       currentAttribute = nextAttribute;
