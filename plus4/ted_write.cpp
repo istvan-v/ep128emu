@@ -152,24 +152,24 @@ namespace Plus4 {
       if (ted.renderWindow) {
         // check if DMA should be requested
         if (!((uint8_t(ted.savedVideoLine) ^ value) & uint8_t(0x07))) {
-          switch (ted.video_column) {
-          case 95:
-          case 96:
-            ted.dmaWindow = true;
-            break;
-          case 97:
-          case 98:
-            break;
-          default:
-            ted.dmaWindow = true;
-            if (ted.savedVideoLine != 203) {
+          if (ted.dmaEnabled) {
+            switch (ted.video_column) {
+            case 95:
+            case 96:
+              ted.dmaWindow = true;
+              break;
+            case 97:
+            case 98:
+              break;
+            default:
+              ted.dmaWindow = true;
               if (ted.dmaCycleCounter == 0 &&
                   (ted.video_column >= 99 || ted.video_column < 75))
                 ted.dmaCycleCounter = 2;
               ted.dmaFlags = ted.dmaFlags | 1;
               ted.dma_position = ted.dma_position & 0x03FF;
+              break;
             }
-            break;
           }
         }
         else if (ted.dmaFlags & 1) {
@@ -194,7 +194,6 @@ namespace Plus4 {
     ted.dataBusState = value;
     uint8_t   bitsChanged = value ^ ted.tedRegisters[0x07];
     ted.tedRegisters[0x07] = value;
-    ted.horiz_scroll = int(value & uint8_t(0x07));
     ted.ted_disabled = !!(value & uint8_t(0x20));
     if (bitsChanged & uint8_t(0x60)) {
       if (bitsChanged & uint8_t(0x20)) {

@@ -229,8 +229,6 @@ namespace Plus4 {
     int         bitmap_base_addr;
     // base address for character set (FF13 bits 2..7)
     int         charset_base_addr;
-    // horizontal scroll (0 to 7)
-    int         horiz_scroll;
     // cursor position (FF0C, FF0D)
     int         cursor_position;
     // FF07 bit 5
@@ -241,7 +239,10 @@ namespace Plus4 {
     // display state flags, set depending on video line and column
     bool        renderWindow;
     bool        dmaWindow;
-    bool        bitmapFetchWindow;
+    // if non-zero, disable address generation for bitmap fetches, and always
+    // read from FFFF; bit 0 is cleared at cycle 109 and set at cycle 75, bit 1
+    // is cleared at the first character DMA and set at the end of the display
+    uint8_t     bitmapAddressDisableFlags;
     bool        displayWindow;
     bool        renderingDisplay;
     bool        displayActive;
@@ -269,24 +270,33 @@ namespace Plus4 {
     uint8_t     attr_buf[64];
     uint8_t     attr_buf_tmp[64];
     uint8_t     char_buf[64];
-    uint32_t    attributeShiftRegister;
-    uint32_t    characterShiftRegister;
-    uint32_t    cursorShiftRegister;
-    uint32_t    bitmapHShiftRegister;
-    uint32_t    bitmapM0ShiftRegister;
-    uint32_t    bitmapM1ShiftRegister;
     uint8_t     line_buf[432];
-    uint8_t     line_buf_tmp[4];
     int         line_buf_pos;
+    bool        videoShiftRegisterEnabled;
+    uint8_t     bitmapHShiftRegister;
+    uint16_t    bitmapMShiftRegister;
+    // horizontal scroll (0 to 7)
+    uint8_t     horiz_scroll;
+    uint8_t     shiftRegisterAttribute;
+    uint8_t     shiftRegisterCharacter;
+    bool        shiftRegisterCursorFlag;
+    uint8_t     currentAttribute;
+    uint8_t     currentCharacter;
+    uint8_t     currentBitmap;
+    bool        cursorFlag;
+    uint8_t     nextAttribute;
+    uint8_t     nextCharacter;
+    uint8_t     nextBitmap;
+    bool        nextCursorFlag;
     bool        bitmapMode;
     uint8_t     characterMask;
+    bool        dmaEnabled;
     // bit 0: single clock mode controlled by TED
     // bit 1: copied from FF13 bit 1
     uint8_t     singleClockModeFlags;
     uint8_t     dmaCycleCounter;
     uint8_t     dmaFlags;       // sum of: 1: attribute DMA; 2: character DMA
     uint8_t     prvCharacterLine;
-    uint8_t     renderCnt;
     bool        incrementingDMAPosition;
     int         savedVideoLine;
     int         videoInterruptLine;
