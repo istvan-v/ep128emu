@@ -695,8 +695,10 @@ namespace Plus4 {
         // find out file type
         std::FILE *f = std::fopen(fileName_.c_str(), "rb");
         if (f) {
-          if (std::fseek(f, 0L, SEEK_END) >= 0)
-            isD64 = (std::ftell(f) == 174848);
+          if (std::fseek(f, 0L, SEEK_END) >= 0) {
+            long    fSize = std::ftell(f);
+            isD64 = (fSize == 174848L || fSize == 175531L);
+          }
           std::fclose(f);
         }
         else

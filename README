@@ -1,1 +1,310 @@
-to be written...
+ep128emu 2.0.0 beta1
+====================
+
+
+Features
+========
+
+General
+-------
+
+  * graphical user interface using the FLTK library
+  * software (FLTK based) or OpenGL video, with resizable emulator
+    window, fullscreen mode, brightness/contrast/gamma can be set
+    globally or separately for red/green/blue channels, color
+    saturation control; additional features in OpenGL mode only: single
+    or double buffered (with synchronization to vertical refresh) mode,
+    linear texture filtering, and some display effects
+  * real time audio output uses the PortAudio library (v18 or v19), with
+    support for many native audio APIs (MME/DirectSound/ASIO on Windows,
+    OSS/ALSA/JACK on Linux, and CoreAudio on MacOS X); high quality
+    sample rate conversion with low aliasing; volume control, two first
+    order highpass filters with configurable cutoff frequency, and an
+    optional parametric equalizer can be applied to the audio signal
+  * recording sound output to a WAV format sound file
+  * saving and loading snapshots of the state of the emulated machine
+  * demo recording (snapshot combined with stream of keyboard events
+    which can be played back with accurate timing)
+  * tape emulation for all supported machine types, with playback,
+    recording, and setting tape position; markers can be created for
+    quick positioning to specific tape locations (useful for tapes with
+    multiple files); uses custom file format which is PCM audio data
+    with 1 to 8 bits of sample resolution and variable sample rate, and
+    header including the table of markers
+  * GUI tape editor utility for copying Enterprise files from/to
+    ep128emu tape images
+  * command line utility for converting C16 .tap files to ep128emu
+    format
+  * simple GUI debugger with support for breakpoints/watchpoints,
+    viewing the current state of CPU registers and memory paging,
+    displaying memory dump or loading from or saving to a file in ASCII
+    or binary format, modifying memory or searching for a pattern of
+    bytes, disassembler with support for all undocumented 6502 and some
+    Z80 opcodes, address offset for code that runs at a different
+    location than where it is at the time of disassembling, and saving
+    disassembly to a file. For memory operations and the disassembler,
+    addresses can be 16 bit CPU (affected by current paging and includes
+    memory mapped I/O registers) or 22 bit physical (all ROM and RAM
+    data can be accessed, regardless of memory paging) addresses.
+    In the case of Z80 emulation, watchpoints can also be set on I/O
+    ports and physical addresses.
+
+Enterprise emulation
+--------------------
+
+  * instruction based emulation of the Z80 CPU, supports all documented
+    and some undocumented opcodes, and memory wait states (including
+    synchronization with the NICK chip when accessing video memory)
+  * RAM size can be set in 16 kilobyte steps in the range 64 to 3712
+  * ROM can be loaded from external image files to segments 0 to 7,
+    16 to 19 (decimal), 32 to 35, and 48 to 51
+  *
+  *
+
+Plus/4 emulation
+----------------
+
+  * cycle based emulation of the 7501/8501 CPU, supporting all
+    documented and undocumented opcodes, and fully compatible decimal
+    mode
+  * TED 7360/8360 emulation with high level of compatibility, implements
+    all documented video modes, PAL/NTSC mode switching, as well as most
+    known display artifacts; all registers can be read and written, and
+    the internal operation and timing is reproduced with good accuracy.
+
+  * RAM size can be 16, 32, 64, 256, or 1024 kilobytes (the latter two
+    using the Hannes memory expansion)
+  * up to 8 16 kilobyte banks of ROM can be loaded from external image
+    files
+  * SID emulation using version 0.16 of the reSID library by Dag Lem,
+    implements the MOS 8580 chip running at single clock speed (886.7
+    kHz in PAL mode) with registers appearing at FD40-FD5F and FE80-FE9F
+  * experimental hardware level emulation of the 1541 and 1581 floppy
+    disk drives, with support for D64 and D81 files
+  * load and automatically start .PRG file on start-up
+
+Installation
+============
+
+Linux
+-----
+
+Windows
+-------
+
+Usage
+=====
+
+Command line options
+--------------------
+
+'File' menu
+-----------
+
+Set working directory
+
+  Set the directory to be accessed by the optional file I/O ROM
+  extension modules.
+
+Load file
+
+  Load an ep128emu format binary file, which may be a previously saved
+  snapshot or demo for the same machine type as the one currently being
+  emulated, a binary format configuration file, or a Plus/4 program file
+  with ep128emu header.
+
+Load configuration file
+
+  Select and load an ASCII format configuration file and apply the new
+  settings. If the configuration file does not include all the supported
+  options, those that are omitted are left unchanged.
+
+Save configuration file
+
+  Save the current emulator configuration to an ASCII text file, which
+  can be edited with any text editor, and can be loaded at a later time.
+
+Quick snapshot / Set file name
+
+  Select file name for quick snapshots. The default is
+  ~/.ep128emu/qs_ep128.dat or ~/.ep128emu/qs_plus4.dat, depending on the
+  machine type. This setting is not saved on exit.
+
+Quick snapshot / Load (Ctrl + F10)
+
+  Load the quick snapshot file if it exists.
+
+Quick snapshot / Save (Ctrl + F9)
+
+  Save a snapshot of the current state of the emulated machine to the
+  quick snapshot file. The snapshot will also include the current memory
+  configuration and ROM images, but clock frequency and timing settings
+  are not restored when loading a snapshot. The file format may be
+  subject to changes between different releases of the emulator. Note
+  that the state of any floppy drives is currently not saved, and the
+  drives are reset on loading a snapshot.
+
+Save snapshot
+
+  Save snapshot to the selected file (see notes above).
+
+Record demo
+
+  Save snapshot (including clock frequency and timing settings) and
+  record keyboard events to the selected file until the recording is
+  stopped. The events can be replayed with accurate timing when the
+  file is loaded later. Note that the file format may change between
+  different releases of the emulator. Events that
+
+Stop demo (Ctrl + F12)
+
+  Stop any currently running demo playback or recording.
+
+Record sound file
+
+  Write 16 bit signed PCM sound output to a WAV format sound file.
+
+Stop sound recording
+
+  Close sound output file if it is currently being written.
+
+Load program (Plus/4 only)
+
+Save program (Plus/4 only)
+
+Quit
+
+  Exit the emulator.
+
+'Machine' menu
+--------------
+
+Toggle pause (F10)
+
+Toggle full speed
+
+Tape / Select image file
+
+Tape / Play (Shift + F9)
+
+Tape / Stop (Shift + F10)
+
+Tape / Record (Shift + F12)
+
+Tape / Rewind / To beginning of tape
+
+Tape / Rewind / To previous marker
+
+Tape / Rewind / By 10 seconds
+Tape / Rewind / By 60 seconds
+
+Tape / Fast forward / To next marker (F12)
+
+Tape / Fast forward / By 10 seconds
+Tape / Fast forward / By 60 seconds
+
+Tape / Marker / Add
+
+Tape / Marker / Delete nearest
+
+Tape / Marker / Delete all
+
+Tape / Close
+
+Reset / Reset (F11)
+
+  This has the same effect as using the reset button on the real
+  machine.
+
+Reset / Force reset (Ctrl + F11)
+
+  In addition to a normal reset, make sure that the emulated machine is
+  really restarted using the standard ROM reset routines, and do not
+  allow programs to disable reset by setting custom (RAM) handlers.
+  In the case of Plus/4 emulation, most of the RAM data is still
+  preserved.
+  This option will also turn off automatically enabled extensions that
+  increase CPU usage, such as SID emulation, or 1541/1581 drives with no
+  disk opened.
+
+Reset / Reset clock frequencies
+
+  Reset clock frequency and timing settings to those specified in the
+  machine configuration; this is normally only useful after demo
+  playback, which may override the settings.
+
+Reset / Reset machine configuration (Shift + F11)
+
+  Reset memory configuration (RAM size, ROM images), clock frequency,
+  and timing settings according to the machine configuration, and clear
+  all RAM data. Implies 'Force reset' and 'Reset clock frequencies'.
+  Reverting the configuration can be useful after snapshot loading or
+  demo playback, as these may change the settings.
+
+Enable SID emulation (Plus/4 only)
+
+  Turn on SID emulation, making the SID registers appear at FD40-FD5F
+  and FE80-FE9F; this increases the CPU usage of the emulator.
+  SID emulation is also automatically enabled when a byte is written to
+  the above mentioned address ranges, but some programs detect if a SID
+  card is present by only reading the registers, and in those cases
+  using this option is needed. SID emulation remains active until the
+  next use of 'Force reset' or 'Reset machine configuration', and
+  snapshot data includes SID state and whether it was enabled or not at
+  the time of saving the snapshot.
+
+Configure...
+
+'Options' menu
+--------------
+
+Display / Cycle display mode (F9)
+
+  Cycle between these four display modes:
+    window with no menu bar
+    window with menu bar (this is the default)
+    fullscreen with menu bar
+    fullscreen with no menu bar
+
+Display / Set size to 384x288
+Display / Set size to 768x576
+Display / Set size to 1152x864
+
+  Resize the emulator window to predefined width/height values; this has
+  no effect in fullscreen mode. While the window can also be resized
+  using the window manager, sizes that are integer multiples of the
+  actual screen resolution of the emulated machine may look better,
+  particularly when texture filtering is not used.
+
+Display / Configure...
+
+Sound / Increase volume
+
+  Increase sound output volume by about 1.5 dB.
+
+Sound / Decrease volume
+
+  Decrease sound output volume by about 1.5 dB.
+
+Sound / Configure...
+
+Floppy / Configure...
+
+Floppy / Remove disk A
+Floppy / Remove disk B
+Floppy / Remove disk C
+Floppy / Remove disk D
+
+Toggle single threaded mode
+
+
+
+
+'Debug' menu
+------------
+
+Start debugger
+
+Copyright
+=========
+

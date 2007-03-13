@@ -646,11 +646,12 @@ namespace Plus4 {
         imageFile = (std::FILE *) 0;
         throw Ep128Emu::Exception("error seeking to end of disk image file");
       }
-      if (std::ftell(imageFile) != 174848L) {
+      long    fSize = std::ftell(imageFile);
+      if (fSize != 174848L && fSize != 175531L) {
         std::fclose(imageFile);
         imageFile = (std::FILE *) 0;
         throw Ep128Emu::Exception("disk image file has invalid length "
-                                  "- must be 174848 bytes");
+                                  "- must be 174848 or 175531 bytes");
       }
       std::fseek(imageFile, 0L, SEEK_SET);
       writeProtectFlag = isReadOnly;
