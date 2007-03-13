@@ -285,19 +285,19 @@ namespace Ep128Emu {
   void OpenGLDisplay::Message_LineData::copyLine(const uint8_t *buf,
                                                  size_t nBytes)
   {
-    (void) nBytes;
-    const uint8_t *bufp = buf;
     unsigned char *p = reinterpret_cast<unsigned char *>(&(buf_[0]));
-    for (size_t i = 0; i < 48; i++) {
-      unsigned char n = *(bufp++);
-      *(p++) = n;
-      do {
-        *(p++) = *(bufp++);
-      } while (--n);
+    size_t  i = 0;
+    if (nBytes & 1) {
+      p[0] = buf[0];
+      i++;
     }
-    nBytes_ = size_t(p - reinterpret_cast<unsigned char *>(&(buf_[0])));
-    for (size_t i = nBytes_; (i & 3) != 0; i++)
-      *(p++) = 0;
+    for ( ; i < nBytes; i += 2) {
+      p[i] = buf[i];
+      p[i + 1] = buf[i + 1];
+    }
+    nBytes_ = i;
+    for ( ; (i & 3) != 0; i++)
+      p[i] = 0;
   }
 
   OpenGLDisplay::Message_FrameDone::~Message_FrameDone()
