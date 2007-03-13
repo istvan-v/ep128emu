@@ -175,6 +175,7 @@ namespace Plus4 {
     static REGPARM void render_char_MCM(TED7360& ted, uint8_t *bufp, int offs);
     static REGPARM void render_invalid_mode(TED7360& ted,
                                             uint8_t *bufp, int offs);
+    void resampleAndDrawLine();
     // -----------------------------------------------------------------
     // CPU I/O registers
     uint8_t     ioRegister_0000;
@@ -270,7 +271,7 @@ namespace Plus4 {
     uint8_t     attr_buf[64];
     uint8_t     attr_buf_tmp[64];
     uint8_t     char_buf[64];
-    uint8_t     line_buf[432];
+    uint8_t     line_buf[540];
     int         line_buf_pos;
     bool        videoShiftRegisterEnabled;
     uint8_t     bitmapHShiftRegister;

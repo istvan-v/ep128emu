@@ -241,9 +241,9 @@ namespace Plus4 {
       attr_buf_tmp[i] = uint8_t(0);
       char_buf[i] = uint8_t(0);
     }
-    for (int i = 0; i < 432; i++)
+    for (int i = 0; i < 540; i++)
       line_buf[i] = uint8_t(0x08);
-    line_buf_pos = 432;
+    line_buf_pos = 1000;
     videoShiftRegisterEnabled = false;
     bitmapHShiftRegister = 0x00;
     bitmapMShiftRegister = 0x0000;

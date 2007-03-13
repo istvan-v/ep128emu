@@ -844,5 +844,32 @@ namespace Plus4 {
     }
   }
 
+  void TED7360::resampleAndDrawLine()
+  {
+    uint8_t tmpBuf[816];
+    int     nPixels = int(((unsigned int) (line_buf_pos - 1) * 8U) / 9U);
+    int     cnt = 768;
+    int     cnt2 = 0;
+    int     readPos = 0;
+    int     writePos = 0;
+    uint8_t c = 0;
+    for (int i = 0; i < 768; i++) {
+      if (!(i & 15))
+        tmpBuf[writePos++] = 16;
+      if (!cnt2) {
+        readPos++;
+        cnt2 = 8;
+      }
+      cnt = cnt + nPixels;
+      if (cnt >= 768) {
+        cnt = cnt - 768;
+        c = line_buf[readPos++];
+        cnt2--;
+      }
+      tmpBuf[writePos++] = c;
+    }
+    drawLine(&(tmpBuf[0]), 816);
+  }
+
 }       // namespace Plus4
 

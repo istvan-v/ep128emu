@@ -32,7 +32,7 @@ namespace Plus4 {
       M7501::run(cpu_clock_multiplier);
       if (!cycle_count)
         playSample(0);
-      if (line_buf_pos < 425) {
+      if (line_buf_pos < 533) {
         if (line_buf_pos >= 0) {
           uint8_t *bufp = &(line_buf[line_buf_pos]);
           bufp[3] = bufp[2] = bufp[1] = bufp[0] = uint8_t(0x00);
@@ -77,7 +77,13 @@ namespace Plus4 {
         break;
       case 87:                          // horizontal blanking start
         displayBlankingFlags = displayBlankingFlags | 0x01;
-        drawLine(&(line_buf[0]), 432);
+        if (line_buf_pos >= 9 && line_buf_pos <= 541) {
+          if (line_buf_pos <= 442)
+            drawLine(&(line_buf[0]), 432);
+          else
+            resampleAndDrawLine();
+        }
+        line_buf_pos = 1000;
         break;
       case 95:
         if (renderWindow) {
@@ -229,7 +235,7 @@ namespace Plus4 {
       // calculate video output
       {
         bool    tmpFlag = videoShiftRegisterEnabled;
-        if ((unsigned int) line_buf_pos < 425U) {
+        if ((unsigned int) line_buf_pos < 533U) {
           uint8_t *bufp = &(line_buf[line_buf_pos]);
           if (displayBlankingFlags) {
             bufp[0] = uint8_t(0x00);
@@ -377,7 +383,7 @@ namespace Plus4 {
     // calculate video output
     {
       bool    tmpFlag = videoShiftRegisterEnabled;
-      if (line_buf_pos < 425) {
+      if (line_buf_pos < 533) {
         if (line_buf_pos >= 0) {
           uint8_t *bufp = &(line_buf[line_buf_pos + 4]);
           if (displayBlankingFlags) {
