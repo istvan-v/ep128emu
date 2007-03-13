@@ -860,12 +860,12 @@ namespace Plus4 {
         readPos++;
         cnt2 = 8;
       }
-      cnt = cnt + nPixels;
       if (cnt >= 768) {
         cnt = cnt - 768;
         c = line_buf[readPos++];
         cnt2--;
       }
+      cnt = cnt + nPixels;
       tmpBuf[writePos++] = c;
     }
     drawLine(&(tmpBuf[0]), 816);
