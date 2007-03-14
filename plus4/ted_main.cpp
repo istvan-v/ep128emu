@@ -81,7 +81,7 @@ namespace Plus4 {
           bool  invColors = (invertColorPhaseFlag != bool(savedVideoLine & 1));
           if (invColors)
             invColors = !(tedRegisters[0x07] & 0x40);
-          if (line_buf_pos <= 442 && !invColors)
+          if (line_buf_pos <= 451 && !invColors)
             drawLine(&(line_buf[0]), 432);
           else
             resampleAndDrawLine(invColors);

@@ -951,7 +951,7 @@ namespace Plus4 {
 
   void TED7360::resampleAndDrawLine(bool invertColors)
   {
-    if (line_buf_pos >= 451) {
+    if (line_buf_pos >= 460) {
       uint8_t tmpBuf[816];
       int     nPixels = int(((unsigned int) (line_buf_pos - 1) * 8U) / 9U);
       int     cnt = 768;
@@ -960,7 +960,7 @@ namespace Plus4 {
       int     writePos = 0;
       uint8_t c = 0;
       const uint8_t *colorTable = (uint8_t *) 0;
-      if (nPixels >= 416)
+      if (nPixels >= 432)
         colorTable = (invertColors ?
                       &(colorTable_NTSC_InvPhase[0]) : &(colorTable_NTSC[0]));
       else if (invertColors)
