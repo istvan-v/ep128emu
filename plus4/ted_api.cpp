@@ -241,6 +241,7 @@ namespace Plus4 {
     buf.writeBoolean(incrementingDMAPosition);
     buf.writeUInt32(uint32_t(savedVideoLine));
     buf.writeBoolean(prvVideoInterruptState);
+    buf.writeBoolean(invertColorPhaseFlag);
     buf.writeByte(dataBusState);
     buf.writeUInt32(uint32_t(keyboard_row_select_mask));
     for (int i = 0; i < 16; i++)
@@ -373,6 +374,7 @@ namespace Plus4 {
       incrementingDMAPosition = buf.readBoolean();
       savedVideoLine = int(buf.readUInt32() & 0x01FF);
       prvVideoInterruptState = buf.readBoolean();
+      invertColorPhaseFlag = buf.readBoolean();
       dataBusState = buf.readByte();
       keyboard_row_select_mask = int(buf.readUInt32() & 0xFFFF);
       for (int i = 0; i < 16; i++)

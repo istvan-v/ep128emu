@@ -78,10 +78,14 @@ namespace Plus4 {
       case 87:                          // horizontal blanking start
         displayBlankingFlags = displayBlankingFlags | 0x01;
         if (line_buf_pos >= 9 && line_buf_pos <= 541) {
-          if (line_buf_pos <= 442)
+          bool  invColors = (invertColorPhaseFlag != bool(savedVideoLine & 1));
+          if (invColors)
+            invColors = !(tedRegisters[0x07] & 0x40);
+          if (line_buf_pos <= 442 && !invColors)
             drawLine(&(line_buf[0]), 432);
           else
-            resampleAndDrawLine();
+            resampleAndDrawLine(invColors);
+          invertColorPhaseFlag = !invertColorPhaseFlag;
         }
         line_buf_pos = 1000;
         break;
@@ -321,6 +325,7 @@ namespace Plus4 {
           break;
         case 257:
           verticalSync(false, 28);
+          invertColorPhaseFlag = true;
           break;
         case 269:
           displayBlankingFlags = displayBlankingFlags & 0x01;
@@ -337,6 +342,7 @@ namespace Plus4 {
           break;
         case 232:
           verticalSync(false, 28);
+          invertColorPhaseFlag = false;
           break;
         case 244:
           displayBlankingFlags = displayBlankingFlags & 0x01;

@@ -175,7 +175,7 @@ namespace Plus4 {
     static REGPARM void render_char_MCM(TED7360& ted, uint8_t *bufp, int offs);
     static REGPARM void render_invalid_mode(TED7360& ted,
                                             uint8_t *bufp, int offs);
-    void resampleAndDrawLine();
+    void resampleAndDrawLine(bool invertColors = false);
     // -----------------------------------------------------------------
     // CPU I/O registers
     uint8_t     ioRegister_0000;
@@ -302,6 +302,7 @@ namespace Plus4 {
     int         savedVideoLine;
     int         videoInterruptLine;
     bool        prvVideoInterruptState;
+    bool        invertColorPhaseFlag;
    protected:
     // for reading data from invalid memory address
     uint8_t     dataBusState;
