@@ -89,14 +89,95 @@ Installation
 Linux
 -----
 
+On Linux and other POSIX platforms, the emulator is installed from the
+source code, available at the SourceForge download page
+  http://sourceforge.net/project/showfiles.php?group_id=128766
+or the most recent state of the code can be downloaded from CVS with the
+following command:
+  cvs -z3 -d                                                        \
+  :pserver:anonymous@ep128emu.cvs.sourceforge.net:/cvsroot/ep128emu \
+  checkout -P ep128emu2
+In addition to the standard development tools (a recent version of the
+GNU C/C++ compiler, binutils, etc.), you need the following packages:
+
+  * SCons (http://www.scons.org/)
+  * Python interpreter for running SCons
+  * FLTK 1.1.x (http://www.fltk.org/software.php?VERSION=1.1.7)
+    NOTE: this library should be compiled with the --enable-threads
+    'configure' option - many Linux distributions include binaries of
+    the FLTK library built without --enable-threads, so you may need to
+    compile it from sources
+  * PortAudio (http://www.portaudio.com/download.html), version 18 and
+    19 are supported, but v19 is recommended
+  * libsndfile (http://www.mega-nerd.com/libsndfile/#Download)
+  * dotconf (http://www.azzit.de/dotconf/)
+
+Once these are installed, you can edit the file 'SConstruct' in the top
+level source directory for setting compiler flags etc., and run the
+command 'scons' for building the emulator. The resulting executable
+files (ep128emu, tapconv, and tapeedit) can be copied to any directory
+that is in the PATH, but when installing the first time, you also need
+to set up configuration files and ROM images:
+
+  * create the directories ~/.ep128emu, ~/.ep128emu/config, and
+    ~/.ep128emu/roms, and optionally ~/.ep128emu/demo, ~/.ep128emu/disk,
+    ~/.ep128emu/progs, and ~/.ep128emu/tape
+  * copy the files 'roms/epfileio.rom' and 'roms/p4fileio.rom' from the
+    sources to ~/.ep128emu/roms
+  * download http://www.sharemation.com/IstvanV/roms/ep128emu_roms.zip,
+    and extract it to ~/.ep128emu/roms
+  * run './makecfg ~/.ep128emu' to create the initial configuration
+    files
+
 Windows
 -------
+
+A binary package with an installer is available at the SourceForge
+download page:
+  http://sourceforge.net/project/showfiles.php?group_id=128766
+To install, just run the executable, and follow the instructions.
+The installer can automatically download the ROM images needed for
+running the emulator, but these can also be installed manually by
+downloading http://www.sharemation.com/IstvanV/roms/ep128emu_roms.zip,
+and extracting it to roms\ under the selected installation folder.
+When asked if configuration files should be reinstalled, click 'OK' when
+installing the first time, but this step can be skipped in later
+installations to preserve the configuration.
 
 Usage
 =====
 
 Command line options
 --------------------
+
+  -h
+  -help
+  --help
+    print the list of available command line options
+  -ep128
+    emulate an Enterprise (this is the default)
+  -plus4
+    emulate a Commodore Plus/4
+  -cfg <FILENAME>
+    load an ASCII format configuration file on startup, and apply
+    settings
+  -prg <FILENAME>
+    load and run program file on startup (Plus/4 only)
+  -opengl
+    use OpenGL video driver (this is the default, and is recommended
+    when hardware accelerated OpenGL is available)
+  -no-opengl
+    use software video driver; this is slower than OpenGL when used at
+    high resolutions, and also disables many display effects, but should
+    work on all machines; however, it will use a color depth of 24 bits,
+    while in OpenGL mode the textures are 16 bit (R5G6B5) only, to
+    improve performance
+  OPTION=VALUE
+    set configuration variable 'OPTION' to 'VALUE'; the available
+    variable names are the same as those used in ASCII format
+    configuration files
+  OPTION
+    set boolean configuration variable 'OPTION' to true
 
 'File' menu
 -----------
