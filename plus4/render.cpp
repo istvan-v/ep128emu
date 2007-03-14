@@ -960,7 +960,7 @@ namespace Plus4 {
       int     writePos = 0;
       uint8_t c = 0;
       const uint8_t *colorTable = (uint8_t *) 0;
-      if (nPixels >= 408)
+      if (nPixels >= 416)
         colorTable = (invertColors ?
                       &(colorTable_NTSC_InvPhase[0]) : &(colorTable_NTSC[0]));
       else if (invertColors)
