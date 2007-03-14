@@ -130,14 +130,13 @@ namespace Plus4 {
           if (dmaFlags & 2)
             bitmapAddressDisableFlags = bitmapAddressDisableFlags & 0x01;
           // check if DMA should be requested
-          if (!((uint8_t(savedVideoLine) ^ tedRegisters[0x06]) & 0x07)) {
-            if (dmaEnabled) {
-              // start a new DMA at character line 7
-              dmaWindow = true;
-              dmaCycleCounter = 1;
-              dmaFlags = dmaFlags | 1;
-              dma_position = dma_position & 0x03FF;
-            }
+          if (!((uint8_t(savedVideoLine) ^ tedRegisters[0x06]) & 0x07) &&
+              dmaEnabled) {
+            // start a new DMA at character line 7
+            dmaWindow = true;
+            dmaCycleCounter = 1;
+            dmaFlags = dmaFlags | 1;
+            dma_position = dma_position & 0x03FF;
           }
           else if (dmaFlags & 2) {
             // done reading attribute data in previous line,
