@@ -279,9 +279,10 @@ namespace Plus4 {
           tedRegisters[0x09] |= uint8_t(0x40);
       }
       // update horizontal position
-      if (!(tedRegisterWriteMask & 0x40000000U))
-        video_column = (video_column != 113 ? (video_column + 1) : 0);
-      video_column &= uint8_t(0x7F);
+      video_column =
+          uint8_t(!(tedRegisterWriteMask & 0x40000000U) ?
+                  (video_column != 113 ? ((video_column + 1) & 0x7F) : 0)
+                  : (video_column & 0x7E));
     }
 
     // -------- EVEN HALF-CYCLE (FF1E bit 1 == 0) --------
