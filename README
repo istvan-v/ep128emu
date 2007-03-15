@@ -1,6 +1,13 @@
 ep128emu 2.0.0 beta1
 ====================
 
+ep128emu is an open source, portable emulator of 8 bit computers,
+including the Enterprise 128, and, starting from version 2.0.0, the
+Commodore Plus/4, written in C++, and supporting Windows and POSIX
+platforms (32 bit Windows, and 32 and 64 bit Linux have been tested).
+It implements accurate, high quality hardware emulation, particularly
+for the Plus/4, however, the system requirements are higher than that
+of most other emulators.
 
 Features
 ========
@@ -58,8 +65,15 @@ Enterprise emulation
   * RAM size can be set in 16 kilobyte steps in the range 64 to 3712
   * ROM can be loaded from external image files to segments 0 to 7,
     16 to 19 (decimal), 32 to 35, and 48 to 51
-  *
-  *
+  * NICK chip emulation, supporting all documented video modes
+  * DAVE emulation, including timers, interrupts, external ports for
+    tape and keyboard/joystick, memory paging, and sound output (all
+    effects are supported, and the polynomial counters generate the same
+    pseudo-random "noise" pattern as on the real machine)
+  * WD177x (floppy disk controller) emulation for EXDOS
+  * optional extension ROM (epfileio.rom) that implements a FILE: device
+    for direct access to files on the host system in a single user
+    selectable directory
 
 Plus/4 emulation
 ----------------
@@ -70,8 +84,7 @@ Plus/4 emulation
   * TED 7360/8360 emulation with high level of compatibility, implements
     all documented video modes, PAL/NTSC mode switching, as well as most
     known display artifacts; all registers can be read and written, and
-    the internal operation and timing is reproduced with good accuracy.
-
+    the internal operation and timing is reproduced with good accuracy
   * RAM size can be 16, 32, 64, 256, or 1024 kilobytes (the latter two
     using the Hannes memory expansion)
   * up to 8 16 kilobyte banks of ROM can be loaded from external image
@@ -82,6 +95,9 @@ Plus/4 emulation
   * experimental hardware level emulation of the 1541 and 1581 floppy
     disk drives, with support for D64 and D81 files
   * load and automatically start .PRG file on start-up
+  * optional extension ROM (p4fileio.rom) for direct access to .PRG
+    files by the load/save commands on the host system in a single user
+    selectable directory
 
 Installation
 ============
@@ -249,48 +265,12 @@ Stop sound recording
 
   Close sound output file if it is currently being written.
 
-Load program (Plus/4 only)
-
-Save program (Plus/4 only)
-
 Quit
 
   Exit the emulator.
 
 'Machine' menu
 --------------
-
-Toggle pause (F10)
-
-Toggle full speed
-
-Tape / Select image file
-
-Tape / Play (Shift + F9)
-
-Tape / Stop (Shift + F10)
-
-Tape / Record (Shift + F12)
-
-Tape / Rewind / To beginning of tape
-
-Tape / Rewind / To previous marker
-
-Tape / Rewind / By 10 seconds
-Tape / Rewind / By 60 seconds
-
-Tape / Fast forward / To next marker (F12)
-
-Tape / Fast forward / By 10 seconds
-Tape / Fast forward / By 60 seconds
-
-Tape / Marker / Add
-
-Tape / Marker / Delete nearest
-
-Tape / Marker / Delete all
-
-Tape / Close
 
 Reset / Reset (F11)
 
@@ -334,8 +314,6 @@ Enable SID emulation (Plus/4 only)
   snapshot data includes SID state and whether it was enabled or not at
   the time of saving the snapshot.
 
-Configure...
-
 'Options' menu
 --------------
 
@@ -357,8 +335,6 @@ Display / Set size to 1152x864
   actual screen resolution of the emulated machine may look better,
   particularly when texture filtering is not used.
 
-Display / Configure...
-
 Sound / Increase volume
 
   Increase sound output volume by about 1.5 dB.
@@ -367,25 +343,73 @@ Sound / Decrease volume
 
   Decrease sound output volume by about 1.5 dB.
 
-Sound / Configure...
-
 Floppy / Configure...
+
+  Opens a dialog for setting up floppy emulation. For each drive (in the
+  case of Plus/4 emulation, A: is unit 8, B: is unit 9, C: is unit 10,
+  and D: is unit 11), an image file can be selected, and disk geometry
+  parameters can be specified. If the file name is left empty, that
+  means having no disk in that particular drive. It may also be possible
+  to directly access a real disk by using the /dev/fd* devices
+  (on Linux) or \\.\A: (on Windows) as the image file.
+  The geometry parameters are used only when emulating an Enterprise; at
+  most one of these can be zero or negative to have the value calculated
+  automatically from the other two and the file size.
+  For the Plus/4, the image file must be either a D64 or a D81; the type
+  is determined from the file size, and the geometry parameters are
+  ignored. Opening a D64 file will enable 1541 emulation for that
+  particular drive, while the 1581 will be emulated for D81 files. Since
+  these drives are emulated at the hardware level (with a 6502 CPU,
+  etc.), enabling them increases the CPU usage. A drive will remain
+  active until a different type of image file is opened, or a snapshot
+  is loaded or 'Force reset' (or anything that implies it) is used while
+  there is no disk opened.
 
 Floppy / Remove disk A
 Floppy / Remove disk B
 Floppy / Remove disk C
 Floppy / Remove disk D
 
+  These are just shortcuts for setting the image file name for a
+  specific floppy drive to an empty string.
+
 Toggle single threaded mode
 
-
-
-
-'Debug' menu
-------------
-
-Start debugger
+  Set if the emulation should run in a separate thread (which is the
+  default), or in the same thread as the GUI. Note that in single
+  threaded mode, opening the menus will block the emulation. Using this
+  mode normally does not have any advantage, and may be removed in
+  future releases. It can, however, be used to allow the emulation to
+  run at the refresh rate of the monitor, if double buffering and full
+  speed are turned on: this way, screen updates will be very smooth,
+  although at the expense of not running at exact real time speed, and
+  having no sound output.
 
 Copyright
 =========
+
+ep128emu is copyright (C) 2003-2007 by Istvan Varga
+<istvanv@users.sourceforge.net>. Z80 emulation copyright (C) 1999-2003
+by Kevin Thacker and Vincze Béla György. reSID 0.16 copyright (C) 2004
+by Dag Lem.
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 2 of the License, or (at your
+option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+
+Credits
+-------
+
+Thanks to Hársfalvi Levente for testing the Plus/4 emulator and
+providing some hardware information.
 

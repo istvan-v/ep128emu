@@ -64,6 +64,10 @@ Section "ep128emu2" SecMain
   SetOutPath "$INSTDIR"
 
   File "..\COPYING"
+  File /nonfatal "..\LICENSE.FLTK"
+  File /nonfatal "..\LICENSE.PortAudio"
+  File /nonfatal "..\LICENSE.dotconf"
+  File /nonfatal "..\LICENSE.libsndfile"
   File "/oname=readme.txt" "..\README"
   File "..\ep128emu.exe"
   File "D:\MinGW\bin\libsndfile-1.dll"
@@ -78,6 +82,8 @@ Section "ep128emu2" SecMain
   SetOutPath "$INSTDIR\demo"
 
   SetOutPath "$INSTDIR\disk"
+
+  File "..\disk\disk.zip"
 
   SetOutPath "$INSTDIR\progs"
 
@@ -129,6 +135,10 @@ Section "Source code" SecSrc
   SetOutPath "$INSTDIR\src\config"
 
   File "..\config\*.cfg"
+
+  SetOutPath "$INSTDIR\src\disk"
+
+  File "..\disk\*.zip"
 
   SetOutPath "$INSTDIR\src\gui"
 
