@@ -28,6 +28,13 @@ namespace Plus4 {
     return memoryMapTable[cpuMemoryReadMap + ((unsigned int) n & 3U)];
   }
 
+  int TED7360::getSegmentType(uint8_t n) const
+  {
+    if (segmentTable[n] == (uint8_t *) 0)
+      return 0;
+    return (n < uint8_t(0x80) ? 1 : 2);
+  }
+
   uint8_t TED7360::read_memory_0000_to_0FFF(void *userData, uint16_t addr)
   {
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
