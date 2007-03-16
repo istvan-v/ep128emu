@@ -358,7 +358,7 @@ namespace Plus4 {
     ted.dataBusState = value;
     uint8_t   n = uint8_t(addr) & uint8_t(0xFF);
     ted.tedRegisterWriteMask |= (uint32_t(1) << n);
-    ted.tedRegisters[n] = value | uint8_t(0x80);
+    ted.tedRegisters[n] = value & uint8_t(0x7F);
   }
 
   void TED7360::write_register_FF1A(void *userData,

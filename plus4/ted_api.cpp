@@ -28,9 +28,12 @@ static const float brightnessToYTable[8] = {
    0.180f,  0.235f,  0.261f,  0.341f,  0.506f,  0.661f,  0.753f,  0.993f
 };
 
-static const float colorPhaseTable[16] = {
+static const float colorPhaseTable[32] = {
      0.0f,    0.0f,  103.0f,  283.0f,   53.0f,  241.0f,  347.0f,  167.0f,
-   124.5f,  148.0f,  195.0f,   83.0f,  265.0f,  323.0f,    1.5f,  213.0f
+   124.5f,  148.0f,  195.0f,   83.0f,  265.0f,  323.0f,    1.5f,  213.0f,
+  // the second half of the palette is used for emulating PAL color artifacts
+    27.5f,   68.0f,  181.0f,  303.0f,  277.5f,  292.5f,  307.5f,  322.5f,
+   337.5f,  352.5f,    7.5f,   22.5f,   37.5f,   52.5f,   67.5f,   82.5f
 };
 
 namespace Plus4 {
@@ -38,7 +41,7 @@ namespace Plus4 {
   void TED7360::convertPixelToRGB(uint8_t color,
                                   float& red, float& green, float& blue)
   {
-    uint8_t c = color & 0x0F;
+    uint8_t c = (color & 0x0F) | ((color & 0x80) >> 3);
     uint8_t b = (color & 0x70) >> 4;
     float   y = 0.035f;
     float   u = 0.0f, v = 0.0f;
@@ -47,7 +50,7 @@ namespace Plus4 {
     if (c > 1) {
       float   phs = colorPhaseTable[c] * 3.14159265f / 180.0f;
       u = float(std::cos(phs)) * 0.18f;
-      v = float(std::sin(phs)) * 0.18f;
+      v = float(std::sin(phs)) * (c < 0x14 ? 0.18f : 0.0f);
     }
     y *= 0.95f;
     // R = (V / 0.877) + Y
@@ -241,7 +244,7 @@ namespace Plus4 {
     buf.writeBoolean(incrementingDMAPosition);
     buf.writeUInt32(uint32_t(savedVideoLine));
     buf.writeBoolean(prvVideoInterruptState);
-    buf.writeBoolean(invertColorPhaseFlag);
+    buf.writeByte(invertColorPhaseFlags);
     buf.writeByte(dataBusState);
     buf.writeUInt32(uint32_t(keyboard_row_select_mask));
     for (int i = 0; i < 16; i++)
@@ -374,7 +377,7 @@ namespace Plus4 {
       incrementingDMAPosition = buf.readBoolean();
       savedVideoLine = int(buf.readUInt32() & 0x01FF);
       prvVideoInterruptState = buf.readBoolean();
-      invertColorPhaseFlag = buf.readBoolean();
+      invertColorPhaseFlags = buf.readByte() & 0x07;
       dataBusState = buf.readByte();
       keyboard_row_select_mask = int(buf.readUInt32() & 0xFFFF);
       for (int i = 0; i < 16; i++)

@@ -270,7 +270,7 @@ namespace Plus4 {
     savedVideoLine = 224;
     videoInterruptLine = 0;
     prvVideoInterruptState = false;
-    invertColorPhaseFlag = false;
+    invertColorPhaseFlags = 0x00;
     dataBusState = uint8_t(0xFF);
     keyboard_row_select_mask = 0xFFFF;
     tape_motor_state = false;

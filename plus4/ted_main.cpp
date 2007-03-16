@@ -78,14 +78,21 @@ namespace Plus4 {
       case 87:                          // horizontal blanking start
         displayBlankingFlags = displayBlankingFlags | 0x01;
         if (line_buf_pos >= 9 && line_buf_pos <= 541) {
-          bool  invColors = (invertColorPhaseFlag != bool(savedVideoLine & 1));
-          if (invColors)
-            invColors = !(tedRegisters[0x07] & 0x40);
+          uint8_t invColors = invertColorPhaseFlags & uint8_t(0x03);
+          if (invColors) {
+            if (tedRegisters[0x07] & 0x40)
+              invColors = 0;
+          }
           if (line_buf_pos <= 451 && !invColors)
             drawLine(&(line_buf[0]), 432);
           else
             resampleAndDrawLine(invColors);
-          invertColorPhaseFlag = !invertColorPhaseFlag;
+          uint8_t tmp = (invertColorPhaseFlags ^ uint8_t(0xFF)) & uint8_t(0x04);
+          tmp = tmp | (invertColorPhaseFlags >> 1);
+          if (!(tedRegisters[0x07] & 0x40))
+            invertColorPhaseFlags = tmp ^ uint8_t((savedVideoLine & 1) << 1);
+          else
+            invertColorPhaseFlags = tmp & uint8_t(0x05);
         }
         line_buf_pos = 1000;
         break;
@@ -249,7 +256,7 @@ namespace Plus4 {
           else if (!displayActive) {
             uint8_t c = tedRegisters[0x19];
             bufp[0] = (!(tedRegisterWriteMask & 0x02000000U) ?
-                       c : uint8_t(0xFF));
+                       c : uint8_t(0x7F));
             bufp[1] = c;
             bufp[2] = c;
             bufp[3] = c;
@@ -325,7 +332,7 @@ namespace Plus4 {
           break;
         case 257:
           verticalSync(false, 28);
-          invertColorPhaseFlag = true;
+          invertColorPhaseFlags = 0x04;
           break;
         case 269:
           displayBlankingFlags = displayBlankingFlags & 0x01;
@@ -342,7 +349,7 @@ namespace Plus4 {
           break;
         case 232:
           verticalSync(false, 28);
-          invertColorPhaseFlag = false;
+          invertColorPhaseFlags = 0x00;
           break;
         case 244:
           displayBlankingFlags = displayBlankingFlags & 0x01;
@@ -401,7 +408,7 @@ namespace Plus4 {
           else if (!displayActive) {
             uint8_t c = tedRegisters[0x19];
             bufp[0] = (!(tedRegisterWriteMask & 0x02000000U) ?
-                       c : uint8_t(0xFF));
+                       c : uint8_t(0x7F));
             bufp[1] = c;
             bufp[2] = c;
             bufp[3] = c;

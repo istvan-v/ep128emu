@@ -38,6 +38,15 @@ namespace Plus4 {
 
   class TED7360 : public M7501 {
    private:
+    struct RenderTables {
+      uint16_t  mcmBitmapConversionTable[256];
+      uint8_t   colorTable_NTSC[256];
+      uint8_t   colorTable_InvPhase[256];
+      uint8_t   colorTable_NTSC_InvPhase[256];
+      uint8_t   colorTable_HalfInvPhase[256];
+      uint8_t   colorTable_NTSC_HalfInvPhase[256];
+      RenderTables();
+    };
     // memory and register read functions
     static uint8_t  read_memory_0000_to_0FFF(void *userData, uint16_t addr);
     static uint8_t  read_memory_1000_to_3FFF(void *userData, uint16_t addr);
@@ -175,8 +184,9 @@ namespace Plus4 {
     static REGPARM void render_char_MCM(TED7360& ted, uint8_t *bufp, int offs);
     static REGPARM void render_invalid_mode(TED7360& ted,
                                             uint8_t *bufp, int offs);
-    void resampleAndDrawLine(bool invertColors = false);
+    void resampleAndDrawLine(uint8_t invertColors = 0);
     // -----------------------------------------------------------------
+    static RenderTables renderTables;
     // CPU I/O registers
     uint8_t     ioRegister_0000;
     uint8_t     ioRegister_0001;
@@ -302,7 +312,7 @@ namespace Plus4 {
     int         savedVideoLine;
     int         videoInterruptLine;
     bool        prvVideoInterruptState;
-    bool        invertColorPhaseFlag;
+    uint8_t     invertColorPhaseFlags;
    protected:
     // for reading data from invalid memory address
     uint8_t     dataBusState;
@@ -377,6 +387,9 @@ namespace Plus4 {
     // Returns memory segment at page 'n' (0 to 3). Segments 0x00 to 0x07 are
     // used for ROM, while segments 0xFC to 0xFF are RAM.
     uint8_t getMemoryPage(int n) const;
+    // Returns the type of segment 'n' (0 to 255), which is 0 for no memory,
+    // 1 for ROM, and 2 for RAM.
+    int getSegmentType(uint8_t n) const;
     // Read memory directly without paging. Valid address ranges are
     // 0x00000000 to 0x0001FFFF for ROM, and 0x003F0000 to 0x003FFFFF for RAM
     // (assuming 64K size).
