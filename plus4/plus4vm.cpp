@@ -106,7 +106,7 @@ namespace Plus4 {
 
   bool Plus4VM::TED7360_::systemCallback(uint8_t n)
   {
-    if (getMemoryPage(int(reg_PC >> 14)) >= 0x80 ||
+    if (getSegmentType(getMemoryPage(int(reg_PC >> 14))) != 1 ||
         !(reg_PC >= 0x8004 && reg_PC < 0xFD00))
       return false;
     switch (n) {
