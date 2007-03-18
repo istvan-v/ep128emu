@@ -67,7 +67,6 @@ void Ep128EmuGUI::init_()
   demoRecordFile = (Ep128Emu::File *) 0;
   quickSnapshotFileName = "";
   updateDisplayEntered = false;
-  singleThreadedMode = false;
   browseFileWindowShowFlag = false;
   debugWindowShowFlag = false;
   debugWindowOpenFlag = false;
@@ -90,7 +89,6 @@ void Ep128EmuGUI::init_()
   romImageDirectory = defaultDir_;
   prgFileDirectory = defaultDir_;
   debuggerDirectory = defaultDir_;
-  guiConfig.createKey("gui.singleThreadedMode", singleThreadedMode);
   guiConfig.createKey("gui.snapshotDirectory", snapshotDirectory);
   guiConfig.createKey("gui.demoDirectory", demoDirectory);
   guiConfig.createKey("gui.soundFileDirectory", soundFileDirectory);
@@ -455,8 +453,6 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Options_FloppyRmC, (void *) this);
   mainMenuBar->add("Options/Floppy/Remove disk D",
                    (char *) 0, &menuCallback_Options_FloppyRmD, (void *) this);
-  mainMenuBar->add("Options/Toggle single threaded mode",
-                   (char *) 0, &menuCallback_Options_ThreadMode, (void *) this);
   mainMenuBar->add("Debug/Start debugger",
                    (char *) 0, &menuCallback_Debug_OpenDebugger, (void *) this);
   mainMenuBar->add("Help/About",
@@ -481,21 +477,13 @@ void Ep128EmuGUI::run()
   vmThread.setErrorCallback(&errorMessageCallback);
   vm.setFileNameCallback(&fileNameCallback, (void *) this);
   vm.setBreakPointCallback(&breakPointCallback, (void *) this);
-  if (!singleThreadedMode)
-    vmThread.unlock();
+  vmThread.unlock();
   // run emulation
   vmThread.pause(false);
   do {
-    if (singleThreadedMode) {
-      vmThread.process();
-      updateDisplay(0.0);
-    }
-    else
-      updateDisplay();
+    updateDisplay();
   } while (mainWindow->shown() && !exitFlag);
   // close windows and stop emulation thread
-  if (singleThreadedMode)
-    vmThread.unlock();
   browseFileWindowShowFlag = false;
   if (browseFileWindow->shown())
     browseFileWindow->hide();
@@ -730,23 +718,6 @@ bool Ep128EmuGUI::lockVMThread(size_t t)
 void Ep128EmuGUI::unlockVMThread()
 {
   vmThread.unlock();
-}
-
-bool Ep128EmuGUI::setSingleThreadedMode(bool isEnabled)
-{
-  if (isEnabled != singleThreadedMode) {
-    if (isEnabled) {
-      if (lockVMThread())
-        singleThreadedMode = true;
-      else
-        return false;
-    }
-    else {
-      unlockVMThread();
-      singleThreadedMode = false;
-    }
-  }
-  return true;
 }
 
 bool Ep128EmuGUI::browseFile(std::string& fileName, std::string& dirName,
@@ -1767,13 +1738,6 @@ void Ep128EmuGUI::menuCallback_Options_FloppyRmD(Fl_Widget *o, void *v)
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
   }
-}
-
-void Ep128EmuGUI::menuCallback_Options_ThreadMode(Fl_Widget *o, void *v)
-{
-  (void) o;
-  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
-  gui_.setSingleThreadedMode(!gui_.singleThreadedMode);
 }
 
 void Ep128EmuGUI::menuCallback_Debug_OpenDebugger(Fl_Widget *o, void *v)

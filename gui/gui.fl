@@ -77,7 +77,6 @@ class Ep128EmuGUI {open
   decl {Ep128Emu::File *demoRecordFile;} {}
   decl {std::string quickSnapshotFileName;} {}
   decl {bool updateDisplayEntered;} {}
-  decl {bool singleThreadedMode;} {}
   decl {bool browseFileWindowShowFlag;} {}
   decl {bool debugWindowShowFlag;} {}
   decl {bool debugWindowOpenFlag;} {}
@@ -113,8 +112,6 @@ class Ep128EmuGUI {open
   decl {bool lockVMThread(size_t t = 2000);} {public
   }
   decl {void unlockVMThread();} {public
-  }
-  decl {bool setSingleThreadedMode(bool isEnabled);} {public
   }
   decl {bool browseFile(std::string& fileName, std::string& dirName, const char *pattern, int type, const char *title);} {public
   }
@@ -253,7 +250,6 @@ class Ep128EmuGUI {open
   } {
     code {{
   debugWindow->hide();
-  setSingleThreadedMode(false);
   vmThread.quit(true);
   errorMessageWindow->hide();
   browseFileWindow->hide();

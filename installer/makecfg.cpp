@@ -438,7 +438,6 @@ class Ep128EmuDisplaySndConfiguration {
 class Ep128EmuGUIConfiguration {
  private:
   struct {
-    bool        singleThreadedMode;
     std::string snapshotDirectory;
     std::string demoDirectory;
     std::string soundFileDirectory;
@@ -454,7 +453,6 @@ class Ep128EmuGUIConfiguration {
   Ep128EmuGUIConfiguration(Ep128Emu::ConfigurationDB& config,
                            const std::string& installDirectory)
   {
-    gui.singleThreadedMode = false;
     gui.snapshotDirectory = ".";
     gui.demoDirectory = installDirectory + "demo";
     gui.soundFileDirectory = ".";
@@ -465,7 +463,6 @@ class Ep128EmuGUIConfiguration {
     gui.romImageDirectory = installDirectory + "roms";
     gui.prgFileDirectory = installDirectory + "progs";
     gui.debuggerDirectory = ".";
-    config.createKey("gui.singleThreadedMode", gui.singleThreadedMode);
     config.createKey("gui.snapshotDirectory", gui.snapshotDirectory);
     config.createKey("gui.demoDirectory", gui.demoDirectory);
     config.createKey("gui.soundFileDirectory", gui.soundFileDirectory);
