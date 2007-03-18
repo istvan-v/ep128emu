@@ -1,4 +1,4 @@
-ep128emu 2.0.0 beta1
+ep128emu 2.0.0 beta2
 ====================
 
 ep128emu is an open source, portable emulator of 8 bit computers,
@@ -372,18 +372,6 @@ Floppy / Remove disk D
 
   These are just shortcuts for setting the image file name for a
   specific floppy drive to an empty string.
-
-Toggle single threaded mode
-
-  Set if the emulation should run in a separate thread (which is the
-  default), or in the same thread as the GUI. Note that in single
-  threaded mode, opening the menus will block the emulation. Using this
-  mode normally does not have any advantage, and may be removed in
-  future releases. It can, however, be used to allow the emulation to
-  run at the refresh rate of the monitor, if double buffering and full
-  speed are turned on: this way, screen updates will be very smooth,
-  although at the expense of not running at exact real time speed, and
-  having no sound output.
 
 Copyright
 =========
