@@ -338,8 +338,10 @@ namespace Ep128Emu {
     lastMessage = m;
     messageQueueMutex.unlock();
     if (typeid(*m) == typeid(Message_FrameDone)) {
-      Fl::awake();
-      threadLock.wait(1);
+      if (!videoResampleEnabled) {
+        Fl::awake();
+        threadLock.wait(1);
+      }
     }
   }
 
@@ -370,9 +372,16 @@ namespace Ep128Emu {
       exitFlag(false),
       forceUpdateLineCnt(0),
       forceUpdateLineMask(0),
-      redrawFlag(false)
+      redrawFlag(false),
+      videoResampleEnabled(false),
+      displayFrameRate(60.0),
+      inputFrameRate(50.0),
+      ringBufferReadPos(0.0),
+      ringBufferWritePos(2)
   {
     try {
+      for (size_t n = 0; n < 4; n++)
+        frameRingBuffer[n] = (Message_LineData **) 0;
       lineBuffers = new Message_LineData*[578];
       for (size_t n = 0; n < 578; n++)
         lineBuffers[n] = (Message_LineData *) 0;
@@ -381,6 +390,11 @@ namespace Ep128Emu {
         linesChanged[n] = false;
       textureBuffer = new uint16_t[1024 * 16];  // max. texture size = 1024x16
       std::memset(textureBuffer, 0, sizeof(uint16_t) * 1024 * 16);
+      for (size_t n = 0; n < 4; n++) {
+        frameRingBuffer[n] = new Message_LineData*[578];
+        for (size_t yc = 0; yc < 578; yc++)
+          frameRingBuffer[n][yc] = (Message_LineData *) 0;
+      }
     }
     catch (...) {
       if (lineBuffers)
@@ -389,6 +403,10 @@ namespace Ep128Emu {
         delete[] linesChanged;
       if (textureBuffer)
         delete[] textureBuffer;
+      for (size_t n = 0; n < 4; n++) {
+        if (frameRingBuffer[n])
+          delete[] frameRingBuffer[n];
+      }
       throw;
     }
     displayParameters.useDoubleBuffering = isDoubleBuffered;
@@ -398,6 +416,7 @@ namespace Ep128Emu {
 
   OpenGLDisplay::~OpenGLDisplay()
   {
+    Fl::remove_idle(&fltkIdleCallback, (void *) this);
     messageQueueMutex.lock();
     exitFlag = true;
     while (freeMessageStack) {
@@ -433,6 +452,187 @@ namespace Ep128Emu {
       }
     }
     delete[] lineBuffers;
+    for (size_t n = 0; n < 4; n++) {
+      for (size_t yc = 0; yc < 578; yc++) {
+        Message *m = frameRingBuffer[n][yc];
+        if (m) {
+          frameRingBuffer[n][yc] = (Message_LineData *) 0;
+          m->~Message();
+          std::free(m);
+        }
+      }
+      delete[] frameRingBuffer[n];
+    }
+  }
+
+  void OpenGLDisplay::drawFrame_quality3(Message_LineData **lineBuffers_,
+                                         double x0, double y0,
+                                         double x1, double y1,
+                                         double blendScale_, bool clearFlag_)
+  {
+    if (blendScale_ > -0.5) {
+      if (blendScale_ < 0.001)
+        return;
+      if (blendScale_ < 0.998) {
+        glEnable(GL_BLEND);
+#ifndef WIN32
+        glBlendColor(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
+                     GLclampf(blendScale_));
+#else
+        void  (*glBlendColor_)(GLclampf, GLclampf, GLclampf, GLclampf) =
+            (void (*)(GLclampf, GLclampf, GLclampf, GLclampf))
+                wglGetProcAddress("glBlendColor");
+        glBlendColor_(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
+                      GLclampf(blendScale_));
+#endif
+        if (clearFlag_)
+          glBlendFunc(GL_CONSTANT_ALPHA, GL_ZERO);
+        else
+          glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE);
+      }
+      else
+        glDisable(GL_BLEND);
+    }
+    unsigned char lineBuf1[768];
+    unsigned char lineBuf2[768];
+    unsigned char *curLine_ = &(lineBuf1[0]);
+    unsigned char *prvLine_ = &(lineBuf2[0]);
+    if (displayParameters.blendScale1 < 0.495) {
+      // full horizontal resolution, interlace (768x576)
+      int     cnt = 0;
+      for (size_t yc = 0; yc < 590; yc++) {
+        bool    haveLineDataInPrvLine = false;
+        bool    haveLineDataInCurLine = false;
+        bool    haveLineDataInNxtLine = false;
+        if (yc > 0 && yc < 579)
+          haveLineDataInPrvLine = !!(lineBuffers_[yc - 1]);
+        if (yc < 578)
+          haveLineDataInCurLine = !!(lineBuffers_[yc]);
+        if (yc < 577)
+          haveLineDataInNxtLine = !!(lineBuffers_[yc + 1]);
+        if (haveLineDataInCurLine | haveLineDataInNxtLine) {
+          unsigned char *tmp = curLine_;
+          curLine_ = prvLine_;
+          prvLine_ = tmp;
+          // decode video data
+          const unsigned char *bufp = (unsigned char *) 0;
+          size_t  nBytes = 0;
+          if (haveLineDataInCurLine)
+            lineBuffers_[yc]->getLineData(bufp, nBytes);
+          else
+            lineBuffers_[yc + 1]->getLineData(bufp, nBytes);
+          decodeLine(curLine_, bufp, nBytes);
+        }
+        // build 16-bit texture
+        uint16_t  *txtp = &(textureBuffer[(yc & 15) * 768]);
+        if (haveLineDataInCurLine) {
+          for (size_t xc = 0; xc < 768; xc++)
+            txtp[xc] = colormap(curLine_[xc]);
+        }
+        else if (haveLineDataInPrvLine && haveLineDataInNxtLine) {
+          for (size_t xc = 0; xc < 768; xc++)
+            txtp[xc] = colormap(prvLine_[xc], curLine_[xc]);
+        }
+        else if (haveLineDataInPrvLine) {
+          for (size_t xc = 0; xc < 768; xc++)
+            txtp[xc] = colormap(curLine_[xc], 0);
+        }
+        else if (haveLineDataInNxtLine) {
+          for (size_t xc = 0; xc < 768; xc++)
+            txtp[xc] = colormap(0, curLine_[xc]);
+        }
+        else {
+          for (size_t xc = 0; xc < 768; xc++)
+            txtp[xc] = colormap(0);
+        }
+        if (++cnt == 16) {
+          cnt = 2;
+          // load texture
+          glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 16,
+                          GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
+                          (GLvoid *) textureBuffer);
+          // update display
+          double  ycf0 = y0 + ((double(int(yc - 15)) * (1.0 / 576.0))
+                               * (y1 - y0));
+          double  ycf1 = y0 + ((double(int(yc - 1)) * (1.0 / 576.0))
+                               * (y1 - y0));
+          double  txtycf0 = double(int((yc - 14) & 15)) * (1.0 / 16.0);
+          double  txtycf1 = txtycf0 + (14.0 / 16.0);
+          if (yc == 589) {
+            ycf1 -= ((y1 - y0) * (12.0 / 576.0));
+            txtycf1 -= (12.0 / 16.0);
+          }
+          glBegin(GL_QUADS);
+          glTexCoord2f(GLfloat(0.0), GLfloat(txtycf0));
+          glVertex2f(GLfloat(x0), GLfloat(ycf0));
+          glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(txtycf0));
+          glVertex2f(GLfloat(x1), GLfloat(ycf0));
+          glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(txtycf1));
+          glVertex2f(GLfloat(x1), GLfloat(ycf1));
+          glTexCoord2f(GLfloat(0.0), GLfloat(txtycf1));
+          glVertex2f(GLfloat(x0), GLfloat(ycf1));
+          glEnd();
+        }
+      }
+    }
+    else {
+      // full horizontal resolution, no interlace (768x288)
+      for (size_t yc = 0; yc < 588; yc += 28) {
+        for (size_t offs = 0; offs < 32; offs += 2) {
+          // decode video data
+          const unsigned char *bufp = (unsigned char *) 0;
+          size_t  nBytes = 0;
+          bool    haveLineData = false;
+          if ((yc + offs) < 578) {
+            if (lineBuffers_[yc + offs] != (Message_LineData *) 0) {
+              lineBuffers_[yc + offs]->getLineData(bufp, nBytes);
+              haveLineData = true;
+            }
+            else if (lineBuffers_[yc + offs + 1] != (Message_LineData *) 0) {
+              lineBuffers_[yc + offs + 1]->getLineData(bufp, nBytes);
+              haveLineData = true;
+            }
+          }
+          if (haveLineData)
+            decodeLine(curLine_, bufp, nBytes);
+          else
+            std::memset(curLine_, 0, 768);
+          // build 16-bit texture
+          uint16_t  *txtp = &(textureBuffer[(offs >> 1) * 768]);
+          for (size_t xc = 0; xc < 768; xc++)
+            txtp[xc] = colormap(curLine_[xc]);
+        }
+        // load texture
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 16,
+                        GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
+                        (GLvoid *) textureBuffer);
+        // update display
+        double  ycf0 = y0 + ((double(int(yc)) * (1.0 / 576.0))
+                             * (y1 - y0));
+        double  ycf1 = y0 + ((double(int(yc + 28)) * (1.0 / 576.0))
+                             * (y1 - y0));
+        double  txtycf1 = 15.0 / 16.0;
+        if (yc == 560) {
+          ycf1 -= ((y1 - y0) * (12.0 / 576.0));
+          txtycf1 -= (6.0 / 16.0);
+        }
+        glBegin(GL_QUADS);
+        glTexCoord2f(GLfloat(0.0), GLfloat(1.0 / 16.0));
+        glVertex2f(GLfloat(x0), GLfloat(ycf0));
+        glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(1.0 / 16.0));
+        glVertex2f(GLfloat(x1), GLfloat(ycf0));
+        glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(txtycf1));
+        glVertex2f(GLfloat(x1), GLfloat(ycf1));
+        glTexCoord2f(GLfloat(0.0), GLfloat(txtycf1));
+        glVertex2f(GLfloat(x0), GLfloat(ycf1));
+        glEnd();
+      }
+    }
+  }
+
+  void OpenGLDisplay::fltkIdleCallback(void *userData_)
+  {
+    (void) userData_;
   }
 
   void OpenGLDisplay::displayFrame()
@@ -572,6 +772,15 @@ namespace Ep128Emu {
           forceUpdateLineMask = 0;
         }
       }
+      else {
+        for (size_t n = 0; n < 578; n++) {
+          if (lineBuffers[n] != (Message_LineData *) 0) {
+            Message *m = lineBuffers[n];
+            lineBuffers[n] = (Message_LineData *) 0;
+            deleteMessage(m);
+          }
+        }
+      }
     }
     else {
       if (!(displayParameters.useDoubleBuffering ||
@@ -705,84 +914,35 @@ namespace Ep128Emu {
         break;
       case 3:
         // full horizontal resolution, interlace (768x576)
-        {
-          unsigned char lineBuf2[768];
-          unsigned char *prvLine_ = &(lineBuf2[0]);
-          int     cnt = 0;
-          for (size_t yc = 0; yc < 590; yc++) {
-            bool    haveLineDataInPrvLine = false;
-            bool    haveLineDataInCurLine = false;
-            bool    haveLineDataInNxtLine = false;
-            if (yc > 0 && yc < 579)
-              haveLineDataInPrvLine = !!(lineBuffers[yc - 1]);
-            if (yc < 578)
-              haveLineDataInCurLine = !!(lineBuffers[yc]);
-            if (yc < 577)
-              haveLineDataInNxtLine = !!(lineBuffers[yc + 1]);
-            if (haveLineDataInCurLine | haveLineDataInNxtLine) {
-              unsigned char *tmp = curLine_;
-              curLine_ = prvLine_;
-              prvLine_ = tmp;
-              // decode video data
-              const unsigned char *bufp = (unsigned char *) 0;
-              size_t  nBytes = 0;
-              if (haveLineDataInCurLine)
-                lineBuffers[yc]->getLineData(bufp, nBytes);
-              else
-                lineBuffers[yc + 1]->getLineData(bufp, nBytes);
-              decodeLine(curLine_, bufp, nBytes);
-            }
-            // build 16-bit texture
-            uint16_t  *txtp = &(textureBuffer[(yc & 15) * 768]);
-            if (haveLineDataInCurLine) {
-              for (size_t xc = 0; xc < 768; xc++)
-                txtp[xc] = colormap(curLine_[xc]);
-            }
-            else if (haveLineDataInPrvLine && haveLineDataInNxtLine) {
-              for (size_t xc = 0; xc < 768; xc++)
-                txtp[xc] = colormap(prvLine_[xc], curLine_[xc]);
-            }
-            else if (haveLineDataInPrvLine) {
-              for (size_t xc = 0; xc < 768; xc++)
-                txtp[xc] = colormap(curLine_[xc], 0);
-            }
-            else if (haveLineDataInNxtLine) {
-              for (size_t xc = 0; xc < 768; xc++)
-                txtp[xc] = colormap(0, curLine_[xc]);
-            }
-            else {
-              for (size_t xc = 0; xc < 768; xc++)
-                txtp[xc] = colormap(0);
-            }
-            if (++cnt == 16) {
-              cnt = 2;
-              // load texture
-              glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 16,
-                              GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
-                              (GLvoid *) textureBuffer);
-              // update display
-              double  ycf0 = y0 + ((double(int(yc - 15)) * (1.0 / 576.0))
-                                   * (y1 - y0));
-              double  ycf1 = y0 + ((double(int(yc - 1)) * (1.0 / 576.0))
-                                   * (y1 - y0));
-              double  txtycf0 = double(int((yc - 14) & 15)) * (1.0 / 16.0);
-              double  txtycf1 = txtycf0 + (14.0 / 16.0);
-              if (yc == 589) {
-                ycf1 -= ((y1 - y0) * (12.0 / 576.0));
-                txtycf1 -= (12.0 / 16.0);
-              }
-              glBegin(GL_QUADS);
-              glTexCoord2f(GLfloat(0.0), GLfloat(txtycf0));
-              glVertex2f(GLfloat(x0), GLfloat(ycf0));
-              glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(txtycf0));
-              glVertex2f(GLfloat(x1), GLfloat(ycf0));
-              glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(txtycf1));
-              glVertex2f(GLfloat(x1), GLfloat(ycf1));
-              glTexCoord2f(GLfloat(0.0), GLfloat(txtycf1));
-              glVertex2f(GLfloat(x0), GLfloat(ycf1));
-              glEnd();
-            }
+        if (!displayParameters.useDoubleBuffering) {
+          drawFrame_quality3(lineBuffers, x0, y0, x1, y1);
+        }
+        else {
+          int     readPosInt = int(ringBufferReadPos);
+          double  readPosFrac = ringBufferReadPos - double(readPosInt);
+          drawFrame_quality3(frameRingBuffer[readPosInt & 3],
+                             x0, y0, x1, y1, 1.0 - readPosFrac);
+          drawFrame_quality3(frameRingBuffer[(readPosInt + 1) & 3],
+                             x0, y0, x1, y1, readPosFrac, false);
+          double  d = inputFrameRate / displayFrameRate;
+          d = (d > 0.01 ? (d < 1.75 ? d : 1.75) : 0.01);
+          switch ((ringBufferWritePos - readPosInt) & 3) {
+          case 1:
+            d = 0.0;
+            break;
+          case 2:
+            d = d * 0.97;
+            break;
+          case 3:
+            d = d * 1.04;
+            break;
+          case 0:
+            d = d * 1.25;
+            break;
           }
+          ringBufferReadPos = ringBufferReadPos + d;
+          if (ringBufferReadPos >= 4.0)
+            ringBufferReadPos -= 4.0;
         }
         break;
       }
@@ -790,11 +950,13 @@ namespace Ep128Emu {
       glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
       glPopMatrix();
       glFlush();
-      for (size_t n = 0; n < 578; n++) {
-        if (lineBuffers[n] != (Message_LineData *) 0) {
-          Message *m = lineBuffers[n];
-          lineBuffers[n] = (Message_LineData *) 0;
-          deleteMessage(m);
+      if (!videoResampleEnabled) {
+        for (size_t n = 0; n < 578; n++) {
+          if (lineBuffers[n] != (Message_LineData *) 0) {
+            Message *m = lineBuffers[n];
+            lineBuffers[n] = (Message_LineData *) 0;
+            deleteMessage(m);
+          }
         }
       }
     }
@@ -833,10 +995,15 @@ namespace Ep128Emu {
       glEnd();
       glPopMatrix();
     }
-    if (redrawFlag) {
+    if (redrawFlag || videoResampleEnabled) {
       redrawFlag = false;
       displayFrame();
-      noInputTimer.reset();
+      if (videoResampleEnabled) {
+        double  t = displayFrameRateTimer.getRealTime();
+        displayFrameRateTimer.reset();
+        t = (t > 0.002 ? (t < 0.25 ? t : 0.25) : 0.002);
+        displayFrameRate = 1.0 / ((0.97 / displayFrameRate) + (0.03 * t));
+      }
     }
   }
 
@@ -892,6 +1059,24 @@ namespace Ep128Emu {
         }
         redrawFlag = true;
         deleteMessage(m);
+        noInputTimer.reset();
+        if (videoResampleEnabled) {
+          double  t = inputFrameRateTimer.getRealTime();
+          inputFrameRateTimer.reset();
+          t = (t > 0.002 ? (t < 0.25 ? t : 0.25) : 0.002);
+          inputFrameRate = 1.0 / ((0.97 / inputFrameRate) + (0.03 * t));
+          if (ringBufferWritePos != int(ringBufferReadPos)) {
+            // if buffer is not already full, copy current frame
+            for (size_t yc = 0; yc < 578; yc++) {
+              if (frameRingBuffer[ringBufferWritePos][yc])
+                deleteMessage(frameRingBuffer[ringBufferWritePos][yc]);
+              frameRingBuffer[ringBufferWritePos][yc] = lineBuffers[yc];
+              lineBuffers[yc] = (Message_LineData *) 0;
+            }
+            ringBufferWritePos = (ringBufferWritePos + 1) & 3;
+            continue;
+          }
+        }
         break;
       }
       else if (typeid(*m) == typeid(Message_SetParameters)) {
@@ -900,6 +1085,7 @@ namespace Ep128Emu {
         if (displayParameters.displayQuality != msg->dp.displayQuality ||
             displayParameters.useDoubleBuffering
             != msg->dp.useDoubleBuffering) {
+          Fl::remove_idle(&fltkIdleCallback, (void *) this);
           if (displayParameters.useDoubleBuffering
               != msg->dp.useDoubleBuffering) {
             // if double buffering mode has changed, also need to generate
@@ -916,6 +1102,25 @@ namespace Ep128Emu {
               textureID = (unsigned long) oldTextureID;
             }
             Fl::focus(this);
+          }
+          if (msg->dp.displayQuality == 3 && msg->dp.useDoubleBuffering) {
+            videoResampleEnabled = true;
+            Fl::add_idle(&fltkIdleCallback, (void *) this);
+            displayFrameRateTimer.reset();
+            inputFrameRateTimer.reset();
+          }
+          else {
+            videoResampleEnabled = false;
+            for (size_t n = 0; n < 4; n++) {
+              for (size_t yc = 0; yc < 578; yc++) {
+                Message *m_ = frameRingBuffer[n][yc];
+                if (m_) {
+                  frameRingBuffer[n][yc] = (Message_LineData *) 0;
+                  m_->~Message();
+                  std::free(m_);
+                }
+              }
+            }
           }
           // reset texture
           std::memset(textureBuffer, 0, sizeof(uint16_t) * 1024 * 16);
@@ -941,11 +1146,22 @@ namespace Ep128Emu {
       deleteMessage(m);
     }
     if (noInputTimer.getRealTime() > 0.33) {
+      noInputTimer.reset();
       if (redrawFlag) {
         // lost a frame
         messageQueueMutex.lock();
         framesPending = (framesPending > 0 ? (framesPending - 1) : 0);
         messageQueueMutex.unlock();
+      }
+      if (videoResampleEnabled) {
+        for (size_t yc = 0; yc < 578; yc++) {
+          Message *m = frameRingBuffer[ringBufferWritePos][yc];
+          if (m) {
+            frameRingBuffer[ringBufferWritePos][yc] = (Message_LineData *) 0;
+            deleteMessage(m);
+          }
+        }
+        ringBufferWritePos = (ringBufferWritePos + 1) & 3;
       }
       redrawFlag = true;
     }
@@ -960,7 +1176,7 @@ namespace Ep128Emu {
       forceUpdateLineCnt &= uint8_t(7);
       forceUpdateTimer.reset();
     }
-    return redrawFlag;
+    return (redrawFlag | videoResampleEnabled);
   }
 
   int OpenGLDisplay::handle(int event)

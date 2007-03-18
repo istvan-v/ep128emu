@@ -147,6 +147,10 @@ namespace Ep128Emu {
     void deleteMessage(Message *m);
     void queueMessage(Message *m);
     void displayFrame();
+    void drawFrame_quality3(Message_LineData **lineBuffers_,
+                            double x0, double y0, double x1, double y1,
+                            double blendScale_ = -1.0, bool clearFlag_ = true);
+    static void fltkIdleCallback(void *userData_);
     // ----------------
     Message       *messageQueue;
     Message       *lastMessage;
@@ -173,8 +177,16 @@ namespace Ep128Emu {
     uint8_t       forceUpdateLineCnt;
     uint8_t       forceUpdateLineMask;
     bool          redrawFlag;
+    volatile bool videoResampleEnabled;
     Timer         noInputTimer;
     Timer         forceUpdateTimer;
+    Timer         displayFrameRateTimer;
+    Timer         inputFrameRateTimer;
+    double        displayFrameRate;
+    double        inputFrameRate;
+    Message_LineData  **frameRingBuffer[4];
+    double        ringBufferReadPos;
+    int           ringBufferWritePos;
     ThreadLock    threadLock;
    public:
     OpenGLDisplay(int xx = 0, int yy = 0, int ww = 768, int hh = 576,
