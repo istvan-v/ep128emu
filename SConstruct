@@ -1,5 +1,7 @@
 # vim: syntax=python
 
+import sys
+
 win32CrossCompile = 0
 
 compilerFlags = Split('''
@@ -174,7 +176,10 @@ if haveDotconf:
     ep128emuEnvironment.Append(LIBS = ['dotconf'])
 ep128emuEnvironment.Append(LIBS = ['portaudio', 'sndfile'])
 if not win32CrossCompile:
-    ep128emuEnvironment.Append(LIBS = ['jack', 'asound', 'pthread', 'rt'])
+    if sys.platform[:5] == 'linux':
+        ep128emuEnvironment.Append(LIBS = ['jack', 'asound', 'pthread', 'rt'])
+    else:
+        ep128emuEnvironment.Append(LIBS = ['pthread'])
 else:
     ep128emuEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
 
