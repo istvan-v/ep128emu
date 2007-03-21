@@ -147,7 +147,53 @@ namespace Plus4 {
     (void) addr;
     TED7360&  ted = *(reinterpret_cast<TED7360 *>(userData));
     ted.dataBusState = value;
-    if (((ted.tedRegisters[0x06] ^ value) & uint8_t(0x07)) != uint8_t(0)) {
+    uint8_t   bitsChanged = ted.tedRegisters[0x06] ^ value;
+    ted.tedRegisters[0x06] = value;
+    bool      dmaCheckFlag = bool(bitsChanged & uint8_t(0x07));
+    if (bitsChanged & uint8_t(0x18)) {
+      // display enabled or number of rows has changed
+      if (ted.video_column != 97) {
+        switch (ted.savedVideoLine) {
+        case 0:
+          if (value & uint8_t(0x10)) {
+            if (!ted.renderWindow) {
+              // turned on display enable during line 0: initialize internal
+              // registers (FIXME: the timing is not correct)
+              ted.renderWindow = true;
+              ted.dmaEnabled = true;
+              if (ted.video_column >= 101 || ted.video_column < 67)
+                ted.singleClockModeFlags |= uint8_t(0x01);
+              if (!(ted.video_column >= 98 && ted.video_column <= 100)) {
+                // FIXME: this check is a hack
+                if (ted.bitmapAddressDisableFlags & 0x02) {
+                  ted.character_line = 7;
+                  ted.prvCharacterLine = uint8_t(7);
+                }
+              }
+              dmaCheckFlag = true;
+            }
+          }
+          break;
+        case 4:
+          if ((value & uint8_t(0x18)) == uint8_t(0x18))
+            ted.displayWindow = true;
+          break;
+        case 8:
+          if ((value & uint8_t(0x18)) == uint8_t(0x10))
+            ted.displayWindow = true;
+          break;
+        case 200:
+          if (!(value & uint8_t(0x08)))
+            ted.displayWindow = false;
+          break;
+        case 204:
+          if (value & uint8_t(0x08))
+            ted.displayWindow = false;
+          break;
+        }
+      }
+    }
+    if (dmaCheckFlag) {
       // if vertical scroll has changed:
       if (ted.renderWindow) {
         // check if DMA should be requested
@@ -182,7 +228,6 @@ namespace Plus4 {
         }
       }
     }
-    ted.tedRegisters[0x06] = value;
     ted.selectRenderer();
   }
 
