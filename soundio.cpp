@@ -250,9 +250,44 @@ namespace Ep128Emu {
     if (paStream) {
 #ifndef USING_OLD_PORTAUDIO_API
       if (usingBlockingInterface) {
+        // ring buffer is not used for blocking I/O,
+        // so assume nPeriodsSW == 1
+#  if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+        // reduce timing jitter on Win32
+        double  t = nextTime - timer_.getRealTime();
+        double  periodTime = double(long(nFrames)) / double(sampleRate);
+        long    framesToWrite = Pa_GetStreamWriteAvailable(paStream);
+        switch (int((framesToWrite << 3)
+                    / (long(buffers[0].audioData.size() >> 1) * nPeriodsHW))) {
+        case 0:
+          periodTime = periodTime * 2.0;
+          break;
+        case 1:
+          periodTime = periodTime * 1.25;
+          break;
+        case 2:
+          periodTime = periodTime * 1.1;
+          break;
+        case 3:
+          periodTime = periodTime * 1.05;
+          break;
+        case 4:
+          periodTime = periodTime * 0.95;
+          break;
+        case 5:
+          periodTime = periodTime * 0.9;
+          break;
+        default:
+          timer_.reset();
+          nextTime = 0.0;
+          periodTime = 0.0;
+          break;
+        }
+        nextTime = nextTime + periodTime;
+        if (t > 0.001)
+          Timer::wait(t);
+#  endif
         for (size_t i = 0; i < nFrames; i++) {
-          // ring buffer is not used for blocking I/O,
-          // so assume nPeriodsSW == 1
           Buffer& buf_ = buffers[0];
           buf_.audioData[buf_.writePos++] = buf[(i << 1) + 0];
           buf_.audioData[buf_.writePos++] = buf[(i << 1) + 1];
