@@ -423,11 +423,10 @@ namespace Ep128Emu {
     screenshotCallbackUserData = (void *) 0;
     if (!func)
       return;
-    unsigned char *pixelBuf_ = (unsigned char *) 0;
+    unsigned char *imageBuf_ = (unsigned char *) 0;
     try {
-      pixelBuf_ = new unsigned char[768 * 576 * 3];
-      unsigned char lineBuf_[768];
-      unsigned char tmpColormap[768];
+      imageBuf_ = new unsigned char[768 * 576 + 768];
+      unsigned char *p = imageBuf_;
       for (int c = 0; c <= 255; c++) {
         float   r, g, b;
         r = float(c) / 255.0f;
@@ -438,14 +437,11 @@ namespace Ep128Emu {
         r = r * 255.0f + 0.5f;
         g = g * 255.0f + 0.5f;
         b = b * 255.0f + 0.5f;
-        tmpColormap[c] =
-            uint8_t(r > 0.0f ? (r < 255.5f ? r : 255.5f) : 0.0f);
-        tmpColormap[c + 256] =
-            uint8_t(g > 0.0f ? (g < 255.5f ? g : 255.5f) : 0.0f);
-        tmpColormap[c + 512] =
-            uint8_t(b > 0.0f ? (b < 255.5f ? b : 255.5f) : 0.0f);
+        *(p++) = (unsigned char) (r > 0.0f ? (r < 255.5f ? r : 255.5f) : 0.0f);
+        *(p++) = (unsigned char) (g > 0.0f ? (g < 255.5f ? g : 255.5f) : 0.0f);
+        *(p++) = (unsigned char) (b > 0.0f ? (b < 255.5f ? b : 255.5f) : 0.0f);
       }
-      unsigned char *p = pixelBuf_;
+      unsigned char lineBuf_[768];
       for (size_t yc = 1; yc < 578; yc++) {
         if (lineBuffers[yc]) {
           const unsigned char *bufp = (unsigned char *) 0;
@@ -453,26 +449,22 @@ namespace Ep128Emu {
           lineBuffers[yc]->getLineData(bufp, nBytes);
           decodeLine(&(lineBuf_[0]), bufp, nBytes);
         }
-        else if (lineBuffers[yc - 1] == (Message_LineData *) 0)
+        else if (yc == 1 || lineBuffers[yc - 1] == (Message_LineData *) 0)
           std::memset(&(lineBuf_[0]), 0, 768);
         if (yc > 1) {
-          for (size_t xc = 0; xc < 768; xc++) {
-            int     c = int(lineBuf_[xc]);
-            *(p++) = tmpColormap[c];
-            *(p++) = tmpColormap[c + 256];
-            *(p++) = tmpColormap[c + 512];
-          }
+          std::memcpy(p, &(lineBuf_[0]), 768);
+          p = p + 768;
         }
       }
-      func(userData_, pixelBuf_, 768, 576);
+      func(userData_, imageBuf_, 768, 576);
     }
     catch (...) {
-      if (pixelBuf_)
-        delete[] pixelBuf_;
-      pixelBuf_ = (unsigned char *) 0;
+      if (imageBuf_)
+        delete[] imageBuf_;
+      imageBuf_ = (unsigned char *) 0;
     }
-    if (pixelBuf_)
-      delete[] pixelBuf_;
+    if (imageBuf_)
+      delete[] imageBuf_;
   }
 
   // --------------------------------------------------------------------------

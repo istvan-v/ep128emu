@@ -188,7 +188,9 @@ namespace Ep128Emu {
     // redraw() needs to be called to update the display.
     virtual bool checkEvents() = 0;
     // Set function to be called once by checkEvents() after video data for
-    // a complete frame has been received.
+    // a complete frame has been received. 'buf' contains 768 bytes of
+    // colormap data (256*3 interleaved red, green, and blue values) followed
+    // by 'w_' * 'h_' bytes of image data.
     virtual void setScreenshotCallback(void (*func)(void *userData,
                                                     const unsigned char *buf,
                                                     int w_, int h_),

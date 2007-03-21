@@ -882,67 +882,59 @@ void Ep128EmuGUI::screenshotCallback(void *userData,
     f = std::fopen(fName.c_str(), "wb");
     if (!f)
       throw Ep128Emu::Exception("error opening screenshot file");
-    unsigned char tgaHeader[24];
-    unsigned char lineBuf[3080];
-    tgaHeader[0] = 0;                   // ID length
-    tgaHeader[1] = 0;                   // no colormap
-    tgaHeader[2] = 10;                  // image type (RLE true color)
-    tgaHeader[3] = 0;                   // color map specification
-    tgaHeader[4] = 0;
-    tgaHeader[5] = 0;
-    tgaHeader[6] = 0;
-    tgaHeader[7] = 0;
-    tgaHeader[8] = 0;                   // X origin
-    tgaHeader[9] = 0;
-    tgaHeader[10] = 0;                  // Y origin
-    tgaHeader[11] = 0;
-    tgaHeader[12] = (unsigned char) (w_ & 0xFF);        // image width
-    tgaHeader[13] = (unsigned char) (w_ >> 8);
-    tgaHeader[14] = (unsigned char) (h_ & 0xFF);        // image height
-    tgaHeader[15] = (unsigned char) (h_ >> 8);
-    tgaHeader[16] = 24;                 // pixel depth
-    tgaHeader[17] = 0x20;               // image descriptor (origin: top/left)
-    if (std::fwrite(&(tgaHeader[0]), sizeof(unsigned char), 18, f) != 18)
+    unsigned char tmpBuf[1032];
+    tmpBuf[0] = 0;                      // ID length
+    tmpBuf[1] = 1;                      // use colormap
+    tmpBuf[2] = 9;                      // image type (colormap/RLE)
+    tmpBuf[3] = 0;                      // color map specification
+    tmpBuf[4] = 0;                      // first entry index = 0
+    tmpBuf[5] = 0;
+    tmpBuf[6] = 1;                      // length = 256
+    tmpBuf[7] = 24;                     // colormap entry size
+    tmpBuf[8] = 0;                      // X origin
+    tmpBuf[9] = 0;
+    tmpBuf[10] = 0;                     // Y origin
+    tmpBuf[11] = 0;
+    tmpBuf[12] = (unsigned char) (w_ & 0xFF);   // image width
+    tmpBuf[13] = (unsigned char) (w_ >> 8);
+    tmpBuf[14] = (unsigned char) (h_ & 0xFF);   // image height
+    tmpBuf[15] = (unsigned char) (h_ >> 8);
+    tmpBuf[16] = 8;                     // bits per pixel
+    tmpBuf[17] = 0x20;                  // image descriptor (origin: top/left)
+    for (int i = 0; i < 768; i += 3) {
+      tmpBuf[i + 18] = buf[i + 2];
+      tmpBuf[i + 19] = buf[i + 1];
+      tmpBuf[i + 20] = buf[i];
+    }
+    if (std::fwrite(&(tmpBuf[0]), sizeof(unsigned char), 786, f) != 786)
       throw Ep128Emu::Exception("error writing screenshot file "
                                 "- is the disk full ?");
     for (int yc = 0; yc < h_; yc++) {
-      const unsigned char *rBuf = &(buf[(yc * w_ * 3) + 0]);
-      const unsigned char *gBuf = &(buf[(yc * w_ * 3) + 1]);
-      const unsigned char *bBuf = &(buf[(yc * w_ * 3) + 2]);
+      const unsigned char *bufp = &(buf[yc * w_ + 768]);
       // RLE encode line
-      unsigned char   *p = &(lineBuf[0]);
+      unsigned char   *p = &(tmpBuf[0]);
       int     xc = 0;
       while (xc < w_) {
         if (xc == (w_ - 1)) {
           *(p++) = 0x00;
-          *(p++) = bBuf[xc * 3];
-          *(p++) = gBuf[xc * 3];
-          *(p++) = rBuf[xc * 3];
+          *(p++) = bufp[xc];
           xc++;
         }
-        else if (rBuf[xc * 3] == rBuf[(xc * 3) + 3] &&
-                 gBuf[xc * 3] == gBuf[(xc * 3) + 3] &&
-                 bBuf[xc * 3] == bBuf[(xc * 3) + 3]) {
+        else if (bufp[xc] == bufp[xc + 1]) {
           int     tmp = xc + 2;
           while (tmp < w_ && (tmp - xc) < 128) {
-            if (!(rBuf[tmp * 3] == rBuf[xc * 3] &&
-                  gBuf[tmp * 3] == gBuf[xc * 3] &&
-                  bBuf[tmp * 3] == bBuf[xc * 3]))
+            if (bufp[tmp] != bufp[xc])
               break;
             tmp++;
           }
           *(p++) = (unsigned char) (((tmp - xc) - 1) | 0x80);
-          *(p++) = bBuf[xc * 3];
-          *(p++) = gBuf[xc * 3];
-          *(p++) = rBuf[xc * 3];
+          *(p++) = bufp[xc];
           xc = tmp;
         }
         else {
           int     tmp = xc + 2;
           while (tmp < w_ && (tmp - xc) < 128) {
-            if (rBuf[tmp * 3] == rBuf[(tmp - 1) * 3] &&
-                gBuf[tmp * 3] == gBuf[(tmp - 1) * 3] &&
-                bBuf[tmp * 3] == bBuf[(tmp - 1) * 3]) {
+            if (bufp[tmp] == bufp[tmp - 1]) {
               tmp--;
               break;
             }
@@ -950,16 +942,13 @@ void Ep128EmuGUI::screenshotCallback(void *userData,
           }
           *(p++) = (unsigned char) ((tmp - xc) - 1);
           while (xc < tmp) {
-            *(p++) = bBuf[xc * 3];
-            *(p++) = gBuf[xc * 3];
-            *(p++) = rBuf[xc * 3];
+            *(p++) = bufp[xc];
             xc++;
           }
         }
       }
-      size_t  nBytes = size_t(p - &(lineBuf[0]));
-      if (std::fwrite(&(lineBuf[0]), sizeof(unsigned char), nBytes, f)
-          != nBytes)
+      size_t  nBytes = size_t(p - &(tmpBuf[0]));
+      if (std::fwrite(&(tmpBuf[0]), sizeof(unsigned char), nBytes, f) != nBytes)
         throw Ep128Emu::Exception("error writing screenshot file "
                                   "- is the disk full ?");
     }
