@@ -224,7 +224,6 @@ namespace Plus4 {
         key_state &= ted.keyboard_matrix[i];
     }
     ted.tedRegisters[0x08] = key_state;
-    ted.keyboard_row_select_mask = 0xFFFF;
   }
 
   void TED7360::write_register_FF09(void *userData,
