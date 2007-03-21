@@ -697,7 +697,7 @@ namespace Plus4 {
         if (f) {
           if (std::fseek(f, 0L, SEEK_END) >= 0) {
             long    fSize = std::ftell(f);
-            isD64 = (fSize == 174848L || fSize == 175531L);
+            isD64 = (fSize == 174848L || fSize == 175531L || fSize == 196608L);
           }
           std::fclose(f);
         }

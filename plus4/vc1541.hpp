@@ -66,6 +66,8 @@ namespace Plus4 {
                                         // 0: not stepping
     int         currentTrackStepperMotorPhase;
     int         spindleMotorSpeed;      // 0 (stopped) to 65536 (full speed)
+    int         nTracks;                // number of tracks (35, 40, or zero
+                                        // if there is no disk image file)
     uint8_t     idCharacter1;
     uint8_t     idCharacter2;
     std::FILE   *imageFile;
