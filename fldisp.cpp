@@ -446,7 +446,7 @@ namespace Ep128Emu {
             uint8_t(b > 0.0f ? (b < 255.5f ? b : 255.5f) : 0.0f);
       }
       unsigned char *p = pixelBuf_;
-      for (size_t yc = 0; yc < 577; yc++) {
+      for (size_t yc = 0; yc < 578; yc++) {
         if (lineBuffers[yc]) {
           const unsigned char *bufp = (unsigned char *) 0;
           size_t  nBytes = 0;
@@ -455,7 +455,7 @@ namespace Ep128Emu {
         }
         else if (yc < 1 || lineBuffers[yc - 1] == (Message_LineData *) 0)
           std::memset(&(lineBuf_[0]), 0, 768);
-        if (yc > 0) {
+        if (yc > 1) {
           for (size_t xc = 0; xc < 768; xc++) {
             int     c = int(lineBuf_[xc]);
             *(p++) = tmpColormap[c];
