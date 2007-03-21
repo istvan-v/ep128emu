@@ -54,8 +54,7 @@ class Ep128EmuGUI {open
   decl {Ep128Emu::VirtualMachine& vm;} {}
   decl {Ep128Emu::VMThread& vmThread;} {}
   decl {Ep128Emu::EmulatorConfiguration& config;} {}
-  decl {Ep128Emu::FLTKDisplay *flDisplay;} {}
-  decl {Ep128Emu::OpenGLDisplay *glDisplay;} {}
+  decl {Ep128Emu::FLTKDisplay_ *flDisplay;} {}
   decl {Fl_Window *emulatorWindow;} {}
   decl {uintptr_t mainThreadID;} {}
   decl {int displayMode;} {}
@@ -92,6 +91,7 @@ class Ep128EmuGUI {open
   decl {std::string romImageDirectory;} {}
   decl {std::string prgFileDirectory;} {}
   decl {std::string debuggerDirectory;} {}
+  decl {std::string screenshotDirectory;} {}
   decl {Ep128Emu::ConfigurationDB guiConfig;} {}
   decl {Ep128EmuGUI_DiskConfigWindow *diskConfigWindow;} {}
   decl {Ep128EmuGUI_DisplayConfigWindow *displaySettingsWindow;} {}
@@ -121,9 +121,9 @@ class Ep128EmuGUI {open
   decl {static void fileNameCallback(void *userData, std::string& fileName);} {}
   decl {static void fltkCheckCallback(void *userData);} {}
   decl {static void breakPointCallback(void *userData, bool isIO, bool isWrite, uint16_t addr, uint8_t value);} {}
+  decl {static void screenshotCallback(void *userData, const unsigned char *buf, int w_, int h_);} {}
   decl {bool closeDemoFile(bool stopDemo_);} {public
   }
-  decl {static void menuCallback_File_SetFileIODir(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_LoadFile(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_LoadConfig(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_SaveConfig(Fl_Widget *o, void *v);} {}
@@ -135,6 +135,7 @@ class Ep128EmuGUI {open
   decl {static void menuCallback_File_StopDemo(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_RecordSound(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_StopSndRecord(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_Screenshot(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_LoadPRG(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_SavePRG(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_Quit(Fl_Widget *o, void *v);} {}
@@ -174,7 +175,7 @@ class Ep128EmuGUI {open
   decl {static void menuCallback_Options_FloppyRmB(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_FloppyRmC(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_FloppyRmD(Fl_Widget *o, void *v);} {}
-  decl {static void menuCallback_Options_ThreadMode(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_FileIODir(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Debug_OpenDebugger(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Help_About(Fl_Widget *o, void *v);} {}
   Function {Ep128EmuGUI(Ep128Emu::VideoDisplay& display_, Ep128Emu::AudioOutput& audioOutput_, Ep128Emu::VirtualMachine& vm_, Ep128Emu::VMThread& vmThread_, Ep128Emu::EmulatorConfiguration& config_) : display(display_), audioOutput(audioOutput_), vm(vm_), vmThread(vmThread_), config(config_)} {open

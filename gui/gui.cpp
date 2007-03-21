@@ -36,13 +36,9 @@
 
 void Ep128EmuGUI::init_()
 {
-  flDisplay = (Ep128Emu::FLTKDisplay *) 0;
-  glDisplay = (Ep128Emu::OpenGLDisplay *) 0;
+  flDisplay = (Ep128Emu::FLTKDisplay_ *) 0;
   emulatorWindow = dynamic_cast<Fl_Window *>(&display);
-  if (typeid(display) == typeid(Ep128Emu::FLTKDisplay))
-    flDisplay = dynamic_cast<Ep128Emu::FLTKDisplay *>(&display);
-  if (typeid(display) == typeid(Ep128Emu::OpenGLDisplay))
-    glDisplay = dynamic_cast<Ep128Emu::OpenGLDisplay *>(&display);
+  flDisplay = dynamic_cast<Ep128Emu::FLTKDisplay_ *>(&display);
 #ifdef WIN32
   mainThreadID = uintptr_t(GetCurrentThreadId());
 #else
@@ -89,6 +85,7 @@ void Ep128EmuGUI::init_()
   romImageDirectory = defaultDir_;
   prgFileDirectory = defaultDir_;
   debuggerDirectory = defaultDir_;
+  screenshotDirectory = defaultDir_;
   guiConfig.createKey("gui.snapshotDirectory", snapshotDirectory);
   guiConfig.createKey("gui.demoDirectory", demoDirectory);
   guiConfig.createKey("gui.soundFileDirectory", soundFileDirectory);
@@ -99,6 +96,7 @@ void Ep128EmuGUI::init_()
   guiConfig.createKey("gui.romImageDirectory", romImageDirectory);
   guiConfig.createKey("gui.prgFileDirectory", prgFileDirectory);
   guiConfig.createKey("gui.debuggerDirectory", debuggerDirectory);
+  guiConfig.createKey("gui.screenshotDirectory", screenshotDirectory);
   browseFileWindow = new Fl_File_Chooser("", "*", Fl_File_Chooser::SINGLE, "");
   Fl::add_check(&fltkCheckCallback, (void *) this);
 }
@@ -346,8 +344,6 @@ void Ep128EmuGUI::run()
   emulatorWindow->color(36, 36);
   resizeWindow(config.display.width, config.display.height);
   // create menu bar
-  mainMenuBar->add("File/Set working directory",
-                   (char *) 0, &menuCallback_File_SetFileIODir, (void *) this);
   mainMenuBar->add("File/Load file",
                    (char *) 0, &menuCallback_File_LoadFile, (void *) this);
   mainMenuBar->add("File/Load configuration file",
@@ -370,6 +366,8 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_File_RecordSound, (void *) this);
   mainMenuBar->add("File/Stop sound recording",
                    (char *) 0, &menuCallback_File_StopSndRecord, (void *) this);
+  mainMenuBar->add("File/Save screenshot",
+                   (char *) 0, &menuCallback_File_Screenshot, (void *) this);
   if (typeid(vm) == typeid(Plus4::Plus4VM)) {
     mainMenuBar->add("File/Load program",
                      (char *) 0, &menuCallback_File_LoadPRG, (void *) this);
@@ -453,6 +451,8 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Options_FloppyRmC, (void *) this);
   mainMenuBar->add("Options/Floppy/Remove disk D",
                    (char *) 0, &menuCallback_Options_FloppyRmD, (void *) this);
+  mainMenuBar->add("Options/Set working directory",
+                   (char *) 0, &menuCallback_Options_FileIODir, (void *) this);
   mainMenuBar->add("Debug/Start debugger",
                    (char *) 0, &menuCallback_Debug_OpenDebugger, (void *) this);
   mainMenuBar->add("Help/About",
@@ -832,14 +832,8 @@ void Ep128EmuGUI::fltkCheckCallback(void *userData)
 {
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(userData));
   try {
-    if (gui_.flDisplay) {
-      if (gui_.flDisplay->checkEvents())
-        gui_.flDisplay->redraw();
-    }
-    else if (gui_.glDisplay) {
-      if (gui_.glDisplay->checkEvents())
-        gui_.glDisplay->redraw();
-    }
+    if (gui_.flDisplay->checkEvents())
+      gui_.emulatorWindow->redraw();
   }
   catch (...) {
   }
@@ -873,6 +867,123 @@ void Ep128EmuGUI::breakPointCallback(void *userData,
     gui_.updateDisplay();
     Fl::lock();
   }
+}
+
+void Ep128EmuGUI::screenshotCallback(void *userData,
+                                     const unsigned char *buf, int w_, int h_)
+{
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(userData));
+  std::string   fName;
+  std::FILE     *f = (std::FILE *) 0;
+  try {
+    if (!gui_.browseFile(fName, gui_.screenshotDirectory, "TGA files (*.tga)",
+                         Fl_File_Chooser::CREATE, "Save screenshot"))
+      return;
+    f = std::fopen(fName.c_str(), "wb");
+    if (!f)
+      throw Ep128Emu::Exception("error opening screenshot file");
+    unsigned char tgaHeader[24];
+    unsigned char lineBuf[3080];
+    tgaHeader[0] = 0;                   // ID length
+    tgaHeader[1] = 0;                   // no colormap
+    tgaHeader[2] = 10;                  // image type (RLE true color)
+    tgaHeader[3] = 0;                   // color map specification
+    tgaHeader[4] = 0;
+    tgaHeader[5] = 0;
+    tgaHeader[6] = 0;
+    tgaHeader[7] = 0;
+    tgaHeader[8] = 0;                   // X origin
+    tgaHeader[9] = 0;
+    tgaHeader[10] = 0;                  // Y origin
+    tgaHeader[11] = 0;
+    tgaHeader[12] = (unsigned char) (w_ & 0xFF);        // image width
+    tgaHeader[13] = (unsigned char) (w_ >> 8);
+    tgaHeader[14] = (unsigned char) (h_ & 0xFF);        // image height
+    tgaHeader[15] = (unsigned char) (h_ >> 8);
+    tgaHeader[16] = 24;                 // pixel depth
+    tgaHeader[17] = 0x20;               // image descriptor (origin: top/left)
+    if (std::fwrite(&(tgaHeader[0]), sizeof(unsigned char), 18, f) != 18)
+      throw Ep128Emu::Exception("error writing screenshot file "
+                                "- is the disk full ?");
+    for (int yc = 0; yc < h_; yc++) {
+      const unsigned char *rBuf = &(buf[(yc * w_ * 3) + 0]);
+      const unsigned char *gBuf = &(buf[(yc * w_ * 3) + 1]);
+      const unsigned char *bBuf = &(buf[(yc * w_ * 3) + 2]);
+      // RLE encode line
+      unsigned char   *p = &(lineBuf[0]);
+      int     xc = 0;
+      while (xc < w_) {
+        if (xc == (w_ - 1)) {
+          *(p++) = 0x00;
+          *(p++) = bBuf[xc * 3];
+          *(p++) = gBuf[xc * 3];
+          *(p++) = rBuf[xc * 3];
+          xc++;
+        }
+        else if (rBuf[xc * 3] == rBuf[(xc * 3) + 3] &&
+                 gBuf[xc * 3] == gBuf[(xc * 3) + 3] &&
+                 bBuf[xc * 3] == bBuf[(xc * 3) + 3]) {
+          int     tmp = xc + 2;
+          while (tmp < w_ && (tmp - xc) < 128) {
+            if (!(rBuf[tmp * 3] == rBuf[xc * 3] &&
+                  gBuf[tmp * 3] == gBuf[xc * 3] &&
+                  bBuf[tmp * 3] == bBuf[xc * 3]))
+              break;
+            tmp++;
+          }
+          *(p++) = (unsigned char) (((tmp - xc) - 1) | 0x80);
+          *(p++) = bBuf[xc * 3];
+          *(p++) = gBuf[xc * 3];
+          *(p++) = rBuf[xc * 3];
+          xc = tmp;
+        }
+        else {
+          int     tmp = xc + 2;
+          while (tmp < w_ && (tmp - xc) < 128) {
+            if (rBuf[tmp * 3] == rBuf[(tmp - 1) * 3] &&
+                gBuf[tmp * 3] == gBuf[(tmp - 1) * 3] &&
+                bBuf[tmp * 3] == bBuf[(tmp - 1) * 3]) {
+              tmp--;
+              break;
+            }
+            tmp++;
+          }
+          *(p++) = (unsigned char) ((tmp - xc) - 1);
+          while (xc < tmp) {
+            *(p++) = bBuf[xc * 3];
+            *(p++) = gBuf[xc * 3];
+            *(p++) = rBuf[xc * 3];
+            xc++;
+          }
+        }
+      }
+      size_t  nBytes = size_t(p - &(lineBuf[0]));
+      if (std::fwrite(&(lineBuf[0]), sizeof(unsigned char), nBytes, f)
+          != nBytes)
+        throw Ep128Emu::Exception("error writing screenshot file "
+                                  "- is the disk full ?");
+    }
+  }
+  catch (std::exception& e) {
+    if (f) {
+      std::fclose(f);
+      f = (std::FILE *) 0;
+      if (fName.length() > 0)
+        std::remove(fName.c_str());
+    }
+    gui_.errorMessage(e.what());
+  }
+  catch (...) {
+    if (f) {
+      std::fclose(f);
+      f = (std::FILE *) 0;
+      if (fName.length() > 0)
+        std::remove(fName.c_str());
+    }
+    throw;
+  }
+  if (f)
+    std::fclose(f);
 }
 
 bool Ep128EmuGUI::closeDemoFile(bool stopDemo_)
@@ -917,26 +1028,6 @@ bool Ep128EmuGUI::closeDemoFile(bool stopDemo_)
 }
 
 // ----------------------------------------------------------------------------
-
-void Ep128EmuGUI::menuCallback_File_SetFileIODir(Fl_Widget *o, void *v)
-{
-  (void) o;
-  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
-  try {
-    Ep128Emu::ConfigurationDB::ConfigurationVariable& cv =
-        gui_.config["fileio.workingDirectory"];
-    std::string tmp;
-    std::string tmp2 = std::string(cv);
-    if (gui_.browseFile(tmp, tmp2, "*", Fl_File_Chooser::DIRECTORY,
-                        "Select working directory for emulated machine")) {
-      cv = tmp;
-      gui_.applyEmulatorConfiguration();
-    }
-  }
-  catch (std::exception& e) {
-    gui_.errorMessage(e.what());
-  }
-}
 
 void Ep128EmuGUI::menuCallback_File_LoadFile(Fl_Widget *o, void *v)
 {
@@ -1193,6 +1284,13 @@ void Ep128EmuGUI::menuCallback_File_StopSndRecord(Fl_Widget *o, void *v)
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
   }
+}
+
+void Ep128EmuGUI::menuCallback_File_Screenshot(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  gui_.flDisplay->setScreenshotCallback(&screenshotCallback, v);
 }
 
 void Ep128EmuGUI::menuCallback_File_LoadPRG(Fl_Widget *o, void *v)
@@ -1734,6 +1832,26 @@ void Ep128EmuGUI::menuCallback_Options_FloppyRmD(Fl_Widget *o, void *v)
   try {
     gui_.config["floppy.d.imageFile"] = "";
     gui_.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Options_FileIODir(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    Ep128Emu::ConfigurationDB::ConfigurationVariable& cv =
+        gui_.config["fileio.workingDirectory"];
+    std::string tmp;
+    std::string tmp2 = std::string(cv);
+    if (gui_.browseFile(tmp, tmp2, "*", Fl_File_Chooser::DIRECTORY,
+                        "Select working directory for emulated machine")) {
+      cv = tmp;
+      gui_.applyEmulatorConfiguration();
+    }
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());

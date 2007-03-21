@@ -448,6 +448,7 @@ class Ep128EmuGUIConfiguration {
     std::string romImageDirectory;
     std::string prgFileDirectory;
     std::string debuggerDirectory;
+    std::string screenshotDirectory;
   } gui;
  public:
   Ep128EmuGUIConfiguration(Ep128Emu::ConfigurationDB& config,
@@ -463,6 +464,7 @@ class Ep128EmuGUIConfiguration {
     gui.romImageDirectory = installDirectory + "roms";
     gui.prgFileDirectory = installDirectory + "progs";
     gui.debuggerDirectory = ".";
+    gui.screenshotDirectory = ".";
     config.createKey("gui.snapshotDirectory", gui.snapshotDirectory);
     config.createKey("gui.demoDirectory", gui.demoDirectory);
     config.createKey("gui.soundFileDirectory", gui.soundFileDirectory);
@@ -473,6 +475,7 @@ class Ep128EmuGUIConfiguration {
     config.createKey("gui.romImageDirectory", gui.romImageDirectory);
     config.createKey("gui.prgFileDirectory", gui.prgFileDirectory);
     config.createKey("gui.debuggerDirectory", gui.debuggerDirectory);
+    config.createKey("gui.screenshotDirectory", gui.screenshotDirectory);
   }
 };
 
