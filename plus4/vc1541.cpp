@@ -29,8 +29,8 @@ static const int d64TrackOffsetTable[41] = {
    37632,  43008,  48384,  53760,  59136,  64512,  69888,  75264,
    80640,  86016,  91392,  96256, 101120, 105984, 110848, 115712,
   120576, 125440, 130048, 134656, 139264, 143872, 148480, 153088,
-  157440, 161792, 166144, 170496,     -1,     -1,     -1,     -1,
-      -1
+  157440, 161792, 166144, 170496, 174848, 179200, 183552, 187904,
+  192256
 };
 
 static const int sectorsPerTrackTable[41] = {
@@ -38,8 +38,8 @@ static const int sectorsPerTrackTable[41] = {
   21, 21, 21, 21, 21, 21, 21, 21,
   21, 21, 19, 19, 19, 19, 19, 19,
   19, 18, 18, 18, 18, 18, 18, 17,
-  17, 17, 17, 17,  0,  0,  0,  0,
-   0
+  17, 17, 17, 17, 17, 17, 17, 17,
+  17
 };
 
 static const int trackSizeTable[41] = {
@@ -455,8 +455,7 @@ namespace Plus4 {
     }
     // return true if data can be read/written by the head
     return (currentTrackFrac == 0 && spindleMotorSpeed == 65536 &&
-            imageFile != (std::FILE *) 0 &&
-            (currentTrack >= 1 && currentTrack <= 35));
+            (currentTrack >= 1 && currentTrack <= nTracks));
   }
 
   bool VC1541::readTrack(int trackNum)
@@ -466,7 +465,7 @@ namespace Plus4 {
       trackNum = currentTrack;
     for (int i = 0; i < trackSizeTable[trackNum]; i++)
       trackBuffer_GCR[i] = 0x00;
-    if (imageFile != (std::FILE *) 0 && (trackNum >= 1 && trackNum <= 35)) {
+    if (trackNum >= 1 && trackNum <= nTracks) {
       retval = false;
       if (std::fseek(imageFile, long(d64TrackOffsetTable[trackNum]),
                      SEEK_SET) >= 0) {
@@ -488,9 +487,8 @@ namespace Plus4 {
     bool    retval = true;
     if (trackNum < 0)
       trackNum = currentTrack;
-    if (trackDirtyFlag &&
-        imageFile != (std::FILE *) 0 && !writeProtectFlag &&
-        (trackNum >= 1 && trackNum <= 35)) {
+    if (trackDirtyFlag && !writeProtectFlag &&
+        (trackNum >= 1 && trackNum <= nTracks)) {
       int     nSectors = sectorsPerTrackTable[trackNum];
       if (gcrDecodeTrack(trackNum, nSectors, trackSizeTable[trackNum]) > 0) {
         retval = false;
@@ -557,6 +555,7 @@ namespace Plus4 {
       steppingDirection(0),
       currentTrackStepperMotorPhase(0),
       spindleMotorSpeed(0),
+      nTracks(0),
       idCharacter1(0x41),
       idCharacter2(0x41),
       imageFile((std::FILE *) 0)
@@ -608,6 +607,7 @@ namespace Plus4 {
       (void) flushTrack();
       std::fclose(imageFile);
       imageFile = (std::FILE *) 0;
+      nTracks = 0;
     }
   }
 
@@ -623,6 +623,7 @@ namespace Plus4 {
       (void) flushTrack();              // FIXME: should report errors ?
       std::fclose(imageFile);
       imageFile = (std::FILE *) 0;
+      nTracks = 0;
     }
     writeProtectFlag = true;
     headLoadedFlag = false;
@@ -647,14 +648,15 @@ namespace Plus4 {
         throw Ep128Emu::Exception("error seeking to end of disk image file");
       }
       long    fSize = std::ftell(imageFile);
-      if (fSize != 174848L && fSize != 175531L) {
+      if (fSize != 174848L && fSize != 175531L && fSize != 196608L) {
         std::fclose(imageFile);
         imageFile = (std::FILE *) 0;
         throw Ep128Emu::Exception("disk image file has invalid length "
-                                  "- must be 174848 or 175531 bytes");
+                                  "- must be 174848, 175531, or 196608 bytes");
       }
       std::fseek(imageFile, 0L, SEEK_SET);
       writeProtectFlag = isReadOnly;
+      nTracks = (fSize != 196608L ? 35 : 40);
       diskID = (diskID + 1) & 0xFF;
       if (((diskID >> 4) + 0x41) == idCharacter1 &&
           ((diskID & 0x0F) + 0x41) == idCharacter2)
@@ -676,10 +678,17 @@ namespace Plus4 {
 
   void VC1541::run(SerialBus& serialBus_, size_t t)
   {
-    via1.setCA1(!(serialBus_.getATN()));
-    via1.setPortB(uint8_t((serialBus_.getDATA() & 0x01)
-                          | (serialBus_.getCLK() & 0x04)
-                          | (serialBus_.getATN() & 0x80)) ^ via1PortBInput);
+    {
+      uint8_t atnAck1 = via1.getPortB() & 0x10;
+      uint8_t atnAck2 = (serialBus_.getATN() ^ 0xFF) & 0x10;
+      serialBus_.setDATA(deviceNumber,
+                         !((via1.getPortB() & 0x02) | (atnAck1 ^ atnAck2)));
+      serialBus_.setCLK(deviceNumber, !(via1.getPortB() & 0x08));
+      via1.setCA1(!(serialBus_.getATN()));
+      via1.setPortB(uint8_t((serialBus_.getDATA() & 0x01)
+                            | (serialBus_.getCLK() & 0x04)
+                            | (serialBus_.getATN() & 0x80)) ^ via1PortBInput);
+    }
     while (t--) {
       via1.run(1);
       via2.run(1);
@@ -738,11 +747,6 @@ namespace Plus4 {
         }
       }
     }
-    uint8_t atnAck1 = via1.getPortB() & 0x10;
-    uint8_t atnAck2 = (serialBus_.getATN() ^ 0xFF) & 0x10;
-    serialBus_.setDATA(deviceNumber,
-                       !((via1.getPortB() & 0x02) | (atnAck1 ^ atnAck2)));
-    serialBus_.setCLK(deviceNumber, !(via1.getPortB() & 0x08));
   }
 
   void VC1541::reset()
