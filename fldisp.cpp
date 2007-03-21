@@ -29,134 +29,453 @@
 
 #include "fldisp.hpp"
 
-static void decodeLine(unsigned char *outBuf,
-                       const unsigned char *inBuf, size_t nBytes)
-{
-  const unsigned char *bufp = inBuf;
+namespace Ep128Emu {
 
-  for (size_t i = 0; i < 768; i += 16) {
-    unsigned char c = *(bufp++);
-    switch (c) {
-    case 0x01:
-      outBuf[i + 15] = outBuf[i + 14] =
-      outBuf[i + 13] = outBuf[i + 12] =
-      outBuf[i + 11] = outBuf[i + 10] =
-      outBuf[i +  9] = outBuf[i +  8] =
-      outBuf[i +  7] = outBuf[i +  6] =
-      outBuf[i +  5] = outBuf[i +  4] =
-      outBuf[i +  3] = outBuf[i +  2] =
-      outBuf[i +  1] = outBuf[i +  0] = *(bufp++);
-      break;
-    case 0x02:
-      outBuf[i +  7] = outBuf[i +  6] =
-      outBuf[i +  5] = outBuf[i +  4] =
-      outBuf[i +  3] = outBuf[i +  2] =
-      outBuf[i +  1] = outBuf[i +  0] = *(bufp++);
-      outBuf[i + 15] = outBuf[i + 14] =
-      outBuf[i + 13] = outBuf[i + 12] =
-      outBuf[i + 11] = outBuf[i + 10] =
-      outBuf[i +  9] = outBuf[i +  8] = *(bufp++);
-      break;
-    case 0x03:
-      {
-        unsigned char c0 = *(bufp++);
-        unsigned char c1 = *(bufp++);
-        unsigned char b = *(bufp++);
-        outBuf[i +  1] = outBuf[i +  0] = ((b & 128) ? c1 : c0);
-        outBuf[i +  3] = outBuf[i +  2] = ((b &  64) ? c1 : c0);
-        outBuf[i +  5] = outBuf[i +  4] = ((b &  32) ? c1 : c0);
-        outBuf[i +  7] = outBuf[i +  6] = ((b &  16) ? c1 : c0);
-        outBuf[i +  9] = outBuf[i +  8] = ((b &   8) ? c1 : c0);
-        outBuf[i + 11] = outBuf[i + 10] = ((b &   4) ? c1 : c0);
-        outBuf[i + 13] = outBuf[i + 12] = ((b &   2) ? c1 : c0);
-        outBuf[i + 15] = outBuf[i + 14] = ((b &   1) ? c1 : c0);
+  void FLTKDisplay_::decodeLine(unsigned char *outBuf,
+                                const unsigned char *inBuf, size_t nBytes)
+  {
+    const unsigned char *bufp = inBuf;
+
+    for (size_t i = 0; i < 768; i += 16) {
+      unsigned char c = *(bufp++);
+      switch (c) {
+      case 0x01:
+        outBuf[i + 15] = outBuf[i + 14] =
+        outBuf[i + 13] = outBuf[i + 12] =
+        outBuf[i + 11] = outBuf[i + 10] =
+        outBuf[i +  9] = outBuf[i +  8] =
+        outBuf[i +  7] = outBuf[i +  6] =
+        outBuf[i +  5] = outBuf[i +  4] =
+        outBuf[i +  3] = outBuf[i +  2] =
+        outBuf[i +  1] = outBuf[i +  0] = *(bufp++);
+        break;
+      case 0x02:
+        outBuf[i +  7] = outBuf[i +  6] =
+        outBuf[i +  5] = outBuf[i +  4] =
+        outBuf[i +  3] = outBuf[i +  2] =
+        outBuf[i +  1] = outBuf[i +  0] = *(bufp++);
+        outBuf[i + 15] = outBuf[i + 14] =
+        outBuf[i + 13] = outBuf[i + 12] =
+        outBuf[i + 11] = outBuf[i + 10] =
+        outBuf[i +  9] = outBuf[i +  8] = *(bufp++);
+        break;
+      case 0x03:
+        {
+          unsigned char c0 = *(bufp++);
+          unsigned char c1 = *(bufp++);
+          unsigned char b = *(bufp++);
+          outBuf[i +  1] = outBuf[i +  0] = ((b & 128) ? c1 : c0);
+          outBuf[i +  3] = outBuf[i +  2] = ((b &  64) ? c1 : c0);
+          outBuf[i +  5] = outBuf[i +  4] = ((b &  32) ? c1 : c0);
+          outBuf[i +  7] = outBuf[i +  6] = ((b &  16) ? c1 : c0);
+          outBuf[i +  9] = outBuf[i +  8] = ((b &   8) ? c1 : c0);
+          outBuf[i + 11] = outBuf[i + 10] = ((b &   4) ? c1 : c0);
+          outBuf[i + 13] = outBuf[i + 12] = ((b &   2) ? c1 : c0);
+          outBuf[i + 15] = outBuf[i + 14] = ((b &   1) ? c1 : c0);
+        }
+        break;
+      case 0x04:
+        outBuf[i +  3] = outBuf[i +  2] =
+        outBuf[i +  1] = outBuf[i +  0] = *(bufp++);
+        outBuf[i +  7] = outBuf[i +  6] =
+        outBuf[i +  5] = outBuf[i +  4] = *(bufp++);
+        outBuf[i + 11] = outBuf[i + 10] =
+        outBuf[i +  9] = outBuf[i +  8] = *(bufp++);
+        outBuf[i + 15] = outBuf[i + 14] =
+        outBuf[i + 13] = outBuf[i + 12] = *(bufp++);
+        break;
+      case 0x06:
+        {
+          unsigned char c0 = *(bufp++);
+          unsigned char c1 = *(bufp++);
+          unsigned char b = *(bufp++);
+          outBuf[i +  0] = ((b & 128) ? c1 : c0);
+          outBuf[i +  1] = ((b &  64) ? c1 : c0);
+          outBuf[i +  2] = ((b &  32) ? c1 : c0);
+          outBuf[i +  3] = ((b &  16) ? c1 : c0);
+          outBuf[i +  4] = ((b &   8) ? c1 : c0);
+          outBuf[i +  5] = ((b &   4) ? c1 : c0);
+          outBuf[i +  6] = ((b &   2) ? c1 : c0);
+          outBuf[i +  7] = ((b &   1) ? c1 : c0);
+          c0 = *(bufp++);
+          c1 = *(bufp++);
+          b = *(bufp++);
+          outBuf[i +  8] = ((b & 128) ? c1 : c0);
+          outBuf[i +  9] = ((b &  64) ? c1 : c0);
+          outBuf[i + 10] = ((b &  32) ? c1 : c0);
+          outBuf[i + 11] = ((b &  16) ? c1 : c0);
+          outBuf[i + 12] = ((b &   8) ? c1 : c0);
+          outBuf[i + 13] = ((b &   4) ? c1 : c0);
+          outBuf[i + 14] = ((b &   2) ? c1 : c0);
+          outBuf[i + 15] = ((b &   1) ? c1 : c0);
+        }
+        break;
+      case 0x08:
+        outBuf[i +  1] = outBuf[i +  0] = *(bufp++);
+        outBuf[i +  3] = outBuf[i +  2] = *(bufp++);
+        outBuf[i +  5] = outBuf[i +  4] = *(bufp++);
+        outBuf[i +  7] = outBuf[i +  6] = *(bufp++);
+        outBuf[i +  9] = outBuf[i +  8] = *(bufp++);
+        outBuf[i + 11] = outBuf[i + 10] = *(bufp++);
+        outBuf[i + 13] = outBuf[i + 12] = *(bufp++);
+        outBuf[i + 15] = outBuf[i + 14] = *(bufp++);
+        break;
+      case 0x10:
+        outBuf[i +  0] = *(bufp++);
+        outBuf[i +  1] = *(bufp++);
+        outBuf[i +  2] = *(bufp++);
+        outBuf[i +  3] = *(bufp++);
+        outBuf[i +  4] = *(bufp++);
+        outBuf[i +  5] = *(bufp++);
+        outBuf[i +  6] = *(bufp++);
+        outBuf[i +  7] = *(bufp++);
+        outBuf[i +  8] = *(bufp++);
+        outBuf[i +  9] = *(bufp++);
+        outBuf[i + 10] = *(bufp++);
+        outBuf[i + 11] = *(bufp++);
+        outBuf[i + 12] = *(bufp++);
+        outBuf[i + 13] = *(bufp++);
+        outBuf[i + 14] = *(bufp++);
+        outBuf[i + 15] = *(bufp++);
+        break;
+      default:
+        outBuf[i + 15] = outBuf[i + 14] =
+        outBuf[i + 13] = outBuf[i + 12] =
+        outBuf[i + 11] = outBuf[i + 10] =
+        outBuf[i +  9] = outBuf[i +  8] =
+        outBuf[i +  7] = outBuf[i +  6] =
+        outBuf[i +  5] = outBuf[i +  4] =
+        outBuf[i +  3] = outBuf[i +  2] =
+        outBuf[i +  1] = outBuf[i +  0] = 0;
+        break;
       }
-      break;
-    case 0x04:
-      outBuf[i +  3] = outBuf[i +  2] =
-      outBuf[i +  1] = outBuf[i +  0] = *(bufp++);
-      outBuf[i +  7] = outBuf[i +  6] =
-      outBuf[i +  5] = outBuf[i +  4] = *(bufp++);
-      outBuf[i + 11] = outBuf[i + 10] =
-      outBuf[i +  9] = outBuf[i +  8] = *(bufp++);
-      outBuf[i + 15] = outBuf[i + 14] =
-      outBuf[i + 13] = outBuf[i + 12] = *(bufp++);
-      break;
-    case 0x06:
-      {
-        unsigned char c0 = *(bufp++);
-        unsigned char c1 = *(bufp++);
-        unsigned char b = *(bufp++);
-        outBuf[i +  0] = ((b & 128) ? c1 : c0);
-        outBuf[i +  1] = ((b &  64) ? c1 : c0);
-        outBuf[i +  2] = ((b &  32) ? c1 : c0);
-        outBuf[i +  3] = ((b &  16) ? c1 : c0);
-        outBuf[i +  4] = ((b &   8) ? c1 : c0);
-        outBuf[i +  5] = ((b &   4) ? c1 : c0);
-        outBuf[i +  6] = ((b &   2) ? c1 : c0);
-        outBuf[i +  7] = ((b &   1) ? c1 : c0);
-        c0 = *(bufp++);
-        c1 = *(bufp++);
-        b = *(bufp++);
-        outBuf[i +  8] = ((b & 128) ? c1 : c0);
-        outBuf[i +  9] = ((b &  64) ? c1 : c0);
-        outBuf[i + 10] = ((b &  32) ? c1 : c0);
-        outBuf[i + 11] = ((b &  16) ? c1 : c0);
-        outBuf[i + 12] = ((b &   8) ? c1 : c0);
-        outBuf[i + 13] = ((b &   4) ? c1 : c0);
-        outBuf[i + 14] = ((b &   2) ? c1 : c0);
-        outBuf[i + 15] = ((b &   1) ? c1 : c0);
+    }
+
+    (void) nBytes;
+#if 0
+    if (size_t(bufp - inBuf) != nBytes)
+      throw std::exception();
+#endif
+  }
+
+  // --------------------------------------------------------------------------
+
+  FLTKDisplay_::Message::~Message()
+  {
+  }
+
+  FLTKDisplay_::Message_LineData::~Message_LineData()
+  {
+  }
+
+  void FLTKDisplay_::Message_LineData::copyLine(const uint8_t *buf,
+                                                size_t nBytes)
+  {
+    unsigned char *p = reinterpret_cast<unsigned char *>(&(buf_[0]));
+    size_t  i = 0;
+    if (nBytes & 1) {
+      p[0] = buf[0];
+      i++;
+    }
+    for ( ; i < nBytes; i += 2) {
+      p[i] = buf[i];
+      p[i + 1] = buf[i + 1];
+    }
+    nBytes_ = i;
+    for ( ; (i & 3) != 0; i++)
+      p[i] = 0;
+  }
+
+  FLTKDisplay_::Message_FrameDone::~Message_FrameDone()
+  {
+  }
+
+  FLTKDisplay_::Message_SetParameters::~Message_SetParameters()
+  {
+  }
+
+  void FLTKDisplay_::deleteMessage(Message *m)
+  {
+    m->~Message();
+    m->prv = (Message *) 0;
+    messageQueueMutex.lock();
+    m->nxt = freeMessageStack;
+    if (freeMessageStack)
+      freeMessageStack->prv = m;
+    freeMessageStack = m;
+    messageQueueMutex.unlock();
+  }
+
+  void FLTKDisplay_::queueMessage(Message *m)
+  {
+    messageQueueMutex.lock();
+    if (exitFlag) {
+      messageQueueMutex.unlock();
+      m->~Message();
+      std::free(m);
+      return;
+    }
+    m->prv = lastMessage;
+    m->nxt = (Message *) 0;
+    if (lastMessage)
+      lastMessage->nxt = m;
+    else
+      messageQueue = m;
+    lastMessage = m;
+    messageQueueMutex.unlock();
+    if (typeid(*m) == typeid(Message_FrameDone)) {
+      if (!videoResampleEnabled) {
+        Fl::awake();
+        threadLock.wait(1);
       }
-      break;
-    case 0x08:
-      outBuf[i +  1] = outBuf[i +  0] = *(bufp++);
-      outBuf[i +  3] = outBuf[i +  2] = *(bufp++);
-      outBuf[i +  5] = outBuf[i +  4] = *(bufp++);
-      outBuf[i +  7] = outBuf[i +  6] = *(bufp++);
-      outBuf[i +  9] = outBuf[i +  8] = *(bufp++);
-      outBuf[i + 11] = outBuf[i + 10] = *(bufp++);
-      outBuf[i + 13] = outBuf[i + 12] = *(bufp++);
-      outBuf[i + 15] = outBuf[i + 14] = *(bufp++);
-      break;
-    case 0x10:
-      outBuf[i +  0] = *(bufp++);
-      outBuf[i +  1] = *(bufp++);
-      outBuf[i +  2] = *(bufp++);
-      outBuf[i +  3] = *(bufp++);
-      outBuf[i +  4] = *(bufp++);
-      outBuf[i +  5] = *(bufp++);
-      outBuf[i +  6] = *(bufp++);
-      outBuf[i +  7] = *(bufp++);
-      outBuf[i +  8] = *(bufp++);
-      outBuf[i +  9] = *(bufp++);
-      outBuf[i + 10] = *(bufp++);
-      outBuf[i + 11] = *(bufp++);
-      outBuf[i + 12] = *(bufp++);
-      outBuf[i + 13] = *(bufp++);
-      outBuf[i + 14] = *(bufp++);
-      outBuf[i + 15] = *(bufp++);
-      break;
-    default:
-      outBuf[i + 15] = outBuf[i + 14] =
-      outBuf[i + 13] = outBuf[i + 12] =
-      outBuf[i + 11] = outBuf[i + 10] =
-      outBuf[i +  9] = outBuf[i +  8] =
-      outBuf[i +  7] = outBuf[i +  6] =
-      outBuf[i +  5] = outBuf[i +  4] =
-      outBuf[i +  3] = outBuf[i +  2] =
-      outBuf[i +  1] = outBuf[i +  0] = 0;
-      break;
     }
   }
 
-  (void) nBytes;
-#if 0
-  if (size_t(bufp - inBuf) != nBytes)
-    throw std::exception();
-#endif
-}
+  // --------------------------------------------------------------------------
 
-namespace Ep128Emu {
+  FLTKDisplay_::FLTKDisplay_()
+    : VideoDisplay(),
+      messageQueue((Message *) 0),
+      lastMessage((Message *) 0),
+      freeMessageStack((Message *) 0),
+      messageQueueMutex(),
+      lineBuffers((Message_LineData **) 0),
+      curLine(0),
+      lineCnt(0),
+      prvLineCnt(312),
+      avgLineCnt(312.0f),
+      lineReload(-40),
+      framesPending(0),
+      skippingFrame(false),
+      vsyncState(false),
+      videoResampleEnabled(false),
+      exitFlag(false),
+      displayParameters(),
+      savedDisplayParameters(),
+      screenshotCallback((void (*)(void *, const unsigned char *, int, int)) 0),
+      screenshotCallbackUserData((void *) 0),
+      screenshotCallbackCnt(0)
+  {
+    try {
+      lineBuffers = new Message_LineData*[578];
+      for (size_t n = 0; n < 578; n++)
+        lineBuffers[n] = (Message_LineData *) 0;
+    }
+    catch (...) {
+      if (lineBuffers)
+        delete[] lineBuffers;
+      throw;
+    }
+  }
+
+  FLTKDisplay_::~FLTKDisplay_()
+  {
+    messageQueueMutex.lock();
+    exitFlag = true;
+    while (freeMessageStack) {
+      Message *m = freeMessageStack;
+      freeMessageStack = m->nxt;
+      if (freeMessageStack)
+        freeMessageStack->prv = (Message *) 0;
+      std::free(m);
+    }
+    while (messageQueue) {
+      Message *m = messageQueue;
+      messageQueue = m->nxt;
+      if (messageQueue)
+        messageQueue->prv = (Message *) 0;
+      m->~Message();
+      std::free(m);
+    }
+    lastMessage = (Message *) 0;
+    messageQueueMutex.unlock();
+    for (size_t n = 0; n < 578; n++) {
+      Message *m = lineBuffers[n];
+      if (m) {
+        lineBuffers[n] = (Message_LineData *) 0;
+        m->~Message();
+        std::free(m);
+      }
+    }
+    delete[] lineBuffers;
+  }
+
+  void FLTKDisplay_::draw()
+  {
+  }
+
+  int FLTKDisplay_::handle(int event)
+  {
+    (void) event;
+    return 0;
+  }
+
+  void FLTKDisplay_::setDisplayParameters(const DisplayParameters& dp)
+  {
+    if (dp.displayQuality != savedDisplayParameters.displayQuality ||
+        dp.bufferingMode != savedDisplayParameters.bufferingMode) {
+      vsyncStateChange(true, 8);
+      vsyncStateChange(false, 28);
+    }
+    Message_SetParameters *m = allocateMessage<Message_SetParameters>();
+    m->dp = dp;
+    savedDisplayParameters = dp;
+    queueMessage(m);
+  }
+
+  const VideoDisplay::DisplayParameters&
+      FLTKDisplay_::getDisplayParameters() const
+  {
+    return savedDisplayParameters;
+  }
+
+  void FLTKDisplay_::drawLine(const uint8_t *buf, size_t nBytes)
+  {
+    if (!skippingFrame) {
+      if (curLine >= 0 && curLine < 578) {
+        Message_LineData  *m = allocateMessage<Message_LineData>();
+        m->lineNum = curLine;
+        m->copyLine(buf, nBytes);
+        queueMessage(m);
+      }
+    }
+    if (lineCnt < 500) {
+      curLine += 2;
+      lineCnt++;
+    }
+  }
+
+  void FLTKDisplay_::vsyncStateChange(bool newState, unsigned int currentSlot_)
+  {
+    (void) currentSlot_;
+    if (newState == vsyncState)
+      return;
+    vsyncState = newState;
+    if (newState) {
+      avgLineCnt = (avgLineCnt * 0.95f) + (float(prvLineCnt) * 0.05f);
+      int   tmp = int(avgLineCnt + 0.5f);
+      tmp = (savedDisplayParameters.displayQuality == 0 ? 272 : 274) - tmp;
+      if (lineCnt == (prvLineCnt + 1))
+        lineReload = lineReload | 1;
+      else
+        lineReload = lineReload & (~(int(1)));
+      if (tmp <= (lineReload - 2)) {
+        if (tmp <= (lineReload - 16))
+          lineReload = lineReload - 8;
+        else
+          lineReload = lineReload - 2;
+      }
+      else if (tmp >= (lineReload + 2)) {
+        if (tmp >= (lineReload + 16))
+          lineReload = lineReload + 8;
+        else
+          lineReload = lineReload + 2;
+      }
+      curLine = lineReload;
+      prvLineCnt = lineCnt;
+      lineCnt = 0;
+      return;
+    }
+    messageQueueMutex.lock();
+    bool    skippedFrame = skippingFrame;
+    if (!skippedFrame)
+      framesPending++;
+    skippingFrame = (framesPending > 3);    // should this be configurable ?
+    messageQueueMutex.unlock();
+    if (skippedFrame) {
+      Fl::awake();
+      threadLock.wait(1);
+      return;
+    }
+    Message *m = allocateMessage<Message_FrameDone>();
+    queueMessage(m);
+  }
+
+  void FLTKDisplay_::setScreenshotCallback(void (*func)(void *,
+                                                        const unsigned char *,
+                                                        int, int),
+                                           void *userData_)
+  {
+    if (!screenshotCallback || !func) {
+      screenshotCallback = func;
+      if (func) {
+        screenshotCallbackUserData = userData_;
+        screenshotCallbackCnt = 3;
+      }
+      else {
+        screenshotCallbackUserData = (void *) 0;
+        screenshotCallbackCnt = 0;
+      }
+    }
+  }
+
+  void FLTKDisplay_::checkScreenshotCallback()
+  {
+    if (!screenshotCallbackCnt)
+      return;
+    screenshotCallbackCnt--;
+    if (screenshotCallbackCnt)
+      return;
+    void    (*func)(void *, const unsigned char *, int, int);
+    void    *userData_ = screenshotCallbackUserData;
+    func = screenshotCallback;
+    screenshotCallback = (void (*)(void *, const unsigned char *, int, int)) 0;
+    screenshotCallbackUserData = (void *) 0;
+    if (!func)
+      return;
+    unsigned char *pixelBuf_ = (unsigned char *) 0;
+    try {
+      pixelBuf_ = new unsigned char[768 * 576 * 3];
+      unsigned char lineBuf_[768];
+      unsigned char tmpColormap[768];
+      for (int c = 0; c <= 255; c++) {
+        float   r, g, b;
+        r = float(c) / 255.0f;
+        g = r;
+        b = r;
+        if (displayParameters.indexToRGBFunc)
+          displayParameters.indexToRGBFunc(uint8_t(c), r, g, b);
+        r = r * 255.0f + 0.5f;
+        g = g * 255.0f + 0.5f;
+        b = b * 255.0f + 0.5f;
+        tmpColormap[c] =
+            uint8_t(r > 0.0f ? (r < 255.5f ? r : 255.5f) : 0.0f);
+        tmpColormap[c + 256] =
+            uint8_t(g > 0.0f ? (g < 255.5f ? g : 255.5f) : 0.0f);
+        tmpColormap[c + 512] =
+            uint8_t(b > 0.0f ? (b < 255.5f ? b : 255.5f) : 0.0f);
+      }
+      unsigned char *p = pixelBuf_;
+      for (size_t yc = 0; yc < 577; yc++) {
+        if (lineBuffers[yc]) {
+          const unsigned char *bufp = (unsigned char *) 0;
+          size_t  nBytes = 0;
+          lineBuffers[yc]->getLineData(bufp, nBytes);
+          decodeLine(&(lineBuf_[0]), bufp, nBytes);
+        }
+        else if (yc < 1 || lineBuffers[yc - 1] == (Message_LineData *) 0)
+          std::memset(&(lineBuf_[0]), 0, 768);
+        if (yc > 0) {
+          for (size_t xc = 0; xc < 768; xc++) {
+            int     c = int(lineBuf_[xc]);
+            *(p++) = tmpColormap[c];
+            *(p++) = tmpColormap[c + 256];
+            *(p++) = tmpColormap[c + 512];
+          }
+        }
+      }
+      func(userData_, pixelBuf_, 768, 576);
+    }
+    catch (...) {
+      if (pixelBuf_)
+        delete[] pixelBuf_;
+      pixelBuf_ = (unsigned char *) 0;
+    }
+    if (pixelBuf_)
+      delete[] pixelBuf_;
+  }
+
+  // --------------------------------------------------------------------------
 
   FLTKDisplay::Colormap::Colormap()
   {
@@ -218,112 +537,25 @@ namespace Ep128Emu {
 
   // --------------------------------------------------------------------------
 
-  FLTKDisplay::Message::~Message()
-  {
-  }
-
-  FLTKDisplay::Message_LineData::~Message_LineData()
-  {
-  }
-
-  void FLTKDisplay::Message_LineData::copyLine(const uint8_t *buf,
-                                               size_t nBytes)
-  {
-    unsigned char *p = reinterpret_cast<unsigned char *>(&(buf_[0]));
-    size_t  i = 0;
-    if (nBytes & 1) {
-      p[0] = buf[0];
-      i++;
-    }
-    for ( ; i < nBytes; i += 2) {
-      p[i] = buf[i];
-      p[i + 1] = buf[i + 1];
-    }
-    nBytes_ = i;
-    for ( ; (i & 3) != 0; i++)
-      p[i] = 0;
-  }
-
-  FLTKDisplay::Message_FrameDone::~Message_FrameDone()
-  {
-  }
-
-  FLTKDisplay::Message_SetParameters::~Message_SetParameters()
-  {
-  }
-
-  void FLTKDisplay::deleteMessage(Message *m)
-  {
-    m->~Message();
-    m->prv = (Message *) 0;
-    messageQueueMutex.lock();
-    m->nxt = freeMessageStack;
-    if (freeMessageStack)
-      freeMessageStack->prv = m;
-    freeMessageStack = m;
-    messageQueueMutex.unlock();
-  }
-
-  void FLTKDisplay::queueMessage(Message *m)
-  {
-    messageQueueMutex.lock();
-    if (exitFlag) {
-      messageQueueMutex.unlock();
-      m->~Message();
-      std::free(m);
-      return;
-    }
-    m->prv = lastMessage;
-    m->nxt = (Message *) 0;
-    if (lastMessage)
-      lastMessage->nxt = m;
-    else
-      messageQueue = m;
-    lastMessage = m;
-    messageQueueMutex.unlock();
-    if (typeid(*m) == typeid(Message_FrameDone)) {
-      Fl::awake();
-      threadLock.wait(1);
-    }
-  }
-
-  // --------------------------------------------------------------------------
-
   FLTKDisplay::FLTKDisplay(int xx, int yy, int ww, int hh, const char *lbl)
     : Fl_Window(xx, yy, ww, hh, lbl),
-      messageQueue((Message *) 0),
-      lastMessage((Message *) 0),
-      freeMessageStack((Message *) 0),
-      messageQueueMutex(),
+      FLTKDisplay_(),
       colormap(),
-      lineBuffers((Message_LineData **) 0),
       linesChanged((bool *) 0),
-      curLine(0),
-      lineCnt(0),
-      prvLineCnt(312),
-      avgLineCnt(312.0f),
-      lineReload(-40),
-      framesPending(0),
-      skippingFrame(false),
-      vsyncState(false),
-      displayParameters(),
-      savedDisplayParameters(),
-      exitFlag(false),
       forceUpdateLineCnt(0),
       forceUpdateLineMask(0),
       redrawFlag(false)
   {
+    displayParameters.displayQuality = 0;
+    displayParameters.bufferingMode = 0;
+    savedDisplayParameters.displayQuality = 0;
+    savedDisplayParameters.bufferingMode = 0;
     try {
-      lineBuffers = new Message_LineData*[576];
-      for (size_t n = 0; n < 576; n++)
-        lineBuffers[n] = (Message_LineData *) 0;
       linesChanged = new bool[576];
       for (size_t n = 0; n < 576; n++)
         linesChanged[n] = false;
     }
     catch (...) {
-      if (lineBuffers)
-        delete[] lineBuffers;
       if (linesChanged)
         delete[] linesChanged;
       throw;
@@ -332,35 +564,7 @@ namespace Ep128Emu {
 
   FLTKDisplay::~FLTKDisplay()
   {
-    messageQueueMutex.lock();
-    exitFlag = true;
-    while (freeMessageStack) {
-      Message *m = freeMessageStack;
-      freeMessageStack = m->nxt;
-      if (freeMessageStack)
-        freeMessageStack->prv = (Message *) 0;
-      std::free(m);
-    }
-    while (messageQueue) {
-      Message *m = messageQueue;
-      messageQueue = m->nxt;
-      if (messageQueue)
-        messageQueue->prv = (Message *) 0;
-      m->~Message();
-      std::free(m);
-    }
-    lastMessage = (Message *) 0;
-    messageQueueMutex.unlock();
     delete[] linesChanged;
-    for (size_t n = 0; n < 576; n++) {
-      Message *m = lineBuffers[n];
-      if (m) {
-        lineBuffers[n] = (Message_LineData *) 0;
-        m->~Message();
-        std::free(m);
-      }
-    }
-    delete[] lineBuffers;
   }
 
   void FLTKDisplay::displayFrame()
@@ -534,19 +738,23 @@ namespace Ep128Emu {
     }
 
     // make sure that all lines are updated at a slow rate
-    if (forceUpdateLineMask) {
-      for (size_t yc = 0; yc < 576; yc++) {
-        if (!(forceUpdateLineMask & (uint8_t(1) << uint8_t((yc >> 1) & 7))))
-          continue;
-        if (lineBuffers[yc] != (Message_LineData *) 0) {
-          Message *m = lineBuffers[yc];
-          lineBuffers[yc] = (Message_LineData *) 0;
-          deleteMessage(m);
+    if (!screenshotCallbackCnt) {
+      if (forceUpdateLineMask) {
+        for (size_t yc = 0; yc < 576; yc++) {
+          if (!(forceUpdateLineMask & (uint8_t(1) << uint8_t((yc >> 1) & 7))))
+            continue;
+          if (lineBuffers[yc] != (Message_LineData *) 0) {
+            Message *m = lineBuffers[yc];
+            lineBuffers[yc] = (Message_LineData *) 0;
+            deleteMessage(m);
+          }
+          linesChanged[yc] = true;
         }
-        linesChanged[yc] = true;
+        forceUpdateLineMask = 0;
       }
-      forceUpdateLineMask = 0;
     }
+    else
+      checkScreenshotCallback();
 
     messageQueueMutex.lock();
     framesPending = (framesPending > 0 ? (framesPending - 1) : 0);
@@ -609,6 +817,8 @@ namespace Ep128Emu {
         }
         redrawFlag = true;
         deleteMessage(m);
+        if (screenshotCallbackCnt)
+          checkScreenshotCallback();
         break;
       }
       else if (typeid(*m) == typeid(Message_SetParameters)) {
@@ -631,6 +841,8 @@ namespace Ep128Emu {
         messageQueueMutex.unlock();
       }
       redrawFlag = true;
+      if (screenshotCallbackCnt)
+        checkScreenshotCallback();
     }
     if (this->damage() & FL_DAMAGE_EXPOSE) {
       forceUpdateLineMask = 0xFF;
@@ -654,77 +866,10 @@ namespace Ep128Emu {
 
   void FLTKDisplay::setDisplayParameters(const DisplayParameters& dp)
   {
-    Message_SetParameters *m = allocateMessage<Message_SetParameters>();
-    m->dp = dp;
-    savedDisplayParameters = dp;
-    queueMessage(m);
-  }
-
-  const VideoDisplay::DisplayParameters&
-      FLTKDisplay::getDisplayParameters() const
-  {
-    return savedDisplayParameters;
-  }
-
-  void FLTKDisplay::drawLine(const uint8_t *buf, size_t nBytes)
-  {
-    if (!skippingFrame) {
-      if (curLine >= 0 && curLine < 576) {
-        Message_LineData  *m = allocateMessage<Message_LineData>();
-        m->lineNum = curLine;
-        m->copyLine(buf, nBytes);
-        queueMessage(m);
-      }
-    }
-    if (lineCnt < 500) {
-      curLine += 2;
-      lineCnt++;
-    }
-  }
-
-  void FLTKDisplay::vsyncStateChange(bool newState, unsigned int currentSlot_)
-  {
-    (void) currentSlot_;
-    if (newState == vsyncState)
-      return;
-    vsyncState = newState;
-    if (newState) {
-      avgLineCnt = (avgLineCnt * 0.95f) + (float(prvLineCnt) * 0.05f);
-      int   tmp = 272 - int(avgLineCnt + 0.5f);
-      if (lineCnt == (prvLineCnt + 1))
-        lineReload = lineReload | 1;
-      else
-        lineReload = lineReload & (~(int(1)));
-      if (tmp <= (lineReload - 2)) {
-        if (tmp <= (lineReload - 16))
-          lineReload = lineReload - 8;
-        else
-          lineReload = lineReload - 2;
-      }
-      else if (tmp >= (lineReload + 2)) {
-        if (tmp >= (lineReload + 16))
-          lineReload = lineReload + 8;
-        else
-          lineReload = lineReload + 2;
-      }
-      curLine = lineReload;
-      prvLineCnt = lineCnt;
-      lineCnt = 0;
-      return;
-    }
-    messageQueueMutex.lock();
-    bool    skippedFrame = skippingFrame;
-    if (!skippedFrame)
-      framesPending++;
-    skippingFrame = (framesPending > 3);    // should this be configurable ?
-    messageQueueMutex.unlock();
-    if (skippedFrame) {
-      Fl::awake();
-      threadLock.wait(1);
-      return;
-    }
-    Message *m = allocateMessage<Message_FrameDone>();
-    queueMessage(m);
+    DisplayParameters dp_(dp);
+    dp_.displayQuality = 0;
+    dp_.bufferingMode = 0;
+    FLTKDisplay_::setDisplayParameters(dp_);
   }
 
 }       // namespace Ep128Emu

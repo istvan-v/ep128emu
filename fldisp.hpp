@@ -28,27 +28,8 @@
 
 namespace Ep128Emu {
 
-  class FLTKDisplay : public Fl_Window, public VideoDisplay {
-   private:
-    class Colormap {
-     private:
-      uint32_t  *palette;
-      uint32_t  *palette2;
-      static uint32_t pixelConv(double r, double g, double b);
-     public:
-      Colormap();
-      ~Colormap();
-      void setParams(const DisplayParameters& dp);
-      inline uint32_t operator()(uint8_t c) const
-      {
-        return palette[c];
-      }
-      inline uint32_t operator()(uint8_t c1, uint8_t c2) const
-      {
-        return palette2[(size_t(c1) << 8) + c2];
-      }
-    };
-    // ----------------
+  class FLTKDisplay_ : public VideoDisplay {
+   protected:
     class Message {
      public:
       Message *prv;
@@ -146,16 +127,16 @@ namespace Ep128Emu {
     }
     void deleteMessage(Message *m);
     void queueMessage(Message *m);
-    void displayFrame();
+    static void decodeLine(unsigned char *outBuf,
+                           const unsigned char *inBuf, size_t nBytes);
+    void checkScreenshotCallback();
     // ----------------
     Message       *messageQueue;
     Message       *lastMessage;
     Message       *freeMessageStack;
     Mutex         messageQueueMutex;
-    Colormap      colormap;
-    // for 576 lines
+    // for 578 lines (576 + 2 border)
     Message_LineData  **lineBuffers;
-    bool          *linesChanged;
     int           curLine;
     int           lineCnt;      // nr. of lines received so far in this frame
     int           prvLineCnt;
@@ -164,19 +145,18 @@ namespace Ep128Emu {
     int           framesPending;
     bool          skippingFrame;
     bool          vsyncState;
+    volatile bool videoResampleEnabled;
+    volatile bool exitFlag;
     DisplayParameters   displayParameters;
     DisplayParameters   savedDisplayParameters;
-    volatile bool exitFlag;
-    uint8_t       forceUpdateLineCnt;
-    uint8_t       forceUpdateLineMask;
-    bool          redrawFlag;
-    Timer         noInputTimer;
-    Timer         forceUpdateTimer;
     ThreadLock    threadLock;
+    void          (*screenshotCallback)(void *,
+                                        const unsigned char *, int, int);
+    void          *screenshotCallbackUserData;
+    int           screenshotCallbackCnt;
    public:
-    FLTKDisplay(int xx = 0, int yy = 0, int ww = 768, int hh = 576,
-                const char *lbl = (char *) 0);
-    virtual ~FLTKDisplay();
+    FLTKDisplay_();
+    virtual ~FLTKDisplay_();
     // set color correction and other display parameters
     // (see 'struct DisplayParameters' above for more information)
     virtual void setDisplayParameters(const DisplayParameters& dp);
@@ -206,7 +186,60 @@ namespace Ep128Emu {
     virtual void vsyncStateChange(bool newState, unsigned int currentSlot_);
     // Read and process messages sent by the child thread. Returns true if
     // redraw() needs to be called to update the display.
-    bool checkEvents();
+    virtual bool checkEvents() = 0;
+    // Set function to be called once by checkEvents() after video data for
+    // a complete frame has been received.
+    virtual void setScreenshotCallback(void (*func)(void *userData,
+                                                    const unsigned char *buf,
+                                                    int w_, int h_),
+                                       void *userData_);
+   protected:
+    virtual void draw();
+   public:
+    virtual int handle(int event);
+  };
+
+  // --------------------------------------------------------------------------
+
+  class FLTKDisplay : public Fl_Window, public FLTKDisplay_ {
+   private:
+    class Colormap {
+     private:
+      uint32_t  *palette;
+      uint32_t  *palette2;
+      static uint32_t pixelConv(double r, double g, double b);
+     public:
+      Colormap();
+      ~Colormap();
+      void setParams(const DisplayParameters& dp);
+      inline uint32_t operator()(uint8_t c) const
+      {
+        return palette[c];
+      }
+      inline uint32_t operator()(uint8_t c1, uint8_t c2) const
+      {
+        return palette2[(size_t(c1) << 8) + c2];
+      }
+    };
+    void displayFrame();
+    // ----------------
+    Colormap      colormap;
+    bool          *linesChanged;
+    uint8_t       forceUpdateLineCnt;
+    uint8_t       forceUpdateLineMask;
+    bool          redrawFlag;
+    Timer         noInputTimer;
+    Timer         forceUpdateTimer;
+   public:
+    FLTKDisplay(int xx = 0, int yy = 0, int ww = 768, int hh = 576,
+                const char *lbl = (char *) 0);
+    virtual ~FLTKDisplay();
+    // set color correction and other display parameters
+    // (see 'struct DisplayParameters' above for more information)
+    virtual void setDisplayParameters(const DisplayParameters& dp);
+    // Read and process messages sent by the child thread. Returns true if
+    // redraw() needs to be called to update the display.
+    virtual bool checkEvents();
    protected:
     virtual void draw();
    public:

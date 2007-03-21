@@ -31,6 +31,7 @@
 #include <FL/Fl_Gl_Window.H>
 #include <GL/glext.h>
 
+#include "fldisp.hpp"
 #include "gldisp.hpp"
 
 #ifdef WIN32
@@ -43,133 +44,6 @@
 #ifdef WIN32
 #  include <wingdi.h>
 #endif
-
-static void decodeLine(unsigned char *outBuf,
-                       const unsigned char *inBuf, size_t nBytes)
-{
-  const unsigned char *bufp = inBuf;
-
-  for (size_t i = 0; i < 768; i += 16) {
-    unsigned char c = *(bufp++);
-    switch (c) {
-    case 0x01:
-      outBuf[i + 15] = outBuf[i + 14] =
-      outBuf[i + 13] = outBuf[i + 12] =
-      outBuf[i + 11] = outBuf[i + 10] =
-      outBuf[i +  9] = outBuf[i +  8] =
-      outBuf[i +  7] = outBuf[i +  6] =
-      outBuf[i +  5] = outBuf[i +  4] =
-      outBuf[i +  3] = outBuf[i +  2] =
-      outBuf[i +  1] = outBuf[i +  0] = *(bufp++);
-      break;
-    case 0x02:
-      outBuf[i +  7] = outBuf[i +  6] =
-      outBuf[i +  5] = outBuf[i +  4] =
-      outBuf[i +  3] = outBuf[i +  2] =
-      outBuf[i +  1] = outBuf[i +  0] = *(bufp++);
-      outBuf[i + 15] = outBuf[i + 14] =
-      outBuf[i + 13] = outBuf[i + 12] =
-      outBuf[i + 11] = outBuf[i + 10] =
-      outBuf[i +  9] = outBuf[i +  8] = *(bufp++);
-      break;
-    case 0x03:
-      {
-        unsigned char c0 = *(bufp++);
-        unsigned char c1 = *(bufp++);
-        unsigned char b = *(bufp++);
-        outBuf[i +  1] = outBuf[i +  0] = ((b & 128) ? c1 : c0);
-        outBuf[i +  3] = outBuf[i +  2] = ((b &  64) ? c1 : c0);
-        outBuf[i +  5] = outBuf[i +  4] = ((b &  32) ? c1 : c0);
-        outBuf[i +  7] = outBuf[i +  6] = ((b &  16) ? c1 : c0);
-        outBuf[i +  9] = outBuf[i +  8] = ((b &   8) ? c1 : c0);
-        outBuf[i + 11] = outBuf[i + 10] = ((b &   4) ? c1 : c0);
-        outBuf[i + 13] = outBuf[i + 12] = ((b &   2) ? c1 : c0);
-        outBuf[i + 15] = outBuf[i + 14] = ((b &   1) ? c1 : c0);
-      }
-      break;
-    case 0x04:
-      outBuf[i +  3] = outBuf[i +  2] =
-      outBuf[i +  1] = outBuf[i +  0] = *(bufp++);
-      outBuf[i +  7] = outBuf[i +  6] =
-      outBuf[i +  5] = outBuf[i +  4] = *(bufp++);
-      outBuf[i + 11] = outBuf[i + 10] =
-      outBuf[i +  9] = outBuf[i +  8] = *(bufp++);
-      outBuf[i + 15] = outBuf[i + 14] =
-      outBuf[i + 13] = outBuf[i + 12] = *(bufp++);
-      break;
-    case 0x06:
-      {
-        unsigned char c0 = *(bufp++);
-        unsigned char c1 = *(bufp++);
-        unsigned char b = *(bufp++);
-        outBuf[i +  0] = ((b & 128) ? c1 : c0);
-        outBuf[i +  1] = ((b &  64) ? c1 : c0);
-        outBuf[i +  2] = ((b &  32) ? c1 : c0);
-        outBuf[i +  3] = ((b &  16) ? c1 : c0);
-        outBuf[i +  4] = ((b &   8) ? c1 : c0);
-        outBuf[i +  5] = ((b &   4) ? c1 : c0);
-        outBuf[i +  6] = ((b &   2) ? c1 : c0);
-        outBuf[i +  7] = ((b &   1) ? c1 : c0);
-        c0 = *(bufp++);
-        c1 = *(bufp++);
-        b = *(bufp++);
-        outBuf[i +  8] = ((b & 128) ? c1 : c0);
-        outBuf[i +  9] = ((b &  64) ? c1 : c0);
-        outBuf[i + 10] = ((b &  32) ? c1 : c0);
-        outBuf[i + 11] = ((b &  16) ? c1 : c0);
-        outBuf[i + 12] = ((b &   8) ? c1 : c0);
-        outBuf[i + 13] = ((b &   4) ? c1 : c0);
-        outBuf[i + 14] = ((b &   2) ? c1 : c0);
-        outBuf[i + 15] = ((b &   1) ? c1 : c0);
-      }
-      break;
-    case 0x08:
-      outBuf[i +  1] = outBuf[i +  0] = *(bufp++);
-      outBuf[i +  3] = outBuf[i +  2] = *(bufp++);
-      outBuf[i +  5] = outBuf[i +  4] = *(bufp++);
-      outBuf[i +  7] = outBuf[i +  6] = *(bufp++);
-      outBuf[i +  9] = outBuf[i +  8] = *(bufp++);
-      outBuf[i + 11] = outBuf[i + 10] = *(bufp++);
-      outBuf[i + 13] = outBuf[i + 12] = *(bufp++);
-      outBuf[i + 15] = outBuf[i + 14] = *(bufp++);
-      break;
-    case 0x10:
-      outBuf[i +  0] = *(bufp++);
-      outBuf[i +  1] = *(bufp++);
-      outBuf[i +  2] = *(bufp++);
-      outBuf[i +  3] = *(bufp++);
-      outBuf[i +  4] = *(bufp++);
-      outBuf[i +  5] = *(bufp++);
-      outBuf[i +  6] = *(bufp++);
-      outBuf[i +  7] = *(bufp++);
-      outBuf[i +  8] = *(bufp++);
-      outBuf[i +  9] = *(bufp++);
-      outBuf[i + 10] = *(bufp++);
-      outBuf[i + 11] = *(bufp++);
-      outBuf[i + 12] = *(bufp++);
-      outBuf[i + 13] = *(bufp++);
-      outBuf[i + 14] = *(bufp++);
-      outBuf[i + 15] = *(bufp++);
-      break;
-    default:
-      outBuf[i + 15] = outBuf[i + 14] =
-      outBuf[i + 13] = outBuf[i + 12] =
-      outBuf[i + 11] = outBuf[i + 10] =
-      outBuf[i +  9] = outBuf[i +  8] =
-      outBuf[i +  7] = outBuf[i +  6] =
-      outBuf[i +  5] = outBuf[i +  4] =
-      outBuf[i +  3] = outBuf[i +  2] =
-      outBuf[i +  1] = outBuf[i +  0] = 0;
-      break;
-    }
-  }
-
-  (void) nBytes;
-#if 0
-  if (size_t(bufp - inBuf) != nBytes)
-    throw std::exception();
-#endif
-}
 
 static void setTextureParameters(int displayQuality)
 {
@@ -274,106 +148,17 @@ namespace Ep128Emu {
 
   // --------------------------------------------------------------------------
 
-  OpenGLDisplay::Message::~Message()
-  {
-  }
-
-  OpenGLDisplay::Message_LineData::~Message_LineData()
-  {
-  }
-
-  void OpenGLDisplay::Message_LineData::copyLine(const uint8_t *buf,
-                                                 size_t nBytes)
-  {
-    unsigned char *p = reinterpret_cast<unsigned char *>(&(buf_[0]));
-    size_t  i = 0;
-    if (nBytes & 1) {
-      p[0] = buf[0];
-      i++;
-    }
-    for ( ; i < nBytes; i += 2) {
-      p[i] = buf[i];
-      p[i + 1] = buf[i + 1];
-    }
-    nBytes_ = i;
-    for ( ; (i & 3) != 0; i++)
-      p[i] = 0;
-  }
-
-  OpenGLDisplay::Message_FrameDone::~Message_FrameDone()
-  {
-  }
-
-  OpenGLDisplay::Message_SetParameters::~Message_SetParameters()
-  {
-  }
-
-  void OpenGLDisplay::deleteMessage(Message *m)
-  {
-    m->~Message();
-    m->prv = (Message *) 0;
-    messageQueueMutex.lock();
-    m->nxt = freeMessageStack;
-    if (freeMessageStack)
-      freeMessageStack->prv = m;
-    freeMessageStack = m;
-    messageQueueMutex.unlock();
-  }
-
-  void OpenGLDisplay::queueMessage(Message *m)
-  {
-    messageQueueMutex.lock();
-    if (exitFlag) {
-      messageQueueMutex.unlock();
-      m->~Message();
-      std::free(m);
-      return;
-    }
-    m->prv = lastMessage;
-    m->nxt = (Message *) 0;
-    if (lastMessage)
-      lastMessage->nxt = m;
-    else
-      messageQueue = m;
-    lastMessage = m;
-    messageQueueMutex.unlock();
-    if (typeid(*m) == typeid(Message_FrameDone)) {
-      if (!videoResampleEnabled) {
-        Fl::awake();
-        threadLock.wait(1);
-      }
-    }
-  }
-
-  // --------------------------------------------------------------------------
-
   OpenGLDisplay::OpenGLDisplay(int xx, int yy, int ww, int hh,
                                const char *lbl, bool isDoubleBuffered)
     : Fl_Gl_Window(xx, yy, ww, hh, lbl),
-      messageQueue((Message *) 0),
-      lastMessage((Message *) 0),
-      freeMessageStack((Message *) 0),
-      messageQueueMutex(),
+      FLTKDisplay_(),
       colormap(),
-      lineBuffers((Message_LineData **) 0),
       linesChanged((bool *) 0),
       textureBuffer((uint16_t *) 0),
       textureID(0UL),
-      curLine(0),
-      lineCnt(0),
-      prvLineCnt(312),
-      avgLineCnt(312.0f),
-      lineReload(-40),
-      framesPending(0),
-      skippingFrame(false),
-      vsyncState(false),
-      displayParameters(),
-      savedDisplayParameters(),
-      exitFlag(false),
       forceUpdateLineCnt(0),
       forceUpdateLineMask(0),
       redrawFlag(false),
-      videoResampleEnabled(false),
       displayFrameRate(60.0),
       inputFrameRate(50.0),
       ringBufferReadPos(0.0),
@@ -382,9 +167,6 @@ namespace Ep128Emu {
     try {
       for (size_t n = 0; n < 4; n++)
         frameRingBuffer[n] = (Message_LineData **) 0;
-      lineBuffers = new Message_LineData*[578];
-      for (size_t n = 0; n < 578; n++)
-        lineBuffers[n] = (Message_LineData *) 0;
       linesChanged = new bool[289];
       for (size_t n = 0; n < 289; n++)
         linesChanged[n] = false;
@@ -397,8 +179,6 @@ namespace Ep128Emu {
       }
     }
     catch (...) {
-      if (lineBuffers)
-        delete[] lineBuffers;
       if (linesChanged)
         delete[] linesChanged;
       if (textureBuffer)
@@ -409,33 +189,14 @@ namespace Ep128Emu {
       }
       throw;
     }
-    displayParameters.useDoubleBuffering = isDoubleBuffered;
-    savedDisplayParameters.useDoubleBuffering = isDoubleBuffered;
+    displayParameters.bufferingMode = (isDoubleBuffered ? 1 : 0);
+    savedDisplayParameters.bufferingMode = (isDoubleBuffered ? 1 : 0);
     this->mode(FL_RGB | (isDoubleBuffered ? FL_DOUBLE : FL_SINGLE));
   }
 
   OpenGLDisplay::~OpenGLDisplay()
   {
     Fl::remove_idle(&fltkIdleCallback, (void *) this);
-    messageQueueMutex.lock();
-    exitFlag = true;
-    while (freeMessageStack) {
-      Message *m = freeMessageStack;
-      freeMessageStack = m->nxt;
-      if (freeMessageStack)
-        freeMessageStack->prv = (Message *) 0;
-      std::free(m);
-    }
-    while (messageQueue) {
-      Message *m = messageQueue;
-      messageQueue = m->nxt;
-      if (messageQueue)
-        messageQueue->prv = (Message *) 0;
-      m->~Message();
-      std::free(m);
-    }
-    lastMessage = (Message *) 0;
-    messageQueueMutex.unlock();
     if (textureID) {
       GLuint  tmp = GLuint(textureID);
       textureID = 0UL;
@@ -443,15 +204,6 @@ namespace Ep128Emu {
     }
     delete[] textureBuffer;
     delete[] linesChanged;
-    for (size_t n = 0; n < 578; n++) {
-      Message *m = lineBuffers[n];
-      if (m) {
-        lineBuffers[n] = (Message_LineData *) 0;
-        m->~Message();
-        std::free(m);
-      }
-    }
-    delete[] lineBuffers;
     for (size_t n = 0; n < 4; n++) {
       for (size_t yc = 0; yc < 578; yc++) {
         Message *m = frameRingBuffer[n][yc];
@@ -465,161 +217,257 @@ namespace Ep128Emu {
     }
   }
 
+  void OpenGLDisplay::drawFrame_quality0(Message_LineData **lineBuffers_,
+                                         double x0, double y0,
+                                         double x1, double y1)
+  {
+    unsigned char lineBuf1[768];
+    unsigned char *curLine_ = &(lineBuf1[0]);
+    // full horizontal resolution, no interlace (768x288)
+    // no texture filtering or effects
+    for (size_t yc = 0; yc < 288; yc += 8) {
+      for (size_t offs = 0; offs < 8; offs++) {
+        linesChanged[yc + offs] = false;
+        // decode video data
+        const unsigned char *bufp = (unsigned char *) 0;
+        size_t  nBytes = 0;
+        size_t  lineNum = (yc + offs) << 1;
+        if (lineBuffers_[lineNum + 0] != (Message_LineData *) 0) {
+          lineBuffers_[lineNum + 0]->getLineData(bufp, nBytes);
+          decodeLine(curLine_, bufp, nBytes);
+        }
+        else if (lineBuffers_[lineNum + 1] != (Message_LineData *) 0) {
+          lineBuffers_[lineNum + 1]->getLineData(bufp, nBytes);
+          decodeLine(curLine_, bufp, nBytes);
+        }
+        else
+          std::memset(curLine_, 0, 768);
+        // build 16-bit texture:
+        // full horizontal resolution, no interlace (768x8)
+        uint16_t  *txtp = &(textureBuffer[offs * 768]);
+        for (size_t xc = 0; xc < 768; xc++)
+          txtp[xc] = colormap(curLine_[xc]);
+      }
+      // load texture
+      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 8,
+                      GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
+                      (GLvoid *) textureBuffer);
+      // update display
+      double  ycf0 = y0 + ((double(int(yc << 1)) * (1.0 / 576.0))
+                           * (y1 - y0));
+      double  ycf1 = y0 + ((double(int(yc << 1) + 16) * (1.0 / 576.0))
+                           * (y1 - y0));
+      glBegin(GL_QUADS);
+      glTexCoord2f(GLfloat(0.0), GLfloat(0.001 / 8.0));
+      glVertex2f(GLfloat(x0), GLfloat(ycf0));
+      glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(0.001 / 8.0));
+      glVertex2f(GLfloat(x1), GLfloat(ycf0));
+      glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(7.999 / 8.0));
+      glVertex2f(GLfloat(x1), GLfloat(ycf1));
+      glTexCoord2f(GLfloat(0.0), GLfloat(7.999 / 8.0));
+      glVertex2f(GLfloat(x0), GLfloat(ycf1));
+      glEnd();
+    }
+  }
+
+  void OpenGLDisplay::drawFrame_quality1(Message_LineData **lineBuffers_,
+                                         double x0, double y0,
+                                         double x1, double y1)
+  {
+    unsigned char lineBuf1[768];
+    unsigned char *curLine_ = &(lineBuf1[0]);
+    // half horizontal resolution, no interlace (384x288)
+    for (size_t yc = 0; yc < 588; yc += 28) {
+      for (size_t offs = 0; offs < 32; offs += 2) {
+        // decode video data
+        const unsigned char *bufp = (unsigned char *) 0;
+        size_t  nBytes = 0;
+        bool    haveLineData = false;
+        if ((yc + offs) < 578) {
+          if (lineBuffers_[yc + offs] != (Message_LineData *) 0) {
+            lineBuffers_[yc + offs]->getLineData(bufp, nBytes);
+            haveLineData = true;
+          }
+          else if (lineBuffers_[yc + offs + 1] != (Message_LineData *) 0) {
+            lineBuffers_[yc + offs + 1]->getLineData(bufp, nBytes);
+            haveLineData = true;
+          }
+        }
+        if (haveLineData)
+          decodeLine(curLine_, bufp, nBytes);
+        else
+          std::memset(curLine_, 0, 768);
+        // build 16-bit texture
+        uint16_t  *txtp = &(textureBuffer[(offs >> 1) * 384]);
+        for (size_t xc = 0; xc < 768; xc += 2)
+          txtp[xc >> 1] = colormap(curLine_[xc], curLine_[xc + 1]);
+      }
+      // load texture
+      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 384, 16,
+                      GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
+                      (GLvoid *) textureBuffer);
+      // update display
+      double  ycf0 = y0 + ((double(int(yc)) * (1.0 / 576.0))
+                           * (y1 - y0));
+      double  ycf1 = y0 + ((double(int(yc + 28)) * (1.0 / 576.0))
+                           * (y1 - y0));
+      double  txtycf1 = 15.0 / 16.0;
+      if (yc == 560) {
+        ycf1 -= ((y1 - y0) * (12.0 / 576.0));
+        txtycf1 -= (6.0 / 16.0);
+      }
+      glBegin(GL_QUADS);
+      glTexCoord2f(GLfloat(0.0), GLfloat(1.0 / 16.0));
+      glVertex2f(GLfloat(x0), GLfloat(ycf0));
+      glTexCoord2f(GLfloat(384.0 / 512.0), GLfloat(1.0 / 16.0));
+      glVertex2f(GLfloat(x1), GLfloat(ycf0));
+      glTexCoord2f(GLfloat(384.0 / 512.0), GLfloat(txtycf1));
+      glVertex2f(GLfloat(x1), GLfloat(ycf1));
+      glTexCoord2f(GLfloat(0.0), GLfloat(txtycf1));
+      glVertex2f(GLfloat(x0), GLfloat(ycf1));
+      glEnd();
+    }
+  }
+
+  void OpenGLDisplay::drawFrame_quality2(Message_LineData **lineBuffers_,
+                                         double x0, double y0,
+                                         double x1, double y1)
+  {
+    unsigned char lineBuf1[768];
+    unsigned char *curLine_ = &(lineBuf1[0]);
+    // full horizontal resolution, no interlace (768x288)
+    for (size_t yc = 0; yc < 588; yc += 28) {
+      for (size_t offs = 0; offs < 32; offs += 2) {
+        // decode video data
+        const unsigned char *bufp = (unsigned char *) 0;
+        size_t  nBytes = 0;
+        bool    haveLineData = false;
+        if ((yc + offs) < 578) {
+          if (lineBuffers_[yc + offs] != (Message_LineData *) 0) {
+            lineBuffers_[yc + offs]->getLineData(bufp, nBytes);
+            haveLineData = true;
+          }
+          else if (lineBuffers_[yc + offs + 1] != (Message_LineData *) 0) {
+            lineBuffers_[yc + offs + 1]->getLineData(bufp, nBytes);
+            haveLineData = true;
+          }
+        }
+        if (haveLineData)
+          decodeLine(curLine_, bufp, nBytes);
+        else
+          std::memset(curLine_, 0, 768);
+        // build 16-bit texture
+        uint16_t  *txtp = &(textureBuffer[(offs >> 1) * 768]);
+        for (size_t xc = 0; xc < 768; xc++)
+          txtp[xc] = colormap(curLine_[xc]);
+      }
+      // load texture
+      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 16,
+                      GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
+                      (GLvoid *) textureBuffer);
+      // update display
+      double  ycf0 = y0 + ((double(int(yc)) * (1.0 / 576.0))
+                           * (y1 - y0));
+      double  ycf1 = y0 + ((double(int(yc + 28)) * (1.0 / 576.0))
+                           * (y1 - y0));
+      double  txtycf1 = 15.0 / 16.0;
+      if (yc == 560) {
+        ycf1 -= ((y1 - y0) * (12.0 / 576.0));
+        txtycf1 -= (6.0 / 16.0);
+      }
+      glBegin(GL_QUADS);
+      glTexCoord2f(GLfloat(0.0), GLfloat(1.0 / 16.0));
+      glVertex2f(GLfloat(x0), GLfloat(ycf0));
+      glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(1.0 / 16.0));
+      glVertex2f(GLfloat(x1), GLfloat(ycf0));
+      glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(txtycf1));
+      glVertex2f(GLfloat(x1), GLfloat(ycf1));
+      glTexCoord2f(GLfloat(0.0), GLfloat(txtycf1));
+      glVertex2f(GLfloat(x0), GLfloat(ycf1));
+      glEnd();
+    }
+  }
+
   void OpenGLDisplay::drawFrame_quality3(Message_LineData **lineBuffers_,
                                          double x0, double y0,
-                                         double x1, double y1,
-                                         double blendScale_, bool clearFlag_)
+                                         double x1, double y1)
   {
-    if (blendScale_ > -0.5) {
-      if (blendScale_ < 0.001)
-        return;
-      if (blendScale_ < 0.998) {
-        glEnable(GL_BLEND);
-#ifndef WIN32
-        glBlendColor(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
-                     GLclampf(blendScale_));
-#else
-        void  (*glBlendColor_)(GLclampf, GLclampf, GLclampf, GLclampf) =
-            (void (*)(GLclampf, GLclampf, GLclampf, GLclampf))
-                wglGetProcAddress("glBlendColor");
-        glBlendColor_(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
-                      GLclampf(blendScale_));
-#endif
-        if (clearFlag_)
-          glBlendFunc(GL_CONSTANT_ALPHA, GL_ZERO);
-        else
-          glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE);
-      }
-      else
-        glDisable(GL_BLEND);
+    if (displayParameters.blendScale1 >= 0.495) {
+      drawFrame_quality2(lineBuffers_, x0, y0, x1, y1);
+      return;
     }
     unsigned char lineBuf1[768];
     unsigned char lineBuf2[768];
     unsigned char *curLine_ = &(lineBuf1[0]);
     unsigned char *prvLine_ = &(lineBuf2[0]);
-    if (displayParameters.blendScale1 < 0.495) {
-      // full horizontal resolution, interlace (768x576)
-      int     cnt = 0;
-      for (size_t yc = 0; yc < 590; yc++) {
-        bool    haveLineDataInPrvLine = false;
-        bool    haveLineDataInCurLine = false;
-        bool    haveLineDataInNxtLine = false;
-        if (yc > 0 && yc < 579)
-          haveLineDataInPrvLine = !!(lineBuffers_[yc - 1]);
-        if (yc < 578)
-          haveLineDataInCurLine = !!(lineBuffers_[yc]);
-        if (yc < 577)
-          haveLineDataInNxtLine = !!(lineBuffers_[yc + 1]);
-        if (haveLineDataInCurLine | haveLineDataInNxtLine) {
-          unsigned char *tmp = curLine_;
-          curLine_ = prvLine_;
-          prvLine_ = tmp;
-          // decode video data
-          const unsigned char *bufp = (unsigned char *) 0;
-          size_t  nBytes = 0;
-          if (haveLineDataInCurLine)
-            lineBuffers_[yc]->getLineData(bufp, nBytes);
-          else
-            lineBuffers_[yc + 1]->getLineData(bufp, nBytes);
-          decodeLine(curLine_, bufp, nBytes);
-        }
-        // build 16-bit texture
-        uint16_t  *txtp = &(textureBuffer[(yc & 15) * 768]);
-        if (haveLineDataInCurLine) {
-          for (size_t xc = 0; xc < 768; xc++)
-            txtp[xc] = colormap(curLine_[xc]);
-        }
-        else if (haveLineDataInPrvLine && haveLineDataInNxtLine) {
-          for (size_t xc = 0; xc < 768; xc++)
-            txtp[xc] = colormap(prvLine_[xc], curLine_[xc]);
-        }
-        else if (haveLineDataInPrvLine) {
-          for (size_t xc = 0; xc < 768; xc++)
-            txtp[xc] = colormap(curLine_[xc], 0);
-        }
-        else if (haveLineDataInNxtLine) {
-          for (size_t xc = 0; xc < 768; xc++)
-            txtp[xc] = colormap(0, curLine_[xc]);
-        }
-        else {
-          for (size_t xc = 0; xc < 768; xc++)
-            txtp[xc] = colormap(0);
-        }
-        if (++cnt == 16) {
-          cnt = 2;
-          // load texture
-          glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 16,
-                          GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
-                          (GLvoid *) textureBuffer);
-          // update display
-          double  ycf0 = y0 + ((double(int(yc - 15)) * (1.0 / 576.0))
-                               * (y1 - y0));
-          double  ycf1 = y0 + ((double(int(yc - 1)) * (1.0 / 576.0))
-                               * (y1 - y0));
-          double  txtycf0 = double(int((yc - 14) & 15)) * (1.0 / 16.0);
-          double  txtycf1 = txtycf0 + (14.0 / 16.0);
-          if (yc == 589) {
-            ycf1 -= ((y1 - y0) * (12.0 / 576.0));
-            txtycf1 -= (12.0 / 16.0);
-          }
-          glBegin(GL_QUADS);
-          glTexCoord2f(GLfloat(0.0), GLfloat(txtycf0));
-          glVertex2f(GLfloat(x0), GLfloat(ycf0));
-          glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(txtycf0));
-          glVertex2f(GLfloat(x1), GLfloat(ycf0));
-          glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(txtycf1));
-          glVertex2f(GLfloat(x1), GLfloat(ycf1));
-          glTexCoord2f(GLfloat(0.0), GLfloat(txtycf1));
-          glVertex2f(GLfloat(x0), GLfloat(ycf1));
-          glEnd();
-        }
+    // full horizontal resolution, interlace (768x576)
+    int     cnt = 0;
+    for (size_t yc = 0; yc < 590; yc++) {
+      bool    haveLineDataInPrvLine = false;
+      bool    haveLineDataInCurLine = false;
+      bool    haveLineDataInNxtLine = false;
+      if (yc > 0 && yc < 579)
+        haveLineDataInPrvLine = !!(lineBuffers_[yc - 1]);
+      if (yc < 578)
+        haveLineDataInCurLine = !!(lineBuffers_[yc]);
+      if (yc < 577)
+        haveLineDataInNxtLine = !!(lineBuffers_[yc + 1]);
+      if (haveLineDataInCurLine | haveLineDataInNxtLine) {
+        unsigned char *tmp = curLine_;
+        curLine_ = prvLine_;
+        prvLine_ = tmp;
+        // decode video data
+        const unsigned char *bufp = (unsigned char *) 0;
+        size_t  nBytes = 0;
+        if (haveLineDataInCurLine)
+          lineBuffers_[yc]->getLineData(bufp, nBytes);
+        else
+          lineBuffers_[yc + 1]->getLineData(bufp, nBytes);
+        decodeLine(curLine_, bufp, nBytes);
       }
-    }
-    else {
-      // full horizontal resolution, no interlace (768x288)
-      for (size_t yc = 0; yc < 588; yc += 28) {
-        for (size_t offs = 0; offs < 32; offs += 2) {
-          // decode video data
-          const unsigned char *bufp = (unsigned char *) 0;
-          size_t  nBytes = 0;
-          bool    haveLineData = false;
-          if ((yc + offs) < 578) {
-            if (lineBuffers_[yc + offs] != (Message_LineData *) 0) {
-              lineBuffers_[yc + offs]->getLineData(bufp, nBytes);
-              haveLineData = true;
-            }
-            else if (lineBuffers_[yc + offs + 1] != (Message_LineData *) 0) {
-              lineBuffers_[yc + offs + 1]->getLineData(bufp, nBytes);
-              haveLineData = true;
-            }
-          }
-          if (haveLineData)
-            decodeLine(curLine_, bufp, nBytes);
-          else
-            std::memset(curLine_, 0, 768);
-          // build 16-bit texture
-          uint16_t  *txtp = &(textureBuffer[(offs >> 1) * 768]);
-          for (size_t xc = 0; xc < 768; xc++)
-            txtp[xc] = colormap(curLine_[xc]);
-        }
+      // build 16-bit texture
+      uint16_t  *txtp = &(textureBuffer[(yc & 15) * 768]);
+      if (haveLineDataInCurLine) {
+        for (size_t xc = 0; xc < 768; xc++)
+          txtp[xc] = colormap(curLine_[xc]);
+      }
+      else if (haveLineDataInPrvLine && haveLineDataInNxtLine) {
+        for (size_t xc = 0; xc < 768; xc++)
+          txtp[xc] = colormap(prvLine_[xc], curLine_[xc]);
+      }
+      else if (haveLineDataInPrvLine) {
+        for (size_t xc = 0; xc < 768; xc++)
+          txtp[xc] = colormap(curLine_[xc], 0);
+      }
+      else if (haveLineDataInNxtLine) {
+        for (size_t xc = 0; xc < 768; xc++)
+          txtp[xc] = colormap(0, curLine_[xc]);
+      }
+      else {
+        for (size_t xc = 0; xc < 768; xc++)
+          txtp[xc] = colormap(0);
+      }
+      if (++cnt == 16) {
+        cnt = 2;
         // load texture
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 16,
                         GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
                         (GLvoid *) textureBuffer);
         // update display
-        double  ycf0 = y0 + ((double(int(yc)) * (1.0 / 576.0))
+        double  ycf0 = y0 + ((double(int(yc - 15)) * (1.0 / 576.0))
                              * (y1 - y0));
-        double  ycf1 = y0 + ((double(int(yc + 28)) * (1.0 / 576.0))
+        double  ycf1 = y0 + ((double(int(yc - 1)) * (1.0 / 576.0))
                              * (y1 - y0));
-        double  txtycf1 = 15.0 / 16.0;
-        if (yc == 560) {
+        double  txtycf0 = double(int((yc - 14) & 15)) * (1.0 / 16.0);
+        double  txtycf1 = txtycf0 + (14.0 / 16.0);
+        if (yc == 589) {
           ycf1 -= ((y1 - y0) * (12.0 / 576.0));
-          txtycf1 -= (6.0 / 16.0);
+          txtycf1 -= (12.0 / 16.0);
         }
         glBegin(GL_QUADS);
-        glTexCoord2f(GLfloat(0.0), GLfloat(1.0 / 16.0));
+        glTexCoord2f(GLfloat(0.0), GLfloat(txtycf0));
         glVertex2f(GLfloat(x0), GLfloat(ycf0));
-        glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(1.0 / 16.0));
+        glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(txtycf0));
         glVertex2f(GLfloat(x1), GLfloat(ycf0));
         glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(txtycf1));
         glVertex2f(GLfloat(x1), GLfloat(ycf1));
@@ -633,6 +481,9 @@ namespace Ep128Emu {
   void OpenGLDisplay::fltkIdleCallback(void *userData_)
   {
     (void) userData_;
+    Fl::unlock();
+    Timer::wait(0.000001);
+    Fl::lock();
   }
 
   void OpenGLDisplay::displayFrame()
@@ -684,30 +535,30 @@ namespace Ep128Emu {
       glEnd();
     }
 
-    unsigned char lineBuf1[768];
-    unsigned char *curLine_ = &(lineBuf1[0]);
     GLuint  textureID_ = GLuint(textureID);
     GLint   savedTextureID = 0;
     glEnable(GL_TEXTURE_2D);
     glGetIntegerv(GL_TEXTURE_BINDING_2D, &savedTextureID);
     glBindTexture(GL_TEXTURE_2D, textureID_);
     setTextureParameters(displayParameters.displayQuality);
-    if (displayParameters.displayQuality == 0) {
+
+    if (displayParameters.displayQuality == 0 &&
+        displayParameters.bufferingMode == 0) {
       // full horizontal resolution, no interlace (768x288)
       // no texture filtering or effects
       glDisable(GL_BLEND);
+      unsigned char lineBuf1[768];
+      unsigned char *curLine_ = &(lineBuf1[0]);
       for (size_t yc = 0; yc < 288; yc += 8) {
         size_t  offs;
-        if (!displayParameters.useDoubleBuffering) {
-          // quality=0 with single buffered display is special case: only those
-          // lines are updated that have changed since the last frame
-          for (offs = 0; offs < 8; offs++) {
-            if (linesChanged[yc + offs])
-              break;
-          }
-          if (offs == 8)
-            continue;
+        // quality=0 with single buffered display is special case: only those
+        // lines are updated that have changed since the last frame
+        for (offs = 0; offs < 8; offs++) {
+          if (linesChanged[yc + offs])
+            break;
         }
+        if (offs == 8)
+          continue;
         for (offs = 0; offs < 8; offs++) {
           linesChanged[yc + offs] = false;
           // decode video data
@@ -755,8 +606,8 @@ namespace Ep128Emu {
       glPopMatrix();
       glFlush();
       // make sure that all lines are updated at a slow rate
-      if (!displayParameters.useDoubleBuffering) {
-        if (forceUpdateLineMask) {
+      if (forceUpdateLineMask) {
+        if (!screenshotCallbackCnt) {
           for (size_t yc = 0; yc < 289; yc++) {
             if (!(forceUpdateLineMask & (uint8_t(1) << uint8_t((yc >> 3) & 7))))
               continue;
@@ -772,18 +623,9 @@ namespace Ep128Emu {
           forceUpdateLineMask = 0;
         }
       }
-      else {
-        for (size_t n = 0; n < 578; n++) {
-          if (lineBuffers[n] != (Message_LineData *) 0) {
-            Message *m = lineBuffers[n];
-            lineBuffers[n] = (Message_LineData *) 0;
-            deleteMessage(m);
-          }
-        }
-      }
     }
-    else {
-      if (!(displayParameters.useDoubleBuffering ||
+    else if (displayParameters.bufferingMode != 2) {
+      if (!(displayParameters.bufferingMode != 0 ||
             (displayParameters.blendScale2 > 0.99 &&
              displayParameters.blendScale3 < 0.01))) {
         glEnable(GL_BLEND);
@@ -806,151 +648,29 @@ namespace Ep128Emu {
       else
         glDisable(GL_BLEND);
       switch (displayParameters.displayQuality) {
+      case 0:
+        // full horizontal resolution, no interlace (768x288)
+        // no texture filtering or effects
+        drawFrame_quality0(lineBuffers, x0, y0, x1, y1);
+        break;
       case 1:
         // half horizontal resolution, no interlace (384x288)
-        for (size_t yc = 0; yc < 588; yc += 28) {
-          for (size_t offs = 0; offs < 32; offs += 2) {
-            // decode video data
-            const unsigned char *bufp = (unsigned char *) 0;
-            size_t  nBytes = 0;
-            bool    haveLineData = false;
-            if ((yc + offs) < 578) {
-              if (lineBuffers[yc + offs] != (Message_LineData *) 0) {
-                lineBuffers[yc + offs]->getLineData(bufp, nBytes);
-                haveLineData = true;
-              }
-              else if (lineBuffers[yc + offs + 1] != (Message_LineData *) 0) {
-                lineBuffers[yc + offs + 1]->getLineData(bufp, nBytes);
-                haveLineData = true;
-              }
-            }
-            if (haveLineData)
-              decodeLine(curLine_, bufp, nBytes);
-            else
-              std::memset(curLine_, 0, 768);
-            // build 16-bit texture
-            uint16_t  *txtp = &(textureBuffer[(offs >> 1) * 384]);
-            for (size_t xc = 0; xc < 768; xc += 2)
-              txtp[xc >> 1] = colormap(curLine_[xc], curLine_[xc + 1]);
-          }
-          // load texture
-          glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 384, 16,
-                          GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
-                          (GLvoid *) textureBuffer);
-          // update display
-          double  ycf0 = y0 + ((double(int(yc)) * (1.0 / 576.0))
-                               * (y1 - y0));
-          double  ycf1 = y0 + ((double(int(yc + 28)) * (1.0 / 576.0))
-                               * (y1 - y0));
-          double  txtycf1 = 15.0 / 16.0;
-          if (yc == 560) {
-            ycf1 -= ((y1 - y0) * (12.0 / 576.0));
-            txtycf1 -= (6.0 / 16.0);
-          }
-          glBegin(GL_QUADS);
-          glTexCoord2f(GLfloat(0.0), GLfloat(1.0 / 16.0));
-          glVertex2f(GLfloat(x0), GLfloat(ycf0));
-          glTexCoord2f(GLfloat(384.0 / 512.0), GLfloat(1.0 / 16.0));
-          glVertex2f(GLfloat(x1), GLfloat(ycf0));
-          glTexCoord2f(GLfloat(384.0 / 512.0), GLfloat(txtycf1));
-          glVertex2f(GLfloat(x1), GLfloat(ycf1));
-          glTexCoord2f(GLfloat(0.0), GLfloat(txtycf1));
-          glVertex2f(GLfloat(x0), GLfloat(ycf1));
-          glEnd();
-        }
+        drawFrame_quality1(lineBuffers, x0, y0, x1, y1);
         break;
       case 2:
         // full horizontal resolution, no interlace (768x288)
-        for (size_t yc = 0; yc < 588; yc += 28) {
-          for (size_t offs = 0; offs < 32; offs += 2) {
-            // decode video data
-            const unsigned char *bufp = (unsigned char *) 0;
-            size_t  nBytes = 0;
-            bool    haveLineData = false;
-            if ((yc + offs) < 578) {
-              if (lineBuffers[yc + offs] != (Message_LineData *) 0) {
-                lineBuffers[yc + offs]->getLineData(bufp, nBytes);
-                haveLineData = true;
-              }
-              else if (lineBuffers[yc + offs + 1] != (Message_LineData *) 0) {
-                lineBuffers[yc + offs + 1]->getLineData(bufp, nBytes);
-                haveLineData = true;
-              }
-            }
-            if (haveLineData)
-              decodeLine(curLine_, bufp, nBytes);
-            else
-              std::memset(curLine_, 0, 768);
-            // build 16-bit texture
-            uint16_t  *txtp = &(textureBuffer[(offs >> 1) * 768]);
-            for (size_t xc = 0; xc < 768; xc++)
-              txtp[xc] = colormap(curLine_[xc]);
-          }
-          // load texture
-          glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 16,
-                          GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
-                          (GLvoid *) textureBuffer);
-          // update display
-          double  ycf0 = y0 + ((double(int(yc)) * (1.0 / 576.0))
-                               * (y1 - y0));
-          double  ycf1 = y0 + ((double(int(yc + 28)) * (1.0 / 576.0))
-                               * (y1 - y0));
-          double  txtycf1 = 15.0 / 16.0;
-          if (yc == 560) {
-            ycf1 -= ((y1 - y0) * (12.0 / 576.0));
-            txtycf1 -= (6.0 / 16.0);
-          }
-          glBegin(GL_QUADS);
-          glTexCoord2f(GLfloat(0.0), GLfloat(1.0 / 16.0));
-          glVertex2f(GLfloat(x0), GLfloat(ycf0));
-          glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(1.0 / 16.0));
-          glVertex2f(GLfloat(x1), GLfloat(ycf0));
-          glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(txtycf1));
-          glVertex2f(GLfloat(x1), GLfloat(ycf1));
-          glTexCoord2f(GLfloat(0.0), GLfloat(txtycf1));
-          glVertex2f(GLfloat(x0), GLfloat(ycf1));
-          glEnd();
-        }
+        drawFrame_quality2(lineBuffers, x0, y0, x1, y1);
         break;
       case 3:
         // full horizontal resolution, interlace (768x576)
-        if (!displayParameters.useDoubleBuffering) {
-          drawFrame_quality3(lineBuffers, x0, y0, x1, y1);
-        }
-        else {
-          int     readPosInt = int(ringBufferReadPos);
-          double  readPosFrac = ringBufferReadPos - double(readPosInt);
-          drawFrame_quality3(frameRingBuffer[readPosInt & 3],
-                             x0, y0, x1, y1, 1.0 - readPosFrac);
-          drawFrame_quality3(frameRingBuffer[(readPosInt + 1) & 3],
-                             x0, y0, x1, y1, readPosFrac, false);
-          double  d = inputFrameRate / displayFrameRate;
-          d = (d > 0.01 ? (d < 1.75 ? d : 1.75) : 0.01);
-          switch ((ringBufferWritePos - readPosInt) & 3) {
-          case 1:
-            d = 0.0;
-            break;
-          case 2:
-            d = d * 0.97;
-            break;
-          case 3:
-            d = d * 1.04;
-            break;
-          case 0:
-            d = d * 1.25;
-            break;
-          }
-          ringBufferReadPos = ringBufferReadPos + d;
-          if (ringBufferReadPos >= 4.0)
-            ringBufferReadPos -= 4.0;
-        }
+        drawFrame_quality3(lineBuffers, x0, y0, x1, y1);
         break;
       }
       // clean up
       glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
       glPopMatrix();
       glFlush();
-      if (!videoResampleEnabled) {
+      if (!screenshotCallbackCnt) {
         for (size_t n = 0; n < 578; n++) {
           if (lineBuffers[n] != (Message_LineData *) 0) {
             Message *m = lineBuffers[n];
@@ -959,6 +679,113 @@ namespace Ep128Emu {
           }
         }
       }
+    }
+    else {
+      // resample video input to monitor refresh rate
+      int     readPosInt = int(ringBufferReadPos);
+      double  readPosFrac = ringBufferReadPos - double(readPosInt);
+      double  d = inputFrameRate / displayFrameRate;
+      d = (d > 0.01 ? (d < 1.75 ? d : 1.75) : 0.01);
+      switch ((ringBufferWritePos - readPosInt) & 3) {
+      case 1:
+        d = 0.0;
+        readPosFrac = 0.0;
+        break;
+      case 2:
+        d = d * 0.97;
+        break;
+      case 3:
+        d = d * 1.04;
+        break;
+      case 0:
+        d = d * 1.25;
+        break;
+      }
+      ringBufferReadPos = ringBufferReadPos + d;
+      if (ringBufferReadPos >= 4.0)
+        ringBufferReadPos -= 4.0;
+#ifdef WIN32
+      void    (*glBlendColor_)(GLclampf, GLclampf, GLclampf, GLclampf) =
+          (void (*)(GLclampf, GLclampf, GLclampf, GLclampf))
+              wglGetProcAddress("glBlendColor");
+#endif
+      bool    blendEnabled_ = true;
+      if (readPosFrac >= 0.002 && readPosFrac <= 0.998)
+        glEnable(GL_BLEND);
+      else {
+        glDisable(GL_BLEND);
+        blendEnabled_ = false;
+      }
+      if (blendEnabled_) {
+#ifndef WIN32
+        glBlendColor(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
+                     GLclampf(1.0 - readPosFrac));
+#else
+        glBlendColor_(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
+                      GLclampf(1.0 - readPosFrac));
+#endif
+        glBlendFunc(GL_CONSTANT_ALPHA, GL_ZERO);
+      }
+      if (blendEnabled_ || readPosFrac < 0.5) {
+        switch (displayParameters.displayQuality) {
+        case 0:
+          // full horizontal resolution, no interlace (768x288)
+          // no texture filtering or effects
+          drawFrame_quality0(frameRingBuffer[readPosInt & 3], x0, y0, x1, y1);
+          break;
+        case 1:
+          // half horizontal resolution, no interlace (384x288)
+          drawFrame_quality1(frameRingBuffer[readPosInt & 3], x0, y0, x1, y1);
+          break;
+        case 2:
+          // full horizontal resolution, no interlace (768x288)
+          drawFrame_quality2(frameRingBuffer[readPosInt & 3], x0, y0, x1, y1);
+          break;
+        case 3:
+          // full horizontal resolution, interlace (768x576)
+          drawFrame_quality3(frameRingBuffer[readPosInt & 3], x0, y0, x1, y1);
+          break;
+        }
+      }
+      if (blendEnabled_) {
+#ifndef WIN32
+        glBlendColor(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
+                     GLclampf(readPosFrac));
+#else
+        glBlendColor_(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
+                      GLclampf(readPosFrac));
+#endif
+        glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE);
+      }
+      if (blendEnabled_ || readPosFrac > 0.5) {
+        switch (displayParameters.displayQuality) {
+        case 0:
+          // full horizontal resolution, no interlace (768x288)
+          // no texture filtering or effects
+          drawFrame_quality0(frameRingBuffer[(readPosInt + 1) & 3],
+                             x0, y0, x1, y1);
+          break;
+        case 1:
+          // half horizontal resolution, no interlace (384x288)
+          drawFrame_quality1(frameRingBuffer[(readPosInt + 1) & 3],
+                             x0, y0, x1, y1);
+          break;
+        case 2:
+          // full horizontal resolution, no interlace (768x288)
+          drawFrame_quality2(frameRingBuffer[(readPosInt + 1) & 3],
+                             x0, y0, x1, y1);
+          break;
+        case 3:
+          // full horizontal resolution, interlace (768x576)
+          drawFrame_quality3(frameRingBuffer[(readPosInt + 1) & 3],
+                             x0, y0, x1, y1);
+          break;
+        }
+      }
+      // clean up
+      glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
+      glPopMatrix();
+      glFlush();
     }
 
     messageQueueMutex.lock();
@@ -1032,7 +859,7 @@ namespace Ep128Emu {
         if (msg->lineNum >= 0 && msg->lineNum < 578) {
           if (displayParameters.displayQuality == 0) {
             msg->lineNum = msg->lineNum & (~(int(1)));
-            if (!displayParameters.useDoubleBuffering) {
+            if (!displayParameters.bufferingMode) {
               // check if this line has changed
               if (lineBuffers[msg->lineNum] != (Message_LineData *) 0) {
                 if (*(lineBuffers[msg->lineNum]) == *msg) {
@@ -1060,7 +887,10 @@ namespace Ep128Emu {
         redrawFlag = true;
         deleteMessage(m);
         noInputTimer.reset();
-        if (videoResampleEnabled) {
+        if (screenshotCallbackCnt) {
+          checkScreenshotCallback();
+        }
+        else if (videoResampleEnabled) {
           double  t = inputFrameRateTimer.getRealTime();
           inputFrameRateTimer.reset();
           t = (t > 0.002 ? (t < 0.25 ? t : 0.25) : 0.002);
@@ -1083,11 +913,9 @@ namespace Ep128Emu {
         Message_SetParameters *msg;
         msg = static_cast<Message_SetParameters *>(m);
         if (displayParameters.displayQuality != msg->dp.displayQuality ||
-            displayParameters.useDoubleBuffering
-            != msg->dp.useDoubleBuffering) {
+            displayParameters.bufferingMode != msg->dp.bufferingMode) {
           Fl::remove_idle(&fltkIdleCallback, (void *) this);
-          if (displayParameters.useDoubleBuffering
-              != msg->dp.useDoubleBuffering) {
+          if (displayParameters.bufferingMode != msg->dp.bufferingMode) {
             // if double buffering mode has changed, also need to generate
             // a new texture ID
             GLuint  oldTextureID = GLuint(textureID);
@@ -1095,7 +923,7 @@ namespace Ep128Emu {
             if (oldTextureID)
               glDeleteTextures(1, &oldTextureID);
             this->mode(FL_RGB
-                       | (msg->dp.useDoubleBuffering ? FL_DOUBLE : FL_SINGLE));
+                       | (msg->dp.bufferingMode != 0 ? FL_DOUBLE : FL_SINGLE));
             if (oldTextureID) {
               oldTextureID = 0U;
               glGenTextures(1, &oldTextureID);
@@ -1103,7 +931,7 @@ namespace Ep128Emu {
             }
             Fl::focus(this);
           }
-          if (msg->dp.displayQuality == 3 && msg->dp.useDoubleBuffering) {
+          if (msg->dp.bufferingMode == 2) {
             videoResampleEnabled = true;
             Fl::add_idle(&fltkIdleCallback, (void *) this);
             displayFrameRateTimer.reset();
@@ -1164,6 +992,8 @@ namespace Ep128Emu {
         ringBufferWritePos = (ringBufferWritePos + 1) & 3;
       }
       redrawFlag = true;
+      if (screenshotCallbackCnt)
+        checkScreenshotCallback();
     }
     if (this->damage() & FL_DAMAGE_EXPOSE) {
       forceUpdateLineMask = 0xFF;
@@ -1183,88 +1013,6 @@ namespace Ep128Emu {
   {
     (void) event;
     return 0;
-  }
-
-  void OpenGLDisplay::setDisplayParameters(const DisplayParameters& dp)
-  {
-    if (dp.displayQuality != savedDisplayParameters.displayQuality ||
-        dp.useDoubleBuffering != savedDisplayParameters.useDoubleBuffering) {
-      vsyncStateChange(true, 8);
-      vsyncStateChange(false, 28);
-    }
-    Message_SetParameters *m = allocateMessage<Message_SetParameters>();
-    m->dp = dp;
-    savedDisplayParameters = dp;
-    queueMessage(m);
-  }
-
-  const VideoDisplay::DisplayParameters&
-      OpenGLDisplay::getDisplayParameters() const
-  {
-    return savedDisplayParameters;
-  }
-
-  void OpenGLDisplay::drawLine(const uint8_t *buf, size_t nBytes)
-  {
-    if (!skippingFrame) {
-      if (curLine >= 0 && curLine < 578) {
-        Message_LineData  *m = allocateMessage<Message_LineData>();
-        m->lineNum = curLine;
-        m->copyLine(buf, nBytes);
-        queueMessage(m);
-      }
-    }
-    if (lineCnt < 500) {
-      curLine += 2;
-      lineCnt++;
-    }
-  }
-
-  void OpenGLDisplay::vsyncStateChange(bool newState,
-                                       unsigned int currentSlot_)
-  {
-    (void) currentSlot_;
-    if (newState == vsyncState)
-      return;
-    vsyncState = newState;
-    if (newState) {
-      avgLineCnt = (avgLineCnt * 0.95f) + (float(prvLineCnt) * 0.05f);
-      int   tmp = int(avgLineCnt + 0.5f);
-      tmp = (savedDisplayParameters.displayQuality == 0 ? 272 : 274) - tmp;
-      if (lineCnt == (prvLineCnt + 1))
-        lineReload = lineReload | 1;
-      else
-        lineReload = lineReload & (~(int(1)));
-      if (tmp <= (lineReload - 2)) {
-        if (tmp <= (lineReload - 16))
-          lineReload = lineReload - 8;
-        else
-          lineReload = lineReload - 2;
-      }
-      else if (tmp >= (lineReload + 2)) {
-        if (tmp >= (lineReload + 16))
-          lineReload = lineReload + 8;
-        else
-          lineReload = lineReload + 2;
-      }
-      curLine = lineReload;
-      prvLineCnt = lineCnt;
-      lineCnt = 0;
-      return;
-    }
-    messageQueueMutex.lock();
-    bool    skippedFrame = skippingFrame;
-    if (!skippedFrame)
-      framesPending++;
-    skippingFrame = (framesPending > 3);    // should this be configurable ?
-    messageQueueMutex.unlock();
-    if (skippedFrame) {
-      Fl::awake();
-      threadLock.wait(1);
-      return;
-    }
-    Message *m = allocateMessage<Message_FrameDone>();
-    queueMessage(m);
   }
 
 }       // namespace Ep128Emu
