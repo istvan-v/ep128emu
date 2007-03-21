@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -38,7 +38,8 @@ namespace Ep128Emu {
     displayQuality = (src.displayQuality > 0 ?
                       (src.displayQuality < 3 ? src.displayQuality : 3)
                       : 0);
-    useDoubleBuffering = src.useDoubleBuffering;
+    bufferingMode = (src.bufferingMode > 0 ?
+                     (src.bufferingMode < 2 ? src.bufferingMode : 2) : 0);
     if (src.indexToRGBFunc)
       indexToRGBFunc = src.indexToRGBFunc;
     else
@@ -95,7 +96,7 @@ namespace Ep128Emu {
 
   VideoDisplay::DisplayParameters::DisplayParameters()
     : displayQuality(2),
-      useDoubleBuffering(false),
+      bufferingMode(0),
       indexToRGBFunc(&defaultIndexToRGBFunc),
       brightness(0.0), contrast(1.0), gamma(1.0), saturation(1.0),
       redBrightness(0.0), redContrast(1.0), redGamma(1.0),

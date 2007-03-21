@@ -69,7 +69,7 @@ namespace Ep128Emu {
     // --------
     struct {
       bool        enabled;
-      bool        doubleBuffered;
+      int         bufferingMode;
       int         quality;
       double      brightness;
       double      contrast;

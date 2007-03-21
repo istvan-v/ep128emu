@@ -121,9 +121,9 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "display.enabled",
                                 display.enabled, true,
                                 displaySettingsChanged);
-    defineConfigurationVariable(*this, "display.doubleBuffered",
-                                display.doubleBuffered, false,
-                                displaySettingsChanged);
+    defineConfigurationVariable(*this, "display.bufferingMode",
+                                display.bufferingMode, int(0),
+                                displaySettingsChanged, 0.0, 2.0);
     defineConfigurationVariable(*this, "display.quality",
                                 display.quality, int(2),
                                 displaySettingsChanged, 0.0, 3.0);
@@ -349,7 +349,7 @@ namespace Ep128Emu {
       vm_.setEnableDisplay(display.enabled);
       VideoDisplay::DisplayParameters dp(videoDisplay.getDisplayParameters());
       dp.displayQuality = display.quality;
-      dp.useDoubleBuffering = display.doubleBuffered;
+      dp.bufferingMode = display.bufferingMode;
       dp.brightness = display.brightness;
       dp.contrast = display.contrast;
       dp.gamma = display.gamma;

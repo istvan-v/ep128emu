@@ -265,16 +265,18 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.display.enabled = (o->value() != 0);
   gui.config.displaySettingsChanged = true;
 }}
-          xywh {20 265 150 25} color 39 labelcolor 52
+          xywh {20 265 160 25} color 39 labelcolor 52
         }
-        Fl_Light_Button displayDoubleBufferedValuator {
-          label {Double buffered}
+        Fl_Choice displayBufferingModeValuator {
           callback {{
-  gui.config.display.doubleBuffered = (o->value() != 0);
-  gui.config.displaySettingsChanged = true;
-}}
-          tooltip {Using a double buffered display in OpenGL mode can reduce "tearing" and other artifacts, but also disables the motion blur effect.} xywh {20 300 150 25} color 39 labelcolor 52
-        }
+  if (o->value() >= 0 && o->value() <= 2) {
+    gui.config.display.bufferingMode = o->value();
+    gui.config.displaySettingsChanged = true;
+  }
+}} open
+          xywh {20 300 160 25} down_box BORDER_BOX color 0 selection_color 238 labelcolor 3 textcolor 52
+          code0 {o->add("Single buffered mode|Double buffered mode|Resample to monitor refresh rate");}
+        } {}
         Fl_Value_Slider displayQualityValuator {
           label Quality
           callback {{
@@ -410,7 +412,11 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   blueGammaValuator->value(gui.config.display.blue.gamma);
   blueGammaValueDisplay->value(gui.config.display.blue.gamma);
   enableDisplayValuator->value(gui.config.display.enabled ? 1 : 0);
-  displayDoubleBufferedValuator->value(gui.config.display.doubleBuffered ? 1 : 0);
+  if (gui.config.display.bufferingMode >= 0 &&
+      gui.config.display.bufferingMode <= 2)
+    displayBufferingModeValuator->value(gui.config.display.bufferingMode);
+  else
+    displayBufferingModeValuator->value(-1);
   displayQualityValuator->value(double(gui.config.display.quality));
   pixelAspectRatioValuator->value(gui.config.display.pixelAspectRatio);
   displaySaturationValuator->value(gui.config.display.saturation);

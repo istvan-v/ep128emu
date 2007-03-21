@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -34,8 +34,10 @@ namespace Ep128Emu {
       // 2: full horizontal resolution, no interlace (768x288)
       // 3: full horizontal resolution, interlace (768x576)
       int     displayQuality;
-      // set this to true to enable double buffered display
-      bool    useDoubleBuffering;
+      // 0: single buffered display
+      // 1: double buffered display
+      // 2: double buffered display with resampling to monitor refresh rate
+      int     bufferingMode;
       // function to convert 8-bit color indices to red, green, and blue
       // levels (in the range 0.0 to 1.0); if NULL, greyscale is assumed
       void    (*indexToRGBFunc)(uint8_t color,
