@@ -138,7 +138,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   gui.config.vm.enableFileIO = (o->value() != 0);
   gui.config.vmConfigurationChanged = true;
 }}
-              tooltip {If enabled, the emulated machine can directly access files in the working directory if the ROM module for this function is loaded (epfileio.rom to segment 10, or p4fileio.rom to segment 06, depending on machine type)} xywh {30 290 240 25} color 39 labelcolor 52
+              tooltip {If enabled, the emulated machine can directly access files in the working directory if the ROM module for this function is loaded (epfileio.rom to segment 10)} xywh {30 290 240 25} color 39 labelcolor 52
             }
             Fl_Light_Button tapeEnableFastModeValuator {
               label {Enable fast tape mode}

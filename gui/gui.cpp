@@ -691,10 +691,10 @@ int Ep128EmuGUI::handleFLTKEvent(int event)
           case 27:                                      // Pause:
             menuCallback_Machine_Pause((Fl_Widget *) 0, (void *) this);
             break;
-          case 30:                                      // PageDown
+          case 30:                                      // PageDown:
             menuCallback_Machine_QuickCfgL1((Fl_Widget *) 0, (void *) this);
             break;
-          case 31:                                      // PageUp
+          case 31:                                      // PageUp:
             menuCallback_Machine_QuickCfgL2((Fl_Widget *) 0, (void *) this);
             break;
           }

@@ -1,12 +1,11 @@
 ep128emu 2.0.0 beta2
 ====================
 
-ep128emu is an open source, portable emulator of 8 bit computers,
-including the Enterprise 128, written in C++, and supporting Windows
-and POSIX platforms (32 bit Windows, and 32 and 64 bit Linux have been
-tested).  It implements accurate, high quality hardware emulation,
-however, the system requirements are higher than that of most other
-emulators.
+ep128emu is an open source, portable emulator of the Enterprise 128
+computer, written in C++, and supporting Windows and POSIX platforms
+(32 bit Windows, and 32 and 64 bit Linux have been tested).
+It implements accurate, high quality hardware emulation, however, the
+system requirements are higher than that of most other emulators.
 
 Features
 ========
@@ -31,12 +30,11 @@ General
   * saving and loading snapshots of the state of the emulated machine
   * demo recording (snapshot combined with stream of keyboard events
     which can be played back with accurate timing)
-  * tape emulation for all supported machine types, with playback,
-    recording, and setting tape position; markers can be created for
-    quick positioning to specific tape locations (useful for tapes with
-    multiple files); uses custom file format which is PCM audio data
-    with 1 to 8 bits of sample resolution and variable sample rate, and
-    header including the table of markers
+  * tape emulation with playback, recording, and setting tape position;
+    markers can be created for quick positioning to specific tape
+    locations (useful for tapes with multiple files); uses custom file
+    format which is PCM audio data with 1 to 8 bits of sample resolution
+    and variable sample rate, and header including the table of markers
   * GUI tape editor utility for copying Enterprise files from/to
     ep128emu tape images
   * command line utility for converting C16 .tap files to ep128emu
@@ -175,8 +173,7 @@ Set working directory
 Load file
 
   Load an ep128emu format binary file, which may be a previously saved
-  snapshot or demo for the same machine type as the one currently being
-  emulated, or a binary format configuration file.
+  snapshot, demo, or a binary format configuration file.
 
 Load configuration file
 
