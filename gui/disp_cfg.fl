@@ -1,0 +1,428 @@
+# data file for the Fltk User Interface Designer (fluid)
+version 1.0107 
+do_not_include_H_from_C 
+header_name {.hpp} 
+code_name {.cpp}
+decl {\#include "gui.hpp"} {selected
+} 
+
+class Ep128EmuGUI_DisplayConfigWindow {open
+} {
+  decl {Ep128EmuGUI& gui;} {}
+  Function {Ep128EmuGUI_DisplayConfigWindow(Ep128EmuGUI& gui_) : gui(gui_)} {open
+  } {
+    Fl_Window window {
+      label {Display settings}
+      callback {{
+  try {
+    gui.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+  updateWindow();
+  window->hide();
+  if ((gui.displayMode & 1) == 0)
+    gui.emulatorWindow->cursor(FL_CURSOR_DEFAULT);
+  else
+    gui.emulatorWindow->cursor(FL_CURSOR_NONE);
+}} open
+      xywh {224 231 400 450} type Double color 37 visible
+    } {
+      Fl_Group {} {open
+        xywh {10 10 380 235} box THIN_UP_BOX color 38
+      } {
+        Fl_Box {} {
+          tooltip {Note: you can click on and drag the value displays for fine adjustment} xywh {10 10 90 50} box THIN_DOWN_BOX color 37 selection_color 37 labelcolor 52
+        }
+        Fl_Box {} {
+          label Brightness
+          xywh {20 75 75 20} color 38 labelcolor 52 align 20
+        }
+        Fl_Dial globalBrightnessValuator {
+          label Global
+          callback {{
+  gui.config.display.brightness = o->value();
+  gui.config.displaySettingsChanged = true;
+  globalBrightnessValueDisplay->value(o->value());
+}}
+          xywh {115 35 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum -0.5 maximum 0.5
+        }
+        Fl_Value_Output globalBrightnessValueDisplay {
+          callback {{
+  gui.config.display.brightness = o->value();
+  gui.config.displaySettingsChanged = true;
+  globalBrightnessValuator->value(o->value());
+}}
+          xywh {110 75 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum -0.5 maximum 0.5 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial redBrightnessValuator {
+          label Red
+          callback {{
+  gui.config.display.red.brightness = o->value();
+  gui.config.displaySettingsChanged = true;
+  redBrightnessValueDisplay->value(o->value());
+}}
+          xywh {190 35 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum -0.5 maximum 0.5
+        }
+        Fl_Value_Output redBrightnessValueDisplay {
+          callback {{
+  gui.config.display.red.brightness = o->value();
+  gui.config.displaySettingsChanged = true;
+  redBrightnessValuator->value(o->value());
+}}
+          xywh {185 75 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum -0.5 maximum 0.5 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial greenBrightnessValuator {
+          label Green
+          callback {{
+  gui.config.display.green.brightness = o->value();
+  gui.config.displaySettingsChanged = true;
+  greenBrightnessValueDisplay->value(o->value());
+}}
+          xywh {265 35 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum -0.5 maximum 0.5
+        }
+        Fl_Value_Output greenBrightnessValueDisplay {
+          callback {{
+  gui.config.display.green.brightness = o->value();
+  gui.config.displaySettingsChanged = true;
+  greenBrightnessValuator->value(o->value());
+}}
+          xywh {260 75 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum -0.5 maximum 0.5 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial blueBrightnessValuator {
+          label Blue
+          callback {{
+  gui.config.display.blue.brightness = o->value();
+  gui.config.displaySettingsChanged = true;
+  blueBrightnessValueDisplay->value(o->value());
+}}
+          xywh {340 35 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum -0.5 maximum 0.5
+        }
+        Fl_Value_Output blueBrightnessValueDisplay {
+          callback {{
+  gui.config.display.blue.brightness = o->value();
+  gui.config.displaySettingsChanged = true;
+  blueBrightnessValuator->value(o->value());
+}}
+          xywh {335 75 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum -0.5 maximum 0.5 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Box {} {
+          label Contrast
+          xywh {20 145 75 20} color 38 labelcolor 52 align 20
+        }
+        Fl_Dial globalContrastValuator {
+          callback {{
+  gui.config.display.contrast = o->value();
+  gui.config.displaySettingsChanged = true;
+  globalContrastValueDisplay->value(o->value());
+}}
+          xywh {115 105 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum 0.5 maximum 2 value 1
+        }
+        Fl_Value_Output globalContrastValueDisplay {
+          callback {{
+  gui.config.display.contrast = o->value();
+  gui.config.displaySettingsChanged = true;
+  globalContrastValuator->value(o->value());
+}}
+          xywh {110 145 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum 0.5 maximum 2 value 1 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial redContrastValuator {
+          callback {{
+  gui.config.display.red.contrast = o->value();
+  gui.config.displaySettingsChanged = true;
+  redContrastValueDisplay->value(o->value());
+}}
+          xywh {190 105 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum 0.5 maximum 2 value 1
+        }
+        Fl_Value_Output redContrastValueDisplay {
+          callback {{
+  gui.config.display.red.contrast = o->value();
+  gui.config.displaySettingsChanged = true;
+  redContrastValuator->value(o->value());
+}}
+          xywh {185 145 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum 0.5 maximum 2 value 1 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial greenContrastValuator {
+          callback {{
+  gui.config.display.green.contrast = o->value();
+  gui.config.displaySettingsChanged = true;
+  greenContrastValueDisplay->value(o->value());
+}}
+          xywh {265 105 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum 0.5 maximum 2 value 1
+        }
+        Fl_Value_Output greenContrastValueDisplay {
+          callback {{
+  gui.config.display.green.contrast = o->value();
+  gui.config.displaySettingsChanged = true;
+  greenContrastValuator->value(o->value());
+}}
+          xywh {260 145 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum 0.5 maximum 2 value 1 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial blueContrastValuator {
+          callback {{
+  gui.config.display.blue.contrast = o->value();
+  gui.config.displaySettingsChanged = true;
+  blueContrastValueDisplay->value(o->value());
+}}
+          xywh {340 105 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum 0.5 maximum 2 value 1
+        }
+        Fl_Value_Output blueContrastValueDisplay {
+          callback {{
+  gui.config.display.blue.contrast = o->value();
+  gui.config.displaySettingsChanged = true;
+  blueContrastValuator->value(o->value());
+}}
+          xywh {335 145 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum 0.5 maximum 2 value 1 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Box {} {
+          label Gamma
+          xywh {20 215 75 20} color 38 labelcolor 52 align 20
+        }
+        Fl_Dial globalGammaValuator {
+          callback {{
+  gui.config.display.gamma = o->value();
+  gui.config.displaySettingsChanged = true;
+  globalGammaValueDisplay->value(o->value());
+}}
+          xywh {115 175 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum 0.25 maximum 4 value 1
+        }
+        Fl_Value_Output globalGammaValueDisplay {
+          callback {{
+  gui.config.display.gamma = o->value();
+  gui.config.displaySettingsChanged = true;
+  globalGammaValuator->value(o->value());
+}}
+          xywh {110 215 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum 0.25 maximum 4 value 1 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial redGammaValuator {
+          callback {{
+  gui.config.display.red.gamma = o->value();
+  gui.config.displaySettingsChanged = true;
+  redGammaValueDisplay->value(o->value());
+}}
+          xywh {190 175 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum 0.25 maximum 4 value 1
+        }
+        Fl_Value_Output redGammaValueDisplay {
+          callback {{
+  gui.config.display.red.gamma = o->value();
+  gui.config.displaySettingsChanged = true;
+  redGammaValuator->value(o->value());
+}}
+          xywh {185 215 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum 0.25 maximum 4 value 1 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial greenGammaValuator {
+          callback {{
+  gui.config.display.green.gamma = o->value();
+  gui.config.displaySettingsChanged = true;
+  greenGammaValueDisplay->value(o->value());
+}}
+          xywh {265 175 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum 0.25 maximum 4 value 1
+        }
+        Fl_Value_Output greenGammaValueDisplay {
+          callback {{
+  gui.config.display.green.gamma = o->value();
+  gui.config.displaySettingsChanged = true;
+  greenGammaValuator->value(o->value());
+}}
+          xywh {260 215 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum 0.25 maximum 4 value 1 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+        Fl_Dial blueGammaValuator {
+          callback {{
+  gui.config.display.blue.gamma = o->value();
+  gui.config.displaySettingsChanged = true;
+  blueGammaValueDisplay->value(o->value());
+}}
+          xywh {340 175 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum 0.25 maximum 4 value 1
+        }
+        Fl_Value_Output blueGammaValueDisplay {
+          callback {{
+  gui.config.display.blue.gamma = o->value();
+  gui.config.displaySettingsChanged = true;
+  blueGammaValuator->value(o->value());
+}}
+          xywh {335 215 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum 0.25 maximum 4 value 1 textsize 13 textcolor 52
+          code0 {o->precision(3);}
+        }
+      }
+      Fl_Group {} {open
+        xywh {10 255 380 150} box THIN_UP_BOX color 38
+      } {
+        Fl_Light_Button enableDisplayValuator {
+          label {Enable display}
+          callback {{
+  gui.config.display.enabled = (o->value() != 0);
+  gui.config.displaySettingsChanged = true;
+}}
+          xywh {20 265 160 25} color 39 labelcolor 52
+        }
+        Fl_Choice displayBufferingModeValuator {
+          callback {{
+  if (o->value() >= 0 && o->value() <= 2) {
+    gui.config.display.bufferingMode = o->value();
+    gui.config.displaySettingsChanged = true;
+  }
+}} open
+          xywh {20 300 160 25} down_box BORDER_BOX color 0 selection_color 238 labelcolor 3 textcolor 52
+          code0 {o->add("Single buffered mode|Double buffered mode|Resample to monitor refresh rate");}
+        } {}
+        Fl_Value_Slider displayQualityValuator {
+          label Quality
+          callback {{
+  gui.config.display.quality = int(o->value() + 0.5);
+  gui.config.displaySettingsChanged = true;
+}}
+          tooltip {This parameter is used only in OpenGL mode. Larger values increase the texture size and enable more effects at the expense of higher CPU usage} xywh {20 335 110 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 8 maximum 3 step 1 value 1 textcolor 52
+        }
+        Fl_Value_Input pixelAspectRatioValuator {
+          label {Pixel aspect ratio}
+          callback {{
+  gui.config.display.pixelAspectRatio = o->clamp(o->value());
+  o->value(gui.config.display.pixelAspectRatio);
+  gui.config.displaySettingsChanged = true;
+}}
+          tooltip {The assumed pixel aspect ratio of the screen; 1.0 means square pixels (the default), larger values make the display narrower, while smaller values result in a wider display. Type new value, or click and drag to change it.} xywh {20 370 55 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 0.5 maximum 2 step 0.001 value 1 textcolor 52
+          code0 {o->cursor_color(FL_YELLOW);}
+        }
+        Fl_Value_Slider displaySaturationValuator {
+          label Saturation
+          callback {{
+  gui.config.display.saturation = o->value();
+  gui.config.displaySettingsChanged = true;
+}}
+          xywh {200 265 110 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 8 maximum 2 value 1 textcolor 52
+        }
+        Fl_Value_Slider displayFXParam1Valuator {
+          label {Effect 1}
+          callback {{
+  gui.config.display.effects.param1 = o->value();
+  gui.config.displaySettingsChanged = true;
+}}
+          tooltip {Controls vertical filtering of scanlines when display quality is set to 3} xywh {200 300 110 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 8 maximum 0.5 value 0.25 textcolor 52
+        }
+        Fl_Value_Slider displayFXParam2Valuator {
+          label {Effect 2}
+          callback {{
+  gui.config.display.effects.param2 = o->value();
+  gui.config.displaySettingsChanged = true;
+}}
+          tooltip {Scale factor for new frame (used for motion blur effect in single buffered OpenGL mode)} xywh {200 335 110 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 8 value 0.75 textcolor 52
+        }
+        Fl_Value_Slider displayFXParam3Valuator {
+          label {Effect 3}
+          callback {{
+  gui.config.display.effects.param3 = o->value();
+  gui.config.displaySettingsChanged = true;
+}}
+          tooltip {Scale factor for previous frame (used for motion blur effect in single buffered OpenGL mode)} xywh {200 370 110 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 8 value 0.25 textcolor 52
+        }
+      }
+      Fl_Button {} {
+        label Apply
+        callback {{
+  try {
+    gui.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+  updateWindow();
+  if ((gui.displayMode & 1) == 0)
+    gui.emulatorWindow->cursor(FL_CURSOR_DEFAULT);
+  else
+    gui.emulatorWindow->cursor(FL_CURSOR_NONE);
+}}
+        xywh {255 415 60 25} color 38 selection_color 39 labelcolor 52
+      }
+      Fl_Button {} {
+        label OK
+        callback {{
+  try {
+    gui.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+  updateWindow();
+  window->hide();
+  if ((gui.displayMode & 1) == 0)
+    gui.emulatorWindow->cursor(FL_CURSOR_DEFAULT);
+  else
+    gui.emulatorWindow->cursor(FL_CURSOR_NONE);
+}}
+        xywh {325 415 60 25} color 38 selection_color 39 labelcolor 52
+      }
+    }
+  }
+  Function {~Ep128EmuGUI_DisplayConfigWindow()} {open
+  } {
+    code {{
+  delete window;
+}} {}
+  }
+  Function {show()} {open return_type void
+  } {
+    code {{
+  updateWindow();
+  window->show();
+}} {}
+  }
+  Function {hide()} {open return_type void
+  } {
+    code {{
+  window->hide();
+}} {}
+  }
+  Function {updateWindow()} {open private return_type void
+  } {
+    code {{
+  globalBrightnessValuator->value(gui.config.display.brightness);
+  globalBrightnessValueDisplay->value(gui.config.display.brightness);
+  redBrightnessValuator->value(gui.config.display.red.brightness);
+  redBrightnessValueDisplay->value(gui.config.display.red.brightness);
+  greenBrightnessValuator->value(gui.config.display.green.brightness);
+  greenBrightnessValueDisplay->value(gui.config.display.green.brightness);
+  blueBrightnessValuator->value(gui.config.display.blue.brightness);
+  blueBrightnessValueDisplay->value(gui.config.display.blue.brightness);
+  globalContrastValuator->value(gui.config.display.contrast);
+  globalContrastValueDisplay->value(gui.config.display.contrast);
+  redContrastValuator->value(gui.config.display.red.contrast);
+  redContrastValueDisplay->value(gui.config.display.red.contrast);
+  greenContrastValuator->value(gui.config.display.green.contrast);
+  greenContrastValueDisplay->value(gui.config.display.green.contrast);
+  blueContrastValuator->value(gui.config.display.blue.contrast);
+  blueContrastValueDisplay->value(gui.config.display.blue.contrast);
+  globalGammaValuator->value(gui.config.display.gamma);
+  globalGammaValueDisplay->value(gui.config.display.gamma);
+  redGammaValuator->value(gui.config.display.red.gamma);
+  redGammaValueDisplay->value(gui.config.display.red.gamma);
+  greenGammaValuator->value(gui.config.display.green.gamma);
+  greenGammaValueDisplay->value(gui.config.display.green.gamma);
+  blueGammaValuator->value(gui.config.display.blue.gamma);
+  blueGammaValueDisplay->value(gui.config.display.blue.gamma);
+  enableDisplayValuator->value(gui.config.display.enabled ? 1 : 0);
+  if (gui.config.display.bufferingMode >= 0 &&
+      gui.config.display.bufferingMode <= 2)
+    displayBufferingModeValuator->value(gui.config.display.bufferingMode);
+  else
+    displayBufferingModeValuator->value(-1);
+  displayQualityValuator->value(double(gui.config.display.quality));
+  pixelAspectRatioValuator->value(gui.config.display.pixelAspectRatio);
+  displaySaturationValuator->value(gui.config.display.saturation);
+  displayFXParam1Valuator->value(gui.config.display.effects.param1);
+  displayFXParam2Valuator->value(gui.config.display.effects.param2);
+  displayFXParam3Valuator->value(gui.config.display.effects.param3);
+}} {}
+  }
+} 
