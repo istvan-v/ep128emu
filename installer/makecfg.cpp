@@ -375,7 +375,7 @@ int main(int argc, char **argv)
       config = (Ep128Emu::ConfigurationDB *) 0;
       mCfg = (Ep128EmuMachineConfiguration *) 0;
     }
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < 24; i++) {
       config = new Ep128Emu::ConfigurationDB();
       mCfg = new Ep128EmuMachineConfiguration(*config, i, romDirectory);
       try {

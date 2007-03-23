@@ -41,7 +41,6 @@ int main(int argc, char **argv)
   Ep128EmuGUI               *gui_ = (Ep128EmuGUI *) 0;
   bool      glEnabled = true;
   const char  *cfgFileName = "ep128cfg.dat";
-  int       prgNameIndex = 0;
   int       retval = 0;
   bool      configLoaded = false;
 
@@ -118,11 +117,6 @@ int main(int argc, char **argv)
         if (++i >= argc)
           throw Ep128Emu::Exception("missing configuration file name");
         config->loadState(argv[i], false);
-      }
-      if (std::strcmp(argv[i], "-prg") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing program file name");
-        prgNameIndex = i;
       }
       else {
         const char  *s = argv[i];
