@@ -121,57 +121,9 @@ z80Lib = z80LibEnvironment.StaticLibrary('z80', Split('''
 
 # -----------------------------------------------------------------------------
 
-plus4LibEnvironment = ep128emuLibEnvironment.Copy()
-plus4LibEnvironment.Append(CPPPATH = ['./plus4'])
-
-plus4Lib = plus4LibEnvironment.StaticLibrary('plus4', Split('''
-    plus4/cia8520.cpp
-    plus4/cpu.cpp
-    plus4/cpuoptbl.cpp
-    plus4/disasm.cpp
-    plus4/memory.cpp
-    plus4/plus4vm.cpp
-    plus4/render.cpp
-    plus4/ted_api.cpp
-    plus4/ted_init.cpp
-    plus4/ted_main.cpp
-    plus4/ted_read.cpp
-    plus4/ted_write.cpp
-    plus4/vc1541.cpp
-    plus4/vc1581.cpp
-    plus4/via6522.cpp
-'''))
-
-# -----------------------------------------------------------------------------
-
-residLibEnvironment = plus4LibEnvironment.Copy()
-residLibEnvironment.Append(CPPPATH = ['./plus4/resid'])
-
-residLib = residLibEnvironment.StaticLibrary('resid', Split('''
-    plus4/resid/envelope.cpp
-    plus4/resid/extfilt.cpp
-    plus4/resid/filter.cpp
-    plus4/resid/pot.cpp
-    plus4/resid/sid.cpp
-    plus4/resid/version.cpp
-    plus4/resid/voice.cpp
-    plus4/resid/wave6581_PS_.cpp
-    plus4/resid/wave6581_PST.cpp
-    plus4/resid/wave6581_P_T.cpp
-    plus4/resid/wave6581__ST.cpp
-    plus4/resid/wave8580_PS_.cpp
-    plus4/resid/wave8580_PST.cpp
-    plus4/resid/wave8580_P_T.cpp
-    plus4/resid/wave8580__ST.cpp
-    plus4/resid/wave.cpp
-'''))
-
-# -----------------------------------------------------------------------------
-
 ep128emuEnvironment = ep128emuGLGUIEnvironment.Copy()
 ep128emuEnvironment.Append(CPPPATH = ['./z80', './gui'])
-ep128emuEnvironment.Prepend(LIBS = ['ep128', 'z80', 'plus4', 'resid',
-                                    'ep128emu'])
+ep128emuEnvironment.Prepend(LIBS = ['ep128', 'z80', 'ep128emu'])
 if haveDotconf:
     ep128emuEnvironment.Append(LIBS = ['dotconf'])
 ep128emuEnvironment.Append(LIBS = ['portaudio', 'sndfile'])
@@ -211,8 +163,6 @@ ep128emu = ep128emuEnvironment.Program('ep128emu', Split('''
 '''))
 Depends(ep128emu, ep128Lib)
 Depends(ep128emu, z80Lib)
-Depends(ep128emu, plus4Lib)
-Depends(ep128emu, residLib)
 Depends(ep128emu, ep128emuLib)
 
 # -----------------------------------------------------------------------------
@@ -237,11 +187,6 @@ tapeedit = tapeeditEnvironment.Program('tapeedit', Split('''
     tapeutil/tapeio.cpp
 '''))
 Depends(tapeedit, ep128emuLib)
-
-tapconvEnvironment = ep128emuLibEnvironment.Copy()
-tapconvEnvironment.Prepend(LIBS = ['ep128emu'])
-tapconv = tapconvEnvironment.Program('tapconv', ['plus4/util/tapconv.cpp'])
-Depends(tapconv, ep128emuLib)
 
 # -----------------------------------------------------------------------------
 
