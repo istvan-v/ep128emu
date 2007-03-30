@@ -38,7 +38,8 @@ elif not ep128emuGUIEnvironment.ParseConfig(
 
 ep128emuGLGUIEnvironment = ep128emuLibEnvironment.Copy()
 if win32CrossCompile:
-    ep128emuGLGUIEnvironment.Prepend(LIBS = ['fltk_gl', 'glu32', 'opengl32'])
+    ep128emuGLGUIEnvironment.Prepend(LIBS = ['fltk_gl', 'fltk',
+                                             'glu32', 'opengl32'])
 elif not ep128emuGLGUIEnvironment.ParseConfig(
         '%s --use-gl --cxxflags --ldflags --libs' % fltkConfig):
     print 'WARNING: could not run fltk-config'
