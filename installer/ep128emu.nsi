@@ -14,7 +14,7 @@
 
   ;Name and file
   Name "ep128emu"
-  OutFile "ep128emu-2.0.0-beta2.exe"
+  OutFile "ep128emu-2.0.0.exe"
 
   ;Default installation folder
   InstallDir "$PROGRAMFILES\ep128emu2"
@@ -216,6 +216,10 @@ SectionEnd
 Section "Uninstall"
 
   Delete "$INSTDIR\COPYING"
+  Delete "$INSTDIR\LICENSE.FLTK"
+  Delete "$INSTDIR\LICENSE.PortAudio"
+  Delete "$INSTDIR\LICENSE.dotconf"
+  Delete "$INSTDIR\LICENSE.libsndfile"
   Delete "$INSTDIR\readme.txt"
   Delete "$INSTDIR\ep128emu.exe"
   Delete "$INSTDIR\libsndfile-1.dll"

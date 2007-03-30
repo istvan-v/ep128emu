@@ -1264,7 +1264,7 @@ namespace Ep128 {
     saveMachineConfiguration(f);
     saveState(f);
     demoBuffer.clear();
-    demoBuffer.writeUInt32(0x00010900); // version 1.9.0 (beta)
+    demoBuffer.writeUInt32(0x00020000); // version 2.0.0
     demoFile = &f;
     isRecordingDemo = true;
     demoTimeCnt = 0U;

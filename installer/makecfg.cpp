@@ -126,7 +126,7 @@ class Ep128EmuMachineConfiguration {
   }
 };
 
-static const char *machineConfigFileNames[40] = {
+static const char *machineConfigFileNames[24] = {
   "EP_64k_Tape.cfg",                    //  0
   "EP_128k_Tape.cfg",                   //  1
   "EP_256k_Tape.cfg",                   //  2
@@ -156,27 +156,25 @@ static const char *machineConfigFileNames[40] = {
 Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
     Ep128Emu::ConfigurationDB& config, int n, const std::string& romDirectory)
 {
-  if (n < 24) {
-    vm.cpuClockFrequency = 4000000U;
-    vm.videoClockFrequency = 890625U;
-    vm.soundClockFrequency = 500000U;
-    vm.videoMemoryLatency = 62U;
-    vm.enableMemoryTimingEmulation = true;
-    memory.ram.size = ((n % 3) == 0 ? 64 : ((n % 3) == 1 ? 128 : 256));
-    memory.rom[0x00].file = romDirectory + "exos0.rom";
-    memory.rom[0x01].file = romDirectory + "exos1.rom";
-    memory.rom[0x04].file = romDirectory + "ep_basic.rom";
-    if (n >= 12) {
-      memory.rom[0x05].file = romDirectory + "tasmon0.rom";
-      memory.rom[0x06].file = romDirectory + "tasmon1.rom";
-    }
-    if ((n % 12) >= 6) {
-      memory.rom[0x10].file = romDirectory + "epfileio.rom";
-    }
-    if ((n % 6) >= 3) {
-      memory.rom[0x20].file = romDirectory + "exdos0.rom";
-      memory.rom[0x21].file = romDirectory + "exdos1.rom";
-    }
+  vm.cpuClockFrequency = 4000000U;
+  vm.videoClockFrequency = 890625U;
+  vm.soundClockFrequency = 500000U;
+  vm.videoMemoryLatency = 62U;
+  vm.enableMemoryTimingEmulation = true;
+  memory.ram.size = ((n % 3) == 0 ? 64 : ((n % 3) == 1 ? 128 : 256));
+  memory.rom[0x00].file = romDirectory + "exos0.rom";
+  memory.rom[0x01].file = romDirectory + "exos1.rom";
+  memory.rom[0x04].file = romDirectory + "ep_basic.rom";
+  if (n >= 12) {
+    memory.rom[0x05].file = romDirectory + "tasmon0.rom";
+    memory.rom[0x06].file = romDirectory + "tasmon1.rom";
+  }
+  if ((n % 12) >= 6) {
+    memory.rom[0x10].file = romDirectory + "epfileio.rom";
+  }
+  if ((n % 6) >= 3) {
+    memory.rom[0x20].file = romDirectory + "exdos0.rom";
+    memory.rom[0x21].file = romDirectory + "exdos1.rom";
   }
   config.createKey("vm.cpuClockFrequency", vm.cpuClockFrequency);
   config.createKey("vm.videoClockFrequency", vm.videoClockFrequency);
@@ -248,8 +246,8 @@ class Ep128EmuDisplaySndConfiguration {
   Ep128EmuDisplaySndConfiguration(Ep128Emu::ConfigurationDB& config)
   {
     display.quality = 2;
-    sound.latency = 0.05;
-    sound.hwPeriods = 8;
+    sound.latency = 0.075;
+    sound.hwPeriods = 12;
     sound.dcBlockFilter1Freq = 10.0;
     sound.dcBlockFilter2Freq = 10.0;
     sound.equalizer.mode = -1;

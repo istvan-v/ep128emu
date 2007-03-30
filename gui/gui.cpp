@@ -223,9 +223,9 @@ void Ep128EmuGUI::updateDisplay(double t)
   if (isPaused_ != oldPauseFlag) {
     oldPauseFlag = isPaused_;
     if (isPaused_)
-      mainWindow->label("ep128emu 2.0 beta (paused)");
+      mainWindow->label("ep128emu 2.0.0 (paused)");
     else
-      mainWindow->label("ep128emu 2.0 beta");
+      mainWindow->label("ep128emu 2.0.0");
   }
   int   newDemoStatus = (isRecordingDemo_ ? 2 : (isPlayingDemo_ ? 1 : 0));
   if (newDemoStatus != oldDemoStatus) {
@@ -341,6 +341,7 @@ void Ep128EmuGUI::run()
 {
   config.setErrorCallback(&errorMessageCallback, (void *) this);
   // set initial window size from saved configuration
+  emulatorWindowGroup->resizable((Fl_Widget *) 0);
   emulatorWindow->color(36, 36);
   resizeWindow(config.display.width, config.display.height);
   // create menu bar
@@ -1020,14 +1021,10 @@ bool Ep128EmuGUI::closeDemoFile(bool stopDemo_)
 void Ep128EmuGUI::saveQuickConfig(int n)
 {
   const char  *fName = (char *) 0;
-  if (typeid(vm) == typeid(Ep128::Ep128VM)) {
-    if (n == 1)
-      fName = "epvmcfg1.cfg";
-    else
-      fName = "epvmcfg2.cfg";
-  }
-  if (!fName)
-    return;
+  if (n == 1)
+    fName = "epvmcfg1.cfg";
+  else
+    fName = "epvmcfg2.cfg";
   try {
     Ep128Emu::ConfigurationDB tmpCfg;
     tmpCfg.createKey("vm.cpuClockFrequency", config.vm.cpuClockFrequency);
@@ -1136,10 +1133,8 @@ void Ep128EmuGUI::menuCallback_File_QSLoad(Fl_Widget *o, void *v)
         const char  *fName = gui_.quickSnapshotFileName.c_str();
         bool        useHomeDirectory = false;
         if (fName[0] == '\0') {
-          if (typeid(gui_.vm) == typeid(Ep128::Ep128VM)) {
-            fName = "qs_ep128.dat";
-            useHomeDirectory = true;
-          }
+          fName = "qs_ep128.dat";
+          useHomeDirectory = true;
         }
         Ep128Emu::File  f(fName, useHomeDirectory);
         gui_.vm.registerChunkTypes(f);
@@ -1167,10 +1162,8 @@ void Ep128EmuGUI::menuCallback_File_QSSave(Fl_Widget *o, void *v)
         const char  *fName = gui_.quickSnapshotFileName.c_str();
         bool        useHomeDirectory = false;
         if (fName[0] == '\0') {
-          if (typeid(gui_.vm) == typeid(Ep128::Ep128VM)) {
-            fName = "qs_ep128.dat";
-            useHomeDirectory = true;
-          }
+          fName = "qs_ep128.dat";
+          useHomeDirectory = true;
         }
         Ep128Emu::File  f;
         gui_.vm.saveState(f);
@@ -1644,8 +1637,7 @@ void Ep128EmuGUI::menuCallback_Machine_QuickCfgL1(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    if (typeid(gui_.vm) == typeid(Ep128::Ep128VM))
-      gui_.config.loadState("epvmcfg1.cfg", true);
+    gui_.config.loadState("epvmcfg1.cfg", true);
     gui_.applyEmulatorConfiguration();
   }
   catch (std::exception& e) {
@@ -1658,8 +1650,7 @@ void Ep128EmuGUI::menuCallback_Machine_QuickCfgL2(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    if (typeid(gui_.vm) == typeid(Ep128::Ep128VM))
-      gui_.config.loadState("epvmcfg2.cfg", true);
+    gui_.config.loadState("epvmcfg2.cfg", true);
     gui_.applyEmulatorConfiguration();
   }
   catch (std::exception& e) {

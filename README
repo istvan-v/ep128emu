@@ -1,5 +1,5 @@
-ep128emu 2.0.0 beta2
-====================
+ep128emu 2.0.0
+==============
 
 ep128emu is an open source, portable emulator of the Enterprise 128
 computer, written in C++, and supporting Windows and POSIX platforms
@@ -37,21 +37,18 @@ General
     and variable sample rate, and header including the table of markers
   * GUI tape editor utility for copying Enterprise files from/to
     ep128emu tape images
-  * command line utility for converting C16 .tap files to ep128emu
-    format
   * simple GUI debugger with support for breakpoints/watchpoints,
     viewing the current state of CPU registers and memory paging,
     displaying memory dump or loading from or saving to a file in ASCII
     or binary format, modifying memory or searching for a pattern of
-    bytes, disassembler with support for all undocumented 6502 and some
-    Z80 opcodes, address offset for code that runs at a different
-    location than where it is at the time of disassembling, and saving
-    disassembly to a file. For memory operations and the disassembler,
-    addresses can be 16 bit CPU (affected by current paging and includes
-    memory mapped I/O registers) or 22 bit physical (all ROM and RAM
-    data can be accessed, regardless of memory paging) addresses.
-    In the case of Z80 emulation, watchpoints can also be set on I/O
-    ports and physical addresses.
+    bytes, disassembler with support for all documented and some
+    undocumented Z80 opcodes, address offset for code that runs at a
+    different location than where it is at the time of disassembling,
+    and saving disassembly to a file. For memory operations and the
+    disassembler, addresses can be 16 bit CPU (affected by current
+    paging) or 22 bit physical (all ROM and RAM data can be accessed,
+    regardless of memory paging) addresses. Watchpoints can also be set
+    on I/O ports and physical addresses.
 
 Enterprise emulation
 --------------------
@@ -315,8 +312,7 @@ Copyright
 
 ep128emu is copyright (C) 2003-2007 by Istvan Varga
 <istvanv@users.sourceforge.net>. Z80 emulation copyright (C) 1999-2003
-by Kevin Thacker and Vincze Béla György. reSID 0.16 copyright (C) 2004
-by Dag Lem.
+by Kevin Thacker and Vincze Béla György.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the

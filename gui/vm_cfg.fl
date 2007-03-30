@@ -61,7 +61,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
         } {
           Fl_Group {} {
             label {Clock frequency and timing settings} open
-            tooltip {Note: some of these settings may be ignored, depending on the type of machine being emulated} xywh {20 45 360 205} box ENGRAVED_FRAME color 38 labelcolor 52 align 21
+            xywh {20 45 360 205} box ENGRAVED_FRAME color 38 labelcolor 52 align 21
           } {
             Fl_Value_Input vmCPUFrequencyValuator {
               label {CPU frequency}
@@ -162,7 +162,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
         }
         Fl_Group {} {
           label Memory open
-          xywh {10 35 380 700} color 38 selection_color 38 labelcolor 52 hide
+          xywh {10 35 380 370} color 38 selection_color 38 labelcolor 52 hide
         } {
           Fl_Value_Input memoryRAMSizeValuator {
             label {RAM size in kilobytes}

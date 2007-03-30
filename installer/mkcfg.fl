@@ -29,7 +29,7 @@ class Ep128EmuConfigInstallerGUI {open
         callback {{
   keyboardMapHU = (o->value() != 0);
 }}
-        xywh {10 15 25 25} down_box DOWN_BOX
+        xywh {10 15 25 25} down_box DOWN_BOX deactivate
         code0 {o->value(0);}
       }
       Fl_Button {} {

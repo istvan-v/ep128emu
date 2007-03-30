@@ -638,10 +638,13 @@ namespace Ep128Emu {
         void  (*glBlendColor_)(GLclampf, GLclampf, GLclampf, GLclampf) =
             (void (*)(GLclampf, GLclampf, GLclampf, GLclampf))
                 wglGetProcAddress("glBlendColor");
-        glBlendColor_(GLclampf(displayParameters.blendScale2),
-                      GLclampf(displayParameters.blendScale2),
-                      GLclampf(displayParameters.blendScale2),
-                      GLclampf(1.0 - displayParameters.blendScale3));
+        if (glBlendColor_)
+          glBlendColor_(GLclampf(displayParameters.blendScale2),
+                        GLclampf(displayParameters.blendScale2),
+                        GLclampf(displayParameters.blendScale2),
+                        GLclampf(1.0 - displayParameters.blendScale3));
+        else
+          glDisable(GL_BLEND);
 #endif
         glBlendFunc(GL_CONSTANT_COLOR, GL_ONE_MINUS_CONSTANT_ALPHA);
       }
@@ -721,8 +724,11 @@ namespace Ep128Emu {
         glBlendColor(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
                      GLclampf(1.0 - readPosFrac));
 #else
-        glBlendColor_(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
-                      GLclampf(1.0 - readPosFrac));
+        if (glBlendColor_)
+          glBlendColor_(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
+                        GLclampf(1.0 - readPosFrac));
+        else
+          glDisable(GL_BLEND);
 #endif
         glBlendFunc(GL_CONSTANT_ALPHA, GL_ZERO);
       }
@@ -752,8 +758,11 @@ namespace Ep128Emu {
         glBlendColor(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
                      GLclampf(readPosFrac));
 #else
-        glBlendColor_(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
-                      GLclampf(readPosFrac));
+        if (glBlendColor_)
+          glBlendColor_(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
+                        GLclampf(readPosFrac));
+        else
+          glDisable(GL_BLEND);
 #endif
         glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE);
       }
