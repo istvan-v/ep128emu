@@ -125,8 +125,6 @@ Section "Source code" SecSrc
   File "..\COPYING"
   File "..\README"
   File "..\SConstruct"
-  File "..\*.cpp"
-  File "..\*.hpp"
 
   SetOutPath "$INSTDIR\src\config"
 
@@ -152,6 +150,11 @@ Section "Source code" SecSrc
   SetOutPath "$INSTDIR\src\roms"
 
   File "..\roms\*.rom"
+
+  SetOutPath "$INSTDIR\src\src"
+
+  File "..\src\*.cpp"
+  File "..\src\*.hpp"
 
   SetOutPath "$INSTDIR\src\tapeutil"
 
@@ -254,6 +257,7 @@ Section "Uninstall"
   Delete "$INSTDIR\config\EP_256k_EXDOS_FileIO_TASMON.cfg"
   RMDir "$INSTDIR\config"
   RMDir "$INSTDIR\demo"
+  Delete "$INSTDIR\disk\disk.zip"
   RMDir "$INSTDIR\disk"
   RMDir "$INSTDIR\progs"
   Delete "$INSTDIR\roms\ep_basic.rom"

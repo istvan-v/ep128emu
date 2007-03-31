@@ -14,7 +14,7 @@ fltkConfig = 'fltk-config'
 
 ep128emuLibEnvironment = Environment()
 ep128emuLibEnvironment.Append(CCFLAGS = compilerFlags)
-ep128emuLibEnvironment.Append(CPPPATH = ['.', '/usr/local/include'])
+ep128emuLibEnvironment.Append(CPPPATH = ['.', './src', '/usr/local/include'])
 ep128emuLibEnvironment.Append(LINKFLAGS = ['-L.'])
 if win32CrossCompile:
     ep128emuLibEnvironment['AR'] = 'wine D:/MinGW/bin/ar.exe'
@@ -82,20 +82,20 @@ ep128emuGLGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
 ep128emuGLGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
 
 ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
-    bplist.cpp
-    cfg_db.cpp
-    display.cpp
-    emucfg.cpp
-    fileio.cpp
-    fldisp.cpp
-    gldisp.cpp
-    snd_conv.cpp
-    soundio.cpp
-    system.cpp
-    tape.cpp
-    vm.cpp
-    vmthread.cpp
-    wd177x.cpp
+    src/bplist.cpp
+    src/cfg_db.cpp
+    src/display.cpp
+    src/emucfg.cpp
+    src/fileio.cpp
+    src/fldisp.cpp
+    src/gldisp.cpp
+    src/snd_conv.cpp
+    src/soundio.cpp
+    src/system.cpp
+    src/tape.cpp
+    src/vm.cpp
+    src/vmthread.cpp
+    src/wd177x.cpp
 '''))
 
 # -----------------------------------------------------------------------------
@@ -104,11 +104,11 @@ ep128LibEnvironment = ep128emuLibEnvironment.Copy()
 ep128LibEnvironment.Append(CPPPATH = ['./z80'])
 
 ep128Lib = ep128LibEnvironment.StaticLibrary('ep128', Split('''
-    dave.cpp
-    ep128vm.cpp
-    ioports.cpp
-    memory.cpp
-    nick.cpp
+    src/dave.cpp
+    src/ep128vm.cpp
+    src/ioports.cpp
+    src/memory.cpp
+    src/nick.cpp
 '''))
 
 z80LibEnvironment = ep128emuLibEnvironment.Copy()
