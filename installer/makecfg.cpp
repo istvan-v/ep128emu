@@ -62,7 +62,7 @@ static int keyboardMap_EP[256] = {
   0xFFB9,     -1, 0xFFB7,     -1, 0xFFB5,     -1, 0xFFAF,     -1,
   0xFFAB,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
   0xFFB6,     -1, 0xFFB4,     -1, 0xFFB2,     -1, 0xFFB8,     -1,
-  0xFF8D,     -1, 0xFFB0,     -1,     -1,     -1,     -1,     -1
+  0xFF8D, 0xFFB0,     -1,     -1,     -1,     -1,     -1,     -1
 };
 
 static const char *keyboardConfigFileNames[8] = {
@@ -246,8 +246,13 @@ class Ep128EmuDisplaySndConfiguration {
   Ep128EmuDisplaySndConfiguration(Ep128Emu::ConfigurationDB& config)
   {
     display.quality = 2;
+#ifndef WIN32
+    sound.latency = 0.05;
+    sound.hwPeriods = 8;
+#else
     sound.latency = 0.075;
     sound.hwPeriods = 12;
+#endif
     sound.dcBlockFilter1Freq = 10.0;
     sound.dcBlockFilter2Freq = 10.0;
     sound.equalizer.mode = -1;
