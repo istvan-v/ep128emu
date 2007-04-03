@@ -157,22 +157,18 @@ namespace Ep128 {
 
     /* A in upper byte of port, Data in lower byte of port */
     Port = (Z80_WORD) readOpcodeByte(1) | ((Z80_WORD) (R.AF.B.h) << 8);
-    updateCycles(6);
-    flushCycles();
     doOut(Port, R.AF.B.h);
-    updateCycles(5);
+    updateCycles(4);
   }
 
   inline void Z80::IN_A_n()
   {
     Z80_WORD Port;
 
-    Port = (Z80_WORD) readOpcodeByte(1) | ((Z80_WORD) (R.AF.B.h) << 8);
-    updateCycles(6);
-    flushCycles();
     /* a in upper byte of port, data in lower byte of port */
+    Port = (Z80_WORD) readOpcodeByte(1) | ((Z80_WORD) (R.AF.B.h) << 8);
     R.AF.B.h = doIn(Port);
-    updateCycles(5);
+    updateCycles(4);
   }
 
   inline void Z80::RRA()
@@ -245,15 +241,16 @@ namespace Ep128 {
     /* if zero */
     if (R.BC.B.h == 0) {
       /* continue */
+      (void) readOpcodeByte(1);
       R.PC.W.l += 2;
-      updateCycles(8);
+      updateCycle();
     }
     else {
       /* branch */
       JR();
-      updateCycles(13);
+      updateCycles(6);
     }
   }
 
-}
+}       // namespace Ep128
 

@@ -50,12 +50,14 @@ namespace Ep128 {
       virtual uint8_t readMemory(uint16_t addr);
       virtual uint16_t readMemoryWord(uint16_t addr);
       virtual uint8_t readOpcodeFirstByte();
+      virtual uint8_t readOpcodeSecondByte();
       virtual uint8_t readOpcodeByte(int offset);
       virtual uint16_t readOpcodeWord(int offset);
       virtual void writeMemory(uint16_t addr, uint8_t value);
       virtual void writeMemoryWord(uint16_t addr, uint16_t value);
       virtual void doOut(uint16_t addr, uint8_t value);
       virtual uint8_t doIn(uint16_t addr);
+      virtual void updateCycle();
       virtual void updateCycles(int cycles);
       virtual void tapePatch();
      private:
@@ -171,13 +173,6 @@ namespace Ep128 {
         while (cpuSyncToNickCnt >= cpuCyclesRemaining)
           cpuSyncToNickCnt -= cpuCyclesPerNickCycle;
       }
-    }
-    inline void memoryWaitCycle()
-    {
-      cpuCyclesRemaining -= (int64_t(1) << 32);
-      // assume cpuFrequency > nickFrequency
-      if (cpuSyncToNickCnt >= cpuCyclesRemaining)
-        cpuSyncToNickCnt -= cpuCyclesPerNickCycle;
     }
     inline void videoMemoryWait()
     {

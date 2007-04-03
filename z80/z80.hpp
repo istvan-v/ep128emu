@@ -259,30 +259,29 @@ namespace Ep128 {
     void registerChunkType(Ep128Emu::File&);
    protected:
     virtual void ackInterruptFunction();
-    // read a byte from memory
+    // read a byte from memory (3 cycles)
     virtual uint8_t readMemory(uint16_t addr);
-    // write a byte to memory
+    // write a byte to memory (3 cycles)
     virtual void writeMemory(uint16_t addr, uint8_t value);
-    // read a 16-bit word from memory
+    // read a 16-bit word from memory (6 cycles)
     virtual uint16_t readMemoryWord(uint16_t addr);
-    // write a 16-bit word to memory
+    // write a 16-bit word to memory (6 cycles)
     virtual void writeMemoryWord(uint16_t addr, uint16_t value);
     // write a byte to an I/O port
     virtual void doOut(uint16_t addr, uint8_t value);
     // read a byte from an I/O port
     virtual uint8_t doIn(uint16_t addr);
-    // read the first byte of an opcode
+    // read the first byte of an opcode (4 cycles)
     virtual uint8_t readOpcodeFirstByte();
-    // read an opcode byte ('Offset' should not be zero)
+    // read the second byte of an opcode (4 cycles)
+    virtual uint8_t readOpcodeSecondByte();
+    // read an opcode byte (3 cycles; 'Offset' should not be zero)
     virtual uint8_t readOpcodeByte(int offset);
-    // read an opcode word ('Offset' should not be zero)
+    // read an opcode word (6 cycles; 'Offset' should not be zero)
     virtual uint16_t readOpcodeWord(int offset);
+    virtual void updateCycle();
     virtual void updateCycles(int cycles);
     virtual void tapePatch();
-    // dummy function
-    void flushCycles()
-    {
-    }
   };
 
 }

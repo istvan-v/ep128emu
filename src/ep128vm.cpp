@@ -76,14 +76,16 @@ namespace Ep128 {
 
   uint8_t Ep128VM::Z80_::readMemory(uint16_t addr)
   {
+    int     nCycles = 3;
     if (vm.memoryTimingEnabled) {
       if (vm.pageTable[addr >> 14] < 0xFC) {
         if (vm.memoryWaitMode == 0)
-          vm.memoryWaitCycle();
+          nCycles++;
       }
       else
         vm.videoMemoryWait();
     }
+    vm.updateCPUCycles(nCycles);
     return (vm.memory.read(addr));
   }
 
@@ -91,18 +93,22 @@ namespace Ep128 {
   {
     if (vm.memoryTimingEnabled) {
       if (vm.pageTable[addr >> 14] < 0xFC) {
-        if (vm.memoryWaitMode == 0)
-          vm.memoryWaitCycle();
+        vm.updateCPUCycles(vm.memoryWaitMode == 0 ? 4 : 3);
       }
-      else
+      else {
         vm.videoMemoryWait();
+        vm.updateCPUCycles(3);
+      }
       if (vm.pageTable[((addr + 1) & 0xFFFF) >> 14] < 0xFC) {
-        if (vm.memoryWaitMode == 0)
-          vm.memoryWaitCycle();
+        vm.updateCPUCycles(vm.memoryWaitMode == 0 ? 4 : 3);
       }
-      else
+      else {
         vm.videoMemoryWait();
+        vm.updateCPUCycles(3);
+      }
     }
+    else
+      vm.updateCPUCycles(6);
     uint16_t  retval = vm.memory.read(addr);
     retval |= (uint16_t(vm.memory.read((addr + 1) & 0xFFFF) << 8));
     return retval;
@@ -110,15 +116,39 @@ namespace Ep128 {
 
   uint8_t Ep128VM::Z80_::readOpcodeFirstByte()
   {
+    int       nCycles = 4;
     uint16_t  addr = uint16_t(R.PC.W.l);
     if (vm.memoryTimingEnabled) {
       if (vm.pageTable[addr >> 14] < 0xFC) {
         if (vm.memoryWaitMode < 2)
-          vm.memoryWaitCycle();
+          nCycles++;
       }
       else
         vm.videoMemoryWait();
     }
+    vm.updateCPUCycles(nCycles);
+    if (!vm.singleStepModeEnabled)
+      return (vm.memory.read(addr));
+    // single step mode
+    uint8_t retval = vm.memory.readNoDebug(addr);
+    vm.breakPointCallback(vm.breakPointCallbackUserData,
+                          false, false, addr, retval);
+    return retval;
+  }
+
+  uint8_t Ep128VM::Z80_::readOpcodeSecondByte()
+  {
+    int       nCycles = 4;
+    uint16_t  addr = (uint16_t(R.PC.W.l) + uint16_t(1)) & uint16_t(0xFFFF);
+    if (vm.memoryTimingEnabled) {
+      if (vm.pageTable[addr >> 14] < 0xFC) {
+        if (vm.memoryWaitMode < 2)
+          nCycles++;
+      }
+      else
+        vm.videoMemoryWait();
+    }
+    vm.updateCPUCycles(nCycles);
     if (!vm.singleStepModeEnabled)
       return (vm.memory.read(addr));
     // single step mode
@@ -130,15 +160,17 @@ namespace Ep128 {
 
   uint8_t Ep128VM::Z80_::readOpcodeByte(int offset)
   {
+    int       nCycles = 3;
     uint16_t  addr = uint16_t((int(R.PC.W.l) + offset) & 0xFFFF);
     if (vm.memoryTimingEnabled) {
       if (vm.pageTable[addr >> 14] < 0xFC) {
         if (vm.memoryWaitMode == 0)
-          vm.memoryWaitCycle();
+          nCycles++;
       }
       else
         vm.videoMemoryWait();
     }
+    vm.updateCPUCycles(nCycles);
     return (vm.memory.read(addr));
   }
 
@@ -147,18 +179,22 @@ namespace Ep128 {
     uint16_t  addr = uint16_t((int(R.PC.W.l) + offset) & 0xFFFF);
     if (vm.memoryTimingEnabled) {
       if (vm.pageTable[addr >> 14] < 0xFC) {
-        if (vm.memoryWaitMode == 0)
-          vm.memoryWaitCycle();
+        vm.updateCPUCycles(vm.memoryWaitMode == 0 ? 4 : 3);
       }
-      else
+      else {
         vm.videoMemoryWait();
+        vm.updateCPUCycles(3);
+      }
       if (vm.pageTable[((addr + 1) & 0xFFFF) >> 14] < 0xFC) {
-        if (vm.memoryWaitMode == 0)
-          vm.memoryWaitCycle();
+        vm.updateCPUCycles(vm.memoryWaitMode == 0 ? 4 : 3);
       }
-      else
+      else {
         vm.videoMemoryWait();
+        vm.updateCPUCycles(3);
+      }
     }
+    else
+      vm.updateCPUCycles(6);
     uint16_t  retval = vm.memory.read(addr);
     retval |= (uint16_t(vm.memory.read((addr + 1) & 0xFFFF) << 8));
     return retval;
@@ -166,14 +202,16 @@ namespace Ep128 {
 
   void Ep128VM::Z80_::writeMemory(uint16_t addr, uint8_t value)
   {
+    int     nCycles = 3;
     if (vm.memoryTimingEnabled) {
       if (vm.pageTable[addr >> 14] < 0xFC) {
         if (vm.memoryWaitMode == 0)
-          vm.memoryWaitCycle();
+          nCycles++;
       }
       else
         vm.videoMemoryWait();
     }
+    vm.updateCPUCycles(nCycles);
     vm.memory.write(addr, value);
   }
 
@@ -181,18 +219,22 @@ namespace Ep128 {
   {
     if (vm.memoryTimingEnabled) {
       if (vm.pageTable[addr >> 14] < 0xFC) {
-        if (vm.memoryWaitMode == 0)
-          vm.memoryWaitCycle();
+        vm.updateCPUCycles(vm.memoryWaitMode == 0 ? 4 : 3);
       }
-      else
+      else {
         vm.videoMemoryWait();
+        vm.updateCPUCycles(3);
+      }
       if (vm.pageTable[((addr + 1) & 0xFFFF) >> 14] < 0xFC) {
-        if (vm.memoryWaitMode == 0)
-          vm.memoryWaitCycle();
+        vm.updateCPUCycles(vm.memoryWaitMode == 0 ? 4 : 3);
       }
-      else
+      else {
         vm.videoMemoryWait();
+        vm.updateCPUCycles(3);
+      }
     }
+    else
+      vm.updateCPUCycles(6);
     vm.memory.write(addr, uint8_t(value) & 0xFF);
     vm.memory.write((addr + 1) & 0xFFFF, uint8_t(value >> 8) & 0xFF);
   }
@@ -205,6 +247,14 @@ namespace Ep128 {
   uint8_t Ep128VM::Z80_::doIn(uint16_t addr)
   {
     return vm.ioPorts.read(addr);
+  }
+
+  void Ep128VM::Z80_::updateCycle()
+  {
+    vm.cpuCyclesRemaining -= (int64_t(1) << 32);
+    // assume cpuFrequency > nickFrequency
+    if (vm.cpuSyncToNickCnt >= vm.cpuCyclesRemaining)
+      vm.cpuSyncToNickCnt -= vm.cpuCyclesPerNickCycle;
   }
 
   void Ep128VM::Z80_::updateCycles(int cycles)
@@ -637,13 +687,19 @@ namespace Ep128 {
 
   uint8_t Ep128VM::nickPortReadCallback(void *userData, uint16_t addr)
   {
-    return (reinterpret_cast<Ep128VM *>(userData)->nick.readPort(addr));
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    if (vm.memoryTimingEnabled)
+      vm.videoMemoryWait();
+    return (vm.nick.readPort(addr));
   }
 
   void Ep128VM::nickPortWriteCallback(void *userData,
                                       uint16_t addr, uint8_t value)
   {
-    reinterpret_cast<Ep128VM *>(userData)->nick.writePort(addr, value);
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    if (vm.memoryTimingEnabled)
+      vm.videoMemoryWait();
+    vm.nick.writePort(addr, value);
   }
 
   uint8_t Ep128VM::exdosPortReadCallback(void *userData, uint16_t addr)

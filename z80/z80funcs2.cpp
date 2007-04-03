@@ -49,7 +49,7 @@ namespace Ep128 {
         {
           // The number of cycles required to complete the instruction
           // is two more than normal due to the two added wait states
-          updateCycles(13);
+          updateCycles(7);
           // push return address onto stack
           PUSH(R.PC.W.l);
           // set program counter address
@@ -62,7 +62,7 @@ namespace Ep128 {
           Z80_WORD Address;
           // 19 clock cycles for this mode. 8 for vector,
           // six for program counter, six to obtain jump address
-          updateCycles(19);
+          updateCycles(7);
           PUSH(R.PC.W.l);
           Vector = (R.I << 8) | (R.InterruptVectorBase);
           Address = readMemoryWord(Vector);
@@ -267,22 +267,18 @@ namespace Ep128 {
 
   void Z80::OUTI()
   {
-    updateCycles(8);
-    flushCycles();
     R.BC.B.h--;
     SET_ZERO_FLAG(R.BC.B.h);
     R.TempByte = readMemory(R.HL.W);
     doOut(R.BC.W, R.TempByte);
     Z80_FLAGS_REG |= Z80_SUBTRACT_FLAG;
     R.HL.W++;
-    updateCycles(8);
+    updateCycles(5);
   }
 
   /* B is pre-decremented before execution */
   void Z80::OUTD()
   {
-    updateCycles(8);
-    flushCycles();
     R.BC.B.h--;
     SET_ZERO_FLAG(R.BC.B.h);
     R.TempByte = readMemory(R.HL.W);
@@ -290,7 +286,7 @@ namespace Ep128 {
     /* as per Zilog docs */
     Z80_FLAGS_REG |= Z80_SUBTRACT_FLAG;
     R.HL.W--;
-    updateCycles(8);
+    updateCycles(5);
   }
 
   void Z80::INI()
@@ -301,7 +297,7 @@ namespace Ep128 {
     R.BC.B.h--;
     SET_ZERO_FLAG(R.BC.B.h);
     Z80_FLAGS_REG |= Z80_SUBTRACT_FLAG;
-    updateCycles(16);
+    updateCycles(5);
   }
 
   void Z80::IND()
@@ -312,7 +308,7 @@ namespace Ep128 {
     R.BC.B.h--;
     SET_ZERO_FLAG(R.BC.B.h);
     Z80_FLAGS_REG |= Z80_SUBTRACT_FLAG;
-    updateCycles(16);
+    updateCycles(5);
   }
 
   /* half carry not set */
@@ -342,6 +338,7 @@ namespace Ep128 {
   uint8_t Z80::readMemory(uint16_t addr)
   {
     (void) addr;
+    updateCycles(3);
     return 0;
   }
 
@@ -349,6 +346,7 @@ namespace Ep128 {
   {
     (void) addr;
     (void) value;
+    updateCycles(3);
   }
 
   uint16_t Z80::readMemoryWord(uint16_t addr)
@@ -377,7 +375,14 @@ namespace Ep128 {
 
   uint8_t Z80::readOpcodeFirstByte()
   {
+    updateCycle();
     return readMemory(uint16_t(R.PC.W.l));
+  }
+
+  uint8_t Z80::readOpcodeSecondByte()
+  {
+    updateCycle();
+    return readMemory((uint16_t(R.PC.W.l) + uint16_t(1)) & 0xFFFF);
   }
 
   uint8_t Z80::readOpcodeByte(int offset)
@@ -388,6 +393,11 @@ namespace Ep128 {
   uint16_t Z80::readOpcodeWord(int offset)
   {
     return readMemoryWord((uint16_t(R.PC.W.l) + uint16_t(offset)) & 0xFFFF);
+  }
+
+  void Z80::updateCycle()
+  {
+    updateCycles(1);
   }
 
   void Z80::updateCycles(int cycles)

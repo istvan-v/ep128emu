@@ -133,16 +133,12 @@
 /* was 2,2 */
 #define _OUT(Register)                                                  \
 {                                                                       \
-        updateCycles(6);                                                \
-        flushCycles();                                                  \
         doOut(R.BC.W,Register);                                         \
-        updateCycles(6);                                                \
+        updateCycles(4);                                                \
 }
 
 #define _IN(Register)                                                   \
 {                                                                       \
-        updateCycles(6);                                                \
-        flushCycles();                                                  \
         Register = doIn(R.BC.W);                                        \
         {                                                               \
                 Z80_BYTE        Flags;                                  \
@@ -151,7 +147,7 @@
                 Flags = t.zeroSignParityTable[Register];                \
                 Z80_FLAGS_REG = Flags;                                  \
         }                                                               \
-        updateCycles(6);                                                \
+        updateCycles(4);                                                \
 }
 
 #define LD_R_n(Register)                                                \
@@ -965,8 +961,7 @@
 #define PrefixIgnore()                                                  \
         R.Flags &= ~Z80_CHECK_INTERRUPT_FLAG;                           \
         R.PC.W.l++;                                                     \
-        INC_REFRESH(1);                                                 \
-        updateCycles(4)
+        INC_REFRESH(1);
 
 /*---------------------------*/
 /* pop a word from the stack */
