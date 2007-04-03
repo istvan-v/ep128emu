@@ -34,7 +34,7 @@ namespace Ep128 {
     " LDD  LDDR LDI  LDIR NEG  NOP  OR   OTDR OTIR OUT "        // 30
     " OUTD OUTI POP  PUSH RES  RET  RETI RETN RL   RLA "        // 40
     " RLC  RLCA RLD  RR   RRA  RRC  RRCA RRD  RST  SBC "        // 50
-    " SCF  SET  SLA  SRA  SRL  SUB  XOR ";                      // 60
+    " SCF  SET  SLA  SLL  SRA  SRL  SUB  XOR ";                 // 60
 
   const char * Z80Disassembler::operandTypes[75] = {
     (char *) 0,         //  0: <none>
@@ -260,14 +260,14 @@ namespace Ep128 {
       0,  29,  27,      // 8D: ADC A, L
       0,  29,  28,      // 8E: ADC A, (HL)
       0,  29,  29,      // 8F: ADC A, A
-     65,  22,   0,      // 90: SUB B
-     65,  23,   0,      // 91: SUB C
-     65,  24,   0,      // 92: SUB D
-     65,  25,   0,      // 93: SUB E
-     65,  26,   0,      // 94: SUB H
-     65,  27,   0,      // 95: SUB L
-     65,  28,   0,      // 96: SUB (HL)
-     65,  29,   0,      // 97: SUB A
+     66,  22,   0,      // 90: SUB B
+     66,  23,   0,      // 91: SUB C
+     66,  24,   0,      // 92: SUB D
+     66,  25,   0,      // 93: SUB E
+     66,  26,   0,      // 94: SUB H
+     66,  27,   0,      // 95: SUB L
+     66,  28,   0,      // 96: SUB (HL)
+     66,  29,   0,      // 97: SUB A
      59,  29,  22,      // 98: SBC A, B
      59,  29,  23,      // 99: SBC A, C
      59,  29,  24,      // 9A: SBC A, D
@@ -284,14 +284,14 @@ namespace Ep128 {
       2,  27,   0,      // A5: AND L
       2,  28,   0,      // A6: AND (HL)
       2,  29,   0,      // A7: AND A
-     66,  22,   0,      // A8: XOR B
-     66,  23,   0,      // A9: XOR C
-     66,  24,   0,      // AA: XOR D
-     66,  25,   0,      // AB: XOR E
-     66,  26,   0,      // AC: XOR H
-     66,  27,   0,      // AD: XOR L
-     66,  28,   0,      // AE: XOR (HL)
-     66,  29,   0,      // AF: XOR A
+     67,  22,   0,      // A8: XOR B
+     67,  23,   0,      // A9: XOR C
+     67,  24,   0,      // AA: XOR D
+     67,  25,   0,      // AB: XOR E
+     67,  26,   0,      // AC: XOR H
+     67,  27,   0,      // AD: XOR L
+     67,  28,   0,      // AE: XOR (HL)
+     67,  29,   0,      // AF: XOR A
      36,  22,   0,      // B0: OR B
      36,  23,   0,      // B1: OR C
      36,  24,   0,      // B2: OR D
@@ -330,7 +330,7 @@ namespace Ep128 {
      39,  18,  29,      // D3: OUT (nn), A
       4,  68,  20,      // D4: CALL NC, nnnn
      43,  51,   0,      // D5: PUSH DE
-     65,  17,   0,      // D6: SUB nn
+     66,  17,   0,      // D6: SUB nn
      58,  11,   0,      // D7: RST 10
      45,  67,   0,      // D8: RET C
      18,   0,   0,      // D9: EXX
@@ -354,7 +354,7 @@ namespace Ep128 {
      17,  51,  52,      // EB: EX DE, HL
       4,  73,  20,      // EC: CALL PE, nnnn
     255,   0,   0,      // ED: (--> opcodeTableED[])
-     66,  17,   0,      // EE: XOR nn
+     67,  17,   0,      // EE: XOR nn
      58,  14,   0,      // EF: RST 28
      45,  72,   0,      // F0: RET P
      42,  66,   0,      // F1: POP AF
@@ -416,30 +416,30 @@ namespace Ep128 {
      62,  27,   0,      // 25: SLA L
      62,  28,   0,      // 26: SLA (HL)
      62,  29,   0,      // 27: SLA A
-     63,  22,   0,      // 28: SRA B
-     63,  23,   0,      // 29: SRA C
-     63,  24,   0,      // 2A: SRA D
-     63,  25,   0,      // 2B: SRA E
-     63,  26,   0,      // 2C: SRA H
-     63,  27,   0,      // 2D: SRA L
-     63,  28,   0,      // 2E: SRA (HL)
-     63,  29,   0,      // 2F: SRA A
-    255,   0,   0,      // 30: ???
-    255,   0,   0,      // 31: ???
-    255,   0,   0,      // 32: ???
-    255,   0,   0,      // 33: ???
-    255,   0,   0,      // 34: ???
-    255,   0,   0,      // 35: ???
-    255,   0,   0,      // 36: ???
-    255,   0,   0,      // 37: ???
-     64,  22,   0,      // 38: SRL B
-     64,  23,   0,      // 39: SRL C
-     64,  24,   0,      // 3A: SRL D
-     64,  25,   0,      // 3B: SRL E
-     64,  26,   0,      // 3C: SRL H
-     64,  27,   0,      // 3D: SRL L
-     64,  28,   0,      // 3E: SRL (HL)
-     64,  29,   0,      // 3F: SRL A
+     64,  22,   0,      // 28: SRA B
+     64,  23,   0,      // 29: SRA C
+     64,  24,   0,      // 2A: SRA D
+     64,  25,   0,      // 2B: SRA E
+     64,  26,   0,      // 2C: SRA H
+     64,  27,   0,      // 2D: SRA L
+     64,  28,   0,      // 2E: SRA (HL)
+     64,  29,   0,      // 2F: SRA A
+     63,  22,   0,      // 30: SLL B
+     63,  23,   0,      // 31: SLL C
+     63,  24,   0,      // 32: SLL D
+     63,  25,   0,      // 33: SLL E
+     63,  26,   0,      // 34: SLL H
+     63,  27,   0,      // 35: SLL L
+     63,  28,   0,      // 36: SLL (HL)
+     63,  29,   0,      // 37: SLL A
+     65,  22,   0,      // 38: SRL B
+     65,  23,   0,      // 39: SRL C
+     65,  24,   0,      // 3A: SRL D
+     65,  25,   0,      // 3B: SRL E
+     65,  26,   0,      // 3C: SRL H
+     65,  27,   0,      // 3D: SRL L
+     65,  28,   0,      // 3E: SRL (HL)
+     65,  29,   0,      // 3F: SRL A
       3,   1,  22,      // 40: BIT 0, B
       3,   1,  23,      // 41: BIT 0, C
       3,   1,  24,      // 42: BIT 0, D
@@ -945,7 +945,7 @@ namespace Ep128 {
       addr = (addr + 1U) & addrMask;
     }
     opcodeTablePtr = (opcodeTablePtr + (size_t(opNum) * 3));
-    if (opcodeTablePtr[0] > 66)
+    if (opcodeTablePtr[0] > 67)
       invalidOpcode = true;
     unsigned char operand1Type = opcodeTablePtr[1];
     unsigned char operand2Type = opcodeTablePtr[2];
