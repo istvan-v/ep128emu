@@ -861,6 +861,7 @@ namespace Ep128 {
 
   uint8_t Nick::readPort(uint16_t portNum)
   {
+    (void) portNum;
     return dataBusState;
   }
 
