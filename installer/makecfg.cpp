@@ -98,7 +98,6 @@ class Ep128EmuMachineConfiguration {
     unsigned int  cpuClockFrequency;
     unsigned int  videoClockFrequency;
     unsigned int  soundClockFrequency;
-    unsigned int  videoMemoryLatency;
     bool          enableMemoryTimingEmulation;
   } vm;
   struct {
@@ -159,7 +158,6 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
   vm.cpuClockFrequency = 4000000U;
   vm.videoClockFrequency = 890625U;
   vm.soundClockFrequency = 500000U;
-  vm.videoMemoryLatency = 62U;
   vm.enableMemoryTimingEmulation = true;
   memory.ram.size = ((n % 3) == 0 ? 64 : ((n % 3) == 1 ? 128 : 256));
   memory.rom[0x00].file = romDirectory + "exos0.rom";
@@ -179,7 +177,6 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
   config.createKey("vm.cpuClockFrequency", vm.cpuClockFrequency);
   config.createKey("vm.videoClockFrequency", vm.videoClockFrequency);
   config.createKey("vm.soundClockFrequency", vm.soundClockFrequency);
-  config.createKey("vm.videoMemoryLatency", vm.videoMemoryLatency);
   config.createKey("vm.enableMemoryTimingEmulation",
                    vm.enableMemoryTimingEmulation);
   config.createKey("memory.ram.size", memory.ram.size);
