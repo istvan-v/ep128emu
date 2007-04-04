@@ -339,16 +339,17 @@ namespace Ep128Emu {
         queueMessage(m);
       }
     }
-    if (lineCnt < 500) {
-      curLine += 2;
-      lineCnt++;
+    curLine += 2;
+    if (++lineCnt >= 500) {
+      vsyncStateChange(true, 8);
+      vsyncStateChange(false, 28);
     }
   }
 
   void FLTKDisplay_::vsyncStateChange(bool newState, unsigned int currentSlot_)
   {
     (void) currentSlot_;
-    if (newState == vsyncState)
+    if (newState == vsyncState || (newState && lineCnt < 100))
       return;
     vsyncState = newState;
     if (newState) {
@@ -359,17 +360,12 @@ namespace Ep128Emu {
         lineReload = lineReload | 1;
       else
         lineReload = lineReload & (~(int(1)));
-      if (tmp <= (lineReload - 2)) {
-        if (tmp <= (lineReload - 16))
-          lineReload = lineReload - 8;
+      if (tmp != lineReload) {
+        if (tmp > lineReload)
+          tmp = lineReload + ((((tmp - lineReload) >> 1) + 1) & (~(int(1))));
         else
-          lineReload = lineReload - 2;
-      }
-      else if (tmp >= (lineReload + 2)) {
-        if (tmp >= (lineReload + 16))
-          lineReload = lineReload + 8;
-        else
-          lineReload = lineReload + 2;
+          tmp = lineReload - ((((lineReload - tmp) >> 1) + 1) & (~(int(1))));
+        lineReload = tmp;
       }
       curLine = lineReload;
       prvLineCnt = lineCnt;
