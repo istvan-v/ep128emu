@@ -223,9 +223,9 @@ void Ep128EmuGUI::updateDisplay(double t)
   if (isPaused_ != oldPauseFlag) {
     oldPauseFlag = isPaused_;
     if (isPaused_)
-      mainWindow->label("ep128emu 2.0.0 (paused)");
+      mainWindow->label("ep128emu 2.0.1 beta (paused)");
     else
-      mainWindow->label("ep128emu 2.0.0");
+      mainWindow->label("ep128emu 2.0.1 beta");
   }
   int   newDemoStatus = (isRecordingDemo_ ? 2 : (isPlayingDemo_ ? 1 : 0));
   if (newDemoStatus != oldDemoStatus) {
@@ -1030,7 +1030,6 @@ void Ep128EmuGUI::saveQuickConfig(int n)
     tmpCfg.createKey("vm.cpuClockFrequency", config.vm.cpuClockFrequency);
     tmpCfg.createKey("vm.videoClockFrequency", config.vm.videoClockFrequency);
     tmpCfg.createKey("vm.soundClockFrequency", config.vm.soundClockFrequency);
-    tmpCfg.createKey("vm.videoMemoryLatency", config.vm.videoMemoryLatency);
     tmpCfg.createKey("vm.enableMemoryTimingEmulation",
                      config.vm.enableMemoryTimingEmulation);
     tmpCfg.saveState(fName, true);
