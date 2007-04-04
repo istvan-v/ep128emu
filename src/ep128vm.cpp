@@ -663,13 +663,14 @@ namespace Ep128 {
     stopDemoRecording(false);   // any demo playback or recording
     cpuCyclesPerNickCycle =
         (int64_t(cpuFrequency) << 32) / int64_t(nickFrequency);
-    videoMemoryLatencyCycles =
-        (int64_t(videoMemoryLatency) << 23) * int64_t(cpuFrequency)
-        / int64_t(1953125);     // 10^9 / 2^9
-    // for optimization in videoMemoryWait()
-    videoMemoryLatencyCycles += int64_t(0xFFFFFFFFUL);
     daveCyclesPerNickCycle =
         (int64_t(daveFrequency) << 32) / int64_t(nickFrequency);
+    if (haveTape()) {
+      tapeSamplesPerDaveCycle =
+          (int64_t(getTapeSampleRate()) << 32) / int64_t(daveFrequency);
+    }
+    else
+      tapeSamplesPerDaveCycle = 0;
     cpuCyclesRemaining = 0;
     cpuSyncToNickCnt = 0;
   }
@@ -781,12 +782,10 @@ namespace Ep128 {
       cpuFrequency(4000000),
       daveFrequency(500000),
       nickFrequency(890625),
-      videoMemoryLatency(62),
       nickCyclesRemaining(0),
       cpuCyclesPerNickCycle(0),
       cpuCyclesRemaining(0),
       cpuSyncToNickCnt(0),
-      videoMemoryLatencyCycles(0),
       daveCyclesPerNickCycle(0),
       daveCyclesRemaining(0),
       memoryWaitMode(1),
@@ -1062,13 +1061,14 @@ namespace Ep128 {
     }
   }
 
-  void Ep128VM::setVideoMemoryLatency(size_t t_)
+  void Ep128VM::setSoundClockFrequency(size_t freq_)
   {
-    // NOTE: this should always be less than half the length of one NICK cycle
-    size_t  t = (t_ > 0 ? (t_ < 250 ? t_ : 250) : 0);
-    if (videoMemoryLatency != t) {
-      videoMemoryLatency = t;
+    size_t  freq;
+    freq = (freq_ > 250000 ? (freq_ < 1000000 ? freq_ : 1000000) : 250000);
+    if (daveFrequency != freq) {
+      daveFrequency = freq;
       updateTimingParameters();
+      setAudioConverterSampleRate(float(long(daveFrequency)));
     }
   }
 
@@ -1275,7 +1275,7 @@ namespace Ep128 {
       buf.writeUInt32(uint32_t(cpuFrequency));
       buf.writeUInt32(uint32_t(daveFrequency));
       buf.writeUInt32(uint32_t(nickFrequency));
-      buf.writeUInt32(uint32_t(videoMemoryLatency));
+      buf.writeUInt32(62U);     // video memory latency for compatibility only
       buf.writeBoolean(memoryTimingEnabled);
       int64_t tmp[3];
       tmp[0] = cpuCyclesRemaining;
@@ -1299,7 +1299,7 @@ namespace Ep128 {
     buf.writeUInt32(uint32_t(cpuFrequency));
     buf.writeUInt32(uint32_t(daveFrequency));
     buf.writeUInt32(uint32_t(nickFrequency));
-    buf.writeUInt32(uint32_t(videoMemoryLatency));
+    buf.writeUInt32(62U);       // video memory latency for compatibility only
     buf.writeBoolean(memoryTimingEnabled);
     f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_VM_CONFIG, buf);
   }
@@ -1326,7 +1326,7 @@ namespace Ep128 {
     saveMachineConfiguration(f);
     saveState(f);
     demoBuffer.clear();
-    demoBuffer.writeUInt32(0x00020000); // version 2.0.0
+    demoBuffer.writeUInt32(0x00020001); // version 2.0.1
     demoFile = &f;
     isRecordingDemo = true;
     demoTimeCnt = 0U;
@@ -1392,6 +1392,7 @@ namespace Ep128 {
       uint32_t  tmpDaveFrequency = buf.readUInt32();
       uint32_t  tmpNickFrequency = buf.readUInt32();
       uint32_t  tmpVideoMemoryLatency = buf.readUInt32();
+      (void) tmpVideoMemoryLatency;
       bool      tmpMemoryTimingEnabled = buf.readBoolean();
       int64_t   tmp[3];
       for (size_t i = 0; i < 3; i++) {
@@ -1402,7 +1403,6 @@ namespace Ep128 {
       if (tmpCPUFrequency == cpuFrequency &&
           tmpDaveFrequency == daveFrequency &&
           tmpNickFrequency == nickFrequency &&
-          tmpVideoMemoryLatency == videoMemoryLatency &&
           tmpMemoryTimingEnabled == memoryTimingEnabled) {
         cpuCyclesRemaining = tmp[0];
         cpuSyncToNickCnt = tmp[1];
@@ -1435,10 +1435,10 @@ namespace Ep128 {
     }
     try {
       setCPUFrequency(buf.readUInt32());
-      uint32_t  tmpDaveFrequency = buf.readUInt32();
-      (void) tmpDaveFrequency;
+      setSoundClockFrequency(buf.readUInt32());
       setVideoFrequency(buf.readUInt32());
-      setVideoMemoryLatency(buf.readUInt32());
+      uint32_t  tmpVideoMemoryLatency = buf.readUInt32();
+      (void) tmpVideoMemoryLatency;
       setEnableMemoryTimingEmulation(buf.readBoolean());
       if (buf.getPosition() != buf.getDataSize())
         throw Ep128Emu::Exception("trailing garbage at end of "
@@ -1456,7 +1456,7 @@ namespace Ep128 {
     // check version number
     unsigned int  version = buf.readUInt32();
 #if 0
-    if (version != 0x00010900) {
+    if (version != 0x00020001) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible ep128 demo format");
     }

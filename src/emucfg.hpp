@@ -43,7 +43,6 @@ namespace Ep128Emu {
       unsigned int  cpuClockFrequency;
       unsigned int  videoClockFrequency;
       unsigned int  soundClockFrequency;
-      unsigned int  videoMemoryLatency;
       bool          enableMemoryTimingEmulation;
       bool          enableFileIO;
     } vm;

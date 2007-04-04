@@ -101,8 +101,8 @@ namespace Ep128Emu {
     virtual void setCPUFrequency(size_t freq_);
     // set the number of video 'slots' per second
     virtual void setVideoFrequency(size_t freq_);
-    // set parameter used for tuning video memory timing (defaults to 62 ns)
-    virtual void setVideoMemoryLatency(size_t t_);
+    // set internal sample rate of sound emulation
+    virtual void setSoundClockFrequency(size_t freq_);
     // set if emulation of memory timing is enabled
     virtual void setEnableMemoryTimingEmulation(bool isEnabled);
     // Set state of key 'keyCode' (0 to 127).

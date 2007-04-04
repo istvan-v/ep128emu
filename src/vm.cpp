@@ -304,9 +304,9 @@ namespace Ep128Emu {
     (void) freq_;
   }
 
-  void VirtualMachine::setVideoMemoryLatency(size_t t_)
+  void VirtualMachine::setSoundClockFrequency(size_t freq_)
   {
-    (void) t_;
+    (void) freq_;
   }
 
   void VirtualMachine::setEnableMemoryTimingEmulation(bool isEnabled)

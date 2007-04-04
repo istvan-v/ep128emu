@@ -92,10 +92,7 @@ namespace Ep128Emu {
                                 vmConfigurationChanged, 178125.0, 1781250.0);
     defineConfigurationVariable(*this, "vm.soundClockFrequency",
                                 vm.soundClockFrequency, 500000U,
-                                vmConfigurationChanged, 500000.0, 500000.0);
-    defineConfigurationVariable(*this, "vm.videoMemoryLatency",
-                                vm.videoMemoryLatency, 62U,
-                                vmConfigurationChanged, 0.0, 250.0);
+                                vmConfigurationChanged, 250000.0, 1000000.0);
     defineConfigurationVariable(*this, "vm.enableMemoryTimingEmulation",
                                 vm.enableMemoryTimingEmulation, true,
                                 vmConfigurationChanged);
@@ -321,10 +318,7 @@ namespace Ep128Emu {
       // assume none of these will throw exceptions
       vm_.setCPUFrequency(vm.cpuClockFrequency);
       vm_.setVideoFrequency(vm.videoClockFrequency);
-#if 0
       vm_.setSoundClockFrequency(vm.soundClockFrequency);
-#endif
-      vm_.setVideoMemoryLatency(vm.videoMemoryLatency);
       vm_.setEnableMemoryTimingEmulation(vm.enableMemoryTimingEmulation);
       vm_.setEnableFileIO(vm.enableFileIO);
       vmConfigurationChanged = false;
