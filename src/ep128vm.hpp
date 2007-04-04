@@ -121,12 +121,10 @@ namespace Ep128 {
     size_t    cpuFrequency;             // defaults to 4000000 Hz
     size_t    daveFrequency;            // for now, this is always 500000 Hz
     size_t    nickFrequency;            // defaults to 15625 * 57 = 890625 Hz
-    size_t    videoMemoryLatency;       // defaults to 62 ns
     int64_t   nickCyclesRemaining;      // in 2^-32 NICK cycle units
     int64_t   cpuCyclesPerNickCycle;    // in 2^-32 Z80 cycle units
     int64_t   cpuCyclesRemaining;       // in 2^-32 Z80 cycle units
     int64_t   cpuSyncToNickCnt;         // in 2^-32 Z80 cycle units
-    int64_t   videoMemoryLatencyCycles; // in 2^-32 Z80 cycle units
     int64_t   daveCyclesPerNickCycle;   // in 2^-32 DAVE cycle units
     int64_t   daveCyclesRemaining;      // in 2^-32 DAVE cycle units
     int       memoryWaitMode;           // set on write to port 0xBF
@@ -176,10 +174,9 @@ namespace Ep128 {
     }
     inline void videoMemoryWait()
     {
-      // NOTE: videoMemoryLatencyCycles also includes the +0xFFFFFFFF
-      // needed for ceil rounding
+      // use a fixed latency setting of 0.5625 Z80 cycles
       cpuCyclesRemaining -= (((cpuCyclesRemaining - cpuSyncToNickCnt)
-                              + videoMemoryLatencyCycles)
+                              + (int64_t(0xC8000000UL) << 1))
                              & (int64_t(-1) - int64_t(0xFFFFFFFFUL)));
       cpuSyncToNickCnt -= cpuCyclesPerNickCycle;
     }
@@ -210,8 +207,8 @@ namespace Ep128 {
     virtual void setCPUFrequency(size_t freq_);
     // set the number of video 'slots' per second (defaults to 890625 Hz)
     virtual void setVideoFrequency(size_t freq_);
-    // set parameter used for tuning video memory timing (defaults to 62 ns)
-    virtual void setVideoMemoryLatency(size_t t_);
+    // set DAVE sample rate (defaults to 500000 Hz)
+    virtual void setSoundClockFrequency(size_t freq_);
     // set if emulation of memory timing is enabled
     virtual void setEnableMemoryTimingEmulation(bool isEnabled);
     // Set state of key 'keyCode' (0 to 127; see dave.hpp).
