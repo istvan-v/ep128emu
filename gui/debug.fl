@@ -81,6 +81,10 @@ class Ep128EmuGUI_DebugWindow {open
           }
         }
         Fl_Group {} {
+          label {I/O} open
+          xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52 hide
+        } {}
+        Fl_Group {} {
           label Memory open
           xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52 hide
         } {
@@ -91,7 +95,7 @@ class Ep128EmuGUI_DebugWindow {open
   o->value("");
   updateWindow();
 }}
-            tooltip {Enter command followed by space separated list of hexadecimal arguments. The available commands are: >ADDRESS VALUE1 ... (modify memory), F START END VALUE1 ... (fill memory area with pattern), and H START END VALUE1 ... (find pattern in memory area). Leave blank to execute no command.} xywh {20 63 500 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            tooltip {Enter command followed by space separated list of hexadecimal arguments. The available commands are: >ADDRESS VALUE1 ... (modify memory), F START END VALUE1 ... (fill memory area with pattern), H START END VALUE1 ... (find pattern in memory area), and T START END DEST (copy memory). Leave blank to execute no command.} xywh {20 63 500 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
             code0 {o->cursor_color(FL_YELLOW);}
           }
           Fl_Output memoryDumpDisplay {
@@ -356,7 +360,7 @@ class Ep128EmuGUI_DebugWindow {open
             xywh {405 275 115 25} color 39 selection_color 40 labelcolor 52
           }
         }
-        Fl_Group {} {
+        Fl_Group breakPointsTab {
           label Watchpoints open
           xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52 hide
         } {
@@ -575,7 +579,17 @@ class Ep128EmuGUI_DebugWindow {open
                    (unsigned int) (value & 0xFF), (unsigned int) (addr & 0xFFFF));
   }
   window->label(&(windowTitle[0]));
-  debugTabs->value(mainTab);
+  if (debugTabs->value() == breakPointsTab)
+    debugTabs->value(mainTab);
+  disassemblyViewAddress = uint32_t(gui.vm.getProgramCounter() & 0xFFFF);
+  if (!disassemblyCPUAddressMode) {
+    uint32_t  cpuAddr_ = disassemblyViewAddress;
+    uint8_t   segment_ = gui.vm.getMemoryPage(uint8_t(cpuAddr_ >> 14));
+    disassemblyViewAddress = (uint32_t(segment_) << 14) | (cpuAddr_ & 0x00003FFFU);
+    disassemblyAddressOffset = int32_t(cpuAddr_) - int32_t(disassemblyViewAddress);
+  }
+  else
+    disassemblyAddressOffset = 0;
 }} {}
   }
   Function {updateWindow()} {open private return_type void
@@ -915,6 +929,39 @@ class Ep128EmuGUI_DebugWindow {open
             throw Ep128Emu::Exception("search string not found");
           addr++;
           addr &= addrMask;
+        }
+      }
+      break;
+    case 'T':
+    case 't':
+      if (args.size() != 3)
+        throw Ep128Emu::Exception("invalid number of arguments");
+      else {
+        uint32_t  srcAddr = args[0] & addrMask;
+        uint32_t  endAddr = args[1] & addrMask;
+        uint32_t  dstAddr = args[2] & addrMask;
+        bool      reverseFlag = false;
+        if (dstAddr > srcAddr) {
+          reverseFlag = true;
+          dstAddr = (dstAddr + (endAddr - srcAddr)) & addrMask;
+          uint32_t  tmp = srcAddr;
+          srcAddr = endAddr;
+          endAddr = tmp;
+        }
+        while (true) {
+          gui.vm.writeMemory(dstAddr,
+                             gui.vm.readMemory(srcAddr, memoryDumpCPUAddressMode),
+                             memoryDumpCPUAddressMode);
+          if (srcAddr == endAddr)
+            break;
+          if (!reverseFlag) {
+            srcAddr = (srcAddr + 1U) & addrMask;
+            dstAddr = (dstAddr + 1U) & addrMask;
+          }
+          else {
+            srcAddr = (srcAddr - 1U) & addrMask;
+            dstAddr = (dstAddr - 1U) & addrMask;
+          }
         }
       }
       break;
