@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -31,6 +31,8 @@
 
 #include <sndfile.h>
 #include <FL/Fl.H>
+
+static const char *epteFileMagic = "ENTERPRISE 128K TAPE FILE       ";
 
 namespace Ep128Emu {
 
@@ -550,6 +552,110 @@ namespace Ep128Emu {
     return retval;
   }
 
+  TapeInput_EPTEFile::TapeInput_EPTEFile(std::FILE *f_, Fl_Progress *disp)
+    : TapeInput(disp),
+      f(f_),
+      bytesRemaining(0),
+      samplesRead(0),
+      outputState(false),
+      shiftReg(0x00),
+      bitsRemaining(0),
+      halfPeriodSamples(5),
+      samplesRemaining(0),
+      leaderSampleCnt(0),
+      chunkBytesRemaining(0),
+      chunkCnt(0)
+  {
+    if (f) {
+      if (std::fseek(f, 0L, SEEK_END) >= 0) {
+        long    n = std::ftell(f);
+        if (n > 512L) {
+          bytesRemaining = size_t(n - 512L);
+          std::fseek(f, 512L, SEEK_SET);
+        }
+      }
+    }
+    totalSamples = bytesRemaining * 80;
+  }
+
+  TapeInput_EPTEFile::~TapeInput_EPTEFile()
+  {
+    if (f)
+      std::fclose(f);
+  }
+
+  int TapeInput_EPTEFile::getSample_()
+  {
+    if (!samplesRemaining) {
+      outputState = !outputState;
+      if (outputState && leaderSampleCnt == 0) {
+        if (!bitsRemaining) {
+          if (chunkBytesRemaining) {
+            chunkBytesRemaining--;
+            shiftReg = uint8_t(std::fgetc(f));
+            bytesRemaining--;
+            bitsRemaining = 8;
+          }
+          else {
+            // end of chunk, start leader
+            outputState = true;
+            halfPeriodSamples = 5;
+            leaderSampleCnt = 120000;   // 5 seconds
+          }
+        }
+        if (bitsRemaining) {
+          bitsRemaining--;
+          if (!(shiftReg & 0x01))
+            halfPeriodSamples = 6;      // bit = 0
+          else
+            halfPeriodSamples = 4;      // bit = 1
+          shiftReg = shiftReg >> 1;
+        }
+      }
+      samplesRemaining = halfPeriodSamples;
+    }
+    samplesRead++;
+    totalSamples = samplesRead + (bytesRemaining * 80);
+    if (leaderSampleCnt) {
+      leaderSampleCnt--;
+      if (!leaderSampleCnt) {
+        if (!bytesRemaining)
+          return -1;                    // end of tape
+        // sync bit
+        outputState = true;
+        halfPeriodSamples = 8;
+        samplesRemaining = 8;
+        // next chunk
+        size_t  startPos = 0;
+        size_t  endPos = 0;
+        if (chunkCnt < 128) {
+          std::fseek(f, long(chunkCnt << 2), SEEK_SET);
+          startPos = size_t(std::fgetc(f) & 0xFF);
+          startPos |= (size_t(std::fgetc(f) & 0xFF) << 8);
+          startPos |= (size_t(std::fgetc(f) & 0xFF) << 16);
+          startPos |= (size_t(std::fgetc(f) & 0xFF) << 24);
+          if (++chunkCnt < 128) {
+            endPos = size_t(std::fgetc(f) & 0xFF);
+            endPos |= (size_t(std::fgetc(f) & 0xFF) << 8);
+            endPos |= (size_t(std::fgetc(f) & 0xFF) << 16);
+            endPos |= (size_t(std::fgetc(f) & 0xFF) << 24);
+          }
+          std::fseek(f, long(startPos + 512), SEEK_SET);
+        }
+        if (endPos > startPos)
+          chunkBytesRemaining = endPos - startPos;
+        else
+          chunkBytesRemaining = bytesRemaining;
+      }
+    }
+    int     retval = -1;
+    if (samplesRemaining > 0) {
+      samplesRemaining--;
+      retval = (outputState ? 1 : 0);
+    }
+    return retval;
+  }
+
   // --------------------------------------------------------------------------
 
   void TapeOutput::writePeriod(size_t periodLength)
@@ -699,27 +805,61 @@ namespace Ep128Emu {
   {
     if (fileName_ == (char *) 0 || fileName_[0] == '\0')
       throw Exception("invalid file name");
-    SF_INFO   sfinfo;
-    std::memset(&sfinfo, 0, sizeof(SF_INFO));
-    SNDFILE   *sf = sf_open(fileName_, SFM_READ, &sfinfo);
-    Tape      *f = (Tape *) 0;
-    if (!sf) {
-      f = new Tape(fileName_, 2, 24000L, 1);
-    }
     TapeInput *t = (TapeInput *) 0;
-    try {
-      if (sf)
-        t = new TapeInput_SndFile(sf, sfinfo, disp,
-                                  channel_, minFreq_, maxFreq_);
-      else
-        t = new TapeInput_TapeImage(f, disp);
+    {
+      std::FILE *f = std::fopen(fileName_, "rb");
+      try {
+        if (f) {
+          bool    isEPTEFile = false;
+          if (std::fseek(f, 0L, SEEK_END) >= 0) {
+            if (std::ftell(f) >= 512L) {
+              std::fseek(f, 128L, SEEK_SET);
+              for (int i = 0; i < 32; i++) {
+                if (std::fgetc(f) != int(epteFileMagic[i]))
+                  break;
+                if (i == 31)
+                  isEPTEFile = true;
+              }
+            }
+          }
+          if (isEPTEFile) {
+            std::fseek(f, 0L, SEEK_SET);
+            t = new TapeInput_EPTEFile(f, disp);
+          }
+          else {
+            std::fclose(f);
+            f = (std::FILE *) 0;
+          }
+        }
+      }
+      catch (...) {
+        if (f)
+          std::fclose(f);
+        throw;
+      }
     }
-    catch (...) {
-      if (sf)
-        sf_close(sf);
-      if (f)
-        delete f;
-      throw;
+    if (!t) {
+      SF_INFO   sfinfo;
+      std::memset(&sfinfo, 0, sizeof(SF_INFO));
+      SNDFILE   *sf = sf_open(fileName_, SFM_READ, &sfinfo);
+      Tape      *f = (Tape *) 0;
+      if (!sf) {
+        f = new Tape(fileName_, 2, 24000L, 1);
+      }
+      try {
+        if (sf)
+          t = new TapeInput_SndFile(sf, sfinfo, disp,
+                                    channel_, minFreq_, maxFreq_);
+        else
+          t = new TapeInput_TapeImage(f, disp);
+      }
+      catch (...) {
+        if (sf)
+          sf_close(sf);
+        if (f)
+          delete f;
+        throw;
+      }
     }
     TapeFile  *tf = (TapeFile *) 0;
     try {

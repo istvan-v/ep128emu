@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -112,6 +112,26 @@ namespace Ep128Emu {
                       int channel_ = 0,
                       float minFreq = 600.0f, float maxFreq = 3000.0f);
     virtual ~TapeInput_SndFile();
+    // returns tape signal (0 or 1), or -1 on end of file
+    virtual int getSample_();
+  };
+
+  class TapeInput_EPTEFile : public TapeInput {
+   private:
+    std::FILE *f;
+    size_t    bytesRemaining;
+    size_t    samplesRead;
+    bool      outputState;
+    uint8_t   shiftReg;
+    uint8_t   bitsRemaining;
+    uint8_t   halfPeriodSamples;
+    size_t    samplesRemaining;
+    size_t    leaderSampleCnt;
+    size_t    chunkBytesRemaining;
+    size_t    chunkCnt;
+   public:
+    TapeInput_EPTEFile(std::FILE *f_, Fl_Progress *disp);
+    virtual ~TapeInput_EPTEFile();
     // returns tape signal (0 or 1), or -1 on end of file
     virtual int getSample_();
   };
