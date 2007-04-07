@@ -47,8 +47,9 @@ namespace Ep128 {
     Memory();
     virtual ~Memory();
     void setBreakPoint(uint8_t segment, uint16_t addr,
-                       int priority, bool r, bool w);
-    void setBreakPoint(uint16_t addr, int priority, bool r, bool w);
+                       int priority, bool r, bool w, bool ignoreFlag);
+    void setBreakPoint(uint16_t addr,
+                       int priority, bool r, bool w, bool ignoreFlag);
     void clearBreakPoints(uint8_t segment);
     void clearBreakPoints();
     void clearAllBreakPoints();
@@ -68,6 +69,7 @@ namespace Ep128 {
     inline const uint8_t * getVideoMemory() const;
     inline bool isSegmentROM(uint8_t segment) const;
     inline bool isSegmentRAM(uint8_t segment) const;
+    bool checkIgnoreBreakPoint(uint16_t addr) const;
     Ep128Emu::BreakPointList getBreakPointList();
     void saveState(Ep128Emu::File::Buffer&);
     void saveState(Ep128Emu::File&);

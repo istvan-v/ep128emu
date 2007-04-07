@@ -131,8 +131,9 @@ namespace Ep128 {
       return (vm.memory.read(addr));
     // single step mode
     uint8_t retval = vm.memory.readNoDebug(addr);
-    vm.breakPointCallback(vm.breakPointCallbackUserData,
-                          false, false, addr, retval);
+    if (!vm.memory.checkIgnoreBreakPoint(vm.z80.getReg().PC.W.l))
+      vm.breakPointCallback(vm.breakPointCallbackUserData,
+                            false, false, addr, retval);
     return retval;
   }
 
@@ -153,8 +154,9 @@ namespace Ep128 {
       return (vm.memory.read(addr));
     // single step mode
     uint8_t retval = vm.memory.readNoDebug(addr);
-    vm.breakPointCallback(vm.breakPointCallbackUserData,
-                          false, false, addr, retval);
+    if (!vm.memory.checkIgnoreBreakPoint(vm.z80.getReg().PC.W.l))
+      vm.breakPointCallback(vm.breakPointCallbackUserData,
+                            false, false, addr, retval);
     return retval;
   }
 
@@ -520,8 +522,10 @@ namespace Ep128 {
       if (uint16_t(vm.z80.getReg().PC.W.l) != addr)
         return;
     }
-    vm.breakPointCallback(vm.breakPointCallbackUserData,
-                          false, isWrite, addr, value);
+    if (!vm.memory.checkIgnoreBreakPoint(vm.z80.getReg().PC.W.l)) {
+      vm.breakPointCallback(vm.breakPointCallbackUserData,
+                            false, isWrite, addr, value);
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -539,8 +543,10 @@ namespace Ep128 {
   void Ep128VM::IOPorts_::breakPointCallback(bool isWrite,
                                              uint16_t addr, uint8_t value)
   {
-    vm.breakPointCallback(vm.breakPointCallbackUserData,
-                          true, isWrite, addr, value);
+    if (!vm.memory.checkIgnoreBreakPoint(vm.z80.getReg().PC.W.l)) {
+      vm.breakPointCallback(vm.breakPointCallbackUserData,
+                            true, isWrite, addr, value);
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -1144,10 +1150,12 @@ namespace Ep128 {
                               bp.priority(), bp.isRead(), bp.isWrite());
       else if (bp.haveSegment())
         memory.setBreakPoint(bp.segment(), bp.addr(),
-                             bp.priority(), bp.isRead(), bp.isWrite());
+                             bp.priority(), bp.isRead(), bp.isWrite(),
+                             bp.isIgnore());
       else
         memory.setBreakPoint(bp.addr(),
-                             bp.priority(), bp.isRead(), bp.isWrite());
+                             bp.priority(), bp.isRead(), bp.isWrite(),
+                             bp.isIgnore());
     }
   }
 
@@ -1240,6 +1248,41 @@ namespace Ep128 {
                  (unsigned int) r.altAF.W, (unsigned int) r.altBC.W,
                  (unsigned int) r.altDE.W, (unsigned int) r.altHL.W,
                  (unsigned int) r.IM, (unsigned int) r.I, (unsigned int) r.R);
+    buf = &(tmpBuf[0]);
+  }
+
+  void Ep128VM::listIORegisters(std::string& buf) const
+  {
+    char    tmpBuf[192];
+    char    *bufp = &(tmpBuf[0]);
+    int     n = std::sprintf(bufp, "DAVE (A0)\n\n");
+    bufp = bufp + n;
+    for (uint16_t i = 0x00A0; i <= 0x00BF; i++) {
+      if (!(i & 3)) {
+        n = std::sprintf(bufp, "  %02X", (unsigned int) ioPorts.readDebug(i));
+        bufp = bufp + n;
+      }
+      else {
+        n = std::sprintf(bufp, " %02X", (unsigned int) ioPorts.readDebug(i));
+        bufp = bufp + n;
+      }
+      if ((i & 15) == 15)
+        *(bufp++) = '\n';
+    }
+    n = std::sprintf(bufp, "\nNICK (80)\n\n ");
+    bufp = bufp + n;
+    for (uint16_t i = 0x0080; i <= 0x0083; i++) {
+      n = std::sprintf(bufp, " %02X", (unsigned int) ioPorts.readDebug(i));
+      bufp = bufp + n;
+    }
+    n = std::sprintf(bufp, "\n\nWD177x (10)\n\n ");
+    bufp = bufp + n;
+    for (uint16_t i = 0x0010; i <= 0x0013; i++) {
+      n = std::sprintf(bufp, " %02X", (unsigned int) ioPorts.readDebug(i));
+      bufp = bufp + n;
+    }
+    std::sprintf(bufp, "\n\nEXDOS (18)\n\n  %02X",
+                 (unsigned int) ioPorts.readDebug(0x0018));
     buf = &(tmpBuf[0]);
   }
 

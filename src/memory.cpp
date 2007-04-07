@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -35,31 +35,35 @@ namespace Ep128 {
 
   void Memory::checkReadBreakPoint(uint16_t addr, uint8_t page, uint8_t value)
   {
-    uint8_t *tbl = breakPointTable;
+    const uint8_t *tbl = breakPointTable;
     if (tbl != (uint8_t*) 0 &&
-        tbl[addr] >= breakPointPriorityThreshold && (tbl[addr] & 1) != 0)
+        tbl[addr] >= breakPointPriorityThreshold && (tbl[addr] & 17) == 1) {
       breakPointCallback(false, addr, value);
+    }
     else {
       uint16_t  offs = addr & 0x3FFF;
       tbl = segmentBreakPointTable[pageTable[page]];
       if (tbl != (uint8_t*) 0 &&
-          tbl[offs] >= breakPointPriorityThreshold && (tbl[offs] & 1) != 0)
+          tbl[offs] >= breakPointPriorityThreshold && (tbl[offs] & 17) == 1) {
         breakPointCallback(false, addr, value);
+      }
     }
   }
 
   void Memory::checkWriteBreakPoint(uint16_t addr, uint8_t page, uint8_t value)
   {
-    uint8_t *tbl = breakPointTable;
+    const uint8_t *tbl = breakPointTable;
     if (tbl != (uint8_t*) 0 &&
-        tbl[addr] >= breakPointPriorityThreshold && (tbl[addr] & 2) != 0)
+        tbl[addr] >= breakPointPriorityThreshold && (tbl[addr] & 18) == 2) {
       breakPointCallback(true, addr, value);
+    }
     else {
       uint16_t  offs = addr & 0x3FFF;
       tbl = segmentBreakPointTable[pageTable[page]];
       if (tbl != (uint8_t*) 0 &&
-          tbl[offs] >= breakPointPriorityThreshold && (tbl[offs] & 2) != 0)
+          tbl[offs] >= breakPointPriorityThreshold && (tbl[offs] & 18) == 2) {
         breakPointCallback(true, addr, value);
+      }
     }
   }
 
@@ -168,13 +172,12 @@ namespace Ep128 {
   }
 
   void Memory::setBreakPoint(uint8_t segment, uint16_t addr,
-                             int priority, bool r, bool w)
+                             int priority, bool r, bool w, bool ignoreFlag)
   {
-    uint8_t mode = (r ? 1 : 0) + (w ? 2 : 0);
+    uint8_t mode = (r ? 1 : 0) + (w ? 2 : 0) + (ignoreFlag ? 16 : 0);
     if (mode) {
       // create new breakpoint, or change existing one
-      mode += (uint8_t) ((priority > 0 ? (priority < 3 ? priority : 3) : 0)
-                         << 2);
+      mode += uint8_t((priority > 0 ? (priority < 3 ? priority : 3) : 0) << 2);
       if (!segmentBreakPointTable[segment]) {
         segmentBreakPointTable[segment] = new uint8_t[16384];
         for (int i = 0; i < 16384; i++)
@@ -185,7 +188,7 @@ namespace Ep128 {
       if (!bp)
         segmentBreakPointCntTable[segment]++;
       if (bp > mode)
-        mode = (bp & 12) + (mode & 3);
+        mode = (bp & 28) + (mode & 3);
       mode |= (bp & 3);
       bp = mode;
     }
@@ -201,13 +204,13 @@ namespace Ep128 {
     }
   }
 
-  void Memory::setBreakPoint(uint16_t addr, int priority, bool r, bool w)
+  void Memory::setBreakPoint(uint16_t addr, int priority,
+                             bool r, bool w, bool ignoreFlag)
   {
-    uint8_t mode = (r ? 1 : 0) + (w ? 2 : 0);
+    uint8_t mode = (r ? 1 : 0) + (w ? 2 : 0) + (ignoreFlag ? 16 : 0);
     if (mode) {
       // create new breakpoint, or change existing one
-      mode += (uint8_t) ((priority > 0 ? (priority < 3 ? priority : 3) : 0)
-                         << 2);
+      mode += uint8_t((priority > 0 ? (priority < 3 ? priority : 3) : 0) << 2);
       if (!breakPointTable) {
         breakPointTable = new uint8_t[65536];
         for (int i = 0; i < 65536; i++)
@@ -218,7 +221,7 @@ namespace Ep128 {
       if (!bp)
         breakPointCnt++;
       if (bp > mode)
-        mode = (bp & 12) + (mode & 3);
+        mode = (bp & 28) + (mode & 3);
       mode |= (bp & 3);
       bp = mode;
     }
@@ -237,13 +240,13 @@ namespace Ep128 {
   void Memory::clearBreakPoints(uint8_t segment)
   {
     for (uint16_t addr = 0; addr < 16384; addr++)
-      setBreakPoint(segment, addr, 0, false, false);
+      setBreakPoint(segment, addr, 0, false, false, false);
   }
 
   void Memory::clearBreakPoints()
   {
     for (unsigned int addr = 0; addr < 65536; addr++)
-      setBreakPoint((uint16_t) addr, 0, false, false);
+      setBreakPoint((uint16_t) addr, 0, false, false, false);
   }
 
   void Memory::clearAllBreakPoints()
@@ -337,6 +340,22 @@ namespace Ep128 {
     }
   }
 
+  bool Memory::checkIgnoreBreakPoint(uint16_t addr) const
+  {
+    const uint8_t *tbl = breakPointTable;
+    if (tbl != (uint8_t *) 0 && (tbl[addr] & 16) != 0) {
+      return true;
+    }
+    else {
+      uint16_t  offs = addr & 0x3FFF;
+      tbl = segmentBreakPointTable[pageTable[addr >> 14]];
+      if (tbl != (uint8_t *) 0 && (tbl[offs] & 16) != 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   Ep128Emu::BreakPointList Memory::getBreakPointList()
   {
     Ep128Emu::BreakPointList  bplst;
@@ -345,7 +364,8 @@ namespace Ep128 {
         uint8_t bp = breakPointTable[i];
         if (bp)
           bplst.addMemoryBreakPoint(uint16_t(i),
-                                    !!(bp & 1), !!(bp & 2), bp >> 2);
+                                    !!(bp & 1), !!(bp & 2), !!(bp & 16),
+                                    bp >> 2);
       }
     }
     for (size_t j = 0; j < 256; j++) {
@@ -354,7 +374,8 @@ namespace Ep128 {
           uint8_t bp = segmentBreakPointTable[j][i];
           if (bp)
             bplst.addMemoryBreakPoint(uint8_t(j), uint16_t(i),
-                                      !!(bp & 1), !!(bp & 2), bp >> 2);
+                                      !!(bp & 1), !!(bp & 2), !!(bp & 16),
+                                      bp >> 2);
         }
       }
     }

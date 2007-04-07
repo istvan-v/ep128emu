@@ -568,6 +568,11 @@ namespace Ep128Emu {
     buf = "";
   }
 
+  void VirtualMachine::listIORegisters(std::string& buf) const
+  {
+    buf = "";
+  }
+
   uint32_t VirtualMachine::disassembleInstruction(std::string& buf,
                                                   uint32_t addr,
                                                   bool isCPUAddress,

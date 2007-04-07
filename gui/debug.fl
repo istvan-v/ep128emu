@@ -83,7 +83,12 @@ class Ep128EmuGUI_DebugWindow {open
         Fl_Group {} {
           label {I/O} open
           xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52 hide
-        } {}
+        } {
+          Fl_Output ioRegisterDisplay {
+            label {I/O registers}
+            xywh {20 63 500 330} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 5 textcolor 159
+          }
+        }
         Fl_Group {} {
           label Memory open
           xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52 hide
@@ -368,7 +373,7 @@ class Ep128EmuGUI_DebugWindow {open
             callback {{
   applyBreakPointList();
 }}
-            tooltip {Enter watchpoint definitions, separated by spaces or newlines. Allowed formats include NN (I/O), NNNN (memory, CPU address), and NN:NNNN (memory, physical address as segment:offset); each N is a hexadecimal digit. Address ranges (separated by a - character) can also be specified. Use the following suffixes to check for read or write access only, or set priority: r, w, p0, p1, p2, p3.} xywh {20 48 345 345} box DOWN_BOX color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            tooltip {Enter watchpoint definitions, separated by spaces or newlines. Allowed formats include NN (I/O), NNNN (memory, CPU address), and NN:NNNN (memory, physical address as segment:offset); each N is a hexadecimal digit. Address ranges (separated by a - character) can also be specified. Use the following suffixes to check for read or write access only, set priority, or ignore watchpoints depending on the program counter: r, w, p0, p1, p2, p3, i.} xywh {20 48 345 345} box DOWN_BOX color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
             code0 {o->cursor_color(FL_YELLOW);}
             code1 {o->buffer(bpEditBuffer);}
           }
@@ -619,6 +624,8 @@ class Ep128EmuGUI_DebugWindow {open
     endAddr = (startAddr + 0x002FU) & 0xFFFFU;
     dumpMemory(buf, startAddr, endAddr, tmp, true, true);
     stackMemoryDumpDisplay->value(buf.c_str());
+    gui.vm.listIORegisters(buf);
+    ioRegisterDisplay->value(buf.c_str());
     updateMemoryDumpDisplay();
     updateDisassemblyDisplay();
     noBreakOnDataReadValuator->value(gui.config.debug.noBreakOnDataRead ? 1 : 0);

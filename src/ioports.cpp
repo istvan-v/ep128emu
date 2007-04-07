@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -151,6 +151,11 @@ namespace Ep128 {
   int IOPorts::getBreakPointPriorityThreshold()
   {
     return ((int) breakPointPriorityThreshold >> 2);
+  }
+
+  uint8_t IOPorts::readDebug(uint16_t addr) const
+  {
+    return portValues[addr & 0xFF];
   }
 
   void IOPorts::setReadCallback(uint16_t firstAddr, uint16_t lastAddr,

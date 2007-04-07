@@ -32,11 +32,13 @@ namespace Ep128Emu {
     // 0x08000000: I/O (16 bit address)
     // + 0x01000000 if set for read
     // + 0x02000000 if set for write
+    // + 0x10000000 to ignore other breakpoints if PC is at this address
     // + priority (0 to 3) * 0x00400000
     // + address
     uint32_t  n_;
    public:
-    BreakPoint(bool isIO_, bool haveSegment_, bool r_, bool w_,
+    BreakPoint(bool isIO_, bool haveSegment_,
+               bool r_, bool w_, bool ignoreFlag_,
                uint8_t segment_, uint16_t addr_, int priority_)
     {
       this->n_ = (r_ ? 0x01000000 : 0x00000000)
@@ -53,6 +55,8 @@ namespace Ep128Emu {
                                 + (uint32_t) (addr_ & 0x3FFF));
       else
         this->n_ += (0x00000000 + (uint32_t) (addr_ & 0xFFFF));
+      if (ignoreFlag_)
+        this->n_ = (this->n_ & 0xF7FFFFFFU) | 0x13C00000U;
     }
     bool isIO() const
     {
@@ -69,6 +73,10 @@ namespace Ep128Emu {
     bool isWrite() const
     {
       return !!(this->n_ & 0x02000000);
+    }
+    bool isIgnore() const
+    {
+      return !!(this->n_ & 0x10000000);
     }
     int priority() const
     {
@@ -117,6 +125,10 @@ namespace Ep128Emu {
     //   p1             the breakpoint has a priority of 1
     //   p2             the breakpoint has a priority of 2
     //   p3             the breakpoint has a priority of 3
+    //   i              ignore other breakpoints if the program counter
+    //                  is at an address for which this breakpoint is set
+    //                  (read/write flags and priority are not used in
+    //                  this case)
     // by default, the breakpoint is triggered on both reads and writes if
     // 'r' or 'w' is not used, and has a priority of 2.
     // Example: 8000-8003rp1 means break on reading CPU addresses 0x8000,
@@ -126,8 +138,9 @@ namespace Ep128Emu {
     // thrown, and no breakpoints are added.
     BreakPointList(const std::string& lst);
     void addMemoryBreakPoint(uint8_t segment, uint16_t addr,
-                             bool r, bool w, int priority);
-    void addMemoryBreakPoint(uint16_t addr, bool r, bool w, int priority);
+                             bool r, bool w, bool ignoreFlag, int priority);
+    void addMemoryBreakPoint(uint16_t addr, bool r, bool w, bool ignoreFlag,
+                             int priority);
     void addIOBreakPoint(uint16_t addr, bool r, bool w, int priority);
     size_t getBreakPointCnt() const
     {

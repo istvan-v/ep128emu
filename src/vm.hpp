@@ -219,6 +219,11 @@ namespace Ep128Emu {
     // characters, however, there is no newline character at the end of the
     // buffer. The maximum line width is 40 characters.
     virtual void listCPURegisters(std::string& buf) const;
+    // Dumps the current values of all I/O registers to 'buf' in ASCII format.
+    // The register list may be written as multiple lines separated by '\n'
+    // characters, however, there is no newline character at the end of the
+    // buffer. The maximum line width is 52 characters.
+    virtual void listIORegisters(std::string& buf) const;
     // Disassemble one CPU instruction, starting from memory address 'addr',
     // and write the result to 'buf' (not including a newline character).
     // 'offs' is added to the instruction address that is printed.
