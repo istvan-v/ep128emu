@@ -116,26 +116,6 @@ namespace Ep128Emu {
     virtual int getSample_();
   };
 
-  class TapeInput_EPTEFile : public TapeInput {
-   private:
-    std::FILE *f;
-    size_t    bytesRemaining;
-    size_t    samplesRead;
-    bool      outputState;
-    uint8_t   shiftReg;
-    uint8_t   bitsRemaining;
-    uint8_t   halfPeriodSamples;
-    size_t    samplesRemaining;
-    size_t    leaderSampleCnt;
-    size_t    chunkBytesRemaining;
-    size_t    chunkCnt;
-   public:
-    TapeInput_EPTEFile(std::FILE *f_, Fl_Progress *disp);
-    virtual ~TapeInput_EPTEFile();
-    // returns tape signal (0 or 1), or -1 on end of file
-    virtual int getSample_();
-  };
-
   class TapeFile {
    private:
     std::string fileName;
