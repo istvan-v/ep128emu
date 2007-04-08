@@ -22,6 +22,8 @@
 #include <cstdio>
 #include <cstdlib>
 
+static const char *epteFileMagic = "ENTERPRISE 128K TAPE FILE       ";
+
 static int cuePointCmpFunc(const void *p1, const void *p2)
 {
   if (*((uint32_t *) p1) < *((uint32_t *) p2))
@@ -33,7 +35,69 @@ static int cuePointCmpFunc(const void *p1, const void *p2)
 
 namespace Ep128Emu {
 
-  bool Tape::findCuePoint_(size_t& ndx_, size_t pos_)
+  Tape::Tape(int bitsPerSample)
+    : sampleRate(24000L),
+      fileBitsPerSample(1),
+      requestedBitsPerSample(bitsPerSample),
+      isReadOnly(true),
+      isPlaybackOn(false),
+      isRecordOn(false),
+      isMotorOn(false),
+      tapeLength(0),
+      tapePosition(0),
+      inputState(0),
+      outputState(0)
+  {
+    if (!(requestedBitsPerSample == 1 || requestedBitsPerSample == 2 ||
+          requestedBitsPerSample == 4 || requestedBitsPerSample == 8))
+      throw Exception("invalid tape sample size");
+  }
+
+  Tape::~Tape()
+  {
+  }
+
+  void Tape::runOneSample_()
+  {
+  }
+
+  void Tape::setIsMotorOn(bool newState)
+  {
+    isMotorOn = newState;
+  }
+
+  void Tape::stop()
+  {
+    isPlaybackOn = false;
+    isRecordOn = false;
+  }
+
+  void Tape::seek(double t)
+  {
+    (void) t;
+  }
+
+  void Tape::seekToCuePoint(bool isForward, double t)
+  {
+    (void) isForward;
+    (void) t;
+  }
+
+  void Tape::addCuePoint()
+  {
+  }
+
+  void Tape::deleteNearestCuePoint()
+  {
+  }
+
+  void Tape::deleteAllCuePoints()
+  {
+  }
+
+  // --------------------------------------------------------------------------
+
+  bool Tape_Ep128Emu::findCuePoint_(size_t& ndx_, size_t pos_)
   {
     uint32_t  *cuePointTable = &(fileHeader[4]);
     uint32_t  pos = (pos_ < 0xFFFFFFFEUL ?
@@ -55,7 +119,7 @@ namespace Ep128Emu {
     return (cuePointTable[min_] == pos);
   }
 
-  void Tape::packSamples_()
+  void Tape_Ep128Emu::packSamples_()
   {
     uint8_t maxValue = uint8_t((1 << requestedBitsPerSample) - 1);
     uint8_t *buf_ = buf;
@@ -96,7 +160,7 @@ namespace Ep128Emu {
     }
   }
 
-  bool Tape::writeBuffer_()
+  bool Tape_Ep128Emu::writeBuffer_()
   {
     // calculate file position
     size_t  blockSize = 512U * (unsigned int) fileBitsPerSample;
@@ -120,7 +184,7 @@ namespace Ep128Emu {
     return (!err);
   }
 
-  bool Tape::readBuffer_()
+  bool Tape_Ep128Emu::readBuffer_()
   {
     bool    err = false;
     long    n = 0L;
@@ -146,7 +210,7 @@ namespace Ep128Emu {
     return (!err);
   }
 
-  void Tape::unpackSamples_()
+  void Tape_Ep128Emu::unpackSamples_()
   {
     uint8_t *buf_ = buf;
     if (fileBitsPerSample != 8) {
@@ -177,23 +241,13 @@ namespace Ep128Emu {
     }
   }
 
-  void Tape::seek_(size_t pos_, bool recording)
+  void Tape_Ep128Emu::seek_(size_t pos_)
   {
-    // unless recording, clamp position to tape length
-    size_t  pos = ((pos_ < tapeLength || recording) ? pos_ : tapeLength);
+    // clamp position to tape length
+    size_t  pos = (pos_ < tapeLength ? pos_ : tapeLength);
     size_t  oldBlockNum = (tapePosition >> 12);
     size_t  newBlockNum = (pos >> 12);
 
-    if (recording && cuePointCnt > 0) {
-      size_t  ndx = 0;
-      if (findCuePoint_(ndx, pos)) {
-        // if recording over a cue point, delete it
-        size_t  savedPos = tapePosition;
-        tapePosition = pos;
-        deleteNearestCuePoint();
-        tapePosition = savedPos;
-      }
-    }
     if (newBlockNum == oldBlockNum) {
       tapePosition = pos;
       return;
@@ -213,7 +267,7 @@ namespace Ep128Emu {
       throw Exception("error writing tape file - is the disk full ?");
   }
 
-  bool Tape::writeHeader_()
+  bool Tape_Ep128Emu::writeHeader_()
   {
     if (!usingNewFormat)
       return true;
@@ -238,7 +292,7 @@ namespace Ep128Emu {
     return (!err);
   }
 
-  void Tape::flushBuffer_()
+  void Tape_Ep128Emu::flushBuffer_()
   {
     if (isBufferDirty) {
       packSamples_();
@@ -250,34 +304,22 @@ namespace Ep128Emu {
     }
   }
 
-  Tape::Tape(const char *fileName, int mode,
-             long sampleRate_, int bitsPerSample)
-    : sampleRate(24000L),
-      fileBitsPerSample(1),
-      requestedBitsPerSample(bitsPerSample),
+  Tape_Ep128Emu::Tape_Ep128Emu(const char *fileName, int mode,
+                               long sampleRate_, int bitsPerSample)
+    : Tape(bitsPerSample),
       f((std::FILE *) 0),
       buf((uint8_t *) 0),
       fileHeader((uint32_t *) 0),
       cuePointCnt(0),
-      isReadOnly(false),
       isBufferDirty(false),
-      isPlaybackOn(false),
-      isRecordOn(false),
-      isMotorOn(false),
-      usingNewFormat(false),
-      tapeLength(0),
-      tapePosition(0),
-      inputState(0),
-      outputState(0)
+      usingNewFormat(false)
   {
+    isReadOnly = false;
     try {
       if (fileName == (char *) 0 || fileName[0] == '\0')
         throw Exception("invalid tape file name");
       if (sampleRate_ < 10000L || sampleRate_ > 120000L)
         throw Exception("invalid tape sample rate");
-      if (!(requestedBitsPerSample == 1 || requestedBitsPerSample == 2 ||
-            requestedBitsPerSample == 4 || requestedBitsPerSample == 8))
-        throw Exception("invalid tape sample size");
       if (!(mode >= 0 && mode <= 3))
         throw Exception("invalid tape open mode parameter");
       buf = new uint8_t[4096];
@@ -371,7 +413,7 @@ namespace Ep128Emu {
     }
   }
 
-  Tape::~Tape()
+  Tape_Ep128Emu::~Tape_Ep128Emu()
   {
     // flush any pending file changes, and close file
     // FIXME: errors are not handled here
@@ -385,27 +427,69 @@ namespace Ep128Emu {
     delete[] buf;
   }
 
-  void Tape::setIsMotorOn(bool newState)
+  void Tape_Ep128Emu::runOneSample_()
+  {
+    outputState = buf[tapePosition & 0x0FFF];
+    if (isRecordOn) {
+      buf[tapePosition & 0x0FFF] =
+          uint8_t(inputState > 0 ? (inputState < 255 ? inputState : 255) : 0);
+      isBufferDirty = true;
+    }
+    size_t  pos = tapePosition + 1;
+    // unless recording, clamp position to tape length
+    pos = ((pos < tapeLength || isRecordOn) ? pos : tapeLength);
+    size_t  oldBlockNum = (tapePosition >> 12);
+    size_t  newBlockNum = (pos >> 12);
+
+    if (isRecordOn && cuePointCnt > 0) {
+      size_t  ndx = 0;
+      if (findCuePoint_(ndx, pos)) {
+        // if recording over a cue point, delete it
+        size_t  savedPos = tapePosition;
+        tapePosition = pos;
+        deleteNearestCuePoint();
+        tapePosition = savedPos;
+      }
+    }
+    if (newBlockNum == oldBlockNum) {
+      tapePosition = pos;
+      return;
+    }
+    bool    err = false;
+    try {
+      // flush any pending file changes
+      flushBuffer_();
+    }
+    catch (...) {
+      err = true;
+    }
+    tapePosition = pos;
+    readBuffer_();
+    unpackSamples_();
+    if (err)
+      throw Exception("error writing tape file - is the disk full ?");
+  }
+
+  void Tape_Ep128Emu::setIsMotorOn(bool newState)
   {
     isMotorOn = newState;
     if (!isMotorOn)
       flushBuffer_();
   }
 
-  void Tape::stop()
+  void Tape_Ep128Emu::stop()
   {
     isPlaybackOn = false;
     isRecordOn = false;
     flushBuffer_();
   }
 
-  void Tape::seek(double t)
+  void Tape_Ep128Emu::seek(double t)
   {
-    this->seek_(size_t(long(t > 0.0 ? (t * double(sampleRate) + 0.5) : 0.0)),
-                false);
+    this->seek_(size_t(long(t > 0.0 ? (t * double(sampleRate) + 0.5) : 0.0)));
   }
 
-  void Tape::seekToCuePoint(bool isForward, double t)
+  void Tape_Ep128Emu::seekToCuePoint(bool isForward, double t)
   {
     if (cuePointCnt > 0) {
       size_t    ndx = 0;
@@ -413,15 +497,15 @@ namespace Ep128Emu {
       uint32_t  *cuePointTable = &(fileHeader[4]);
       if ((cuePointTable[ndx] < tapePosition && !isForward) ||
           (cuePointTable[ndx] > tapePosition && isForward)) {
-        this->seek_(cuePointTable[ndx], false);
+        this->seek_(cuePointTable[ndx]);
         return;
       }
       else if (ndx > 0 && !isForward) {
-        this->seek_(cuePointTable[ndx - 1], false);
+        this->seek_(cuePointTable[ndx - 1]);
         return;
       }
       else if ((ndx + 1) < cuePointCnt && isForward) {
-        this->seek_(cuePointTable[ndx + 1], false);
+        this->seek_(cuePointTable[ndx + 1]);
         return;
       }
     }
@@ -431,7 +515,7 @@ namespace Ep128Emu {
       this->seek(getPosition() - (t < 0.0 ? t : 0.0));
   }
 
-  void Tape::addCuePoint()
+  void Tape_Ep128Emu::addCuePoint()
   {
     if (isReadOnly || cuePointCnt >= 1019 || !usingNewFormat)
       return;
@@ -454,7 +538,7 @@ namespace Ep128Emu {
       throw Exception("error updating cue point table");
   }
 
-  void Tape::deleteNearestCuePoint()
+  void Tape_Ep128Emu::deleteNearestCuePoint()
   {
     if (isReadOnly || cuePointCnt < 1)
       return;
@@ -478,7 +562,7 @@ namespace Ep128Emu {
       throw Exception("error updating cue point table");
   }
 
-  void Tape::deleteAllCuePoints()
+  void Tape_Ep128Emu::deleteAllCuePoints()
   {
     if (isReadOnly || cuePointCnt < 1)
       return;
@@ -487,6 +571,208 @@ namespace Ep128Emu {
     cuePointCnt = 0;
     if (!writeHeader_())
       throw Exception("error updating cue point table");
+  }
+
+  // --------------------------------------------------------------------------
+
+  Tape_EPTE::Tape_EPTE(const char *fileName, int bitsPerSample)
+    : Tape(bitsPerSample),
+      f((std::FILE *) 0),
+      bytesRemaining(0),
+      endOfTape(false),
+      shiftReg(0x00),
+      bitsRemaining(0),
+      halfPeriodSamples(5),
+      samplesRemaining(0),
+      leaderSampleCnt(0),
+      chunkBytesRemaining(0),
+      chunkCnt(0)
+  {
+    if (fileName == (char *) 0 || fileName[0] == '\0')
+      throw Exception("invalid tape file name");
+    f = std::fopen(fileName, "rb");
+    if (!f)
+      throw Exception("error opening tape file");
+    bool    isEPTEFile = false;
+    if (std::fseek(f, 0L, SEEK_END) >= 0) {
+      if (std::ftell(f) >= 512L) {
+        std::fseek(f, 128L, SEEK_SET);
+        for (int i = 0; i < 32; i++) {
+          if (std::fgetc(f) != int(epteFileMagic[i]))
+            break;
+          if (i == 31)
+            isEPTEFile = true;
+        }
+      }
+    }
+    if (!isEPTEFile) {
+      std::fclose(f);
+      throw Exception("invalid tape file header");
+    }
+    this->seek(0.0);
+  }
+
+  Tape_EPTE::~Tape_EPTE()
+  {
+    if (f)
+      std::fclose(f);
+  }
+
+  void Tape_EPTE::runOneSample_()
+  {
+    if (endOfTape) {
+      outputState = 0;
+      return;
+    }
+    if (!samplesRemaining) {
+      outputState = (outputState == 0 ?
+                     (1 << (requestedBitsPerSample - 1)) : 0);
+      if (halfPeriodSamples == 8) {
+        // sync bit
+        if (outputState == 0)
+          halfPeriodSamples = 6;
+        samplesRemaining = 8;
+      }
+      else {
+        if (outputState != 0 && leaderSampleCnt == 0) {
+          if (!bitsRemaining) {
+            if (chunkBytesRemaining) {
+              chunkBytesRemaining--;
+              shiftReg = uint8_t(std::fgetc(f));
+              bytesRemaining--;
+              bitsRemaining = 8;
+            }
+            else {
+              // end of chunk, start leader
+              halfPeriodSamples = 5;
+              leaderSampleCnt = 120000; // 5 seconds
+            }
+          }
+          if (bitsRemaining) {
+            bitsRemaining--;
+            if (!(shiftReg & 0x01))
+              halfPeriodSamples = 6;    // bit = 0
+            else
+              halfPeriodSamples = 4;    // bit = 1
+            shiftReg = shiftReg >> 1;
+          }
+        }
+        samplesRemaining = halfPeriodSamples;
+      }
+    }
+    if (leaderSampleCnt) {
+      leaderSampleCnt--;
+      if (!leaderSampleCnt) {
+        if (!bytesRemaining) {
+          endOfTape = true;             // end of tape
+          outputState = 0;
+          samplesRemaining = 0;
+          tapePosition = tapeLength;
+          return;
+        }
+        // sync bit
+        halfPeriodSamples = 8;
+        // next chunk
+        size_t  startPos = 0;
+        size_t  endPos = 0;
+        if (chunkCnt < 128) {
+          std::fseek(f, long(chunkCnt << 2), SEEK_SET);
+          startPos = size_t(std::fgetc(f) & 0xFF);
+          startPos |= (size_t(std::fgetc(f) & 0xFF) << 8);
+          startPos |= (size_t(std::fgetc(f) & 0xFF) << 16);
+          startPos |= (size_t(std::fgetc(f) & 0xFF) << 24);
+          if (++chunkCnt < 128) {
+            endPos = size_t(std::fgetc(f) & 0xFF);
+            endPos |= (size_t(std::fgetc(f) & 0xFF) << 8);
+            endPos |= (size_t(std::fgetc(f) & 0xFF) << 16);
+            endPos |= (size_t(std::fgetc(f) & 0xFF) << 24);
+          }
+          std::fseek(f, long(startPos + 512), SEEK_SET);
+        }
+        if (endPos > startPos)
+          chunkBytesRemaining = endPos - startPos;
+        else
+          chunkBytesRemaining = bytesRemaining;
+      }
+    }
+    if (samplesRemaining > 0)
+      samplesRemaining--;
+    tapePosition++;
+    tapeLength = tapePosition + (bytesRemaining * 80) + leaderSampleCnt + 1;
+  }
+
+  void Tape_EPTE::setIsMotorOn(bool newState)
+  {
+    isMotorOn = newState;
+  }
+
+  void Tape_EPTE::stop()
+  {
+    isPlaybackOn = false;
+    isRecordOn = false;
+  }
+
+  void Tape_EPTE::seek(double t)
+  {
+    if (t <= 0.0) {
+      tapeLength = 0;
+      tapePosition = 0;
+      outputState = 0;
+      bytesRemaining = 0;
+      endOfTape = false;
+      shiftReg = 0x00;
+      bitsRemaining = 0;
+      halfPeriodSamples = 5;
+      samplesRemaining = 0;
+      leaderSampleCnt = 0;
+      chunkBytesRemaining = 0;
+      chunkCnt = 0;
+      if (std::fseek(f, 0L, SEEK_END) >= 0) {
+        long    n = std::ftell(f);
+        if (n > 512L) {
+          bytesRemaining = size_t(n - 512L);
+          tapeLength = bytesRemaining * 80;
+          std::fseek(f, 512L, SEEK_SET);
+        }
+      }
+    }
+  }
+
+  void Tape_EPTE::seekToCuePoint(bool isForward, double t)
+  {
+    (void) t;
+    if (!isForward)
+      this->seek(0.0);
+  }
+
+  void Tape_EPTE::addCuePoint()
+  {
+  }
+
+  void Tape_EPTE::deleteNearestCuePoint()
+  {
+  }
+
+  void Tape_EPTE::deleteAllCuePoints()
+  {
+  }
+
+  // --------------------------------------------------------------------------
+
+  Tape *openTapeFile(const char *fileName, int mode,
+                     long sampleRate_, int bitsPerSample)
+  {
+    Tape    *t = (Tape *) 0;
+    if (mode != 3) {
+      try {
+        t = new Tape_EPTE(fileName, bitsPerSample);
+      }
+      catch (...) {
+      }
+    }
+    if (!t)
+      t = new Tape_Ep128Emu(fileName, mode, sampleRate_, bitsPerSample);
+    return t;
   }
 
 }       // namespace Ep128Emu

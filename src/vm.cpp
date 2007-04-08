@@ -657,7 +657,8 @@ namespace Ep128Emu {
     }
     if (fileName.length() == 0)
       return;
-    tape = new Tape(fileName.c_str(), 0, defaultTapeSampleRate, bitsPerSample);
+    tape = openTapeFile(fileName.c_str(), 0,
+                        defaultTapeSampleRate, bitsPerSample);
     tapeFileName = fileName;
     if (tapeRecordOn)
       tape->record();
