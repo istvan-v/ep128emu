@@ -71,6 +71,8 @@ namespace Ep128Emu {
     virtual uint8_t readSectorRegister() const;
     virtual void writeDataRegister(uint8_t n);
     virtual uint8_t readDataRegister();
+    virtual uint8_t readStatusRegisterDebug() const;
+    virtual uint8_t readDataRegisterDebug() const;
     virtual bool getDiskChangeFlag() const;
     virtual void clearDiskChangeFlag();
     virtual void setIsWD1773(bool isEnabled);

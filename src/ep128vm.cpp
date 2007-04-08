@@ -709,6 +709,12 @@ namespace Ep128 {
     vm.nick.writePort(addr, value);
   }
 
+  uint8_t Ep128VM::nickPortDebugReadCallback(void *userData, uint16_t addr)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    return (vm.nick.readPortDebug(addr));
+  }
+
   uint8_t Ep128VM::exdosPortReadCallback(void *userData, uint16_t addr)
   {
     Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
@@ -777,6 +783,29 @@ namespace Ep128 {
     }
   }
 
+  uint8_t Ep128VM::exdosPortDebugReadCallback(void *userData, uint16_t addr)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    if (vm.currentFloppyDrive <= 3) {
+      Ep128Emu::WD177x& floppyDrive = vm.floppyDrives[vm.currentFloppyDrive];
+      switch (addr) {
+      case 0x00:
+        return floppyDrive.readStatusRegisterDebug();
+      case 0x01:
+        return floppyDrive.readTrackRegister();
+      case 0x02:
+        return floppyDrive.readSectorRegister();
+      case 0x03:
+        return floppyDrive.readDataRegisterDebug();
+      case 0x08:
+        return uint8_t(  (floppyDrive.getInterruptRequestFlag() ? 0x02 : 0x00)
+                       | (floppyDrive.getDiskChangeFlag() ? 0x40 : 0x00)
+                       | (floppyDrive.getDataRequestFlag() ? 0x80 : 0x00));
+      }
+    }
+    return 0x00;
+  }
+
   Ep128VM::Ep128VM(Ep128Emu::VideoDisplay& display_,
                    Ep128Emu::AudioOutput& audioOutput_)
     : VirtualMachine(display_, audioOutput_),
@@ -814,13 +843,14 @@ namespace Ep128 {
       pageTable[i] = 0x00;
     updateTimingParameters();
     // register I/O callbacks
-    for (uint16_t i = 0xA0; i <= 0xBF; i++) {
-      ioPorts.setReadCallback(i, i, &davePortReadCallback, this, 0xA0);
-      ioPorts.setWriteCallback(i, i, &davePortWriteCallback, this, 0xA0);
-    }
+    ioPorts.setReadCallback(0xA0, 0xBF, &davePortReadCallback, this, 0xA0);
+    ioPorts.setWriteCallback(0xA0, 0xBF, &davePortWriteCallback, this, 0xA0);
+    ioPorts.setDebugReadCallback(0xB0, 0xB6, &davePortReadCallback, this, 0xA0);
     for (uint16_t i = 0x80; i <= 0x8F; i++) {
       ioPorts.setReadCallback(i, i, &nickPortReadCallback, this, (i & 0x8C));
       ioPorts.setWriteCallback(i, i, &nickPortWriteCallback, this, (i & 0x8C));
+      ioPorts.setDebugReadCallback(i, i, &nickPortDebugReadCallback,
+                                   this, (i & 0x8C));
     }
     // set up initial memory (segments 0xFC to 0xFF are always present)
     memory.loadSegment(0xFC, false, (uint8_t *) 0, 0);
@@ -856,6 +886,14 @@ namespace Ep128 {
     ioPorts.setWriteCallback(0x14, 0x17, &exdosPortWriteCallback, this, 0x14);
     ioPorts.setWriteCallback(0x18, 0x18, &exdosPortWriteCallback, this, 0x10);
     ioPorts.setWriteCallback(0x1C, 0x1C, &exdosPortWriteCallback, this, 0x14);
+    ioPorts.setDebugReadCallback(0x10, 0x13,
+                                 &exdosPortDebugReadCallback, this, 0x10);
+    ioPorts.setDebugReadCallback(0x14, 0x17,
+                                 &exdosPortDebugReadCallback, this, 0x14);
+    ioPorts.setDebugReadCallback(0x18, 0x18,
+                                 &exdosPortDebugReadCallback, this, 0x10);
+    ioPorts.setDebugReadCallback(0x1C, 0x1C,
+                                 &exdosPortDebugReadCallback, this, 0x14);
   }
 
   Ep128VM::~Ep128VM()

@@ -506,6 +506,21 @@ namespace Ep128Emu {
     return dataRegister;
   }
 
+  uint8_t WD177x::readStatusRegisterDebug() const
+  {
+    uint8_t n = statusRegister;
+    if (isWD1773)
+      n = n & 0x7F;             // always ready
+    else
+      n = n | 0x80;             // motor is always on
+    return n;
+  }
+
+  uint8_t WD177x::readDataRegisterDebug() const
+  {
+    return dataRegister;
+  }
+
   bool WD177x::getDiskChangeFlag() const
   {
     return diskChangeFlag;

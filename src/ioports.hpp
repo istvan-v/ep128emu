@@ -40,6 +40,7 @@ namespace Ep128 {
     uint8_t *portValues;
     ReadCallback *readCallbacks;
     WriteCallback *writeCallbacks;
+    ReadCallback *debugReadCallbacks;
     uint8_t *breakPointTable;
     size_t breakPointCnt;
     uint8_t breakPointPriorityThreshold;
@@ -56,6 +57,9 @@ namespace Ep128 {
     void setReadCallback(uint16_t firstAddr, uint16_t lastAddr,
                          uint8_t (*func)(void *p, uint16_t addr),
                          void *userData, uint16_t baseAddr);
+    void setDebugReadCallback(uint16_t firstAddr, uint16_t lastAddr,
+                              uint8_t (*func)(void *p, uint16_t addr),
+                              void *userData, uint16_t baseAddr);
     void setWriteCallback(uint16_t firstAddr, uint16_t lastAddr,
                           void (*func)(void *p, uint16_t addr, uint8_t value),
                           void *userData, uint16_t baseAddr);

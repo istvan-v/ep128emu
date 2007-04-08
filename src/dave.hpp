@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -174,7 +174,7 @@ namespace Ep128 {
     // Write to a DAVE register.
     void writePort(uint16_t addr, uint8_t value);
     // Read from a DAVE register.
-    uint8_t readPort(uint16_t addr);
+    uint8_t readPort(uint16_t addr) const;
     // Set hardware interrupt 1 state, and (possibly) trigger interrupt.
     void setInt1State(int new_state);
     // Set hardware interrupt 2 state, and (possibly) trigger interrupt.

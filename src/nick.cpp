@@ -900,6 +900,22 @@ namespace Ep128 {
     }
   }
 
+  uint8_t Nick::readPortDebug(uint16_t portNum) const
+  {
+    switch (portNum & 3) {
+    case 0:
+      return uint8_t(lpb.palette[8] >> 3);
+    case 1:
+      return borderColor;
+    case 2:
+      return uint8_t((lptBaseAddr >> 4) & 0xFF);
+    case 3:
+      return uint8_t(((lptBaseAddr >> 12) & 0x0F)
+                     | (lptClockEnabled ? 0xF0 : 0xB0));
+    }
+    return 0x00;                // not reached
+  }
+
   void Nick::irqStateChange(bool newState)
   {
     (void) newState;

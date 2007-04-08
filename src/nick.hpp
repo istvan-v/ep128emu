@@ -225,6 +225,7 @@ class x : public NickRenderer {                 \
                                   float& r, float& g, float& b);
     uint8_t readPort(uint16_t portNum);
     void writePort(uint16_t portNum, uint8_t value);
+    uint8_t readPortDebug(uint16_t portNum) const;
     void runOneSlot();
     void saveState(Ep128Emu::File::Buffer&);
     void saveState(Ep128Emu::File&);

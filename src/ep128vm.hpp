@@ -186,9 +186,11 @@ namespace Ep128 {
     static uint8_t nickPortReadCallback(void *userData, uint16_t addr);
     static void nickPortWriteCallback(void *userData,
                                       uint16_t addr, uint8_t value);
+    static uint8_t nickPortDebugReadCallback(void *userData, uint16_t addr);
     static uint8_t exdosPortReadCallback(void *userData, uint16_t addr);
     static void exdosPortWriteCallback(void *userData,
                                        uint16_t addr, uint8_t value);
+    static uint8_t exdosPortDebugReadCallback(void *userData, uint16_t addr);
     void stopDemoPlayback();
     void stopDemoRecording(bool writeFile_);
    public:

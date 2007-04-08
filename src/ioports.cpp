@@ -38,6 +38,7 @@ namespace Ep128 {
     portValues = (uint8_t*) 0;
     readCallbacks = (ReadCallback*) 0;
     writeCallbacks = (WriteCallback*) 0;
+    debugReadCallbacks = (ReadCallback*) 0;
     breakPointTable = (uint8_t*) 0;
     breakPointCnt = 0;
     breakPointPriorityThreshold = 0;
@@ -57,6 +58,12 @@ namespace Ep128 {
         writeCallbacks[i].userData_ = (void*) 0;
         writeCallbacks[i].addr_ = 0;
       }
+      debugReadCallbacks = new ReadCallback[256];
+      for (int i = 0; i < 256; i++) {
+        debugReadCallbacks[i].func = (uint8_t (*)(void *, uint16_t)) 0;
+        debugReadCallbacks[i].userData_ = (void*) 0;
+        debugReadCallbacks[i].addr_ = 0;
+      }
       breakPointTable = new uint8_t[256];
       for (int i = 0; i < 256; i++)
         breakPointTable[i] = 0;
@@ -74,6 +81,10 @@ namespace Ep128 {
         delete[] writeCallbacks;
         writeCallbacks = (WriteCallback*) 0;
       }
+      if (debugReadCallbacks) {
+        delete[] debugReadCallbacks;
+        debugReadCallbacks = (ReadCallback*) 0;
+      }
       if (breakPointTable) {
         delete[] breakPointTable;
         breakPointTable = (uint8_t*) 0;
@@ -87,10 +98,12 @@ namespace Ep128 {
     delete[] portValues;
     delete[] readCallbacks;
     delete[] writeCallbacks;
+    delete[] debugReadCallbacks;
     delete[] breakPointTable;
     portValues = (uint8_t*) 0;
     readCallbacks = (ReadCallback*) 0;
     writeCallbacks = (WriteCallback*) 0;
+    debugReadCallbacks = (ReadCallback*) 0;
     breakPointTable = (uint8_t*) 0;
     breakPointCnt = 0;
     breakPointPriorityThreshold = 0;
@@ -155,7 +168,11 @@ namespace Ep128 {
 
   uint8_t IOPorts::readDebug(uint16_t addr) const
   {
-    return portValues[addr & 0xFF];
+    uint8_t       offs = uint8_t(addr & 0xFF);
+    ReadCallback& cb = debugReadCallbacks[offs];
+    if (cb.func)
+      return (cb.func(cb.userData_, cb.addr_));
+    return (portValues[offs]);
   }
 
   void IOPorts::setReadCallback(uint16_t firstAddr, uint16_t lastAddr,
@@ -173,6 +190,21 @@ namespace Ep128 {
         readCallbacks[i].func = dummyReadCallback;
       readCallbacks[i].userData_ = userData;
       readCallbacks[i].addr_ = (i - (uint8_t) baseAddr) & 0xFF;
+    } while (i != j);
+  }
+
+  void IOPorts::setDebugReadCallback(uint16_t firstAddr, uint16_t lastAddr,
+                                     uint8_t (*func)(void *p, uint16_t addr),
+                                     void *userData, uint16_t baseAddr)
+  {
+    uint8_t i = (uint8_t) (firstAddr - 1) & 0xFF;
+    uint8_t j = (uint8_t) lastAddr & 0xFF;
+
+    do {
+      i = (i + 1) & 0xFF;
+      debugReadCallbacks[i].func = func;
+      debugReadCallbacks[i].userData_ = userData;
+      debugReadCallbacks[i].addr_ = (i - (uint8_t) baseAddr) & 0xFF;
     } while (i != j);
   }
 

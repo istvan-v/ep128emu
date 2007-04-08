@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -641,7 +641,7 @@ namespace Ep128 {
 
   // read from DAVE registers
 
-  uint8_t Dave::readPort(uint16_t addr)
+  uint8_t Dave::readPort(uint16_t addr) const
   {
     switch (uint8_t(addr & 0x1F)) {
     case 0x10:
@@ -656,8 +656,6 @@ namespace Ep128 {
       {
         // interrupt state
         uint8_t n = 0;
-        int_snd_state &= 1;
-        int_1hz_state &= 1;
         if (int_snd_state)
           n |= 0x01;
         if (int_snd_active)
@@ -674,7 +672,7 @@ namespace Ep128 {
           n |= 0x40;
         if (int_2_active)
           n |= 0x80;
-        return (uint8_t) n;
+        return n;
       }
       break;
     case 0x15:
