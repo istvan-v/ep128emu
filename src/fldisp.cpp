@@ -607,98 +607,206 @@ namespace Ep128Emu {
 
     unsigned char lineBuf_[768];
     unsigned char *pixelBuf_ =
-        (unsigned char *) std::calloc(size_t(displayWidth_ * 3),
+        (unsigned char *) std::calloc(size_t(displayWidth_ * 4 * 3),
                                       sizeof(unsigned char));
+    int   lineNumbers_[5];
     if (pixelBuf_) {
-      int   prvLine_ = -1;
       int   curLine_ = 0;
-      int   fracX_ = 0;
       int   fracY_ = 0;
-      bool  skippingLine_ = true;
-      Message_LineData  *prvLineRendered_ = (Message_LineData *) 0;
-      for (int yc = y0; yc < y1; yc++) {
-        if (curLine_ != prvLine_) {
-          prvLine_ = curLine_;
-          Message_LineData  *lBuf_ = lineBuffers[curLine_];
-          if (linesChanged[curLine_] || linesChanged[curLine_ ^ 1])
-            skippingLine_ = false;
-          if (!skippingLine_) {
-            if (!lBuf_)
-              lBuf_ = lineBuffers[curLine_ ^ 1];
-            if (halfResolutionY_ || curLine_ == 0 ||
-                !((prvLineRendered_ == (Message_LineData *) 0 &&
-                   lBuf_ == (Message_LineData *) 0) ||
-                  (prvLineRendered_ != (Message_LineData *) 0 &&
-                   lBuf_ != (Message_LineData *) 0 &&
-                   (*lBuf_) == (*prvLineRendered_)))) {
-              prvLineRendered_ = lBuf_;
-              if (lBuf_) {
+      bool  skippingLines_ = true;
+      lineNumbers_[3] = -2;
+      for (int yc = 0; yc < displayHeight_; yc++) {
+        int   ycAnd3 = yc & 3;
+        if (ycAnd3 == 0) {
+          skippingLines_ = true;
+          lineNumbers_[4] = lineNumbers_[3];
+        }
+        int   l0 = curLine_;
+        int   l1 = curLine_ ^ 1;
+        if (lineBuffers[l0] != (Message_LineData *) 0)
+          lineNumbers_[ycAnd3] = l0;
+        else if (lineBuffers[l1] != (Message_LineData *) 0)
+          lineNumbers_[ycAnd3] = l1;
+        else
+          lineNumbers_[ycAnd3] = -1;
+        if (linesChanged[l0] || linesChanged[l1])
+          skippingLines_ = false;
+        if (ycAnd3 == 3 || yc == (displayHeight_ - 1)) {
+          if (!skippingLines_) {
+            int   nLines_ = 4;
+            if (ycAnd3 != 3)
+              nLines_ = displayHeight_ & 3;
+            for (int yTmp = 0; yTmp < nLines_; yTmp++) {
+              unsigned char *p = &(pixelBuf_[displayWidth_ * yTmp * 3]);
+              if (yTmp == 0) {
+                if (lineNumbers_[0] == lineNumbers_[4] ||
+                    (lineNumbers_[0] >= 0 && lineNumbers_[4] >= 0 &&
+                     *(lineBuffers[lineNumbers_[0]])
+                     == *(lineBuffers[lineNumbers_[4]]))) {
+                  std::memcpy(p, &(pixelBuf_[displayWidth_ * 3 * 3]),
+                              size_t(displayWidth_ * 3));
+                  continue;
+                }
+              }
+              else {
+                if (lineNumbers_[yTmp] == lineNumbers_[yTmp - 1] ||
+                    (lineNumbers_[yTmp - 1] >= 0 && lineNumbers_[yTmp] >= 0 &&
+                     *(lineBuffers[lineNumbers_[yTmp]])
+                     == *(lineBuffers[lineNumbers_[yTmp - 1]]))) {
+                  std::memcpy(p, &(pixelBuf_[displayWidth_ * (yTmp - 1) * 3]),
+                              size_t(displayWidth_ * 3));
+                  continue;
+                }
+              }
+              if (lineNumbers_[yTmp] >= 0) {
                 // decode video data
                 const unsigned char *bufp = (unsigned char *) 0;
                 size_t  nBytes = 0;
-                lBuf_->getLineData(bufp, nBytes);
+                lineBuffers[lineNumbers_[yTmp]]->getLineData(bufp, nBytes);
                 decodeLine(&(lineBuf_[0]), bufp, nBytes);
                 // convert to RGB
                 bufp = &(lineBuf_[0]);
-                unsigned char *p = pixelBuf_;
-                uint32_t      c = 0U;
-                fracX_ = displayWidth_;
-                if (!halfResolutionX_) {
-                  fracX_ = (fracX_ >= 768 ? fracX_ : 768);
-                  while (true) {
-                    if (fracX_ >= displayWidth_) {
-                      if (bufp >= &(lineBuf_[768]))
-                        break;
-                      do {
-                        c = colormap(*bufp);
-                        fracX_ -= displayWidth_;
-                        bufp++;
-                      } while (fracX_ >= displayWidth_);
+                switch (displayWidth_) {
+                case 384:
+                  do {
+                    uint32_t  tmp = colormap(bufp[0], bufp[1]);
+                    p[2] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[1] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[0] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    bufp = bufp + 2;
+                    p = p + 3;
+                  } while (bufp < &(lineBuf_[768]));
+                  break;
+                case 768:
+                  do {
+                    uint32_t  tmp = colormap(bufp[0]);
+                    p[2] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[1] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[0] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = colormap(bufp[1]);
+                    p[5] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[4] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[3] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    bufp = bufp + 2;
+                    p = p + 6;
+                  } while (bufp < &(lineBuf_[768]));
+                  break;
+                case 1152:
+                  do {
+                    uint32_t  tmp = colormap(bufp[0]);
+                    p[2] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[1] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[0] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = colormap(bufp[0], bufp[1]);
+                    p[5] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[4] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[3] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = colormap(bufp[1]);
+                    p[8] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[7] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[6] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    bufp = bufp + 2;
+                    p = p + 9;
+                  } while (bufp < &(lineBuf_[768]));
+                  break;
+                case 1536:
+                  do {
+                    uint32_t  tmp = colormap(*bufp);
+                    p[2] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    p[5] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[1] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    p[4] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    tmp = tmp >> 8;
+                    p[0] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    p[3] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    bufp++;
+                    p = p + 6;
+                  } while (bufp < &(lineBuf_[768]));
+                  break;
+                default:
+                  {
+                    int       fracX_ = displayWidth_;
+                    uint32_t  c = 0U;
+                    if (!halfResolutionX_) {
+                      fracX_ = (fracX_ >= 768 ? fracX_ : 768);
+                      while (true) {
+                        if (fracX_ >= displayWidth_) {
+                          if (bufp >= &(lineBuf_[768]))
+                            break;
+                          do {
+                            c = colormap(*bufp);
+                            fracX_ -= displayWidth_;
+                            bufp++;
+                          } while (fracX_ >= displayWidth_);
+                        }
+                        {
+                          uint32_t  tmp = c;
+                          p[2] = (unsigned char) tmp & (unsigned char) 0xFF;
+                          tmp = tmp >> 8;
+                          p[1] = (unsigned char) tmp & (unsigned char) 0xFF;
+                          tmp = tmp >> 8;
+                          p[0] = (unsigned char) tmp & (unsigned char) 0xFF;
+                        }
+                        fracX_ += 768;
+                        p += 3;
+                      }
                     }
-                    {
-                      uint32_t  tmp = c;
-                      p[2] = (unsigned char) tmp & (unsigned char) 0xFF;
-                      tmp = tmp >> 8;
-                      p[1] = (unsigned char) tmp & (unsigned char) 0xFF;
-                      tmp = tmp >> 8;
-                      p[0] = (unsigned char) tmp & (unsigned char) 0xFF;
+                    else {
+                      fracX_ = (fracX_ >= 384 ? fracX_ : 384);
+                      while (true) {
+                        if (fracX_ >= displayWidth_) {
+                          if (bufp >= &(lineBuf_[768]))
+                            break;
+                          do {
+                            c = colormap(bufp[0], bufp[1]);
+                            fracX_ -= displayWidth_;
+                            bufp += 2;
+                          } while (fracX_ >= displayWidth_);
+                        }
+                        {
+                          uint32_t  tmp = c;
+                          p[2] = (unsigned char) tmp & (unsigned char) 0xFF;
+                          tmp = tmp >> 8;
+                          p[1] = (unsigned char) tmp & (unsigned char) 0xFF;
+                          tmp = tmp >> 8;
+                          p[0] = (unsigned char) tmp & (unsigned char) 0xFF;
+                        }
+                        fracX_ += 384;
+                        p += 3;
+                      }
                     }
-                    fracX_ += 768;
-                    p += 3;
-                  }
-                }
-                else {
-                  fracX_ = (fracX_ >= 384 ? fracX_ : 384);
-                  while (true) {
-                    if (fracX_ >= displayWidth_) {
-                      if (bufp >= &(lineBuf_[768]))
-                        break;
-                      do {
-                        c = colormap(bufp[0], bufp[1]);
-                        fracX_ -= displayWidth_;
-                        bufp += 2;
-                      } while (fracX_ >= displayWidth_);
-                    }
-                    {
-                      uint32_t  tmp = c;
-                      p[2] = (unsigned char) tmp & (unsigned char) 0xFF;
-                      tmp = tmp >> 8;
-                      p[1] = (unsigned char) tmp & (unsigned char) 0xFF;
-                      tmp = tmp >> 8;
-                      p[0] = (unsigned char) tmp & (unsigned char) 0xFF;
-                    }
-                    fracX_ += 384;
-                    p += 3;
                   }
                 }
               }
-              else
-                std::memset(pixelBuf_, 0, size_t(displayWidth_ * 3));
+              else {
+                uint32_t  c = colormap(0x00);
+                for (int xc = 0; xc < displayWidth_; xc++) {
+                  p[0] = (unsigned char) ((c >> 16) & 0xFF);
+                  p[1] = (unsigned char) ((c >> 8) & 0xFF);
+                  p[2] = (unsigned char) (c & 0xFF);
+                  p = p + 3;
+                }
+              }
             }
+            fl_draw_image(pixelBuf_, x0, y0 + (yc & (~(int(3)))),
+                          displayWidth_, nLines_);
           }
+          else
+            lineNumbers_[3] = -2;
         }
-        if (!skippingLine_)
-          fl_draw_image(pixelBuf_, x0, yc, displayWidth_, 1);
         if (!halfResolutionY_) {
           fracY_ += 576;
           while (fracY_ >= displayHeight_) {
@@ -706,7 +814,6 @@ namespace Ep128Emu {
             if (curLine_ & 1) {
               linesChanged[curLine_ ^ 1] = false;
               linesChanged[curLine_] = false;
-              skippingLine_ = true;
             }
             curLine_ = (curLine_ < 575 ? (curLine_ + 1) : curLine_);
           }
@@ -717,7 +824,6 @@ namespace Ep128Emu {
             fracY_ -= displayHeight_;
             linesChanged[curLine_] = false;
             linesChanged[curLine_ | 1] = false;
-            skippingLine_ = true;
             curLine_ = (curLine_ < 573 ? (curLine_ + 2) : curLine_);
           }
         }
@@ -729,7 +835,7 @@ namespace Ep128Emu {
     if (!screenshotCallbackCnt) {
       if (forceUpdateLineMask) {
         for (size_t yc = 0; yc < 576; yc++) {
-          if (!(forceUpdateLineMask & (uint8_t(1) << uint8_t((yc >> 1) & 7))))
+          if (!(forceUpdateLineMask & (uint8_t(1) << uint8_t((yc >> 3) & 7))))
             continue;
           if (lineBuffers[yc] != (Message_LineData *) 0) {
             Message *m = lineBuffers[yc];
