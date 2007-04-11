@@ -514,9 +514,10 @@ namespace Ep128Emu {
     noBreakOnDataRead = n;
   }
 
-  void VirtualMachine::setSingleStepMode(bool isEnabled)
+  void VirtualMachine::setSingleStepMode(bool isEnabled, bool stepOverFlag)
   {
     (void) isEnabled;
+    (void) stepOverFlag;
   }
 
   void VirtualMachine::setBreakPointCallback(void (*breakPointCallback_)(

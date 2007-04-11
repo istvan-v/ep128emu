@@ -189,7 +189,7 @@ namespace Ep128Emu {
     // Set if the breakpoint callback should be called whenever the first byte
     // of a CPU instruction is read from memory. Breakpoints are ignored in
     // this mode.
-    virtual void setSingleStepMode(bool isEnabled);
+    virtual void setSingleStepMode(bool isEnabled, bool stepOverFlag = false);
     // Set function to be called when a breakpoint is triggered.
     virtual void setBreakPointCallback(void (*breakPointCallback_)(
                                            void *userData,

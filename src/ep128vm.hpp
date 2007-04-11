@@ -127,9 +127,11 @@ namespace Ep128 {
     int64_t   cpuSyncToNickCnt;         // in 2^-32 Z80 cycle units
     int64_t   daveCyclesPerNickCycle;   // in 2^-32 DAVE cycle units
     int64_t   daveCyclesRemaining;      // in 2^-32 DAVE cycle units
-    int       memoryWaitMode;           // set on write to port 0xBF
+    uint8_t   memoryWaitMode;           // set on write to port 0xBF
     bool      memoryTimingEnabled;
     bool      singleStepModeEnabled;
+    bool      singleStepModeStepOverFlag;
+    int32_t   singleStepModeNextAddr;
     int64_t   tapeSamplesPerDaveCycle;
     int64_t   tapeSamplesRemaining;
     bool      isRemote1On;
@@ -193,6 +195,7 @@ namespace Ep128 {
     static uint8_t exdosPortDebugReadCallback(void *userData, uint16_t addr);
     void stopDemoPlayback();
     void stopDemoRecording(bool writeFile_);
+    uint8_t checkSingleStepModeBreak();
    public:
     Ep128VM(Ep128Emu::VideoDisplay&, Ep128Emu::AudioOutput&);
     virtual ~Ep128VM();
@@ -244,7 +247,7 @@ namespace Ep128 {
     // Set if the breakpoint callback should be called whenever the first byte
     // of a CPU instruction is read from memory. Breakpoints are ignored in
     // this mode.
-    virtual void setSingleStepMode(bool isEnabled);
+    virtual void setSingleStepMode(bool isEnabled, bool stepOverFlag = false);
     // Returns the segment at page 'n' (0 to 3).
     virtual uint8_t getMemoryPage(int n) const;
     // Read a byte from memory. If 'isCPUAddress' is false, bits 14 to 21 of

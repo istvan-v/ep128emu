@@ -511,6 +511,14 @@ class Ep128EmuGUI_DebugWindow {open
   gui.vm.setSingleStepMode(true);
   this->hide();
 }}
+        xywh {265 415 80 25} color 38 selection_color 39 labelcolor 52
+      }
+      Fl_Button {} {
+        label {Step over}
+        callback {{
+  gui.vm.setSingleStepMode(true, true);
+  this->hide();
+}}
         xywh {355 415 80 25} color 38 selection_color 39 labelcolor 52
       }
       Fl_Button {} {

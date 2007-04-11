@@ -128,13 +128,9 @@ namespace Ep128 {
     }
     vm.updateCPUCycles(nCycles);
     if (!vm.singleStepModeEnabled)
-      return (vm.memory.read(addr));
+      return vm.memory.read(addr);
     // single step mode
-    uint8_t retval = vm.memory.readNoDebug(addr);
-    if (!vm.memory.checkIgnoreBreakPoint(vm.z80.getReg().PC.W.l))
-      vm.breakPointCallback(vm.breakPointCallbackUserData,
-                            false, false, addr, retval);
-    return retval;
+    return vm.checkSingleStepModeBreak();
   }
 
   uint8_t Ep128VM::Z80_::readOpcodeSecondByte()
@@ -150,14 +146,7 @@ namespace Ep128 {
         vm.videoMemoryWait();
     }
     vm.updateCPUCycles(nCycles);
-    if (!vm.singleStepModeEnabled)
-      return (vm.memory.read(addr));
-    // single step mode
-    uint8_t retval = vm.memory.readNoDebug(addr);
-    if (!vm.memory.checkIgnoreBreakPoint(vm.z80.getReg().PC.W.l))
-      vm.breakPointCallback(vm.breakPointCallbackUserData,
-                            false, false, addr, retval);
-    return retval;
+    return vm.memory.read(addr);
   }
 
   uint8_t Ep128VM::Z80_::readOpcodeByte(int offset)
@@ -569,7 +558,7 @@ namespace Ep128 {
 
   void Ep128VM::Dave_::setMemoryWaitMode(int mode)
   {
-    vm.memoryWaitMode = mode;
+    vm.memoryWaitMode = uint8_t(mode);
   }
 
   void Ep128VM::Dave_::setRemote1State(int state)
@@ -806,6 +795,68 @@ namespace Ep128 {
     return 0x00;
   }
 
+  uint8_t Ep128VM::checkSingleStepModeBreak()
+  {
+    uint16_t  addr = z80.getReg().PC.W.l;
+    uint8_t   b0 = memory.readNoDebug(addr);
+    if (singleStepModeStepOverFlag) {
+      if (singleStepModeNextAddr >= 0 &&
+          int32_t(addr) != singleStepModeNextAddr)
+        return b0;
+    }
+    int32_t   nxtAddr = int32_t(-1);
+    switch (b0) {
+    case 0x10:                                  // DJNZ
+    case 0xF7:                                  // EXOS
+      nxtAddr = (addr + 2) & 0xFFFF;
+      break;
+    case 0x76:                                  // HLT
+    case 0xC7:                                  // RST
+    case 0xCF:
+    case 0xD7:
+    case 0xDF:
+    case 0xE7:
+    case 0xEF:
+    case 0xFF:
+      nxtAddr = (addr + 1) & 0xFFFF;
+      break;
+    case 0xC4:                                  // CALL
+    case 0xCC:
+    case 0xCD:
+    case 0xD4:
+    case 0xDC:
+    case 0xE4:
+    case 0xEC:
+    case 0xF4:
+    case 0xFC:
+      nxtAddr = (addr + 3) & 0xFFFF;
+      break;
+    case 0xED:
+      {
+        uint8_t   b1 = memory.readNoDebug((addr + 1) & 0xFFFF);
+        switch (b1) {
+        case 0xB0:                              // LDIR
+        case 0xB1:                              // CPIR
+        case 0xB2:                              // INIR
+        case 0xB3:                              // OTIR
+        case 0xB8:                              // LDDR
+        case 0xB9:                              // CPDR
+        case 0xBA:                              // INDR
+        case 0xBB:                              // OTDR
+          nxtAddr = (addr + 2) & 0xFFFF;
+          break;
+        }
+      }
+      break;
+    }
+    singleStepModeNextAddr = nxtAddr;
+    if (!memory.checkIgnoreBreakPoint(addr))
+      breakPointCallback(breakPointCallbackUserData, false, false, addr, b0);
+    return b0;
+  }
+
+  // --------------------------------------------------------------------------
+
   Ep128VM::Ep128VM(Ep128Emu::VideoDisplay& display_,
                    Ep128Emu::AudioOutput& audioOutput_)
     : VirtualMachine(display_, audioOutput_),
@@ -826,6 +877,8 @@ namespace Ep128 {
       memoryWaitMode(1),
       memoryTimingEnabled(true),
       singleStepModeEnabled(false),
+      singleStepModeStepOverFlag(false),
+      singleStepModeNextAddr(int32_t(-1)),
       tapeSamplesPerDaveCycle(0),
       tapeSamplesRemaining(0),
       isRemote1On(false),
@@ -1223,10 +1276,15 @@ namespace Ep128 {
     }
   }
 
-  void Ep128VM::setSingleStepMode(bool isEnabled)
+  void Ep128VM::setSingleStepMode(bool isEnabled, bool stepOverFlag)
   {
     singleStepModeEnabled = isEnabled;
-    int   n = (isEnabled ? 4 : int(breakPointPriorityThreshold));
+    singleStepModeStepOverFlag = stepOverFlag;
+    int   n = 4;
+    if (!isEnabled) {
+      n = int(breakPointPriorityThreshold);
+      singleStepModeNextAddr = int32_t(-1);
+    }
     memory.setBreakPointPriorityThreshold(n);
     ioPorts.setBreakPointPriorityThreshold(n);
   }
@@ -1352,7 +1410,7 @@ namespace Ep128 {
       buf.writeByte(memory.getPage(1));
       buf.writeByte(memory.getPage(2));
       buf.writeByte(memory.getPage(3));
-      buf.writeByte(uint8_t(memoryWaitMode & 3));
+      buf.writeByte(memoryWaitMode & 3);
       buf.writeUInt32(uint32_t(cpuFrequency));
       buf.writeUInt32(uint32_t(daveFrequency));
       buf.writeUInt32(uint32_t(nickFrequency));
