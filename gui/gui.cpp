@@ -341,6 +341,7 @@ void Ep128EmuGUI::run()
 {
   config.setErrorCallback(&errorMessageCallback, (void *) this);
   // set initial window size from saved configuration
+  mainWindow->resizable((Fl_Widget *) 0);
   emulatorWindowGroup->resizable((Fl_Widget *) 0);
   emulatorWindow->color(36, 36);
   resizeWindow(config.display.width, config.display.height);
@@ -544,9 +545,10 @@ void Ep128EmuGUI::resizeWindow(int w, int h)
 
 int Ep128EmuGUI::handleFLTKEvent(int event)
 {
-  if (event == FL_FOCUS)
+  switch (event) {
+  case FL_FOCUS:
     return 1;
-  if (event == FL_UNFOCUS) {
+  case FL_UNFOCUS:
     functionKeyState = 0U;
     try {
       vmThread.resetKeyboard();
@@ -555,149 +557,167 @@ int Ep128EmuGUI::handleFLTKEvent(int event)
       errorMessage(e.what());
     }
     return 1;
-  }
-  if (event == FL_KEYUP || event == FL_KEYDOWN) {
-    int   keyCode = Fl::event_key();
-    bool  isKeyPress = (event == FL_KEYDOWN);
-    if (!(keyCode >= (FL_F + 9) && keyCode <= (FL_F + 12))) {
-      int   n = config.convertKeyCode(keyCode);
-      if (n >= 0 && (functionKeyState == 0U || !isKeyPress)) {
-        try {
-          vmThread.setKeyboardState(uint8_t(n), isKeyPress);
+  case FL_KEYUP:
+  case FL_KEYDOWN:
+    {
+      int   keyCode = Fl::event_key();
+      bool  isKeyPress = (event == FL_KEYDOWN);
+      if (!(keyCode >= (FL_F + 9) && keyCode <= (FL_F + 12))) {
+        int   n = config.convertKeyCode(keyCode);
+        if (n >= 0 && (functionKeyState == 0U || !isKeyPress)) {
+          try {
+#ifdef WIN32
+            if (keyCode == FL_Shift_L || keyCode == FL_Shift_R) {
+              // work around FLTK bug
+              int   tmp = config.convertKeyCode(FL_Shift_L);
+              if (tmp >= 0)
+                vmThread.setKeyboardState(uint8_t(tmp),
+                                          (GetKeyState(VK_LSHIFT) < 0));
+              tmp = config.convertKeyCode(FL_Shift_R);
+              if (tmp >= 0)
+                vmThread.setKeyboardState(uint8_t(tmp),
+                                          (GetKeyState(VK_RSHIFT) < 0));
+            }
+            else
+#endif
+            {
+              vmThread.setKeyboardState(uint8_t(n), isKeyPress);
+            }
+          }
+          catch (std::exception& e) {
+            errorMessage(e.what());
+          }
+          if (functionKeyState == 0U || isKeyPress)
+            return 1;
         }
-        catch (std::exception& e) {
-          errorMessage(e.what());
-        }
-        if (functionKeyState == 0U || isKeyPress)
-          return 1;
       }
-    }
-    int   n = -1;
-    switch (keyCode) {
-    case FL_Alt_L:
-      n = 28;
-      break;
-    case FL_Alt_R:
-      n = 29;
-      break;
-    case (FL_F + 5):
-    case (FL_F + 6):
-    case (FL_F + 7):
-    case (FL_F + 8):
-    case (FL_F + 9):
-    case (FL_F + 10):
-    case (FL_F + 11):
-    case (FL_F + 12):
-      n = keyCode - (FL_F + 5);
-      if (Fl::event_shift())
-        n += 8;
-      else if (Fl::event_ctrl())
-        n += 16;
-      break;
-    case 0x64:
-      if (Fl::event_alt() || !isKeyPress)
-        n = 24;
-      break;
-    case 0x6D:
-      if (Fl::event_alt() || !isKeyPress)
-        n = 25;
-      break;
-    case 0x77:
-      if (Fl::event_alt() || !isKeyPress)
-        n = 26;
-      break;
-    case FL_Pause:
-      n = 27;
-      break;
-    case FL_Page_Down:
-      n = 30;
-      break;
-    case FL_Page_Up:
-      n = 31;
-      break;
-    }
-    if (n >= 0) {
-      uint32_t  bitMask = 1U << n;
-      bool      wasPressed = !!(functionKeyState & bitMask);
-      if (isKeyPress != wasPressed) {
-        if (isKeyPress)
-          functionKeyState |= bitMask;
-        else
-          functionKeyState &= (bitMask ^ uint32_t(0xFFFFFFFFU));
-        if (isKeyPress) {
-          switch (n) {
-          case 0:                                       // F5:
-            menuCallback_Machine_TapePlay((Fl_Widget *) 0, (void *) this);
-            break;
-          case 1:                                       // F6:
-            menuCallback_Machine_OpenTape((Fl_Widget *) 0, (void *) this);
-            break;
-          case 2:                                       // F7:
-            menuCallback_File_LoadFile((Fl_Widget *) 0, (void *) this);
-            break;
-          case 4:                                       // F9:
-            menuCallback_Options_DpyMode((Fl_Widget *) 0, (void *) this);
-            break;
-          case 5:                                       // F10:
-            menuCallback_Machine_Pause((Fl_Widget *) 0, (void *) this);
-            break;
-          case 6:                                       // F11:
-            menuCallback_Machine_Reset((Fl_Widget *) 0, (void *) this);
-            break;
-          case 7:                                       // F12:
-            menuCallback_Machine_TapeNxtCP((Fl_Widget *) 0, (void *) this);
-            break;
-          case 8:                                       // Shift + F5:
-            menuCallback_Machine_TapeStop((Fl_Widget *) 0, (void *) this);
-            break;
-          case 9:                                       // Shift + F6:
-            menuCallback_Machine_TapeRecord((Fl_Widget *) 0, (void *) this);
-            break;
-          case 10:                                      // Shift + F7:
-            menuCallback_File_SaveSnapshot((Fl_Widget *) 0, (void *) this);
-            break;
-          case 12:                                      // Shift + F9:
-            menuCallback_Machine_TapePlay((Fl_Widget *) 0, (void *) this);
-            break;
-          case 13:                                      // Shift + F10:
-            menuCallback_Machine_TapeStop((Fl_Widget *) 0, (void *) this);
-            break;
-          case 14:                                      // Shift + F11:
-            menuCallback_Machine_ResetAll((Fl_Widget *) 0, (void *) this);
-            break;
-          case 15:                                      // Shift + F12:
-            menuCallback_Machine_TapeRecord((Fl_Widget *) 0, (void *) this);
-            break;
-          case 20:                                      // Ctrl + F9:
-            menuCallback_File_QSSave((Fl_Widget *) 0, (void *) this);
-            break;
-          case 21:                                      // Ctrl + F10:
-            menuCallback_File_QSLoad((Fl_Widget *) 0, (void *) this);
-            break;
-          case 22:                                      // Ctrl + F11:
-            menuCallback_Machine_ColdReset((Fl_Widget *) 0, (void *) this);
-            break;
-          case 23:                                      // Ctrl + F12:
-            menuCallback_File_StopDemo((Fl_Widget *) 0, (void *) this);
-            break;
-          case 24:                                      // Alt + D:
-            menuCallback_Options_FloppyCfg((Fl_Widget *) 0, (void *) this);
-            break;
-          case 25:                                      // Alt + M:
-            menuCallback_Debug_OpenDebugger((Fl_Widget *) 0, (void *) this);
-            break;
-          case 26:                                      // Alt + W:
-            menuCallback_Machine_FullSpeed((Fl_Widget *) 0, (void *) this);
-            break;
-          case 27:                                      // Pause:
-            menuCallback_Machine_Pause((Fl_Widget *) 0, (void *) this);
-            break;
-          case 30:                                      // PageDown:
-            menuCallback_Machine_QuickCfgL1((Fl_Widget *) 0, (void *) this);
-            break;
-          case 31:                                      // PageUp:
-            menuCallback_Machine_QuickCfgL2((Fl_Widget *) 0, (void *) this);
-            break;
+      int   n = -1;
+      switch (keyCode) {
+      case FL_Alt_L:
+        n = 28;
+        break;
+      case FL_Alt_R:
+        n = 29;
+        break;
+      case (FL_F + 5):
+      case (FL_F + 6):
+      case (FL_F + 7):
+      case (FL_F + 8):
+      case (FL_F + 9):
+      case (FL_F + 10):
+      case (FL_F + 11):
+      case (FL_F + 12):
+        n = keyCode - (FL_F + 5);
+        if (Fl::event_shift())
+          n += 8;
+        else if (Fl::event_ctrl())
+          n += 16;
+        break;
+      case 0x64:
+        if (Fl::event_alt() || !isKeyPress)
+          n = 24;
+        break;
+      case 0x6D:
+        if (Fl::event_alt() || !isKeyPress)
+          n = 25;
+        break;
+      case 0x77:
+        if (Fl::event_alt() || !isKeyPress)
+          n = 26;
+        break;
+      case FL_Pause:
+        n = 27;
+        break;
+      case FL_Page_Down:
+        n = 30;
+        break;
+      case FL_Page_Up:
+        n = 31;
+        break;
+      }
+      if (n >= 0) {
+        uint32_t  bitMask = 1U << n;
+        bool      wasPressed = !!(functionKeyState & bitMask);
+        if (isKeyPress != wasPressed) {
+          if (isKeyPress)
+            functionKeyState |= bitMask;
+          else
+            functionKeyState &= (bitMask ^ uint32_t(0xFFFFFFFFU));
+          if (isKeyPress) {
+            switch (n) {
+            case 0:                                     // F5:
+              menuCallback_Machine_TapePlay((Fl_Widget *) 0, (void *) this);
+              break;
+            case 1:                                     // F6:
+              menuCallback_Machine_OpenTape((Fl_Widget *) 0, (void *) this);
+              break;
+            case 2:                                     // F7:
+              menuCallback_File_LoadFile((Fl_Widget *) 0, (void *) this);
+              break;
+            case 4:                                     // F9:
+              menuCallback_Options_DpyMode((Fl_Widget *) 0, (void *) this);
+              break;
+            case 5:                                     // F10:
+              menuCallback_Machine_Pause((Fl_Widget *) 0, (void *) this);
+              break;
+            case 6:                                     // F11:
+              menuCallback_Machine_Reset((Fl_Widget *) 0, (void *) this);
+              break;
+            case 7:                                     // F12:
+              menuCallback_Machine_TapeNxtCP((Fl_Widget *) 0, (void *) this);
+              break;
+            case 8:                                     // Shift + F5:
+              menuCallback_Machine_TapeStop((Fl_Widget *) 0, (void *) this);
+              break;
+            case 9:                                     // Shift + F6:
+              menuCallback_Machine_TapeRecord((Fl_Widget *) 0, (void *) this);
+              break;
+            case 10:                                    // Shift + F7:
+              menuCallback_File_SaveSnapshot((Fl_Widget *) 0, (void *) this);
+              break;
+            case 12:                                    // Shift + F9:
+              menuCallback_Machine_TapePlay((Fl_Widget *) 0, (void *) this);
+              break;
+            case 13:                                    // Shift + F10:
+              menuCallback_Machine_TapeStop((Fl_Widget *) 0, (void *) this);
+              break;
+            case 14:                                    // Shift + F11:
+              menuCallback_Machine_ResetAll((Fl_Widget *) 0, (void *) this);
+              break;
+            case 15:                                    // Shift + F12:
+              menuCallback_Machine_TapeRecord((Fl_Widget *) 0, (void *) this);
+              break;
+            case 20:                                    // Ctrl + F9:
+              menuCallback_File_QSSave((Fl_Widget *) 0, (void *) this);
+              break;
+            case 21:                                    // Ctrl + F10:
+              menuCallback_File_QSLoad((Fl_Widget *) 0, (void *) this);
+              break;
+            case 22:                                    // Ctrl + F11:
+              menuCallback_Machine_ColdReset((Fl_Widget *) 0, (void *) this);
+              break;
+            case 23:                                    // Ctrl + F12:
+              menuCallback_File_StopDemo((Fl_Widget *) 0, (void *) this);
+              break;
+            case 24:                                    // Alt + D:
+              menuCallback_Options_FloppyCfg((Fl_Widget *) 0, (void *) this);
+              break;
+            case 25:                                    // Alt + M:
+              menuCallback_Debug_OpenDebugger((Fl_Widget *) 0, (void *) this);
+              break;
+            case 26:                                    // Alt + W:
+              menuCallback_Machine_FullSpeed((Fl_Widget *) 0, (void *) this);
+              break;
+            case 27:                                    // Pause:
+              menuCallback_Machine_Pause((Fl_Widget *) 0, (void *) this);
+              break;
+            case 30:                                    // PageDown:
+              menuCallback_Machine_QuickCfgL1((Fl_Widget *) 0, (void *) this);
+              break;
+            case 31:                                    // PageUp:
+              menuCallback_Machine_QuickCfgL2((Fl_Widget *) 0, (void *) this);
+              break;
+            }
           }
         }
       }
