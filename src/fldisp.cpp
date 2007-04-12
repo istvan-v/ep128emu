@@ -529,7 +529,7 @@ namespace Ep128Emu {
     : Fl_Window(xx, yy, ww, hh, lbl),
       FLTKDisplay_(),
       colormap(),
-      linesChanged((bool *) 0),
+      linesChanged((uint8_t *) 0),
       forceUpdateLineCnt(0),
       forceUpdateLineMask(0),
       redrawFlag(false)
@@ -539,9 +539,9 @@ namespace Ep128Emu {
     savedDisplayParameters.displayQuality = 0;
     savedDisplayParameters.bufferingMode = 0;
     try {
-      linesChanged = new bool[576];
+      linesChanged = new uint8_t[576];
       for (size_t n = 0; n < 576; n++)
-        linesChanged[n] = false;
+        linesChanged[n] = 0x00;
     }
     catch (...) {
       if (linesChanged)
@@ -629,7 +629,7 @@ namespace Ep128Emu {
           lineNumbers_[ycAnd3] = l1;
         else
           lineNumbers_[ycAnd3] = -1;
-        if (linesChanged[l0] || linesChanged[l1])
+        if ((linesChanged[l0] | linesChanged[l1]) & 0x80)
           skippingLines_ = false;
         if (ycAnd3 == 3 || yc == (displayHeight_ - 1)) {
           if (!skippingLines_) {
@@ -811,10 +811,6 @@ namespace Ep128Emu {
           fracY_ += 576;
           while (fracY_ >= displayHeight_) {
             fracY_ -= displayHeight_;
-            if (curLine_ & 1) {
-              linesChanged[curLine_ ^ 1] = false;
-              linesChanged[curLine_] = false;
-            }
             curLine_ = (curLine_ < 575 ? (curLine_ + 1) : curLine_);
           }
         }
@@ -822,8 +818,6 @@ namespace Ep128Emu {
           fracY_ += 288;
           while (fracY_ >= displayHeight_) {
             fracY_ -= displayHeight_;
-            linesChanged[curLine_] = false;
-            linesChanged[curLine_ | 1] = false;
             curLine_ = (curLine_ < 573 ? (curLine_ + 2) : curLine_);
           }
         }
@@ -835,20 +829,31 @@ namespace Ep128Emu {
     if (!screenshotCallbackCnt) {
       if (forceUpdateLineMask) {
         for (size_t yc = 0; yc < 576; yc++) {
-          if (!(forceUpdateLineMask & (uint8_t(1) << uint8_t((yc >> 3) & 7))))
+          if (linesChanged[yc] & 0x01) {
+            linesChanged[yc] = 0x00;
             continue;
+          }
+          if (!(forceUpdateLineMask & (uint8_t(1) << uint8_t((yc >> 3) & 7)))) {
+            linesChanged[yc] = 0x00;
+            continue;
+          }
           if (lineBuffers[yc] != (Message_LineData *) 0) {
             Message *m = lineBuffers[yc];
             lineBuffers[yc] = (Message_LineData *) 0;
             deleteMessage(m);
           }
-          linesChanged[yc] = true;
+          linesChanged[yc] = 0x80;
         }
         forceUpdateLineMask = 0;
       }
+      else {
+        std::memset(linesChanged, 0x00, 576);
+      }
     }
-    else
+    else {
+      std::memset(linesChanged, 0x00, 576);
       checkScreenshotCallback();
+    }
 
     messageQueueMutex.lock();
     framesPending = (framesPending > 0 ? (framesPending - 1) : 0);
@@ -890,11 +895,12 @@ namespace Ep128Emu {
           // check if this line has changed
           if (lineBuffers[msg->lineNum] != (Message_LineData *) 0) {
             if (*(lineBuffers[msg->lineNum]) == *msg) {
+              linesChanged[msg->lineNum] = 0x01;
               deleteMessage(m);
               continue;
             }
           }
-          linesChanged[msg->lineNum] = true;
+          linesChanged[msg->lineNum] = 0x81;
           if (lineBuffers[msg->lineNum] != (Message_LineData *) 0)
             deleteMessage(lineBuffers[msg->lineNum]);
           lineBuffers[msg->lineNum] = msg;
@@ -923,7 +929,7 @@ namespace Ep128Emu {
         tmp_dp.blendScale1 = 0.5;
         colormap.setParams(tmp_dp);
         for (size_t n = 0; n < 576; n++)
-          linesChanged[n] = true;
+          linesChanged[n] |= uint8_t(0x80);
       }
       deleteMessage(m);
     }
