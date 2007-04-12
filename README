@@ -290,9 +290,9 @@ Floppy / Configure...
   in that particular drive. It may also be possible to directly access a
   real disk by using the /dev/fd* devices (on Linux) or \\.\A: (on
   Windows) as the image file.
-  At most one of the geometry parameters can be zero or negative to have
-  the value calculated automatically from the other two and the file
-  size.
+  Any of the geometry parameters can be zero or negative to have the
+  value calculated automatically from the others (if available), the
+  image file size, and the file system header.
 
 Floppy / Remove disk A
 Floppy / Remove disk B

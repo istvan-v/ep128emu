@@ -276,11 +276,11 @@ namespace Ep128Emu {
                                   *floppyChanged_, -1.0, 240.0);
       std::sprintf(s, "floppy.%c.sides", int('a') + i);
       defineConfigurationVariable(*this, std::string(s),
-                                  floppy_->sides, int(2),
+                                  floppy_->sides, int(-1),
                                   *floppyChanged_, -1.0, 2.0);
       std::sprintf(s, "floppy.%c.sectorsPerTrack", int('a') + i);
       defineConfigurationVariable(*this, std::string(s),
-                                  floppy_->sectorsPerTrack, int(9),
+                                  floppy_->sectorsPerTrack, int(-1),
                                   *floppyChanged_, -1.0, 240.0);
     }
     // ----------------

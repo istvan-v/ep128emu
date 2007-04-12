@@ -29,7 +29,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
         xywh {10 10 380 395} box THIN_UP_BOX color 38
       } {
         Fl_Group {} {open
-          tooltip {Note: you can set at most one of the disk geometry parameters to -1 to have it calculated from the image file size} xywh {20 21 360 85} box ENGRAVED_FRAME color 38 labelcolor 52
+          tooltip {Note: you can set any of the disk geometry parameters to -1 to have it calculated from the image file size and the file system header} xywh {20 21 360 85} box ENGRAVED_FRAME color 38 labelcolor 52
         } {
           Fl_Input floppyAImageFileValuator {
             label {A: }
@@ -99,7 +99,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
           }
         }
         Fl_Group {} {open
-          tooltip {Note: you can set at most one of the disk geometry parameters to -1 to have it calculated from the image file size} xywh {20 117 360 85} box ENGRAVED_FRAME color 38 labelcolor 52
+          tooltip {Note: you can set any of the disk geometry parameters to -1 to have it calculated from the image file size and the file system header} xywh {20 117 360 85} box ENGRAVED_FRAME color 38 labelcolor 52
         } {
           Fl_Input floppyBImageFileValuator {
             label {B: }
@@ -169,7 +169,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
           }
         }
         Fl_Group {} {open
-          tooltip {Note: you can set at most one of the disk geometry parameters to -1 to have it calculated from the image file size} xywh {20 213 360 85} box ENGRAVED_FRAME color 38 labelcolor 52
+          tooltip {Note: you can set any of the disk geometry parameters to -1 to have it calculated from the image file size and the file system header} xywh {20 213 360 85} box ENGRAVED_FRAME color 38 labelcolor 52
         } {
           Fl_Input floppyCImageFileValuator {
             label {C: }
@@ -239,7 +239,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
           }
         }
         Fl_Group {} {open
-          tooltip {Note: you can set at most one of the disk geometry parameters to -1 to have it calculated from the image file size} xywh {20 309 360 85} box ENGRAVED_FRAME color 38 labelcolor 52
+          tooltip {Note: you can set any of the disk geometry parameters to -1 to have it calculated from the image file size and the file system header} xywh {20 309 360 85} box ENGRAVED_FRAME color 38 labelcolor 52
         } {
           Fl_Input floppyDImageFileValuator {
             label {D: }
