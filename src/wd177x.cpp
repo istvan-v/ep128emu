@@ -118,6 +118,7 @@ namespace Ep128Emu {
     diskChangeFlag = true;
     if (fileName_ == "")
       return;
+    unsigned char tmpBuf[512];
     bool    nTracksValid = (nTracks_ >= 1 && nTracks_ <= 240);
     bool    nSidesValid = (nSides_ >= 1 && nSides_ <= 2);
     bool    nSectorsPerTrackValid =
@@ -131,44 +132,69 @@ namespace Ep128Emu {
         else
           throw Exception("wd177x: error opening disk image file");
       }
-      else
-        std::setvbuf(imageFile, (char *) 0, _IONBF, 0);
+      std::setvbuf(imageFile, (char *) 0, _IONBF, 0);
       long    fileSize = -1L;
       if (std::fseek(imageFile, 0L, SEEK_END) >= 0)
         fileSize = std::ftell(imageFile);
-      if (!(fileSize > 0L && fileSize <= (240L * 2L * 240L * 512L))) {
-        if (!(nTracksValid && nSidesValid && nSectorsPerTrackValid))
-          throw Exception("wd177x: cannot determine size of disk image");
-        fileSize =
-            long(nTracks_) * long(nSides_) * long(nSectorsPerTrack_) * 512L;
+      if (fileSize > (240L * 2L * 240L * 512L))
+        fileSize = -1L;
+      long    nSectors_ = fileSize / 512L;
+      if (!nTracksValid) {
+        if (nSectors_ > 0L && nSidesValid && nSectorsPerTrackValid) {
+          nTracks_ = int(nSectors_ / (long(nSides_) * long(nSectorsPerTrack_)));
+          nTracksValid = true;
+        }
       }
-      else {
-        if (nTracks_ <= 0 && nSidesValid && nSectorsPerTrackValid)
-          nTracks_ =
-              int(fileSize / (long(nSides_) * long(nSectorsPerTrack_) * 512L));
-        else if (nSides_ <= 0 && nTracksValid && nSectorsPerTrackValid)
-          nSides_ =
-              int(fileSize / (long(nTracks_) * long(nSectorsPerTrack_) * 512L));
-        else if (nSectorsPerTrack_ <= 0 && nTracksValid && nSidesValid)
-          nSectorsPerTrack_ =
-              int(fileSize / (long(nTracks_) * long(nSides_) * 512L));
+      else if (!nSidesValid) {
+        if (nSectors_ > 0L && nTracksValid && nSectorsPerTrackValid) {
+          nSides_ = int(nSectors_ / (long(nTracks_) * long(nSectorsPerTrack_)));
+          nSidesValid = true;
+        }
       }
-      if (!(nTracks_ >= 1 && nTracks_ <= 240) &&
-           (nSides_ >= 1 && nSides_ <= 2) &&
-           (nSectorsPerTrack_ >= 1 && nSectorsPerTrack_ <= 240))
-        throw Exception("wd177x: invalid or inconsistent "
-                        "disk image size parameters");
-      fileSize =
-          long(nTracks_) * long(nSides_) * long(nSectorsPerTrack_) * 512L;
+      else if (!nSectorsPerTrackValid) {
+        if (nSectors_ > 0L && nTracksValid && nSidesValid) {
+          nSectorsPerTrack_ = int(nSectors_ / (long(nTracks_) * long(nSides_)));
+          nSectorsPerTrackValid = true;
+        }
+      }
+      if (!(nTracksValid && nSidesValid && nSectorsPerTrackValid)) {
+        // try to find out geometry parameters from FAT filesystem
+        if (std::fseek(imageFile, 0L, SEEK_SET) >= 0) {
+          if (std::fread(&(tmpBuf[0]), 1, 512, imageFile) == 512) {
+            nSectors_ = long(tmpBuf[0x13]) | (long(tmpBuf[0x14]) << 8);
+            if (!nSectors_) {
+              nSectors_ =
+                  long(tmpBuf[0x20]) | (long(tmpBuf[0x21]) << 8)
+                  | (long(tmpBuf[0x22]) << 16) | (long(tmpBuf[0x23]) << 24);
+            }
+            if (!nSidesValid)
+              nSides_ = int(tmpBuf[0x1A]) | (int(tmpBuf[0x1B]) << 8);
+            if (!nSectorsPerTrackValid)
+              nSectorsPerTrack_ = int(tmpBuf[0x18]) | (int(tmpBuf[0x19]) << 8);
+            if (!nTracksValid) {
+              if (nSides_ >= 1 && nSides_ <= 2 &&
+                  nSectorsPerTrack_ >= 1 && nSectorsPerTrack_ <= 240 &&
+                  nSectors_ >= 1L && nSectors_ <= (240L * 2L * 240L)) {
+                nTracks_ =
+                    int(nSectors_ / (long(nSides_) * long(nSectorsPerTrack_)));
+              }
+            }
+          }
+        }
+      }
+      if (!(nTracks_ >= 1 && nTracks_ <= 240 &&
+            nSides_ >= 1 && nSides_ <= 2 &&
+            nSectorsPerTrack_ >= 1 && nSectorsPerTrack_ <= 240))
+        throw Exception("wd177x: cannot determine size of disk image");
+      nSectors_ = long(nTracks_) * long(nSides_) * long(nSectorsPerTrack_);
+      fileSize = nSectors_ * 512L;
       bool    err = true;
       if (std::fseek(imageFile, fileSize - 512L, SEEK_SET) >= 0) {
-        int   i = 512;
-        do {
-          if (std::fgetc(imageFile) == EOF) {
-            err = (i != 0);
-            break;
+        if (std::fread(&(tmpBuf[0]), 1, 512, imageFile) == 512) {
+          if (std::fread(&(tmpBuf[0]), 1, 512, imageFile) == 0) {
+            err = false;
           }
-        } while (--i >= 0);
+        }
       }
       if (err)
         throw Exception("wd177x: invalid or inconsistent "
