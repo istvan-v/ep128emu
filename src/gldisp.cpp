@@ -982,8 +982,8 @@ namespace Ep128Emu {
       }
       deleteMessage(m);
     }
-    if (noInputTimer.getRealTime() > 0.33) {
-      noInputTimer.reset();
+    if (noInputTimer.getRealTime() > 0.6) {
+      noInputTimer.reset(0.4);
       if (redrawFlag) {
         // lost a frame
         messageQueueMutex.lock();

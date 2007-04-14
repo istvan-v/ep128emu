@@ -865,7 +865,6 @@ namespace Ep128Emu {
     if (redrawFlag) {
       redrawFlag = false;
       displayFrame();
-      noInputTimer.reset();
     }
   }
 
@@ -917,6 +916,7 @@ namespace Ep128Emu {
         }
         redrawFlag = true;
         deleteMessage(m);
+        noInputTimer.reset();
         if (screenshotCallbackCnt)
           checkScreenshotCallback();
         break;
@@ -933,7 +933,8 @@ namespace Ep128Emu {
       }
       deleteMessage(m);
     }
-    if (noInputTimer.getRealTime() > 0.33) {
+    if (noInputTimer.getRealTime() > 0.6) {
+      noInputTimer.reset(0.4);
       if (redrawFlag) {
         // lost a frame
         messageQueueMutex.lock();
