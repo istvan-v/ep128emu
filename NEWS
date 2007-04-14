@@ -13,7 +13,8 @@ Changes in version 2.0.1
     will not stop the emulation and open the debugger while the program
     counter is at any address for which the ignore flag is set
   * added I/O tab to the debugger (displays the state of I/O registers)
-  * the disassembler now supports the undocumented SLL instruction
+  * the disassembler now supports the undocumented SLL instruction, and
+    also prints RST 30 as 'EXOS nn'
   * added 'step over' button to the debugger; it is similar to 'step',
     but when encountering any subroutine call or looping instructions,
     it will continue program execution until the subroutine returns or

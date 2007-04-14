@@ -34,7 +34,7 @@ namespace Ep128 {
     " LDD  LDDR LDI  LDIR NEG  NOP  OR   OTDR OTIR OUT "        // 30
     " OUTD OUTI POP  PUSH RES  RET  RETI RETN RL   RLA "        // 40
     " RLC  RLCA RLD  RR   RRA  RRC  RRCA RRD  RST  SBC "        // 50
-    " SCF  SET  SLA  SLL  SRA  SRL  SUB  XOR ";                 // 60
+    " SCF  SET  SLA  SLL  SRA  SRL  SUB  XOR  EXOS";            // 60
 
   const char * Z80Disassembler::operandTypes[75] = {
     (char *) 0,         //  0: <none>
@@ -363,7 +363,7 @@ namespace Ep128 {
       4,  72,  20,      // F4: CALL P, nnnn
      43,  66,   0,      // F5: PUSH AF
      36,  17,   0,      // F6: OR nn
-     58,  15,   0,      // F7: RST 30
+     68,  17,   0,      // F7: RST 30 ( = EXOS nn)
      45,  71,   0,      // F8: RET M
      29,  53,  52,      // F9: LD SP, HL
      27,  71,  20,      // FA: JP M, nnnn
@@ -945,7 +945,7 @@ namespace Ep128 {
       addr = (addr + 1U) & addrMask;
     }
     opcodeTablePtr = (opcodeTablePtr + (size_t(opNum) * 3));
-    if (opcodeTablePtr[0] > 67)
+    if (opcodeTablePtr[0] > 68)
       invalidOpcode = true;
     unsigned char operand1Type = opcodeTablePtr[1];
     unsigned char operand2Type = opcodeTablePtr[2];
