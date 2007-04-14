@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -317,6 +317,13 @@ namespace Ep128Emu {
   void Timer::reset()
   {
     startTime = getRealTime_();
+  }
+
+  void Timer::reset(double t)
+  {
+    volatile uint64_t offs;
+    offs = uint64_t(int64_t((t / secondsPerTick) + (t >= 0.0 ? 0.5 : -0.5)));
+    startTime = getRealTime_() - offs;
   }
 
   void Timer::wait(double t)
