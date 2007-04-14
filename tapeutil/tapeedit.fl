@@ -3,7 +3,8 @@ version 1.0107
 do_not_include_H_from_C 
 header_name {.hpp} 
 code_name {.cpp}
-decl {\#include "ep128emu.hpp"} {} 
+decl {\#include "ep128emu.hpp"} {selected
+} 
 
 decl {\#include "system.hpp"} {} 
 
@@ -17,7 +18,7 @@ decl {\#include <FL/Fl_Text_Buffer.H>} {}
 
 decl {\#include "tapeedit.hpp"} {} 
 
-class TapeEditorGUI {open selected
+class TapeEditorGUI {open
 } {
   decl {int fileSelected;} {public
   }
@@ -384,7 +385,7 @@ class TapeEditorGUI {open selected
   }
   busyFlag = false;
 }}
-        tooltip {Load files from tape image} xywh {280 10 70 20} labelsize 13
+        tooltip {Load files from tape image (ep128emu tape file, sound file, or EPTE/TAPir tape file)} xywh {280 10 70 20} labelsize 13
       }
       Fl_Button {} {
         label {Import...}
@@ -631,7 +632,7 @@ Function {main(int argc, char **argv)} {open return_type int
     for (int i = 1; i < argc; i++) {
       if (!w->busyFlag) {
         w->busyFlag = true;
-        if (argv[i] != (char *) 0 && argv[i][0] != \'\\0\') {
+        if (argv[i] != (char *) 0 && argv[i][0] != '\\0') {
           std::string tmp;
           Ep128Emu::splitPath(std::string(argv[i]), w->tapeDir, tmp);
           w->progressWindow->show();
