@@ -1,0 +1,76 @@
+Changes in version 2.0.1
+------------------------
+
+  * improved timing accuracy of Z80 memory and NICK port accesses (this
+    is still not perfect); note that when playing demo files recorded by
+    previous releases, the timing may go out of sync because of this
+    change
+  * DAVE internal sample rate can now be changed with the sound clock
+    frequency option
+  * removed video memory latency option
+  * implemented 'ignore' watchpoints in the debugger; these can be
+    defined by using the 'i' suffix. Watchpoints and single step mode
+    will not stop the emulation and open the debugger while the program
+    counter is at any address for which the ignore flag is set
+  * added I/O tab to the debugger (displays the state of I/O registers)
+  * the disassembler now supports the undocumented SLL instruction
+  * added 'step over' button to the debugger; it is similar to 'step',
+    but when encountering any subroutine call or looping instructions,
+    it will continue program execution until the subroutine returns or
+    the loop is finished
+  * disassembly view address is automatically updated when the debugger
+    is opened by a watchpoint being triggered or using the step buttons;
+    the current tab is also remembered and not changed to 'general'
+  * new 't' debugger command for copying memory
+  * added limited (read-only) support for EPTE/TAPir format tape files
+  * fixed direct floppy disk access on Windows
+  * improved autodetection of disk geometry parameters; with a disk
+    image that contains a FAT filesystem, none of the parameters need to
+    be specified explicitly (all can be set to -1)
+  * added workaround for FLTK bug that resulted in the right shift key
+    being interpreted as left shift on Windows
+  * various minor improvements in the software video driver, such as
+    reduced aliasing when using a display resolution of 1152x864, and
+    slightly lower CPU usage with exact integer scaling ratios (i.e.
+    resolutions 384x288, 768x576, 1152x864, and 1536x1152 with the pixel
+    aspect ratio set to 1.0)
+  * when loading large ROM images, the GUI now automatically sets the
+    file name and offset for all segments
+  * minor bug fixes
+
+Changes in version 2.0.0
+------------------------
+
+  * removed Plus/4 emulation (moved to a separate plus4emu project)
+  * implemented new video mode that resamples the video output to the
+    refresh rate of the monitor; enabling this allows smoother display
+    update at the expense of higher CPU usage and some latency in the
+    video output
+  * screenshots can be saved in 8-bit RLE compressed TGA format
+  * quick loading of clock frequency and timing configuration presets
+    with PageUp/PageDown keys (useful for switching between normal and
+    fast Z80 speed)
+  * virtual file I/O can be disabled in the machine configuration
+  * bug fixes in NICK emulation
+  * attempt to fix OpenGL crash that occurs on some machines
+  * added some hacks to the audio driver to reduce timing jitter on
+    Windows; this still needs improvements
+  * various minor bug fixes
+
+Changes in version 2.0.0 beta1 (since version 1.6.1)
+----------------------------------------------------
+
+  * graphical user interface using the FLTK library
+  * a GUI debugger with support for listing CPU registers, memory dump,
+    disassembly, setting watchpoints, and more
+  * new audio and video drivers with more features and improved quality
+  * new ROM module that implements a FILE: EXOS device for direct file
+    access
+  * improved tape emulation
+  * demo recording (snapshot and keyboard events stored in a file)
+  * external joystick emulation (using the numeric keypad)
+  * various internal code changes to allow for the emulation of multiple
+    machine types
+  * added Commodore Plus/4 emulator mode with high accuracy and support
+    for SID emulation, as well as 1541 and 1581 floppy drives
+

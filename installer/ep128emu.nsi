@@ -68,6 +68,7 @@ Section "ep128emu2" SecMain
   File /nonfatal "..\LICENSE.PortAudio"
   File /nonfatal "..\LICENSE.dotconf"
   File /nonfatal "..\LICENSE.libsndfile"
+  File "/oname=news.txt" "..\NEWS"
   File "/oname=readme.txt" "..\README"
   File "..\ep128emu.exe"
   File "D:\MinGW\bin\libsndfile-1.dll"
@@ -123,6 +124,7 @@ Section "Source code" SecSrc
   SetOutPath "$INSTDIR\src"
 
   File "..\COPYING"
+  File "..\NEWS"
   File "..\README"
   File "..\SConstruct"
 
@@ -223,6 +225,7 @@ Section "Uninstall"
   Delete "$INSTDIR\LICENSE.PortAudio"
   Delete "$INSTDIR\LICENSE.dotconf"
   Delete "$INSTDIR\LICENSE.libsndfile"
+  Delete "$INSTDIR\news.txt"
   Delete "$INSTDIR\readme.txt"
   Delete "$INSTDIR\ep128emu.exe"
   Delete "$INSTDIR\libsndfile-1.dll"
