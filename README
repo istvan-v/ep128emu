@@ -221,6 +221,13 @@ Stop sound recording
 
   Close sound output file if it is currently being written.
 
+Save screenshot
+
+  Save a screenshot in 8 bit RLE compressed TGA format. The video output
+  is captured immediately after activating this menu item, and is saved
+  at a resolution of 768x576 without any processing (color correction,
+  effects, etc.).
+
 Quit
 
   Exit the emulator.
@@ -253,6 +260,26 @@ Reset / Reset machine configuration (Shift + F11)
   Reverting the configuration can be useful after snapshot loading or
   demo playback, as these may change the settings.
 
+Quick configuration / Load config 1 (PageDown)
+
+  Load the configuration file ~/.ep128emu/epvmcfg1.cfg, and apply the
+  new settings.
+
+Quick configuration / Load config 2 (PageUp)
+
+  Load the configuration file ~/.ep128emu/epvmcfg2.cfg, and apply the
+  new settings.
+
+Quick configuration / Save config 1
+
+  Save the current clock frequency and timing settings to
+  ~/.ep128emu/epvmcfg1.cfg.
+
+Quick configuration / Save config 2
+
+  Save the current clock frequency and timing settings to
+  ~/.ep128emu/epvmcfg2.cfg.
+
 'Options' menu
 --------------
 
@@ -272,7 +299,8 @@ Display / Set size to 1152x864
   no effect in fullscreen mode. While the window can also be resized
   using the window manager, sizes that are integer multiples of the
   actual screen resolution of the emulated machine may look better,
-  particularly when texture filtering is not used.
+  particularly when texture filtering is not used, and are also slightly
+  faster when using the software video driver.
 
 Sound / Increase volume
 
