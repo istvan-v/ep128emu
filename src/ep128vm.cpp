@@ -62,6 +62,24 @@ static uint64_t readDemoTimeCnt(Ep128Emu::File::Buffer& buf)
 
 namespace Ep128 {
 
+  inline void Ep128VM::updateCPUCycles(int cycles)
+  {
+    cpuCyclesRemaining -= (int64_t(cycles) << 32);
+    if (memoryTimingEnabled) {
+      while (cpuSyncToNickCnt >= cpuCyclesRemaining)
+        cpuSyncToNickCnt -= cpuCyclesPerNickCycle;
+    }
+  }
+
+  inline void Ep128VM::videoMemoryWait()
+  {
+    // use a fixed latency setting of 0.5625 Z80 cycles
+    cpuCyclesRemaining -= (((cpuCyclesRemaining - cpuSyncToNickCnt)
+                            + (int64_t(0xC8000000UL) << 1))
+                           & (int64_t(-1) - int64_t(0xFFFFFFFFUL)));
+    cpuSyncToNickCnt -= cpuCyclesPerNickCycle;
+  }
+
   Ep128VM::Z80_::Z80_(Ep128VM& vm_)
     : Z80(),
       vm(vm_),

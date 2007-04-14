@@ -166,22 +166,8 @@ namespace Ep128 {
     uint8_t   breakPointPriorityThreshold;
     // ----------------
     void updateTimingParameters();
-    inline void updateCPUCycles(int cycles)
-    {
-      cpuCyclesRemaining -= (int64_t(cycles) << 32);
-      if (memoryTimingEnabled) {
-        while (cpuSyncToNickCnt >= cpuCyclesRemaining)
-          cpuSyncToNickCnt -= cpuCyclesPerNickCycle;
-      }
-    }
-    inline void videoMemoryWait()
-    {
-      // use a fixed latency setting of 0.5625 Z80 cycles
-      cpuCyclesRemaining -= (((cpuCyclesRemaining - cpuSyncToNickCnt)
-                              + (int64_t(0xC8000000UL) << 1))
-                             & (int64_t(-1) - int64_t(0xFFFFFFFFUL)));
-      cpuSyncToNickCnt -= cpuCyclesPerNickCycle;
-    }
+    inline void updateCPUCycles(int cycles);
+    inline void videoMemoryWait();
     static uint8_t davePortReadCallback(void *userData, uint16_t addr);
     static void davePortWriteCallback(void *userData,
                                       uint16_t addr, uint8_t value);
