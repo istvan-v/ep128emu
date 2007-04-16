@@ -840,7 +840,7 @@ namespace Ep128 {
   {
   }
 
-  void Dave::reset()
+  void Dave::reset(bool isColdReset)
   {
     polycnt4_phase = 0;
     polycnt5_phase = 0;
@@ -859,9 +859,11 @@ namespace Ep128 {
       writePort(i, 0);
     // clear all interrupts
     writePort(0x14, 0xAA);
-    // reset keyboard state
-    for (int i = 0; i < 16; i++)
-      keyboardState[i] = 0xFF;
+    if (isColdReset) {
+      // reset keyboard state
+      for (int i = 0; i < 16; i++)
+        keyboardState[i] = 0xFF;
+    }
   }
 
   void Dave::setTapeInput(int state, int level)
@@ -1067,7 +1069,7 @@ namespace Ep128 {
       throw Ep128Emu::Exception("incompatible Dave snapshot format");
     }
     // reset DAVE (FIXME: needed ?)
-    this->reset();
+    this->reset(true);
     // load saved state
     clockDiv = (buf.readByte() & 1) | 2;
     clockCnt = buf.readByte() & 3;

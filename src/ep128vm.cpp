@@ -932,9 +932,8 @@ namespace Ep128 {
     z80.setVectorBase(0xFF);
     // reset
     z80.reset();
-    for (uint16_t i = 0x80; i <= 0x83; i++)
-      nick.writePort(i, 0x00);
-    dave.reset();
+    nick.randomizeRegisters();
+    dave.reset(true);
     // use NICK colormap
     Ep128Emu::VideoDisplay::DisplayParameters
         dp(display.getDisplayParameters());
@@ -1061,7 +1060,7 @@ namespace Ep128 {
     stopDemoPlayback();         // TODO: should be recorded as an event ?
     stopDemoRecording(false);
     z80.reset();
-    dave.reset();
+    dave.reset(isColdReset);
     isRemote1On = false;
     isRemote2On = false;
     setTapeMotorState(false);
@@ -1071,6 +1070,7 @@ namespace Ep128 {
     floppyDrives[2].reset();
     floppyDrives[3].reset();
     if (isColdReset) {
+      nick.randomizeRegisters();
       for (int i = 0; i < 256; i++) {
         if (memory.isSegmentRAM(uint8_t(i)))
           memory.loadSegment(uint8_t(i), false, (uint8_t *) 0, 0);

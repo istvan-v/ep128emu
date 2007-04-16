@@ -213,7 +213,7 @@ namespace Ep128 {
     // +------+-------+-------+-------+-------+-------+-------+-------+-------+
     void setKeyboardState(int keyCode, int state);
     // Reset DAVE.
-    void reset();
+    void reset(bool isColdReset = false);
     // save snapshot
     void saveState(Ep128Emu::File::Buffer&);
     void saveState(Ep128Emu::File&);
