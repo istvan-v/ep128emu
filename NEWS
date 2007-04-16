@@ -1,6 +1,9 @@
 Changes in version 2.0.2
 ------------------------
 
+  * keyboard matrix state is no longer cleared on soft reset
+  * NICK registers are initialized to random values on start-up
+
 Changes in version 2.0.1
 ------------------------
 
