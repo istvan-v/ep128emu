@@ -335,6 +335,16 @@ namespace Ep128Emu {
 #endif
   }
 
+  uint32_t Timer::getRandomSeedFromTime()
+  {
+    uint32_t  tmp1 = uint32_t(getRealTime_() & 0xFFFFFFFFUL);
+    uint64_t  tmp2 = tmp1 * uint64_t(0xC2B0C3CCUL);
+    tmp1 = ((uint32_t(tmp2) ^ uint32_t(tmp2 >> 32)) & uint32_t(0xFFFFFFFFUL));
+    tmp2 = tmp1 * uint64_t(0xC2B0C3CCUL);
+    tmp1 = ((uint32_t(tmp2) ^ uint32_t(tmp2 >> 32)) & uint32_t(0xFFFFFFFFUL));
+    return tmp1;
+  }
+
   // --------------------------------------------------------------------------
 
   void stripString(std::string& s)

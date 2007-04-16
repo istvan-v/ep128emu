@@ -20,6 +20,7 @@
 #include "ep128emu.hpp"
 #include "memory.hpp"
 #include "nick.hpp"
+#include "system.hpp"
 
 namespace Ep128 {
 
@@ -836,6 +837,7 @@ namespace Ep128 {
       lineBuf = (uint8_t *) 0;
       throw;
     }
+    randomizeRegisters();
   }
 
   Nick::~Nick()
@@ -914,6 +916,15 @@ namespace Ep128 {
                      | (lptClockEnabled ? 0xF0 : 0xB0));
     }
     return 0x00;                // not reached
+  }
+
+  void Nick::randomizeRegisters()
+  {
+    uint32_t  tmp = Ep128Emu::Timer::getRandomSeedFromTime();
+    writePort(0, uint8_t(tmp & 0xFF));
+    writePort(1, uint8_t((tmp >> 8) & 0xFF));
+    writePort(2, uint8_t((tmp >> 16) & 0xFF));
+    writePort(3, uint8_t(((tmp >> 24) & 0xFF) | 0xF0));
   }
 
   void Nick::irqStateChange(bool newState)

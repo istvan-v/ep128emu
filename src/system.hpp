@@ -128,6 +128,7 @@ namespace Ep128Emu {
     void reset();
     void reset(double t);
     static void wait(double t);
+    static uint32_t getRandomSeedFromTime();
   };
 
   // remove leading and trailing whitespace from string
