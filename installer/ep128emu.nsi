@@ -14,7 +14,7 @@
 
   ;Name and file
   Name "ep128emu"
-  OutFile "ep128emu-2.0.1.exe"
+  OutFile "ep128emu-2.0.2.exe"
 
   ;Default installation folder
   InstallDir "$PROGRAMFILES\ep128emu2"

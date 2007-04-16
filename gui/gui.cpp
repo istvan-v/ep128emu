@@ -223,9 +223,9 @@ void Ep128EmuGUI::updateDisplay(double t)
   if (isPaused_ != oldPauseFlag) {
     oldPauseFlag = isPaused_;
     if (isPaused_)
-      mainWindow->label("ep128emu 2.0.1 (paused)");
+      mainWindow->label("ep128emu 2.0.2 beta (paused)");
     else
-      mainWindow->label("ep128emu 2.0.1");
+      mainWindow->label("ep128emu 2.0.2 beta");
   }
   int   newDemoStatus = (isRecordingDemo_ ? 2 : (isPlayingDemo_ ? 1 : 0));
   if (newDemoStatus != oldDemoStatus) {
