@@ -1,6 +1,11 @@
 Changes in version 2.0.2
 ------------------------
 
+  * implemented Spectrum emulator
+  * implemented real time clock
+  * in the default keyboard map, Home can also be used now as HOLD, and
+    End as STOP; the original keys (Pause/Break and PrintScreen/SysRq)
+    did not work on some machines
   * keyboard matrix state is no longer cleared on soft reset
   * NICK registers are initialized to random values on start-up
 
