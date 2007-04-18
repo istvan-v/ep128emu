@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -128,6 +128,32 @@ namespace Ep128Emu {
     return n;
   }
 
+  int64_t File::Buffer::readInt64()
+  {
+    uint64_t  n = readByte();
+    n = (n << 8) | readByte();
+    n = (n << 8) | readByte();
+    n = (n << 8) | readByte();
+    n = (n << 8) | readByte();
+    n = (n << 8) | readByte();
+    n = (n << 8) | readByte();
+    n = (n << 8) | readByte();
+    return int64_t(n);
+  }
+
+  uint64_t File::Buffer::readUInt64()
+  {
+    uint64_t  n = readByte();
+    n = (n << 8) | readByte();
+    n = (n << 8) | readByte();
+    n = (n << 8) | readByte();
+    n = (n << 8) | readByte();
+    n = (n << 8) | readByte();
+    n = (n << 8) | readByte();
+    n = (n << 8) | readByte();
+    return n;
+  }
+
   double File::Buffer::readFloat()
   {
     int32_t   i = readInt32();
@@ -183,6 +209,30 @@ namespace Ep128Emu {
 
   void File::Buffer::writeUInt32(uint32_t n)
   {
+    writeByte(uint8_t(n >> 24));
+    writeByte(uint8_t(n >> 16));
+    writeByte(uint8_t(n >> 8));
+    writeByte(uint8_t(n));
+  }
+
+  void File::Buffer::writeInt64(int64_t n)
+  {
+    writeByte(uint8_t(uint64_t(n) >> 56));
+    writeByte(uint8_t(uint64_t(n) >> 48));
+    writeByte(uint8_t(uint64_t(n) >> 40));
+    writeByte(uint8_t(uint64_t(n) >> 32));
+    writeByte(uint8_t(uint64_t(n) >> 24));
+    writeByte(uint8_t(uint64_t(n) >> 16));
+    writeByte(uint8_t(uint64_t(n) >> 8));
+    writeByte(uint8_t(uint64_t(n)));
+  }
+
+  void File::Buffer::writeUInt64(uint64_t n)
+  {
+    writeByte(uint8_t(n >> 56));
+    writeByte(uint8_t(n >> 48));
+    writeByte(uint8_t(n >> 40));
+    writeByte(uint8_t(n >> 32));
     writeByte(uint8_t(n >> 24));
     writeByte(uint8_t(n >> 16));
     writeByte(uint8_t(n >> 8));

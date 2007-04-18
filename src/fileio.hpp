@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2006 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -36,12 +36,16 @@ namespace Ep128Emu {
       bool readBoolean();
       int32_t readInt32();
       uint32_t readUInt32();
+      int64_t readInt64();
+      uint64_t readUInt64();
       double readFloat();
       std::string readString();
       void writeByte(unsigned char n);
       void writeBoolean(bool n);
       void writeInt32(int32_t n);
       void writeUInt32(uint32_t n);
+      void writeInt64(int64_t n);
+      void writeUInt64(uint64_t n);
       void writeFloat(double n);
       void writeString(const std::string& n);
       void writeData(const unsigned char *buf_, size_t nBytes);
