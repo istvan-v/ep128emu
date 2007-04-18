@@ -341,10 +341,8 @@ namespace Ep128Emu {
     }
     curLine += 2;
     if (++lineCnt >= 500) {
-#if 0
       lineCnt = 312;
       vsyncState = false;
-#endif
       vsyncStateChange(true, 8);
       vsyncStateChange(false, 28);
     }

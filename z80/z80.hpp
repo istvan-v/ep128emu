@@ -46,7 +46,8 @@
 #define Z80_EXECUTE_INTERRUPT_HANDLER_FLAG      0x0002
 #define Z80_EXECUTING_HALT_FLAG                 0x0004
 #define Z80_INTERRUPT_FLAG                      0x0008
-#define Z80_FLAGS_MASK                          0x000F
+#define Z80_NMI_FLAG                            0x0010
+#define Z80_FLAGS_MASK                          0x001F
 
 #ifndef CPC_LSB_FIRST
 #  if defined(__i386__) || defined(__x86_64__) || defined(_WIN32)
@@ -232,11 +233,11 @@ namespace Ep128 {
     void INI();
     void IND();
     void DAA();
+    void executeInterrupt();
    public:
     Z80();
     virtual ~Z80();
     void reset();
-    void executeInterrupt();
     const Z80_REGISTERS& getReg() const
     {
       return this->R;
@@ -245,7 +246,11 @@ namespace Ep128 {
     {
       return this->R;
     }
+    // execute non-maskable interrupt immediately
     void NMI();
+    // schedule non-maskable interrupt to be executed
+    // after completing an instruction
+    void NMI_();
     void triggerInterrupt();
     void clearInterrupt();
     void setVectorBase(int);

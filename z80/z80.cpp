@@ -8838,12 +8838,19 @@ namespace Ep128 {
       break;
     }
     /* check interrupts? */
-    if ((R.Flags & (Z80_CHECK_INTERRUPT_FLAG |
-                    Z80_EXECUTE_INTERRUPT_HANDLER_FLAG)) ==
-        (Z80_CHECK_INTERRUPT_FLAG | Z80_EXECUTE_INTERRUPT_HANDLER_FLAG)) {
-      executeInterrupt();
+    if (R.Flags & (Z80_EXECUTE_INTERRUPT_HANDLER_FLAG | Z80_NMI_FLAG)) {
+      if (!(R.Flags & Z80_NMI_FLAG)) {
+        if (R.IFF1) {
+          if (R.Flags & Z80_CHECK_INTERRUPT_FLAG) {
+            executeInterrupt();
+          }
+        }
+      }
+      else {
+        this->NMI();
+      }
     }
   }
 
-}
+}       // namespace Ep128
 

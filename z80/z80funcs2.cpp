@@ -29,47 +29,44 @@ namespace Ep128 {
 
   void Z80::executeInterrupt()
   {
-    if (R.IFF1) {
-      R.IFF1 = 0;
-      R.IFF2 = 0;
+    R.IFF1 = 0;
+    R.IFF2 = 0;
 
-      if (R.Flags & Z80_EXECUTING_HALT_FLAG) {
-        ADD_PC(1);
-      }
-
+    if (R.Flags & Z80_EXECUTING_HALT_FLAG) {
+      ADD_PC(1);
       R.Flags &= ~Z80_EXECUTING_HALT_FLAG;
+    }
 
-      ackInterruptFunction();
+    ackInterruptFunction();
 
-      switch (R.IM) {
-      case 0x00:
-        // unsupported
-        break;
-      case 0x01:
-        {
-          // The number of cycles required to complete the instruction
-          // is two more than normal due to the two added wait states
-          updateCycles(7);
-          // push return address onto stack
-          PUSH(R.PC.W.l);
-          // set program counter address
-          R.PC.W.l = 0x0038;
-        }
-        break;
-      case 0x02:
-        {
-          Z80_WORD Vector;
-          Z80_WORD Address;
-          // 19 clock cycles for this mode. 8 for vector,
-          // six for program counter, six to obtain jump address
-          updateCycles(7);
-          PUSH(R.PC.W.l);
-          Vector = (R.I << 8) | (R.InterruptVectorBase);
-          Address = readMemoryWord(Vector);
-          R.PC.W.l = Address;
-        }
-        break;
+    switch (R.IM) {
+    case 0x00:
+      // unsupported
+      break;
+    case 0x01:
+      {
+        // The number of cycles required to complete the instruction
+        // is two more than normal due to the two added wait states
+        updateCycles(7);
+        // push return address onto stack
+        PUSH(R.PC.W.l);
+        // set program counter address
+        R.PC.W.l = 0x0038;
       }
+      break;
+    case 0x02:
+      {
+        Z80_WORD Vector;
+        Z80_WORD Address;
+        // 19 clock cycles for this mode. 8 for vector,
+        // six for program counter, six to obtain jump address
+        updateCycles(7);
+        PUSH(R.PC.W.l);
+        Vector = (R.I << 8) | (R.InterruptVectorBase);
+        Address = readMemoryWord(Vector);
+        R.PC.W.l = Address;
+      }
+      break;
     }
   }
 
@@ -198,17 +195,28 @@ namespace Ep128 {
     R.Flags &= ~
         (Z80_EXECUTING_HALT_FLAG |
          Z80_CHECK_INTERRUPT_FLAG |
-         Z80_EXECUTE_INTERRUPT_HANDLER_FLAG | Z80_INTERRUPT_FLAG);
+         Z80_EXECUTE_INTERRUPT_HANDLER_FLAG | Z80_INTERRUPT_FLAG |
+         Z80_NMI_FLAG);
   }
 
   void Z80::NMI()
   {
-    /* disable maskable ints */
+    R.Flags = R.Flags & (~Z80_NMI_FLAG);
+    if (R.Flags & Z80_EXECUTING_HALT_FLAG) {
+      ADD_PC(1);
+      R.Flags &= ~Z80_EXECUTING_HALT_FLAG;
+    }
+    // disable maskable ints
     R.IFF1 = 0;
-    /* push return address on stack */
+    // push return address on stack
     PUSH(R.PC.W.l);
-    /* set program counter address */
+    // set program counter address
     R.PC.W.l = 0x0066;
+  }
+
+  void Z80::NMI_()
+  {
+    R.Flags |= Z80_NMI_FLAG;
   }
 
   void Z80::triggerInterrupt()
