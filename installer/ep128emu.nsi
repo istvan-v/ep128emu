@@ -189,7 +189,7 @@ Section "Download ROM images" SecDLRoms
 
     Pop $0
     StrCmp $0 "" downloadLoopDone 0
-    NSISdl::download "http://www.sharemation.com/IstvanV/roms/$0" "$INSTDIR\roms\$0"
+    NSISdl::download "http://ep128emu.enterpriseforever.org/roms/$0" "$INSTDIR\roms\$0"
     Pop $R0
     StrCmp $R0 "success" downloadLoop 0
     StrCmp $R0 "cancel" downloadLoop 0

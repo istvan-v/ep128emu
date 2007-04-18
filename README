@@ -110,7 +110,8 @@ configuration files and ROM images:
     ~/.ep128emu/progs, and ~/.ep128emu/tape
   * copy the file 'roms/epfileio.rom' from the sources to
     ~/.ep128emu/roms
-  * download http://www.sharemation.com/IstvanV/roms/ep128emu_roms.zip,
+  * download
+    http://ep128emu.enterpriseforever.org/roms/ep128emu_roms.zip,
     and extract it to ~/.ep128emu/roms
   * run './makecfg ~/.ep128emu' to create the initial configuration
     files
