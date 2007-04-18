@@ -31,6 +31,7 @@
 
 #include <cstdio>
 #include <vector>
+#include <ctime>
 
 static void writeDemoTimeCnt(Ep128Emu::File::Buffer& buf, uint64_t n)
 {
@@ -222,10 +223,21 @@ namespace Ep128 {
     }
     vm.updateCPUCycles(nCycles);
     vm.memory.write(addr, value);
+    if (vm.spectrumEmulatorEnabled) {
+      uint32_t  tmp = uint32_t(addr) & 0x3FFFU;
+      tmp = tmp | (uint32_t(vm.pageTable[addr >> 14]) << 14);
+      if (tmp >= 0x3F9800U && tmp <= 0x3F9AFFU)
+        vm.spectrumEmulatorNMI_AttrWrite(tmp, value);
+    }
   }
 
   void Ep128VM::Z80_::writeMemoryWord(uint16_t addr, uint16_t value)
   {
+    if (vm.spectrumEmulatorEnabled) {
+      writeMemory(addr, uint8_t(value & 0xFF));
+      writeMemory((addr + 1) & 0xFFFF, uint8_t(value >> 8));
+      return;
+    }
     if (vm.memoryTimingEnabled) {
       if (vm.pageTable[addr >> 14] < 0xFC) {
         vm.updateCPUCycles(vm.memoryWaitMode == 0 ? 4 : 3);
@@ -250,11 +262,21 @@ namespace Ep128 {
 
   void Ep128VM::Z80_::doOut(uint16_t addr, uint8_t value)
   {
+    if (vm.spectrumEmulatorEnabled) {
+      if ((addr & 0xFF) == 0xFE) {
+        vm.spectrumEmulatorIOWriteCallback(&vm, addr, value);
+        return;
+      }
+    }
     vm.ioPorts.write(addr, value);
   }
 
   uint8_t Ep128VM::Z80_::doIn(uint16_t addr)
   {
+    if (vm.spectrumEmulatorEnabled) {
+      if ((addr & 0xFF) == 0xFE)
+        return vm.spectrumEmulatorIOReadCallback(&vm, addr);
+    }
     return vm.ioPorts.read(addr);
   }
 
@@ -282,7 +304,7 @@ namespace Ep128 {
     uint8_t n = vm.readMemory((uint16_t(R.PC.W.l) + 3) & 0xFFFF, true);
     if (n > 0x0F)
       return;
-    if (vm.isRecordingDemo || vm.isPlayingDemo) {
+    if (vm.isRecordingDemo | vm.isPlayingDemo) {
       if (n >= 0x01 && n <= 0x0B) {
         // file I/O is disabled while recording or playing demo
         R.AF.B.h = 0xE7;
@@ -472,11 +494,11 @@ namespace Ep128 {
       break;
     case 0x0E:                          // get if default device is 'FILE:'
       R.AF.B.h = uint8_t(defaultDeviceIsFILE &&
-                         !(vm.isRecordingDemo ||
-                           vm.isPlayingDemo) ? 0x01 : 0x00);
+                         !(vm.isRecordingDemo | vm.isPlayingDemo) ?
+                         0x01 : 0x00);
       break;
     case 0x0F:                          // set if default device is 'FILE:'
-      if (!(vm.isRecordingDemo || vm.isPlayingDemo))
+      if (!(vm.isRecordingDemo | vm.isPlayingDemo))
         defaultDeviceIsFILE = (R.AF.B.h != 0x00);
       break;
     default:
@@ -726,7 +748,7 @@ namespace Ep128 {
   {
     Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
     // floppy emulation is disabled while recording or playing demo
-    if (!(vm.isRecordingDemo || vm.isPlayingDemo)) {
+    if (!(vm.isRecordingDemo | vm.isPlayingDemo)) {
       if (vm.currentFloppyDrive <= 3) {
         Ep128Emu::WD177x& floppyDrive = vm.floppyDrives[vm.currentFloppyDrive];
         switch (addr) {
@@ -753,7 +775,7 @@ namespace Ep128 {
   {
     Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
     // floppy emulation is disabled while recording or playing demo
-    if (!(vm.isRecordingDemo || vm.isPlayingDemo)) {
+    if (!(vm.isRecordingDemo | vm.isPlayingDemo)) {
       if (vm.currentFloppyDrive <= 3) {
         Ep128Emu::WD177x& floppyDrive = vm.floppyDrives[vm.currentFloppyDrive];
         switch (addr) {
@@ -811,6 +833,104 @@ namespace Ep128 {
       }
     }
     return 0x00;
+  }
+
+  uint8_t Ep128VM::spectrumEmulatorIOReadCallback(void *userData, uint16_t addr)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    if (vm.spectrumEmulatorEnabled) {
+      switch (addr & 0xFF) {
+      case 0x40:
+      case 0x41:
+      case 0x42:
+      case 0x43:
+        return vm.spectrumEmulatorIOPorts[addr & 3];
+      case 0xFE:
+        {
+          uint32_t  tmp = uint32_t(addr) & 0x3FFFU;
+          tmp = tmp | (uint32_t(vm.pageTable[addr >> 14]) << 14);
+          vm.spectrumEmulatorIOPorts[0] = uint8_t((tmp >> 8) & 0xFF);
+          vm.spectrumEmulatorIOPorts[1] = uint8_t(tmp & 0xFF);
+        }
+        vm.spectrumEmulatorIOPorts[2] = 0xFF;
+        vm.spectrumEmulatorIOPorts[3] = 0x3F;
+        vm.z80.NMI_();
+        break;
+      }
+    }
+    return 0xFF;
+  }
+
+  void Ep128VM::spectrumEmulatorIOWriteCallback(void *userData,
+                                                uint16_t addr, uint8_t value)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    if (vm.spectrumEmulatorEnabled) {
+      switch (addr & 0xFF) {
+      case 0x44:
+        vm.spectrumEmulatorEnabled = bool(value & 0x80);
+        break;
+      case 0xFE:
+        {
+          uint32_t  tmp = uint32_t(addr) & 0x3FFFU;
+          tmp = tmp | (uint32_t(vm.pageTable[addr >> 14]) << 14);
+          vm.spectrumEmulatorIOPorts[0] = uint8_t((tmp >> 8) & 0xFF);
+          vm.spectrumEmulatorIOPorts[1] = uint8_t(tmp & 0xFF);
+        }
+        vm.spectrumEmulatorIOPorts[2] =
+            uint8_t(((value & 0x06) >> 1) | ((value & 0x01) << 2)
+                    | ((value & 0x40) >> 3) | (value & 0x30)
+                    | ((value & 0x08) << 3) | ((value & 0x40) << 1));
+        vm.spectrumEmulatorIOPorts[3] = 0x9F;
+        vm.z80.NMI_();
+        break;
+      }
+    }
+    else if ((addr & 0xFF) == 0x44 && (value & 0x80) != 0)
+      vm.spectrumEmulatorEnabled = true;
+  }
+
+  uint8_t Ep128VM::cmosMemoryIOReadCallback(void *userData, uint16_t addr)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    switch (addr) {
+    case 0x00:
+      return vm.cmosMemoryRegisterSelect;
+    case 0x01:
+      {
+        uint8_t tmp = vm.cmosMemoryRegisterSelect & 0x3F;
+        switch (tmp) {
+        case 0x0A:
+          // NOTE: this register is assumed to be checked
+          // before reading time and date
+          vm.updateRTC();
+          return 0x00;
+        case 0x0B:
+          return (vm.cmosMemory[tmp] & uint8_t(0x06));
+        case 0x0C:
+          return 0x00;
+        case 0x0D:
+          return 0x80;
+        default:
+          return (vm.cmosMemory[tmp]);
+        }
+      }
+    }
+    return 0xFF;
+  }
+
+  void Ep128VM::cmosMemoryIOWriteCallback(void *userData,
+                                          uint16_t addr, uint8_t value)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    switch (addr) {
+    case 0x00:
+      vm.cmosMemoryRegisterSelect = value;
+      break;
+    case 0x01:
+      vm.cmosMemory[vm.cmosMemoryRegisterSelect & 0x3F] = value;
+      break;
+    }
   }
 
   uint8_t Ep128VM::checkSingleStepModeBreak()
@@ -873,6 +993,68 @@ namespace Ep128 {
     return b0;
   }
 
+  void Ep128VM::spectrumEmulatorNMI_AttrWrite(uint32_t addr, uint8_t value)
+  {
+    spectrumEmulatorIOPorts[0] = uint8_t((addr >> 8) & 0xFF);
+    spectrumEmulatorIOPorts[1] = uint8_t(addr & 0xFF);
+    spectrumEmulatorIOPorts[2] =
+        uint8_t(((value & 0x06) >> 1) | ((value & 0x01) << 2)
+                | ((value & 0x40) >> 3) | (value & 0x30)
+                | ((value & 0x08) << 3) | ((value & 0x40) << 1));
+    spectrumEmulatorIOPorts[3] = 0xDF;
+    z80.NMI_();
+  }
+
+  void Ep128VM::updateRTC()
+  {
+    std::time_t newTime = std::time((std::time_t *) 0);
+    if (int64_t(newTime) == prvRTCTime)
+      return;
+    if (isRecordingDemo | isPlayingDemo)
+      return;
+    prvRTCTime = int64_t(newTime);
+    std::tm   tmp;
+    std::memcpy(&tmp, std::localtime(&newTime), sizeof(std::tm));
+    cmosMemory[0x00] = uint8_t(tmp.tm_sec);
+    cmosMemory[0x02] = uint8_t(tmp.tm_min);
+    cmosMemory[0x04] = uint8_t(tmp.tm_hour);
+    cmosMemory[0x06] = uint8_t(tmp.tm_wday + 1);
+    cmosMemory[0x07] = uint8_t(tmp.tm_mday);
+    cmosMemory[0x08] = uint8_t(tmp.tm_mon + 1);
+    cmosMemory[0x09] = uint8_t((tmp.tm_year + 20) % 100);
+    if (cmosMemory[0x0B] & 0x02) {
+      // 12 hours mode
+      int     h = cmosMemory[0x04];
+      h = (h > 12 ? ((h - 12) | 0x80) : (h < 12 ? (h > 0 ? h : 12) : 0x8C));
+      cmosMemory[0x04] = uint8_t(h);
+    }
+    if (!(cmosMemory[0x0B] & 0x04)) {
+      // BCD mode
+      for (int i = 0; i < 10; i++) {
+        if (i < 6) {
+          if (i & 1)
+            continue;
+          if (i == 4) {
+            uint8_t b7 = cmosMemory[i] & 0x80;
+            uint8_t b0to6 = cmosMemory[i] & 0x7F;
+            cmosMemory[i] = uint8_t(((b0to6 / 10) << 4) | (b0to6 % 10)) | b7;
+            continue;
+          }
+        }
+        cmosMemory[i] =
+            uint8_t(((cmosMemory[i] / 10) << 4) | (cmosMemory[i] % 10));
+      }
+    }
+  }
+
+  void Ep128VM::resetCMOSMemory()
+  {
+    cmosMemoryRegisterSelect = 0xFF;
+    for (int i = 0; i < 64; i++)
+      cmosMemory[i] = 0x00;
+    prvRTCTime = int64_t(-1);
+  }
+
   // --------------------------------------------------------------------------
 
   Ep128VM::Ep128VM(Ep128Emu::VideoDisplay& display_,
@@ -908,10 +1090,15 @@ namespace Ep128 {
       snapshotLoadFlag(false),
       demoTimeCnt(0U),
       currentFloppyDrive(0xFF),
-      breakPointPriorityThreshold(0)
+      breakPointPriorityThreshold(0),
+      cmosMemoryRegisterSelect(0xFF),
+      spectrumEmulatorEnabled(false),
+      prvRTCTime(int64_t(-1))
   {
-    for (size_t i = 0; i < 4; i++)
+    for (size_t i = 0; i < 4; i++) {
       pageTable[i] = 0x00;
+      spectrumEmulatorIOPorts[i] = 0xFF;
+    }
     updateTimingParameters();
     // register I/O callbacks
     ioPorts.setReadCallback(0xA0, 0xBF, &davePortReadCallback, this, 0xA0);
@@ -934,6 +1121,7 @@ namespace Ep128 {
     z80.reset();
     nick.randomizeRegisters();
     dave.reset(true);
+    resetCMOSMemory();
     // use NICK colormap
     Ep128Emu::VideoDisplay::DisplayParameters
         dp(display.getDisplayParameters());
@@ -964,6 +1152,21 @@ namespace Ep128 {
                                  &exdosPortDebugReadCallback, this, 0x10);
     ioPorts.setDebugReadCallback(0x1C, 0x1C,
                                  &exdosPortDebugReadCallback, this, 0x14);
+    ioPorts.setReadCallback(0x40, 0x43,
+                            &spectrumEmulatorIOReadCallback, this, 0x00);
+    ioPorts.setDebugReadCallback(0x40, 0x43,
+                                 &spectrumEmulatorIOReadCallback, this, 0x00);
+    ioPorts.setWriteCallback(0x44, 0x44,
+                             &spectrumEmulatorIOWriteCallback, this, 0x00);
+    ioPorts.setReadCallback(0xFE, 0xFE,
+                            &spectrumEmulatorIOReadCallback, this, 0x00);
+    ioPorts.setWriteCallback(0xFE, 0xFE,
+                             &spectrumEmulatorIOWriteCallback, this, 0x00);
+    ioPorts.setReadCallback(0x7E, 0x7F, &cmosMemoryIOReadCallback, this, 0x7E);
+    ioPorts.setDebugReadCallback(0x7E, 0x7F,
+                                 &cmosMemoryIOReadCallback, this, 0x7E);
+    ioPorts.setWriteCallback(0x7E, 0x7F,
+                             &cmosMemoryIOWriteCallback, this, 0x7E);
   }
 
   Ep128VM::~Ep128VM()
@@ -1071,6 +1274,10 @@ namespace Ep128 {
     floppyDrives[3].reset();
     if (isColdReset) {
       nick.randomizeRegisters();
+      spectrumEmulatorEnabled = false;
+      for (int i = 0; i < 4; i++)
+        spectrumEmulatorIOPorts[i] = 0xFF;
+      resetCMOSMemory();
       for (int i = 0; i < 256; i++) {
         if (memory.isSegmentRAM(uint8_t(i)))
           memory.loadSegment(uint8_t(i), false, (uint8_t *) 0, 0);
@@ -1324,7 +1531,7 @@ namespace Ep128 {
 
   void Ep128VM::writeMemory(uint32_t addr, uint8_t value, bool isCPUAddress)
   {
-    if (isRecordingDemo || isPlayingDemo) {
+    if (isRecordingDemo | isPlayingDemo) {
       stopDemoPlayback();
       stopDemoRecording(false);
     }
@@ -1423,7 +1630,7 @@ namespace Ep128 {
     {
       Ep128Emu::File::Buffer  buf;
       buf.setPosition(0);
-      buf.writeUInt32(0x01000000);      // version number
+      buf.writeUInt32(0x01000001);      // version number
       buf.writeByte(memory.getPage(0));
       buf.writeByte(memory.getPage(1));
       buf.writeByte(memory.getPage(2));
@@ -1434,16 +1641,16 @@ namespace Ep128 {
       buf.writeUInt32(uint32_t(nickFrequency));
       buf.writeUInt32(62U);     // video memory latency for compatibility only
       buf.writeBoolean(memoryTimingEnabled);
-      int64_t tmp[3];
-      tmp[0] = cpuCyclesRemaining;
-      tmp[1] = cpuSyncToNickCnt;
-      tmp[2] = daveCyclesRemaining;
-      for (size_t i = 0; i < 3; i++) {
-        buf.writeUInt32(uint32_t(uint64_t(tmp[i]) >> 32)
-                        & uint32_t(0xFFFFFFFFUL));
-        buf.writeUInt32(uint32_t(uint64_t(tmp[i]))
-                        & uint32_t(0xFFFFFFFFUL));
-      }
+      buf.writeInt64(cpuCyclesRemaining);
+      buf.writeInt64(cpuSyncToNickCnt);
+      buf.writeInt64(daveCyclesRemaining);
+      buf.writeBoolean(spectrumEmulatorEnabled);
+      for (int i = 0; i < 4; i++)
+        buf.writeByte(spectrumEmulatorIOPorts[i]);
+      buf.writeByte(cmosMemoryRegisterSelect);
+      buf.writeInt64(prvRTCTime);
+      for (int i = 0; i < 64; i++)
+        buf.writeByte(cmosMemory[i]);
       f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_VM_STATE, buf);
     }
   }
@@ -1514,7 +1721,7 @@ namespace Ep128 {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
-    if (version != 0x01000000) {
+    if (version != 0x01000001 && version != 0x01000000) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible ep128 snapshot format");
     }
@@ -1552,11 +1759,9 @@ namespace Ep128 {
       (void) tmpVideoMemoryLatency;
       bool      tmpMemoryTimingEnabled = buf.readBoolean();
       int64_t   tmp[3];
-      for (size_t i = 0; i < 3; i++) {
-        uint64_t  n = uint64_t(buf.readUInt32()) << 32;
-        n |= uint64_t(buf.readUInt32());
-        tmp[i] = int64_t(n);
-      }
+      tmp[0] = buf.readInt64();
+      tmp[1] = buf.readInt64();
+      tmp[2] = buf.readInt64();
       if (tmpCPUFrequency == cpuFrequency &&
           tmpDaveFrequency == daveFrequency &&
           tmpNickFrequency == nickFrequency &&
@@ -1569,6 +1774,23 @@ namespace Ep128 {
         cpuCyclesRemaining = 0;
         cpuSyncToNickCnt = 0;
         daveCyclesRemaining = 0;
+      }
+      if (version == 0x01000001) {
+        spectrumEmulatorEnabled = buf.readBoolean();
+        for (int i = 0; i < 4; i++)
+          spectrumEmulatorIOPorts[i] = buf.readByte();
+        cmosMemoryRegisterSelect = buf.readByte();
+        prvRTCTime = buf.readInt64();
+        for (int i = 0; i < 64; i++)
+          cmosMemory[i] = buf.readByte();
+      }
+      else {
+        // loading snapshot saved by old version without Spectrum emulator
+        // and real time clock support
+        spectrumEmulatorEnabled = false;
+        for (int i = 0; i < 4; i++)
+          spectrumEmulatorIOPorts[i] = 0xFF;
+        resetCMOSMemory();
       }
       if (buf.getPosition() != buf.getDataSize())
         throw Ep128Emu::Exception("trailing garbage at end of "

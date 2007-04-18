@@ -164,6 +164,11 @@ namespace Ep128 {
     Ep128Emu::WD177x  floppyDrives[4];
     uint8_t   currentFloppyDrive;
     uint8_t   breakPointPriorityThreshold;
+    uint8_t   cmosMemoryRegisterSelect;
+    bool      spectrumEmulatorEnabled;
+    uint8_t   spectrumEmulatorIOPorts[4];
+    uint8_t   cmosMemory[64];
+    int64_t   prvRTCTime;
     // ----------------
     void updateTimingParameters();
     inline void updateCPUCycles(int cycles);
@@ -179,9 +184,19 @@ namespace Ep128 {
     static void exdosPortWriteCallback(void *userData,
                                        uint16_t addr, uint8_t value);
     static uint8_t exdosPortDebugReadCallback(void *userData, uint16_t addr);
+    static uint8_t spectrumEmulatorIOReadCallback(void *userData,
+                                                  uint16_t addr);
+    static void spectrumEmulatorIOWriteCallback(void *userData,
+                                                uint16_t addr, uint8_t value);
+    static uint8_t cmosMemoryIOReadCallback(void *userData, uint16_t addr);
+    static void cmosMemoryIOWriteCallback(void *userData,
+                                          uint16_t addr, uint8_t value);
     void stopDemoPlayback();
     void stopDemoRecording(bool writeFile_);
     uint8_t checkSingleStepModeBreak();
+    void spectrumEmulatorNMI_AttrWrite(uint32_t addr, uint8_t value);
+    void updateRTC();
+    void resetCMOSMemory();
    public:
     Ep128VM(Ep128Emu::VideoDisplay&, Ep128Emu::AudioOutput&);
     virtual ~Ep128VM();
