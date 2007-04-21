@@ -351,13 +351,19 @@ class Ep128EmuGUI_DiskConfigWindow {open
   window->show();
 }} {}
   }
+  Function {shown()} {open return_type bool
+  } {
+    code {{
+  return bool(window->shown());
+}} {}
+  }
   Function {hide()} {open return_type void
   } {
     code {{
   window->hide();
 }} {}
   }
-  Function {updateWindow()} {open private return_type void
+  Function {updateWindow()} {open return_type void
   } {
     code {{
   floppyAImageFileValuator->value(gui.config.floppy.a.imageFile.c_str());

@@ -115,7 +115,7 @@ class Ep128EmuGUI {open
   }
   decl {bool browseFile(std::string& fileName, std::string& dirName, const char *pattern, int type, const char *title);} {public
   }
-  decl {void applyEmulatorConfiguration();} {public
+  decl {void applyEmulatorConfiguration(bool updateWindowFlag_ = false);} {public
   }
   decl {static void errorMessageCallback(void *userData, const char *msg);} {}
   decl {static void fileNameCallback(void *userData, std::string& fileName);} {}
@@ -127,6 +127,8 @@ class Ep128EmuGUI {open
   decl {static void menuCallback_File_LoadFile(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_LoadConfig(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_SaveConfig(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_SaveMainCfg(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_RevertCfg(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_QSFileName(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_QSLoad(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_QSSave(Fl_Widget *o, void *v);} {}
@@ -177,6 +179,12 @@ class Ep128EmuGUI {open
   decl {static void menuCallback_Options_FloppyRmB(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_FloppyRmC(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_FloppyRmD(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_FloppyRmv(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_FloppyRpA(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_FloppyRpB(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_FloppyRpC(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_FloppyRpD(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_FloppyRpl(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_FileIODir(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Debug_OpenDebugger(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Help_About(Fl_Widget *o, void *v);} {}

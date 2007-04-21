@@ -125,10 +125,11 @@ download page:
 To install, just run the executable, and follow the instructions.
 The installer can automatically download the ROM images needed for
 running the emulator, but these can also be installed manually by
-downloading http://www.sharemation.com/IstvanV/roms/ep128emu_roms.zip,
-and extracting it to roms\ under the selected installation folder.
-When asked if configuration files should be reinstalled, click 'OK' when
-installing the first time, but this step can be skipped in later
+downloading
+http://ep128emu.enterpriseforever.org/roms/ep128emu_roms.zip, and
+extracting it to roms\ under the selected installation folder.
+When asked if configuration files should be reinstalled, click 'OK'
+when installing the first time, but this step can be skipped in later
 installations to preserve the configuration.
 
 Usage
@@ -163,21 +164,38 @@ Command line options
 'File' menu
 -----------
 
-Load file
+Load snapshot
+Load demo
 
   Load an ep128emu format binary file, which may be a previously saved
   snapshot, demo, or a binary format configuration file.
 
-Load configuration file
+Configuration / Load from ASCII file
 
   Select and load an ASCII format configuration file and apply the new
   settings. If the configuration file does not include all the supported
   options, those that are omitted are left unchanged.
 
-Save configuration file
+Configuration / Load from binary file
+
+  Load an ep128emu format binary file, which may be a previously saved
+  snapshot, demo, or a binary format configuration file.
+
+Configuration / Save as ASCII file
 
   Save the current emulator configuration to an ASCII text file, which
   can be edited with any text editor, and can be loaded at a later time.
+
+Configuration / Save
+
+  Save the current emulator configuration in binary format to the
+  default file (~/.ep128emu/ep128cfg.dat). This is also automatically
+  done when exiting the emulator.
+
+Configuration / Revert
+
+  Reload emulator configuration from ~/.ep128emu/ep128cfg.dat, and apply
+  the original settings.
 
 Quick snapshot / Set file name
 
@@ -284,14 +302,6 @@ Quick configuration / Save config 2
 'Options' menu
 --------------
 
-Display / Cycle display mode (F9)
-
-  Cycle between these four display modes:
-    window with no menu bar
-    window with menu bar (this is the default)
-    fullscreen with menu bar
-    fullscreen with no menu bar
-
 Display / Set size to 384x288
 Display / Set size to 768x576
 Display / Set size to 1152x864
@@ -302,6 +312,14 @@ Display / Set size to 1152x864
   actual screen resolution of the emulated machine may look better,
   particularly when texture filtering is not used, and are also slightly
   faster when using the software video driver.
+
+Display / Cycle display mode (F9)
+
+  Cycle between these four display modes:
+    window with no menu bar
+    window with menu bar (this is the default)
+    fullscreen with menu bar
+    fullscreen with no menu bar
 
 Sound / Increase volume
 
@@ -323,13 +341,25 @@ Floppy / Configure...
   value calculated automatically from the others (if available), the
   image file size, and the file system header.
 
-Floppy / Remove disk A
-Floppy / Remove disk B
-Floppy / Remove disk C
-Floppy / Remove disk D
+Floppy / Remove disk / Drive A
+Floppy / Remove disk / Drive B
+Floppy / Remove disk / Drive C
+Floppy / Remove disk / Drive D
+Floppy / Remove disk / All drives
 
   These are just shortcuts for setting the image file name for a
   specific floppy drive to an empty string.
+
+Floppy / Replace disk / Drive A
+Floppy / Replace disk / Drive B
+Floppy / Replace disk / Drive C
+Floppy / Replace disk / Drive D
+Floppy / Replace disk / All drives
+
+  Set the image file name for a specific (or all) floppy drive to an
+  empty string, and then set the original file name again. This is
+  mostly useful when accessing real floppy disks, after the disk is
+  changed.
 
 Set working directory
 

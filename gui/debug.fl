@@ -605,7 +605,7 @@ class Ep128EmuGUI_DebugWindow {open
     disassemblyAddressOffset = 0;
 }} {}
   }
-  Function {updateWindow()} {open private return_type void
+  Function {updateWindow()} {open return_type void
   } {
     code {{
   try {

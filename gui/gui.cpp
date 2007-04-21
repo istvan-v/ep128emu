@@ -346,12 +346,20 @@ void Ep128EmuGUI::run()
   emulatorWindow->color(36, 36);
   resizeWindow(config.display.width, config.display.height);
   // create menu bar
-  mainMenuBar->add("File/Load file",
+  mainMenuBar->add("File/Load snapshot",
                    (char *) 0, &menuCallback_File_LoadFile, (void *) this);
-  mainMenuBar->add("File/Load configuration file",
+  mainMenuBar->add("File/Load demo",
+                   (char *) 0, &menuCallback_File_LoadFile, (void *) this);
+  mainMenuBar->add("File/Configuration/Load from ASCII file",
                    (char *) 0, &menuCallback_File_LoadConfig, (void *) this);
-  mainMenuBar->add("File/Save configuration file",
+  mainMenuBar->add("File/Configuration/Load from binary file",
+                   (char *) 0, &menuCallback_File_LoadFile, (void *) this);
+  mainMenuBar->add("File/Configuration/Save as ASCII file",
                    (char *) 0, &menuCallback_File_SaveConfig, (void *) this);
+  mainMenuBar->add("File/Configuration/Save",
+                   (char *) 0, &menuCallback_File_SaveMainCfg, (void *) this);
+  mainMenuBar->add("File/Configuration/Revert",
+                   (char *) 0, &menuCallback_File_RevertCfg, (void *) this);
   mainMenuBar->add("File/Quick snapshot/Set file name",
                    (char *) 0, &menuCallback_File_QSFileName, (void *) this);
   mainMenuBar->add("File/Quick snapshot/Load (Ctrl+F10)",
@@ -372,8 +380,6 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_File_Screenshot, (void *) this);
   mainMenuBar->add("File/Quit",
                    (char *) 0, &menuCallback_File_Quit, (void *) this);
-  mainMenuBar->add("Machine/Toggle pause (F10)",
-                   (char *) 0, &menuCallback_Machine_Pause, (void *) this);
   mainMenuBar->add("Machine/Toggle full speed",
                    (char *) 0, &menuCallback_Machine_FullSpeed, (void *) this);
   mainMenuBar->add("Machine/Tape/Select image file",
@@ -422,18 +428,20 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Machine_QuickCfgS1, (void *) this);
   mainMenuBar->add("Machine/Quick configuration/Save config 2",
                    (char *) 0, &menuCallback_Machine_QuickCfgS2, (void *) this);
+  mainMenuBar->add("Machine/Toggle pause (F10)",
+                   (char *) 0, &menuCallback_Machine_Pause, (void *) this);
   mainMenuBar->add("Machine/Configure...",
                    (char *) 0, &menuCallback_Machine_Configure, (void *) this);
-  mainMenuBar->add("Options/Display/Cycle display mode (F9)",
-                   (char *) 0, &menuCallback_Options_DpyMode, (void *) this);
+  mainMenuBar->add("Options/Display/Configure...",
+                   (char *) 0, &menuCallback_Options_DpyConfig, (void *) this);
   mainMenuBar->add("Options/Display/Set size to 384x288",
                    (char *) 0, &menuCallback_Options_DpySize1, (void *) this);
   mainMenuBar->add("Options/Display/Set size to 768x576",
                    (char *) 0, &menuCallback_Options_DpySize2, (void *) this);
   mainMenuBar->add("Options/Display/Set size to 1152x864",
                    (char *) 0, &menuCallback_Options_DpySize3, (void *) this);
-  mainMenuBar->add("Options/Display/Configure...",
-                   (char *) 0, &menuCallback_Options_DpyConfig, (void *) this);
+  mainMenuBar->add("Options/Display/Cycle display mode (F9)",
+                   (char *) 0, &menuCallback_Options_DpyMode, (void *) this);
   mainMenuBar->add("Options/Sound/Increase volume",
                    (char *) 0, &menuCallback_Options_SndIncVol, (void *) this);
   mainMenuBar->add("Options/Sound/Decrease volume",
@@ -442,14 +450,26 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Options_SndConfig, (void *) this);
   mainMenuBar->add("Options/Floppy/Configure...",
                    (char *) 0, &menuCallback_Options_FloppyCfg, (void *) this);
-  mainMenuBar->add("Options/Floppy/Remove disk A",
+  mainMenuBar->add("Options/Floppy/Remove disk/Drive A",
                    (char *) 0, &menuCallback_Options_FloppyRmA, (void *) this);
-  mainMenuBar->add("Options/Floppy/Remove disk B",
+  mainMenuBar->add("Options/Floppy/Remove disk/Drive B",
                    (char *) 0, &menuCallback_Options_FloppyRmB, (void *) this);
-  mainMenuBar->add("Options/Floppy/Remove disk C",
+  mainMenuBar->add("Options/Floppy/Remove disk/Drive C",
                    (char *) 0, &menuCallback_Options_FloppyRmC, (void *) this);
-  mainMenuBar->add("Options/Floppy/Remove disk D",
+  mainMenuBar->add("Options/Floppy/Remove disk/Drive D",
                    (char *) 0, &menuCallback_Options_FloppyRmD, (void *) this);
+  mainMenuBar->add("Options/Floppy/Remove disk/All drives",
+                   (char *) 0, &menuCallback_Options_FloppyRmv, (void *) this);
+  mainMenuBar->add("Options/Floppy/Replace disk/Drive A",
+                   (char *) 0, &menuCallback_Options_FloppyRpA, (void *) this);
+  mainMenuBar->add("Options/Floppy/Replace disk/Drive B",
+                   (char *) 0, &menuCallback_Options_FloppyRpB, (void *) this);
+  mainMenuBar->add("Options/Floppy/Replace disk/Drive C",
+                   (char *) 0, &menuCallback_Options_FloppyRpC, (void *) this);
+  mainMenuBar->add("Options/Floppy/Replace disk/Drive D",
+                   (char *) 0, &menuCallback_Options_FloppyRpD, (void *) this);
+  mainMenuBar->add("Options/Floppy/Replace disk/All drives",
+                   (char *) 0, &menuCallback_Options_FloppyRpl, (void *) this);
   mainMenuBar->add("Options/Set working directory",
                    (char *) 0, &menuCallback_Options_FileIODir, (void *) this);
   mainMenuBar->add("Debug/Start debugger",
@@ -818,11 +838,23 @@ bool Ep128EmuGUI::browseFile(std::string& fileName, std::string& dirName,
   return retval;
 }
 
-void Ep128EmuGUI::applyEmulatorConfiguration()
+void Ep128EmuGUI::applyEmulatorConfiguration(bool updateWindowFlag_)
 {
   if (lockVMThread()) {
     try {
       config.applySettings();
+      if (updateWindowFlag_) {
+        if (diskConfigWindow->shown())
+          diskConfigWindow->updateWindow();
+        if (displaySettingsWindow->shown())
+          displaySettingsWindow->updateWindow();
+        if (soundSettingsWindow->shown())
+          soundSettingsWindow->updateWindow();
+        if (machineConfigWindow->shown())
+          machineConfigWindow->updateWindow();
+        if (debugWindow->shown())
+          debugWindow->updateWindow();
+      }
     }
     catch (...) {
       unlockVMThread();
@@ -1075,7 +1107,7 @@ void Ep128EmuGUI::menuCallback_File_LoadFile(Fl_Widget *o, void *v)
           gui_.vm.registerChunkTypes(f);
           gui_.config.registerChunkType(f);
           f.processAllChunks();
-          gui_.applyEmulatorConfiguration();
+          gui_.applyEmulatorConfiguration(true);
         }
         catch (...) {
           gui_.unlockVMThread();
@@ -1101,7 +1133,7 @@ void Ep128EmuGUI::menuCallback_File_LoadConfig(Fl_Widget *o, void *v)
                         Fl_File_Chooser::SINGLE,
                         "Load ASCII format configuration file")) {
       gui_.config.loadState(tmp.c_str());
-      gui_.applyEmulatorConfiguration();
+      gui_.applyEmulatorConfiguration(true);
     }
   }
   catch (std::exception& e) {
@@ -1121,6 +1153,35 @@ void Ep128EmuGUI::menuCallback_File_SaveConfig(Fl_Widget *o, void *v)
                         "Save configuration as ASCII text file")) {
       gui_.config.saveState(tmp.c_str());
     }
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_File_SaveMainCfg(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    Ep128Emu::File  f;
+    gui_.config.saveState(f);
+    f.writeFile("ep128cfg.dat", true);
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_File_RevertCfg(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    Ep128Emu::File  f("ep128cfg.dat", true);
+    gui_.config.registerChunkType(f);
+    f.processAllChunks();
+    gui_.applyEmulatorConfiguration(true);
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -1285,7 +1346,7 @@ void Ep128EmuGUI::menuCallback_File_RecordSound(Fl_Widget *o, void *v)
                         Fl_File_Chooser::CREATE,
                         "Record sound output to WAV file")) {
       gui_.config["sound.file"] = tmp;
-      gui_.applyEmulatorConfiguration();
+      gui_.applyEmulatorConfiguration(true);
     }
   }
   catch (std::exception& e) {
@@ -1299,7 +1360,7 @@ void Ep128EmuGUI::menuCallback_File_StopSndRecord(Fl_Widget *o, void *v)
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
     gui_.config["sound.file"] = std::string("");
-    gui_.applyEmulatorConfiguration();
+    gui_.applyEmulatorConfiguration(true);
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -1657,7 +1718,7 @@ void Ep128EmuGUI::menuCallback_Machine_QuickCfgL1(Fl_Widget *o, void *v)
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
     gui_.config.loadState("epvmcfg1.cfg", true);
-    gui_.applyEmulatorConfiguration();
+    gui_.applyEmulatorConfiguration(true);
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -1670,7 +1731,7 @@ void Ep128EmuGUI::menuCallback_Machine_QuickCfgL2(Fl_Widget *o, void *v)
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
     gui_.config.loadState("epvmcfg2.cfg", true);
-    gui_.applyEmulatorConfiguration();
+    gui_.applyEmulatorConfiguration(true);
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -1754,7 +1815,7 @@ void Ep128EmuGUI::menuCallback_Options_SndIncVol(Fl_Widget *o, void *v)
     Ep128Emu::ConfigurationDB::ConfigurationVariable& cv =
         gui_.config["sound.volume"];
     cv = double(cv) * 1.1892;
-    gui_.applyEmulatorConfiguration();
+    gui_.applyEmulatorConfiguration(true);
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -1769,7 +1830,7 @@ void Ep128EmuGUI::menuCallback_Options_SndDecVol(Fl_Widget *o, void *v)
     Ep128Emu::ConfigurationDB::ConfigurationVariable& cv =
         gui_.config["sound.volume"];
     cv = double(cv) * 0.8409;
-    gui_.applyEmulatorConfiguration();
+    gui_.applyEmulatorConfiguration(true);
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -1796,7 +1857,7 @@ void Ep128EmuGUI::menuCallback_Options_FloppyRmA(Fl_Widget *o, void *v)
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
     gui_.config["floppy.a.imageFile"] = "";
-    gui_.applyEmulatorConfiguration();
+    gui_.applyEmulatorConfiguration(true);
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -1809,7 +1870,7 @@ void Ep128EmuGUI::menuCallback_Options_FloppyRmB(Fl_Widget *o, void *v)
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
     gui_.config["floppy.b.imageFile"] = "";
-    gui_.applyEmulatorConfiguration();
+    gui_.applyEmulatorConfiguration(true);
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -1822,7 +1883,7 @@ void Ep128EmuGUI::menuCallback_Options_FloppyRmC(Fl_Widget *o, void *v)
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
     gui_.config["floppy.c.imageFile"] = "";
-    gui_.applyEmulatorConfiguration();
+    gui_.applyEmulatorConfiguration(true);
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -1835,7 +1896,173 @@ void Ep128EmuGUI::menuCallback_Options_FloppyRmD(Fl_Widget *o, void *v)
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
     gui_.config["floppy.d.imageFile"] = "";
-    gui_.applyEmulatorConfiguration();
+    gui_.applyEmulatorConfiguration(true);
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Options_FloppyRmv(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    gui_.config["floppy.a.imageFile"] = "";
+    gui_.config["floppy.b.imageFile"] = "";
+    gui_.config["floppy.c.imageFile"] = "";
+    gui_.config["floppy.d.imageFile"] = "";
+    gui_.applyEmulatorConfiguration(true);
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Options_FloppyRpA(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    if (gui_.lockVMThread()) {
+      try {
+        Ep128Emu::ConfigurationDB::ConfigurationVariable& cv =
+            gui_.config["floppy.a.imageFile"];
+        std::string tmp = std::string(cv);
+        cv = "";
+        gui_.applyEmulatorConfiguration();
+        cv = tmp;
+        gui_.applyEmulatorConfiguration();
+      }
+      catch (...) {
+        gui_.unlockVMThread();
+        throw;
+      }
+      gui_.unlockVMThread();
+    }
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Options_FloppyRpB(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    if (gui_.lockVMThread()) {
+      try {
+        Ep128Emu::ConfigurationDB::ConfigurationVariable& cv =
+            gui_.config["floppy.b.imageFile"];
+        std::string tmp = std::string(cv);
+        cv = "";
+        gui_.applyEmulatorConfiguration();
+        cv = tmp;
+        gui_.applyEmulatorConfiguration();
+      }
+      catch (...) {
+        gui_.unlockVMThread();
+        throw;
+      }
+      gui_.unlockVMThread();
+    }
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Options_FloppyRpC(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    if (gui_.lockVMThread()) {
+      try {
+        Ep128Emu::ConfigurationDB::ConfigurationVariable& cv =
+            gui_.config["floppy.c.imageFile"];
+        std::string tmp = std::string(cv);
+        cv = "";
+        gui_.applyEmulatorConfiguration();
+        cv = tmp;
+        gui_.applyEmulatorConfiguration();
+      }
+      catch (...) {
+        gui_.unlockVMThread();
+        throw;
+      }
+      gui_.unlockVMThread();
+    }
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Options_FloppyRpD(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    if (gui_.lockVMThread()) {
+      try {
+        Ep128Emu::ConfigurationDB::ConfigurationVariable& cv =
+            gui_.config["floppy.d.imageFile"];
+        std::string tmp = std::string(cv);
+        cv = "";
+        gui_.applyEmulatorConfiguration();
+        cv = tmp;
+        gui_.applyEmulatorConfiguration();
+      }
+      catch (...) {
+        gui_.unlockVMThread();
+        throw;
+      }
+      gui_.unlockVMThread();
+    }
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Options_FloppyRpl(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    if (gui_.lockVMThread()) {
+      try {
+        Ep128Emu::ConfigurationDB::ConfigurationVariable& cvA =
+            gui_.config["floppy.a.imageFile"];
+        Ep128Emu::ConfigurationDB::ConfigurationVariable& cvB =
+            gui_.config["floppy.b.imageFile"];
+        Ep128Emu::ConfigurationDB::ConfigurationVariable& cvC =
+            gui_.config["floppy.c.imageFile"];
+        Ep128Emu::ConfigurationDB::ConfigurationVariable& cvD =
+            gui_.config["floppy.d.imageFile"];
+        std::string tmpA = std::string(cvA);
+        std::string tmpB = std::string(cvB);
+        std::string tmpC = std::string(cvC);
+        std::string tmpD = std::string(cvD);
+        cvA = "";
+        cvB = "";
+        cvC = "";
+        cvD = "";
+        gui_.applyEmulatorConfiguration();
+        cvA = tmpA;
+        cvB = tmpB;
+        cvC = tmpC;
+        cvD = tmpD;
+        gui_.applyEmulatorConfiguration();
+      }
+      catch (...) {
+        gui_.unlockVMThread();
+        throw;
+      }
+      gui_.unlockVMThread();
+    }
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
