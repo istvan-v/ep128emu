@@ -8,6 +8,11 @@ Changes in version 2.0.2
     did not work on some machines
   * keyboard matrix state is no longer cleared on soft reset
   * NICK registers are initialized to random values on start-up
+  * added new ROM images and machine configuration presets
+  * the makecfg utility now asks for an installation directory if
+    started without command line arguments, and automatically creates
+    directories
+  * minor improvements to GUI menu layout
 
 Changes in version 2.0.1
 ------------------------
