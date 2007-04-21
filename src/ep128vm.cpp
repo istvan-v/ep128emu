@@ -262,21 +262,11 @@ namespace Ep128 {
 
   void Ep128VM::Z80_::doOut(uint16_t addr, uint8_t value)
   {
-    if (vm.spectrumEmulatorEnabled) {
-      if ((addr & 0xFF) == 0xFE) {
-        vm.spectrumEmulatorIOWriteCallback(&vm, addr, value);
-        return;
-      }
-    }
     vm.ioPorts.write(addr, value);
   }
 
   uint8_t Ep128VM::Z80_::doIn(uint16_t addr)
   {
-    if (vm.spectrumEmulatorEnabled) {
-      if ((addr & 0xFF) == 0xFE)
-        return vm.spectrumEmulatorIOReadCallback(&vm, addr);
-    }
     return vm.ioPorts.read(addr);
   }
 
@@ -838,25 +828,26 @@ namespace Ep128 {
   uint8_t Ep128VM::spectrumEmulatorIOReadCallback(void *userData, uint16_t addr)
   {
     Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
-    if (vm.spectrumEmulatorEnabled) {
-      switch (addr & 0xFF) {
-      case 0x40:
-      case 0x41:
-      case 0x42:
-      case 0x43:
-        return vm.spectrumEmulatorIOPorts[addr & 3];
-      case 0xFE:
-        {
-          uint32_t  tmp = uint32_t(addr) & 0x3FFFU;
-          tmp = tmp | (uint32_t(vm.pageTable[addr >> 14]) << 14);
-          vm.spectrumEmulatorIOPorts[0] = uint8_t((tmp >> 8) & 0xFF);
-          vm.spectrumEmulatorIOPorts[1] = uint8_t(tmp & 0xFF);
-        }
+    switch (addr & 0xFF) {
+    case 0x40:
+    case 0x41:
+    case 0x42:
+    case 0x43:
+      return vm.spectrumEmulatorIOPorts[addr & 3];
+    case 0xFE:
+      if (vm.spectrumEmulatorEnabled) {
+        uint32_t  tmp = vm.z80.getReg().BC.B.h;
+        if (vm.memory.readNoDebug(vm.z80.getReg().PC.W.l) == 0xDB)
+          tmp = vm.z80.getReg().AF.B.h;
+        tmp = ((tmp & 0xFFU) << 8) | (uint32_t(addr) & 0xFFU);
+        tmp = (tmp & 0x3FFFU) | (uint32_t(vm.pageTable[tmp >> 14]) << 14);
+        vm.spectrumEmulatorIOPorts[0] = uint8_t((tmp >> 8) & 0xFF);
+        vm.spectrumEmulatorIOPorts[1] = uint8_t(tmp & 0xFF);
         vm.spectrumEmulatorIOPorts[2] = 0xFF;
         vm.spectrumEmulatorIOPorts[3] = 0x3F;
         vm.z80.NMI_();
-        break;
       }
+      break;
     }
     return 0xFF;
   }
@@ -865,29 +856,28 @@ namespace Ep128 {
                                                 uint16_t addr, uint8_t value)
   {
     Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
-    if (vm.spectrumEmulatorEnabled) {
-      switch (addr & 0xFF) {
-      case 0x44:
-        vm.spectrumEmulatorEnabled = bool(value & 0x80);
-        break;
-      case 0xFE:
-        {
-          uint32_t  tmp = uint32_t(addr) & 0x3FFFU;
-          tmp = tmp | (uint32_t(vm.pageTable[addr >> 14]) << 14);
-          vm.spectrumEmulatorIOPorts[0] = uint8_t((tmp >> 8) & 0xFF);
-          vm.spectrumEmulatorIOPorts[1] = uint8_t(tmp & 0xFF);
-        }
+    switch (addr & 0xFF) {
+    case 0x44:
+      vm.spectrumEmulatorEnabled = bool(value & 0x80);
+      break;
+    case 0xFE:
+      if (vm.spectrumEmulatorEnabled) {
+        uint32_t  tmp = vm.z80.getReg().BC.B.h;
+        if (vm.memory.readNoDebug(vm.z80.getReg().PC.W.l) == 0xD3)
+          tmp = vm.z80.getReg().AF.B.h;
+        tmp = ((tmp & 0xFFU) << 8) | (uint32_t(addr) & 0xFFU);
+        tmp = (tmp & 0x3FFFU) | (uint32_t(vm.pageTable[tmp >> 14]) << 14);
+        vm.spectrumEmulatorIOPorts[0] = uint8_t((tmp >> 8) & 0xFF);
+        vm.spectrumEmulatorIOPorts[1] = uint8_t(tmp & 0xFF);
         vm.spectrumEmulatorIOPorts[2] =
             uint8_t(((value & 0x06) >> 1) | ((value & 0x01) << 2)
                     | ((value & 0x40) >> 3) | (value & 0x30)
                     | ((value & 0x08) << 3) | ((value & 0x40) << 1));
         vm.spectrumEmulatorIOPorts[3] = 0x9F;
         vm.z80.NMI_();
-        break;
       }
+      break;
     }
-    else if ((addr & 0xFF) == 0x44 && (value & 0x80) != 0)
-      vm.spectrumEmulatorEnabled = true;
   }
 
   uint8_t Ep128VM::cmosMemoryIOReadCallback(void *userData, uint16_t addr)
@@ -1272,11 +1262,11 @@ namespace Ep128 {
     floppyDrives[1].reset();
     floppyDrives[2].reset();
     floppyDrives[3].reset();
+    spectrumEmulatorEnabled = false;
+    for (int i = 0; i < 4; i++)
+      spectrumEmulatorIOPorts[i] = 0xFF;
     if (isColdReset) {
       nick.randomizeRegisters();
-      spectrumEmulatorEnabled = false;
-      for (int i = 0; i < 4; i++)
-        spectrumEmulatorIOPorts[i] = 0xFF;
       resetCMOSMemory();
       for (int i = 0; i < 256; i++) {
         if (memory.isSegmentRAM(uint8_t(i)))
