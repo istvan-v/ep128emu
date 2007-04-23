@@ -229,11 +229,13 @@ void Ep128EmuGUI::updateDisplay(double t)
   }
   int   newDemoStatus = (isRecordingDemo_ ? 2 : (isPlayingDemo_ ? 1 : 0));
   if (newDemoStatus != oldDemoStatus) {
+    const Fl_Menu_Item *m = mainMenuBar->find_item("File/Stop demo (Ctrl+F12)");
     if (newDemoStatus == 0) {
       if (oldDemoStatus == 2)
         closeDemoFile(false);
       demoStatusDisplay1->hide();
       demoStatusDisplay2->hide();
+      const_cast<Fl_Menu_Item *>(m)->deactivate();
     }
     else {
       demoStatusDisplay1->show();
@@ -246,6 +248,7 @@ void Ep128EmuGUI::updateDisplay(double t)
         demoStatusDisplay2->textcolor(FL_RED);
         demoStatusDisplay2->value("R");
       }
+      const_cast<Fl_Menu_Item *>(m)->activate();
     }
     oldDemoStatus = newDemoStatus;
     mainWindow->redraw();
@@ -380,7 +383,7 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_File_Screenshot, (void *) this);
   mainMenuBar->add("File/Quit",
                    (char *) 0, &menuCallback_File_Quit, (void *) this);
-  mainMenuBar->add("Machine/Toggle full speed",
+  mainMenuBar->add("Machine/Full speed",
                    (char *) 0, &menuCallback_Machine_FullSpeed, (void *) this);
   mainMenuBar->add("Machine/Tape/Select image file",
                    (char *) 0, &menuCallback_Machine_OpenTape, (void *) this);
@@ -476,6 +479,10 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Debug_OpenDebugger, (void *) this);
   mainMenuBar->add("Help/About",
                    (char *) 0, &menuCallback_Help_About, (void *) this);
+  mainMenuBar->mode(int(mainMenuBar->find_item("Machine/Full speed")
+                        - mainMenuBar->menu()),
+                    FL_MENU_TOGGLE);
+  updateMenu();
   mainWindow->show();
   emulatorWindow->show();
   // load and apply GUI configuration
@@ -842,6 +849,7 @@ void Ep128EmuGUI::applyEmulatorConfiguration(bool updateWindowFlag_)
 {
   if (lockVMThread()) {
     try {
+      bool    updateMenuFlag_ = config.soundSettingsChanged;
       config.applySettings();
       if (updateWindowFlag_) {
         if (diskConfigWindow->shown())
@@ -855,6 +863,8 @@ void Ep128EmuGUI::applyEmulatorConfiguration(bool updateWindowFlag_)
         if (debugWindow->shown())
           debugWindow->updateWindow();
       }
+      if (updateMenuFlag_)
+        updateMenu();
     }
     catch (...) {
       unlockVMThread();
@@ -862,6 +872,21 @@ void Ep128EmuGUI::applyEmulatorConfiguration(bool updateWindowFlag_)
     }
     unlockVMThread();
   }
+}
+
+void Ep128EmuGUI::updateMenu()
+{
+  const Fl_Menu_Item  *m;
+  m = mainMenuBar->find_item("Machine/Full speed");
+  if (config.sound.enabled)
+    const_cast<Fl_Menu_Item *>(m)->clear();
+  else
+    const_cast<Fl_Menu_Item *>(m)->set();
+  m = mainMenuBar->find_item("File/Stop sound recording");
+  if (config.sound.file.length() > 0)
+    const_cast<Fl_Menu_Item *>(m)->activate();
+  else
+    const_cast<Fl_Menu_Item *>(m)->deactivate();
 }
 
 void Ep128EmuGUI::errorMessageCallback(void *userData, const char *msg)

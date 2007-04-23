@@ -117,6 +117,7 @@ class Ep128EmuGUI {open
   }
   decl {void applyEmulatorConfiguration(bool updateWindowFlag_ = false);} {public
   }
+  decl {void updateMenu();} {}
   decl {static void errorMessageCallback(void *userData, const char *msg);} {}
   decl {static void fileNameCallback(void *userData, std::string& fileName);} {}
   decl {static void fltkCheckCallback(void *userData);} {}
