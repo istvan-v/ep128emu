@@ -1040,8 +1040,9 @@ namespace Ep128 {
   void Ep128VM::resetCMOSMemory()
   {
     cmosMemoryRegisterSelect = 0xFF;
-    for (int i = 0; i < 64; i++)
+    for (int i = 0; i < 63; i++)
       cmosMemory[i] = 0x00;
+    cmosMemory[63] = 0xFF;
     prvRTCTime = int64_t(-1);
   }
 
@@ -1265,6 +1266,7 @@ namespace Ep128 {
     spectrumEmulatorEnabled = false;
     for (int i = 0; i < 4; i++)
       spectrumEmulatorIOPorts[i] = 0xFF;
+    cmosMemoryRegisterSelect = 0xFF;
     if (isColdReset) {
       nick.randomizeRegisters();
       resetCMOSMemory();
