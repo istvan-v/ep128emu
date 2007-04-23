@@ -525,13 +525,21 @@ int main(int argc, char **argv)
   if (argc > 1)
     installDirectory = argv[argc - 1];
   else {
+    std::string tmp = "";
+#ifndef WIN32
+    if (std::getenv("HOME") != (char *) 0) {
+      tmp = std::getenv("HOME");
+      tmp += "/.ep128emu";
+    }
+#endif
     Fl_File_Chooser *w =
-        new Fl_File_Chooser("", "*",
+        new Fl_File_Chooser(tmp.c_str(), "*",
                             Fl_File_Chooser::DIRECTORY
                             | Fl_File_Chooser::CREATE,
                             "Select installation directory "
                             "for ep128emu data files");
     w->show();
+    w->value(tmp.c_str());
     do {
       Fl::wait(0.05);
     } while (w->shown());
