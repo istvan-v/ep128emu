@@ -223,9 +223,9 @@ void Ep128EmuGUI::updateDisplay(double t)
   if (isPaused_ != oldPauseFlag) {
     oldPauseFlag = isPaused_;
     if (isPaused_)
-      mainWindow->label("ep128emu 2.0.2 beta (paused)");
+      mainWindow->label("ep128emu 2.0.2 (paused)");
     else
-      mainWindow->label("ep128emu 2.0.2 beta");
+      mainWindow->label("ep128emu 2.0.2");
   }
   int   newDemoStatus = (isRecordingDemo_ ? 2 : (isPlayingDemo_ ? 1 : 0));
   if (newDemoStatus != oldDemoStatus) {
@@ -346,10 +346,6 @@ void Ep128EmuGUI::run()
   emulatorWindow->color(36, 36);
   resizeWindow(config.display.width, config.display.height);
   // create menu bar
-  mainMenuBar->add("File/Load snapshot",
-                   (char *) 0, &menuCallback_File_LoadFile, (void *) this);
-  mainMenuBar->add("File/Load demo",
-                   (char *) 0, &menuCallback_File_LoadFile, (void *) this);
   mainMenuBar->add("File/Configuration/Load from ASCII file",
                    (char *) 0, &menuCallback_File_LoadConfig, (void *) this);
   mainMenuBar->add("File/Configuration/Load from binary file",
@@ -360,18 +356,22 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_File_SaveMainCfg, (void *) this);
   mainMenuBar->add("File/Configuration/Revert",
                    (char *) 0, &menuCallback_File_RevertCfg, (void *) this);
-  mainMenuBar->add("File/Quick snapshot/Set file name",
-                   (char *) 0, &menuCallback_File_QSFileName, (void *) this);
-  mainMenuBar->add("File/Quick snapshot/Load (Ctrl+F10)",
-                   (char *) 0, &menuCallback_File_QSLoad, (void *) this);
-  mainMenuBar->add("File/Quick snapshot/Save (Ctrl+F9)",
-                   (char *) 0, &menuCallback_File_QSSave, (void *) this);
   mainMenuBar->add("File/Save snapshot",
                    (char *) 0, &menuCallback_File_SaveSnapshot, (void *) this);
+  mainMenuBar->add("File/Load snapshot",
+                   (char *) 0, &menuCallback_File_LoadFile, (void *) this);
+  mainMenuBar->add("File/Quick snapshot/Set file name",
+                   (char *) 0, &menuCallback_File_QSFileName, (void *) this);
+  mainMenuBar->add("File/Quick snapshot/Save (Ctrl+F9)",
+                   (char *) 0, &menuCallback_File_QSSave, (void *) this);
+  mainMenuBar->add("File/Quick snapshot/Load (Ctrl+F10)",
+                   (char *) 0, &menuCallback_File_QSLoad, (void *) this);
   mainMenuBar->add("File/Record demo",
                    (char *) 0, &menuCallback_File_RecordDemo, (void *) this);
   mainMenuBar->add("File/Stop demo (Ctrl+F12)",
                    (char *) 0, &menuCallback_File_StopDemo, (void *) this);
+  mainMenuBar->add("File/Load demo",
+                   (char *) 0, &menuCallback_File_LoadFile, (void *) this);
   mainMenuBar->add("File/Record sound file",
                    (char *) 0, &menuCallback_File_RecordSound, (void *) this);
   mainMenuBar->add("File/Stop sound recording",

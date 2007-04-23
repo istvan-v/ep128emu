@@ -179,23 +179,16 @@ Section "Download ROM images" SecDLRoms
   Push ""
   Push "zx41.rom"
   Push "zt18.rom"
-  Push "tasmon1.rom"
   Push "tasmon15.rom"
-  Push "tasmon0.rom"
   Push "heass10.rom"
   Push "fenas12.rom"
   Push "exos23.rom"
   Push "exos22.rom"
   Push "exos21.rom"
   Push "exos20.rom"
-  Push "exos1.rom"
-  Push "exos0.rom"
-  Push "exdos1.rom"
   Push "exdos13.rom"
   Push "exdos10.rom"
-  Push "exdos0.rom"
   Push "epdos_z.rom"
-  Push "ep_basic.rom"
   Push "basic21.rom"
   Push "basic20.rom"
   Push "asmen15.rom"
@@ -215,6 +208,34 @@ Section "Download ROM images" SecDLRoms
 
 SectionEnd
 
+Section "Download old ROM images" SecDLRoms2
+
+  SetOutPath "$INSTDIR\roms"
+
+  Push ""
+  Push "tasmon1.rom"
+  Push "tasmon0.rom"
+  Push "exos1.rom"
+  Push "exos0.rom"
+  Push "exdos1.rom"
+  Push "exdos0.rom"
+  Push "ep_basic.rom"
+
+  downloadLoop2:
+
+    Pop $0
+    StrCmp $0 "" downloadLoop2Done 0
+    NSISdl::download "http://ep128emu.enterpriseforever.org/roms/$0" "$INSTDIR\roms\$0"
+    Pop $R0
+    StrCmp $R0 "success" downloadLoop2 0
+    StrCmp $R0 "cancel" downloadLoop2 0
+    MessageBox MB_OK "Download failed: $R0"
+    Goto downloadLoop2
+
+  downloadLoop2Done:
+
+SectionEnd
+
 ;--------------------------------
 ;Descriptions
 
@@ -222,12 +243,14 @@ SectionEnd
   LangString DESC_SecMain ${LANG_ENGLISH} "ep128emu binaries"
   LangString DESC_SecSrc ${LANG_ENGLISH} "ep128emu source code"
   LangString DESC_SecDLRoms ${LANG_ENGLISH} "Download and install ROM images"
+  LangString DESC_SecDLRoms2 ${LANG_ENGLISH} "Download and install old ROM images (needed only by machine configurations created for versions before 2.0.2)"
 
   ;Assign language strings to sections
   !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
     !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} $(DESC_SecMain)
     !insertmacro MUI_DESCRIPTION_TEXT ${SecSrc} $(DESC_SecSrc)
     !insertmacro MUI_DESCRIPTION_TEXT ${SecDLRoms} $(DESC_SecDLRoms)
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecDLRoms2} $(DESC_SecDLRoms2)
   !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 ;--------------------------------

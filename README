@@ -68,6 +68,8 @@ Enterprise emulation
   * optional extension ROM (epfileio.rom) that implements a FILE: device
     for direct access to files on the host system in a single user
     selectable directory
+  * Spectrum emulator card emulation
+  * real time clock (at ports 7E, 7F)
 
 Installation
 ============
@@ -164,12 +166,6 @@ Command line options
 'File' menu
 -----------
 
-Load snapshot
-Load demo
-
-  Load an ep128emu format binary file, which may be a previously saved
-  snapshot, demo, or a binary format configuration file.
-
 Configuration / Load from ASCII file
 
   Select and load an ASCII format configuration file and apply the new
@@ -197,14 +193,19 @@ Configuration / Revert
   Reload emulator configuration from ~/.ep128emu/ep128cfg.dat, and apply
   the original settings.
 
+Save snapshot
+
+  Save snapshot to the selected file (see notes above).
+
+Load snapshot
+
+  Load an ep128emu format binary file, which may be a previously saved
+  snapshot, demo, or a binary format configuration file.
+
 Quick snapshot / Set file name
 
   Select file name for quick snapshots. The default is
   ~/.ep128emu/qs_ep128.dat. This setting is not saved on exit.
-
-Quick snapshot / Load (Ctrl + F10)
-
-  Load the quick snapshot file if it exists.
 
 Quick snapshot / Save (Ctrl + F9)
 
@@ -216,9 +217,9 @@ Quick snapshot / Save (Ctrl + F9)
   that the state of any floppy drives is currently not saved, and the
   drives are reset on loading a snapshot.
 
-Save snapshot
+Quick snapshot / Load (Ctrl + F10)
 
-  Save snapshot to the selected file (see notes above).
+  Load the quick snapshot file if it exists.
 
 Record demo
 
@@ -231,6 +232,11 @@ Record demo
 Stop demo (Ctrl + F12)
 
   Stop any currently running demo playback or recording.
+
+Load demo
+
+  Load an ep128emu format binary file, which may be a previously saved
+  snapshot, demo, or a binary format configuration file.
 
 Record sound file
 
