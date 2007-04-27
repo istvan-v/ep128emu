@@ -43,6 +43,10 @@
 
 #ifdef WIN32
 #  include <wingdi.h>
+#  if defined(_MSC_VER) && !defined(__GNUC__)
+typedef void (APIENTRY *PFNGLBLENDCOLORPROC)(GLclampf, GLclampf, GLclampf,
+                                             GLclampf);
+#  endif
 #endif
 
 static void setTextureParameters(int displayQuality)
@@ -635,9 +639,8 @@ namespace Ep128Emu {
                      GLclampf(displayParameters.blendScale2),
                      GLclampf(1.0 - displayParameters.blendScale3));
 #else
-        void  (*glBlendColor_)(GLclampf, GLclampf, GLclampf, GLclampf) =
-            (void (*)(GLclampf, GLclampf, GLclampf, GLclampf))
-                wglGetProcAddress("glBlendColor");
+        PFNGLBLENDCOLORPROC glBlendColor_ =
+            (PFNGLBLENDCOLORPROC) wglGetProcAddress("glBlendColor");
         if (glBlendColor_)
           glBlendColor_(GLclampf(displayParameters.blendScale2),
                         GLclampf(displayParameters.blendScale2),
@@ -708,9 +711,8 @@ namespace Ep128Emu {
       if (ringBufferReadPos >= 4.0)
         ringBufferReadPos -= 4.0;
 #ifdef WIN32
-      void    (*glBlendColor_)(GLclampf, GLclampf, GLclampf, GLclampf) =
-          (void (*)(GLclampf, GLclampf, GLclampf, GLclampf))
-              wglGetProcAddress("glBlendColor");
+      PFNGLBLENDCOLORPROC glBlendColor_ =
+          (PFNGLBLENDCOLORPROC) wglGetProcAddress("glBlendColor");
 #endif
       bool    blendEnabled_ = true;
       if (readPosFrac >= 0.002 && readPosFrac <= 0.998)

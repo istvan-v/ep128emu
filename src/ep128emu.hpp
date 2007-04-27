@@ -25,7 +25,7 @@
 #include <string>
 #include <iostream>
 
-#ifdef __GNUC__
+#if defined(HAVE_STDINT_H) || defined(__GNUC__)
 #  include <stdint.h>
 #else
 typedef signed char         int8_t;

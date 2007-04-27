@@ -156,7 +156,7 @@ namespace Ep128Emu {
   }
 
 #ifdef WIN32
-  __stdcall unsigned int Thread::threadRoutine_(void *userData)
+  unsigned int __stdcall Thread::threadRoutine_(void *userData)
   {
     Thread  *p = reinterpret_cast<Thread *>(userData);
     p->threadLock_.wait();

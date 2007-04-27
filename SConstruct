@@ -69,6 +69,8 @@ if not configure.CheckCHeader('GL/gl.h'):
     print ' *** error: OpenGL is not found'
     Exit(-1)
 haveDotconf = configure.CheckCHeader('dotconf.h')
+if configure.CheckCHeader('stdint.h'):
+    ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_STDINT_H'])
 configure.Finish()
 
 if not havePortAudioV19:

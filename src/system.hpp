@@ -61,7 +61,7 @@ namespace Ep128Emu {
    private:
 #if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
     HANDLE    thread_;
-    static __stdcall unsigned int threadRoutine_(void *userData);
+    static unsigned int __stdcall threadRoutine_(void *userData);
 #else
     pthread_t thread_;
     static void * threadRoutine_(void *userData);
