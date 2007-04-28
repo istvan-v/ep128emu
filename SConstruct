@@ -83,6 +83,17 @@ ep128emuGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
 ep128emuGLGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
 ep128emuGLGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
 
+def fluidCompile(flNames):
+    cppNames = []
+    for flName in flNames:
+        if flName.endswith('.fl'):
+            cppName = flName[:-3] + '_fl.cpp'
+            hppName = flName[:-3] + '_fl.hpp'
+            Command([cppName, hppName], flName,
+                    'fluid -c -o %s -h %s $SOURCES' % (cppName, hppName))
+            cppNames += [cppName]
+    return cppNames
+
 ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
     src/bplist.cpp
     src/cfg_db.cpp
@@ -138,32 +149,12 @@ if not win32CrossCompile:
 else:
     ep128emuEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
 
-Command(['gui/gui_fl.cpp', 'gui/gui_fl.hpp'], 'gui/gui.fl',
-        'fluid -c -o gui/gui_fl.cpp -h gui/gui_fl.hpp $SOURCES')
-Command(['gui/disk_cfg.cpp', 'gui/disk_cfg.hpp'], 'gui/disk_cfg.fl',
-        'fluid -c -o gui/disk_cfg.cpp -h gui/disk_cfg.hpp $SOURCES')
-Command(['gui/disp_cfg.cpp', 'gui/disp_cfg.hpp'], 'gui/disp_cfg.fl',
-        'fluid -c -o gui/disp_cfg.cpp -h gui/disp_cfg.hpp $SOURCES')
-Command(['gui/snd_cfg.cpp', 'gui/snd_cfg.hpp'], 'gui/snd_cfg.fl',
-        'fluid -c -o gui/snd_cfg.cpp -h gui/snd_cfg.hpp $SOURCES')
-Command(['gui/vm_cfg.cpp', 'gui/vm_cfg.hpp'], 'gui/vm_cfg.fl',
-        'fluid -c -o gui/vm_cfg.cpp -h gui/vm_cfg.hpp $SOURCES')
-Command(['gui/debug_fl.cpp', 'gui/debug_fl.hpp'], 'gui/debug.fl',
-        'fluid -c -o gui/debug_fl.cpp -h gui/debug_fl.hpp $SOURCES')
-Command(['gui/about_fl.cpp', 'gui/about_fl.hpp'], 'gui/about.fl',
-        'fluid -c -o gui/about_fl.cpp -h gui/about_fl.hpp $SOURCES')
-
-ep128emu = ep128emuEnvironment.Program('ep128emu', Split('''
-    gui/gui.cpp
-    gui/gui_fl.cpp
-    gui/disk_cfg.cpp
-    gui/disp_cfg.cpp
-    gui/snd_cfg.cpp
-    gui/vm_cfg.cpp
-    gui/debug_fl.cpp
-    gui/about_fl.cpp
-    gui/main.cpp
-'''))
+ep128emu = ep128emuEnvironment.Program('ep128emu',
+    ['gui/gui.cpp']
+    + fluidCompile(['gui/gui.fl', 'gui/disk_cfg.fl', 'gui/disp_cfg.fl',
+                    'gui/snd_cfg.fl', 'gui/vm_cfg.fl', 'gui/debug.fl',
+                    'gui/about.fl'])
+    + ['gui/main.cpp'])
 Depends(ep128emu, ep128Lib)
 Depends(ep128emu, z80Lib)
 Depends(ep128emu, ep128emuLib)
@@ -181,14 +172,8 @@ if not win32CrossCompile:
 else:
     tapeeditEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
 
-Command(['tapeutil/tapeedit.cpp', 'tapeutil/tapeedit.hpp'],
-        'tapeutil/tapeedit.fl',
-        'fluid -c -o tapeutil/tapeedit.cpp -h tapeutil/tapeedit.hpp $SOURCES')
-
-tapeedit = tapeeditEnvironment.Program('tapeedit', Split('''
-    tapeutil/tapeedit.cpp
-    tapeutil/tapeio.cpp
-'''))
+tapeedit = tapeeditEnvironment.Program('tapeedit',
+    fluidCompile(['tapeutil/tapeedit.fl']) + ['tapeutil/tapeio.cpp'])
 Depends(tapeedit, ep128emuLib)
 
 # -----------------------------------------------------------------------------
@@ -204,13 +189,7 @@ if not win32CrossCompile:
 else:
     makecfgEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
 
-Command(['installer/mkcfg_fl.cpp', 'installer/mkcfg_fl.hpp'],
-        'installer/mkcfg.fl',
-        'fluid -c -o installer/mkcfg_fl.cpp -h installer/mkcfg_fl.hpp $SOURCES')
-
-makecfg = makecfgEnvironment.Program('makecfg', Split('''
-    installer/makecfg.cpp
-    installer/mkcfg_fl.cpp
-'''))
+makecfg = makecfgEnvironment.Program('makecfg',
+    ['installer/makecfg.cpp'] + fluidCompile(['installer/mkcfg.fl']))
 Depends(makecfg, ep128emuLib)
 
