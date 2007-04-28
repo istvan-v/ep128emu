@@ -24,7 +24,6 @@
 
 #include "ep128emu.hpp"
 #include <stddef.h>
-#include <stdint.h>
 
 #define Z80_ZERO_FLAG_BIT                       6
 #define Z80_HALFCARRY_FLAG_BIT                  4
