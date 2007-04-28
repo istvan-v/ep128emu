@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<VisualStudioToolFile
+	Name="FLTK"
+	Version="8,00"
+	>
+	<Rules>
+		<CustomBuildRule
+			Name="Generate code from *.fl with fluid"
+			DisplayName="Generate files from *.fl with fluid"
+			CommandLine="fluid.exe -c -o $(InputDir)$(InputName)_fl.cpp -h $(InputDir)$(InputName)_fl.hpp $(InputPath)"
+			Outputs="$(InputName).hpp $(InputName).cpp"
+			AdditionalDependencies="$(InputPath)"
+			FileExtensions="*.fl"
+			ExecutionDescription="Generating $(InputName)_fl.cpp and $(InputName)_fl.hpp from $(InputPath)..."
+			>
+			<Properties>
+			</Properties>
+		</CustomBuildRule>
+	</Rules>
+</VisualStudioToolFile>
