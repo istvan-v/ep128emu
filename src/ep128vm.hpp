@@ -47,6 +47,7 @@ namespace Ep128 {
       Z80_(Ep128VM& vm_);
       virtual ~Z80_();
      protected:
+      virtual void ackInterruptFunction();
       virtual uint8_t readMemory(uint16_t addr);
       virtual uint16_t readMemoryWord(uint16_t addr);
       virtual uint8_t readOpcodeFirstByte();

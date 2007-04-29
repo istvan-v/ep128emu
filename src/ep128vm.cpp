@@ -93,6 +93,17 @@ namespace Ep128 {
     closeAllFiles();
   }
 
+  void Ep128VM::Z80_::ackInterruptFunction()
+  {
+    if (vm.spectrumEmulatorEnabled) {
+      vm.spectrumEmulatorIOPorts[0] = 0xFF;
+      vm.spectrumEmulatorIOPorts[1] = 0xFF;
+      vm.spectrumEmulatorIOPorts[2] = 0xFF;
+      vm.spectrumEmulatorIOPorts[3] = 0x1F;
+      this->NMI_();
+    }
+  }
+
   uint8_t Ep128VM::Z80_::readMemory(uint16_t addr)
   {
     int     nCycles = 3;
@@ -1682,7 +1693,7 @@ namespace Ep128 {
     saveMachineConfiguration(f);
     saveState(f);
     demoBuffer.clear();
-    demoBuffer.writeUInt32(0x00020100); // version 2.1.0
+    demoBuffer.writeUInt32(0x00020003); // version 2.0.3
     demoFile = &f;
     isRecordingDemo = true;
     demoTimeCnt = 0U;
@@ -1827,7 +1838,7 @@ namespace Ep128 {
     // check version number
     unsigned int  version = buf.readUInt32();
 #if 0
-    if (version != 0x00020100) {
+    if (version != 0x00020003) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible ep128 demo format");
     }
