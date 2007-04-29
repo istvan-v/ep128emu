@@ -1,5 +1,9 @@
-Changes in version 2.1.0
+Changes in version 2.0.3
 ------------------------
+
+  * fixed interrupts in Spectrum emulator
+  * other minor fixes, including changes to allow for compiling with
+    Microsoft Visual Studio 2005
 
 Changes in version 2.0.2
 ------------------------
@@ -61,7 +65,8 @@ Changes in version 2.0.1
 Changes in version 2.0.0
 ------------------------
 
-  * removed Plus/4 emulation (moved to a separate plus4emu project)
+  * removed Plus/4 emulation (moved to a separate plus4emu project at
+    http://sourceforge.net/projects/plus4emu/)
   * implemented new video mode that resamples the video output to the
     refresh rate of the monitor; enabling this allows smoother display
     update at the expense of higher CPU usage and some latency in the

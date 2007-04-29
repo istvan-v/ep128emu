@@ -5,7 +5,7 @@ import sys
 win32CrossCompile = 0
 
 compilerFlags = Split('''
-    -Wall -W -ansi -pedantic -Wno-long-long -Wshadow -g -O2
+    -Wall -W -ansi -pedantic -Wno-long-long -O2
 ''')
 
 fltkConfig = 'fltk-config'
