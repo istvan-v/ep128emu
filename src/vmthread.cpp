@@ -152,26 +152,34 @@ namespace Ep128Emu {
     }
     mutex_.unlock();
     // run emulation, or wait if paused
-    if (!pauseFlag) {
-      try {
+    try {
+      if (!pauseFlag) {
         vm.run(2000);
       }
-      catch (Exception& e) {
-        mutex_.lock();
-        pauseFlag = true;
-        mutex_.unlock();
-        errorCallback(userData, e.what());
-      }
-      catch (...) {
-        mutex_.lock();
-        errorFlag = true;
-        mutex_.unlock();
-        this->cleanup();
-        return false;
+      else {
+        uint8_t dummyLineData[96];
+        for (int i = 0; i < 96; i += 2) {
+          dummyLineData[i] = 0x01;
+          dummyLineData[i + 1] = 0x00;
+        }
+        for (int i = 0; i < 125; i++)
+          vm.getVideoDisplay().drawLine(&(dummyLineData[0]), 96);
+        Timer::wait(0.01);
       }
     }
-    else
-      Timer::wait(0.01);
+    catch (Exception& e) {
+      mutex_.lock();
+      pauseFlag = true;
+      mutex_.unlock();
+      errorCallback(userData, e.what());
+    }
+    catch (...) {
+      mutex_.lock();
+      errorFlag = true;
+      mutex_.unlock();
+      this->cleanup();
+      return false;
+    }
     // update status information
     mutex_.lock();
     try {
