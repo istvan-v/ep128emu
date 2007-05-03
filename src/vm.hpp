@@ -71,6 +71,20 @@ namespace Ep128Emu {
     VirtualMachine(VideoDisplay& display_, AudioOutput& audioOutput_);
     virtual ~VirtualMachine();
     /*!
+     * Returns reference to the associated video display object.
+     */
+    inline VideoDisplay& getVideoDisplay()
+    {
+      return this->display;
+    }
+    /*!
+     * Returns reference to the associated audio output object.
+     */
+    inline AudioOutput& getAudioOutput()
+    {
+      return this->audioOutput;
+    }
+    /*!
      * Run emulation for the specified number of microseconds.
      */
     virtual void run(size_t microseconds);
