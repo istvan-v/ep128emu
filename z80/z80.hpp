@@ -67,7 +67,6 @@ namespace Ep128 {
   /* register pair definition */
   typedef union {
     /* read as a word */
-    /* Z80_WORD W; */
     Z80_WORD W;
     /* read as seperate bytes, l for low, h for high bytes */
     struct {
@@ -139,20 +138,20 @@ namespace Ep128 {
     Z80_REGISTER_PAIR altBC;
     Z80_REGISTER_PAIR altAF;
 
-    /* interrupt vector register. High byte of address */
+    /*! interrupt vector register. High byte of address */
     Z80_BYTE I;
 
-    /* refresh register */
+    /*! refresh register */
     Z80_BYTE R;
 
-    /* interrupt status */
+    /*! interrupt status */
     Z80_BYTE IFF1;
     Z80_BYTE IFF2;
 
-    /* bit 7 of R register */
+    /*! bit 7 of R register */
     Z80_BYTE RBit7;
 
-    /* interrupt mode 0,1,2 */
+    /*! interrupt mode 0,1,2 */
     Z80_BYTE IM;
     Z80_BYTE TempByte;
     Z80_BYTE InterruptVectorBase;
@@ -245,50 +244,78 @@ namespace Ep128 {
     {
       return this->R;
     }
-    // execute non-maskable interrupt immediately
+    /*!
+     * Execute non-maskable interrupt immediately.
+     */
     void NMI();
-    // schedule non-maskable interrupt to be executed
-    // after completing an instruction
+    /*!
+     * Schedule non-maskable interrupt to be executed
+     * after completing an instruction.
+     */
     void NMI_();
     void triggerInterrupt();
     void clearInterrupt();
     void setVectorBase(int);
     void executeInstruction();
     void test();
-    // save snapshot
+    /*!
+     * Save snapshot.
+     */
     void saveState(Ep128Emu::File::Buffer&);
     void saveState(Ep128Emu::File&);
-    // load snapshot
+    /*!
+     * Load snapshot.
+     */
     void loadState(Ep128Emu::File::Buffer&);
     void registerChunkType(Ep128Emu::File&);
    protected:
     virtual void ackInterruptFunction();
-    // read a byte from memory (3 cycles)
+    /*!
+     * Read a byte from memory (3 cycles).
+     */
     virtual uint8_t readMemory(uint16_t addr);
-    // write a byte to memory (3 cycles)
+    /*!
+     * Write a byte to memory (3 cycles).
+     */
     virtual void writeMemory(uint16_t addr, uint8_t value);
-    // read a 16-bit word from memory (6 cycles)
+    /*!
+     * Read a 16-bit word from memory (6 cycles).
+     */
     virtual uint16_t readMemoryWord(uint16_t addr);
-    // write a 16-bit word to memory (6 cycles)
+    /*!
+     * Write a 16-bit word to memory (6 cycles).
+     */
     virtual void writeMemoryWord(uint16_t addr, uint16_t value);
-    // write a byte to an I/O port
+    /*!
+     * Write a byte to an I/O port.
+     */
     virtual void doOut(uint16_t addr, uint8_t value);
-    // read a byte from an I/O port
+    /*!
+     * Read a byte from an I/O port.
+     */
     virtual uint8_t doIn(uint16_t addr);
-    // read the first byte of an opcode (4 cycles)
+    /*!
+     * Read the first byte of an opcode (4 cycles).
+     */
     virtual uint8_t readOpcodeFirstByte();
-    // read the second byte of an opcode (4 cycles)
+    /*!
+     * Read the second byte of an opcode (4 cycles).
+     */
     virtual uint8_t readOpcodeSecondByte();
-    // read an opcode byte (3 cycles; 'Offset' should not be zero)
+    /*!
+     * Read an opcode byte (3 cycles; 'Offset' should not be zero).
+     */
     virtual uint8_t readOpcodeByte(int offset);
-    // read an opcode word (6 cycles; 'Offset' should not be zero)
+    /*!
+     * Read an opcode word (6 cycles; 'Offset' should not be zero).
+     */
     virtual uint16_t readOpcodeWord(int offset);
     virtual void updateCycle();
     virtual void updateCycles(int cycles);
     virtual void tapePatch();
   };
 
-}
+}       // namespace Ep128
 
-#endif
+#endif  // __Z80_HEADER_INCLUDED__
 

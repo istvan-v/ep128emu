@@ -157,40 +157,50 @@ namespace Ep128Emu {
    public:
     FLTKDisplay_();
     virtual ~FLTKDisplay_();
-    // set color correction and other display parameters
-    // (see 'struct DisplayParameters' above for more information)
+    /*!
+     * Set color correction and other display parameters
+     * (see 'struct DisplayParameters' above for more information).
+     */
     virtual void setDisplayParameters(const DisplayParameters& dp);
     virtual const DisplayParameters& getDisplayParameters() const;
-    // Draw next line of display.
-    // 'buf' defines a line of 768 pixels, as 48 groups of 16 pixels each,
-    // in the following format: the first byte defines the number of
-    // additional bytes that encode the 16 pixels to be displayed. The data
-    // length also determines the pixel format, and can have the following
-    // values:
-    //   0x01: one 8-bit color index (pixel width = 16)
-    //   0x02: two 8-bit color indices (pixel width = 8)
-    //   0x03: two 8-bit color indices for background (bit value = 0) and
-    //         foreground (bit value = 1) color, followed by a 8-bit bitmap
-    //         (msb first, pixel width = 2)
-    //   0x04: four 8-bit color indices (pixel width = 4)
-    //   0x06: similar to 0x03, but there are two sets of colors/bitmap
-    //         (c0a, c1a, bitmap_a, c0b, c1b, bitmap_b) and the pixel width
-    //         is 1
-    //   0x08: eight 8-bit color indices (pixel width = 2)
-    //   0x10: sixteen 8-bit color indices (pixel width = 1)
-    // The buffer contains 'nBytes' (in the range of 96 to 816) bytes of data.
+    /*!
+     * Draw next line of display.
+     * 'buf' defines a line of 768 pixels, as 48 groups of 16 pixels each,
+     * in the following format: the first byte defines the number of
+     * additional bytes that encode the 16 pixels to be displayed. The data
+     * length also determines the pixel format, and can have the following
+     * values:
+     *   0x01: one 8-bit color index (pixel width = 16)
+     *   0x02: two 8-bit color indices (pixel width = 8)
+     *   0x03: two 8-bit color indices for background (bit value = 0) and
+     *         foreground (bit value = 1) color, followed by a 8-bit bitmap
+     *         (msb first, pixel width = 2)
+     *   0x04: four 8-bit color indices (pixel width = 4)
+     *   0x06: similar to 0x03, but there are two sets of colors/bitmap
+     *         (c0a, c1a, bitmap_a, c0b, c1b, bitmap_b) and the pixel width
+     *         is 1
+     *   0x08: eight 8-bit color indices (pixel width = 2)
+     *   0x10: sixteen 8-bit color indices (pixel width = 1)
+     * The buffer contains 'nBytes' (in the range of 96 to 816) bytes of data.
+     */
     virtual void drawLine(const uint8_t *buf, size_t nBytes);
-    // Should be called at the beginning (newState = true) and end
-    // (newState = false) of VSYNC. 'currentSlot_' is the position within
-    // the current line (0 to 56).
+    /*!
+     * Should be called at the beginning (newState = true) and end
+     * (newState = false) of VSYNC. 'currentSlot_' is the position within
+     * the current line (0 to 56).
+     */
     virtual void vsyncStateChange(bool newState, unsigned int currentSlot_);
-    // Read and process messages sent by the child thread. Returns true if
-    // redraw() needs to be called to update the display.
+    /*!
+     * Read and process messages sent by the child thread. Returns true if
+     * redraw() needs to be called to update the display.
+     */
     virtual bool checkEvents() = 0;
-    // Set function to be called once by checkEvents() after video data for
-    // a complete frame has been received. 'buf' contains 768 bytes of
-    // colormap data (256*3 interleaved red, green, and blue values) followed
-    // by 'w_' * 'h_' bytes of image data.
+    /*!
+     * Set function to be called once by checkEvents() after video data for
+     * a complete frame has been received. 'buf' contains 768 bytes of
+     * colormap data (256*3 interleaved red, green, and blue values) followed
+     * by 'w_' * 'h_' bytes of image data.
+     */
     virtual void setScreenshotCallback(void (*func)(void *userData,
                                                     const unsigned char *buf,
                                                     int w_, int h_),
@@ -226,9 +236,11 @@ namespace Ep128Emu {
     void displayFrame();
     // ----------------
     Colormap      colormap;
-    // linesChanged[n] & 0x01 is non-zero if video data for line n has been
-    // received in the current frame; linesChanged[n] & 0x80 is non-zero if
-    // line n has changed in the current frame
+    /*!
+     * linesChanged[n] & 0x01 is non-zero if video data for line n has been
+     * received in the current frame; linesChanged[n] & 0x80 is non-zero if
+     * line n has changed in the current frame
+     */
     uint8_t       *linesChanged;
     uint8_t       forceUpdateLineCnt;
     uint8_t       forceUpdateLineMask;
@@ -239,11 +251,15 @@ namespace Ep128Emu {
     FLTKDisplay(int xx = 0, int yy = 0, int ww = 768, int hh = 576,
                 const char *lbl = (char *) 0);
     virtual ~FLTKDisplay();
-    // set color correction and other display parameters
-    // (see 'struct DisplayParameters' above for more information)
+    /*!
+     * Set color correction and other display parameters
+     * (see 'struct DisplayParameters' above for more information).
+     */
     virtual void setDisplayParameters(const DisplayParameters& dp);
-    // Read and process messages sent by the child thread. Returns true if
-    // redraw() needs to be called to update the display.
+    /*!
+     * Read and process messages sent by the child thread. Returns true if
+     * redraw() needs to be called to update the display.
+     */
     virtual bool checkEvents();
    protected:
     virtual void draw();

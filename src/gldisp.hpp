@@ -82,8 +82,10 @@ namespace Ep128Emu {
     OpenGLDisplay(int xx = 0, int yy = 0, int ww = 768, int hh = 576,
                   const char *lbl = (char *) 0, bool isDoubleBuffered = false);
     virtual ~OpenGLDisplay();
-    // Read and process messages sent by the child thread. Returns true if
-    // redraw() needs to be called to update the display.
+    /*!
+     * Read and process messages sent by the child thread. Returns true if
+     * redraw() needs to be called to update the display.
+     */
     virtual bool checkEvents();
    protected:
     virtual void draw();

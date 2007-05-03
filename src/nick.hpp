@@ -191,32 +191,38 @@ class x : public NickRenderer {                 \
     bool      lptClockEnabled;
     bool      vsyncFlag;
    protected:
-    // called when the IRQ state changes, with a true parameter when the
-    // IRQ is active (low)
+    /*!
+     * Called when the IRQ state changes, with a true parameter when the
+     * IRQ is active (low).
+     */
     virtual void irqStateChange(bool newState);
-    // drawLine() is called after rendering each line.
-    // 'buf' defines a line of 768 pixels, as 48 groups of 16 pixels each,
-    // in the following format: the first byte defines the number of
-    // additional bytes that encode the 16 pixels to be displayed. The data
-    // length also determines the pixel format, and can have the following
-    // values:
-    //   0x01: one 8-bit color index (pixel width = 16)
-    //   0x02: two 8-bit color indices (pixel width = 8)
-    //   0x03: two 8-bit color indices for background (bit value = 0) and
-    //         foreground (bit value = 1) color, followed by a 8-bit bitmap
-    //         (msb first, pixel width = 2)
-    //   0x04: four 8-bit color indices (pixel width = 4)
-    //   0x06: similar to 0x03, but there are two sets of colors/bitmap
-    //         (c0a, c1a, bitmap_a, c0b, c1b, bitmap_b) and the pixel width
-    //         is 1
-    //   0x08: eight 8-bit color indices (pixel width = 2)
-    //   0x10: sixteen 8-bit color indices (pixel width = 1)
-    // The buffer is aligned to 4 bytes, and contains 'nBytes' (in the range
-    // of 96 to 816) bytes of data.
+    /*!
+     * drawLine() is called after rendering each line.
+     * 'buf' defines a line of 768 pixels, as 48 groups of 16 pixels each,
+     * in the following format: the first byte defines the number of
+     * additional bytes that encode the 16 pixels to be displayed. The data
+     * length also determines the pixel format, and can have the following
+     * values:
+     *   0x01: one 8-bit color index (pixel width = 16)
+     *   0x02: two 8-bit color indices (pixel width = 8)
+     *   0x03: two 8-bit color indices for background (bit value = 0) and
+     *         foreground (bit value = 1) color, followed by a 8-bit bitmap
+     *         (msb first, pixel width = 2)
+     *   0x04: four 8-bit color indices (pixel width = 4)
+     *   0x06: similar to 0x03, but there are two sets of colors/bitmap
+     *         (c0a, c1a, bitmap_a, c0b, c1b, bitmap_b) and the pixel width
+     *         is 1
+     *   0x08: eight 8-bit color indices (pixel width = 2)
+     *   0x10: sixteen 8-bit color indices (pixel width = 1)
+     * The buffer is aligned to 4 bytes, and contains 'nBytes' (in the range
+     * of 96 to 816) bytes of data.
+     */
     virtual void drawLine(const uint8_t *buf, size_t nBytes);
-    // Called at the beginning (newState = true) and end (newState = false)
-    // of VSYNC. 'currentSlot_' is the position within the current line
-    // (0 to 56).
+    /*!
+     * Called at the beginning (newState = true) and end (newState = false)
+     * of VSYNC. 'currentSlot_' is the position within the current line
+     * (0 to 56).
+     */
     virtual void vsyncStateChange(bool newState, unsigned int currentSlot_);
    public:
     Nick(Memory& m_);
@@ -234,7 +240,7 @@ class x : public NickRenderer {                 \
     void registerChunkType(Ep128Emu::File&);
   };
 
-}
+}       // namespace Ep128
 
 #endif  // EP128EMU_NICK_HPP
 

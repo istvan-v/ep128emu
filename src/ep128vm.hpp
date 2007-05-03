@@ -201,127 +201,195 @@ namespace Ep128 {
    public:
     Ep128VM(Ep128Emu::VideoDisplay&, Ep128Emu::AudioOutput&);
     virtual ~Ep128VM();
-    // run emulation for the specified number of microseconds
+    /*!
+     * Run emulation for the specified number of microseconds.
+     */
     virtual void run(size_t microseconds);
-    // reset emulated machine; if 'isColdReset' is true, RAM is cleared
+    /*!
+     * Reset emulated machine; if 'isColdReset' is true, RAM is cleared.
+     */
     virtual void reset(bool isColdReset = false);
-    // delete all ROM segments, and resize RAM to 'memSize' kilobytes
-    // implies calling reset(true)
+    /*!
+     * Delete all ROM segments, and resize RAM to 'memSize' kilobytes;
+     * implies calling reset(true).
+     */
     virtual void resetMemoryConfiguration(size_t memSize);
-    // load ROM segment 'n' from the specified file, skipping 'offs' bytes
+    /*!
+     * Load ROM segment 'n' from the specified file, skipping 'offs' bytes.
+     */
     virtual void loadROMSegment(uint8_t n, const char *fileName, size_t offs);
-    // set CPU clock frequency (in Hz); defaults to 4000000 Hz
+    /*!
+     * Set CPU clock frequency (in Hz); defaults to 4000000 Hz.
+     */
     virtual void setCPUFrequency(size_t freq_);
-    // set the number of video 'slots' per second (defaults to 890625 Hz)
+    /*!
+     * Set the number of video 'slots' per second (defaults to 890625 Hz).
+     */
     virtual void setVideoFrequency(size_t freq_);
-    // set DAVE sample rate (defaults to 500000 Hz)
+    /*!
+     * Set DAVE sample rate (defaults to 500000 Hz).
+     */
     virtual void setSoundClockFrequency(size_t freq_);
-    // set if emulation of memory timing is enabled
+    /*!
+     * Set if emulation of memory timing is enabled.
+     */
     virtual void setEnableMemoryTimingEmulation(bool isEnabled);
-    // Set state of key 'keyCode' (0 to 127; see dave.hpp).
+    /*!
+     * Set state of key 'keyCode' (0 to 127; see dave.hpp).
+     */
     virtual void setKeyboardState(int keyCode, bool isPressed);
     // -------------------------- DISK AND FILE I/O ---------------------------
-    // Load disk image for drive 'n' (counting from zero); an empty file
-    // name means no disk.
+    /*!
+     * Load disk image for drive 'n' (counting from zero); an empty file
+     * name means no disk.
+     */
     virtual void setDiskImageFile(int n, const std::string& fileName_,
                                   int nTracks_ = -1, int nSides_ = 2,
                                   int nSectorsPerTrack_ = 9);
     // ---------------------------- TAPE EMULATION ----------------------------
-    // Set tape image file name (if the file name is NULL or empty, tape
-    // emulation is disabled).
+    /*!
+     * Set tape image file name (if the file name is NULL or empty, tape
+     * emulation is disabled).
+     */
     virtual void setTapeFileName(const std::string& fileName);
-    // start tape playback
+    /*!
+     * Start tape playback.
+     */
     virtual void tapePlay();
-    // start tape recording; if the tape file is read-only, this is
-    // equivalent to calling tapePlay()
+    /*!
+     * Start tape recording; if the tape file is read-only, this is
+     * equivalent to calling tapePlay().
+     */
     virtual void tapeRecord();
     // ------------------------------ DEBUGGING -------------------------------
-    // Add breakpoints from the specified breakpoint list (see also
-    // bplist.hpp).
+    /*!
+     * Add breakpoints from the specified breakpoint list (see also
+     * bplist.hpp).
+     */
     virtual void setBreakPoints(const Ep128Emu::BreakPointList& bpList);
-    // Returns the currently defined breakpoints.
+    /*!
+     * Returns the currently defined breakpoints.
+     */
     virtual Ep128Emu::BreakPointList getBreakPoints();
-    // Clear all breakpoints.
+    /*!
+     * Clear all breakpoints.
+     */
     virtual void clearBreakPoints();
-    // Set breakpoint priority threshold (0 to 4); breakpoints with a
-    // priority less than this value will not trigger a break.
+    /*!
+     * Set breakpoint priority threshold (0 to 4); breakpoints with a
+     * priority less than this value will not trigger a break.
+     */
     virtual void setBreakPointPriorityThreshold(int n);
-    // Set if the breakpoint callback should be called whenever the first byte
-    // of a CPU instruction is read from memory. Breakpoints are ignored in
-    // this mode.
+    /*!
+     * Set if the breakpoint callback should be called whenever the first byte
+     * of a CPU instruction is read from memory. Breakpoints are ignored in
+     * this mode.
+     */
     virtual void setSingleStepMode(bool isEnabled, bool stepOverFlag = false);
-    // Returns the segment at page 'n' (0 to 3).
+    /*!
+     * Returns the segment at page 'n' (0 to 3).
+     */
     virtual uint8_t getMemoryPage(int n) const;
-    // Read a byte from memory. If 'isCPUAddress' is false, bits 14 to 21 of
-    // 'addr' define the segment number, while bits 0 to 13 are the offset
-    // (0 to 0x3FFF) within the segment; otherwise, 'addr' is interpreted as
-    // a 16-bit CPU address.
+    /*!
+     * Read a byte from memory. If 'isCPUAddress' is false, bits 14 to 21 of
+     * 'addr' define the segment number, while bits 0 to 13 are the offset
+     * (0 to 0x3FFF) within the segment; otherwise, 'addr' is interpreted as
+     * a 16-bit CPU address.
+     */
     virtual uint8_t readMemory(uint32_t addr, bool isCPUAddress = false) const;
-    // Write a byte to memory. If 'isCPUAddress' is false, bits 14 to 21 of
-    // 'addr' define the segment number, while bits 0 to 13 are the offset
-    // (0 to 0x3FFF) within the segment; otherwise, 'addr' is interpreted as
-    // a 16-bit CPU address.
-    // NOTE: calling this function will stop any demo recording or playback.
+    /*!
+     * Write a byte to memory. If 'isCPUAddress' is false, bits 14 to 21 of
+     * 'addr' define the segment number, while bits 0 to 13 are the offset
+     * (0 to 0x3FFF) within the segment; otherwise, 'addr' is interpreted as
+     * a 16-bit CPU address.
+     * NOTE: calling this function will stop any demo recording or playback.
+     */
     virtual void writeMemory(uint32_t addr, uint8_t value,
                              bool isCPUAddress = false);
-    // Returns the current value of the Z80 program counter (PC).
+    /*!
+     * Returns the current value of the Z80 program counter (PC).
+     */
     virtual uint16_t getProgramCounter() const;
-    // Returns the CPU address of the last byte pushed to the stack.
+    /*!
+     * Returns the CPU address of the last byte pushed to the stack.
+     */
     virtual uint16_t getStackPointer() const;
-    // Dumps the current values of all CPU registers to 'buf' in ASCII format.
-    // The register list may be written as multiple lines separated by '\n'
-    // characters, however, there is no newline character at the end of the
-    // buffer. The maximum line width is 40 characters.
+    /*!
+     * Dumps the current values of all CPU registers to 'buf' in ASCII format.
+     * The register list may be written as multiple lines separated by '\n'
+     * characters, however, there is no newline character at the end of the
+     * buffer. The maximum line width is 40 characters.
+     */
     virtual void listCPURegisters(std::string& buf) const;
-    // Dumps the current values of all I/O registers to 'buf' in ASCII format.
-    // The register list may be written as multiple lines separated by '\n'
-    // characters, however, there is no newline character at the end of the
-    // buffer. The maximum line width is 52 characters.
+    /*!
+     * Dumps the current values of all I/O registers to 'buf' in ASCII format.
+     * The register list may be written as multiple lines separated by '\n'
+     * characters, however, there is no newline character at the end of the
+     * buffer. The maximum line width is 52 characters.
+     */
     virtual void listIORegisters(std::string& buf) const;
-    // Disassemble one Z80 instruction, starting from memory address 'addr',
-    // and write the result to 'buf' (not including a newline character).
-    // 'offs' is added to the instruction address that is printed.
-    // The maximum line width is 40 characters.
-    // Returns the address of the next instruction. If 'isCPUAddress' is
-    // true, 'addr' is interpreted as a 16-bit CPU address, otherwise it
-    // is assumed to be a 22-bit physical address (8 bit segment + 14 bit
-    // offset).
+    /*!
+     * Disassemble one Z80 instruction, starting from memory address 'addr',
+     * and write the result to 'buf' (not including a newline character).
+     * 'offs' is added to the instruction address that is printed.
+     * The maximum line width is 40 characters.
+     * Returns the address of the next instruction. If 'isCPUAddress' is
+     * true, 'addr' is interpreted as a 16-bit CPU address, otherwise it
+     * is assumed to be a 22-bit physical address (8 bit segment + 14 bit
+     * offset).
+     */
     virtual uint32_t disassembleInstruction(std::string& buf, uint32_t addr,
                                             bool isCPUAddress = false,
                                             int32_t offs = 0) const;
-    // Returns read-only reference to a structure containing all Z80
-    // registers; see z80/z80.hpp for more information.
+    /*!
+     * Returns read-only reference to a structure containing all Z80
+     * registers; see z80/z80.hpp for more information.
+     */
     virtual const Z80_REGISTERS& getZ80Registers() const;
     // ------------------------------- FILE I/O -------------------------------
-    // Save snapshot of virtual machine state, including all ROM and RAM
-    // segments, as well as all hardware registers. Note that the clock
-    // frequency and timing settings, tape and disk state, and breakpoint list
-    // are not saved.
+    /*!
+     * Save snapshot of virtual machine state, including all ROM and RAM
+     * segments, as well as all hardware registers. Note that the clock
+     * frequency and timing settings, tape and disk state, and breakpoint list
+     * are not saved.
+     */
     virtual void saveState(Ep128Emu::File&);
-    // Save clock frequency and timing settings.
+    /*!
+     * Save clock frequency and timing settings.
+     */
     virtual void saveMachineConfiguration(Ep128Emu::File&);
-    // Register all types of file data supported by this class, for use by
-    // File::processAllChunks(). Note that loading snapshot data will clear
-    // all breakpoints.
+    /*!
+     * Register all types of file data supported by this class, for use by
+     * File::processAllChunks(). Note that loading snapshot data will clear
+     * all breakpoints.
+     */
     virtual void registerChunkTypes(Ep128Emu::File&);
-    // Start recording a demo to the file object, which will be used until
-    // the recording is stopped for some reason.
-    // Implies calling saveMachineConfiguration() and saveState() first.
+    /*!
+     * Start recording a demo to the file object, which will be used until
+     * the recording is stopped for some reason.
+     * Implies calling saveMachineConfiguration() and saveState() first.
+     */
     virtual void recordDemo(Ep128Emu::File&);
-    // Stop playing or recording demo.
+    /*!
+     * Stop playing or recording demo.
+     */
     virtual void stopDemo();
-    // Returns true if a demo is currently being recorded. The recording stops
-    // when stopDemo() is called, any tape or disk I/O is attempted, clock
-    // frequency and timing settings are changed, or a snapshot is loaded.
-    // This function will also flush demo data to the associated file object
-    // after recording is stopped for some reason other than calling
-    // stopDemo().
+    /*!
+     * Returns true if a demo is currently being recorded. The recording stops
+     * when stopDemo() is called, any tape or disk I/O is attempted, clock
+     * frequency and timing settings are changed, or a snapshot is loaded.
+     * This function will also flush demo data to the associated file object
+     * after recording is stopped for some reason other than calling
+     * stopDemo().
+     */
     virtual bool getIsRecordingDemo();
-    // Returns true if a demo is currently being played. The playback stops
-    // when the end of the demo is reached, stopDemo() is called, any tape or
-    // disk I/O is attempted, clock frequency and timing settings are changed,
-    // or a snapshot is loaded. Note that keyboard events are ignored while
-    // playing a demo.
+    /*!
+     * Returns true if a demo is currently being played. The playback stops
+     * when the end of the demo is reached, stopDemo() is called, any tape or
+     * disk I/O is attempted, clock frequency and timing settings are changed,
+     * or a snapshot is loaded. Note that keyboard events are ignored while
+     * playing a demo.
+     */
     virtual bool getIsPlayingDemo() const;
     // ----------------
     virtual void loadState(Ep128Emu::File::Buffer&);

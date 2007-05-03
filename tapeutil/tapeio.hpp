@@ -59,29 +59,47 @@ namespace Ep128Emu {
    public:
     TapeInput(Fl_Progress *);
     virtual ~TapeInput();
-    // returns tape signal (0 or 1), or -1 on end of file
+    /*!
+     * Returns tape signal (0 or 1), or -1 on end of file.
+     */
     virtual int getSample();
-    // returns the length of the next half-period in samples,
-    // or -1 on end of file
+    /*!
+     * Returns the length of the next half-period in samples,
+     * or -1 on end of file.
+     */
     long getHalfPeriod();
-    // returns the length of the next full period in samples,
-    // or -1 on end of file
+    /*!
+     * Returns the length of the next full period in samples,
+     * or -1 on end of file.
+     */
     long getPeriod();
-    // search for lead-in signal, sync bit, dummy byte, and 0x6A byte
-    // return value is true if found, or false if end of file is reached
+    /*!
+     * Search for leader signal, sync bit, dummy byte, and 0x6A byte.
+     * Return value is true if found, or false if end of file is reached.
+     */
     bool search();
-    // reset CRC register to zero
+    /*!
+     * Reset CRC register to zero.
+     */
     void resetCRC();
-    // read a single byte (0 to 255); return value is 256 on error (i.e.
-    // invalid period time), and -1 on end of file
+    /*!
+     * Read a single byte (0 to 255); return value is 256 on error (i.e.
+     * invalid period time), and -1 on end of file.
+     */
     int readByte();
-    // returns the current CRC value
+    /*!
+     * Returns the current CRC value.
+     */
     uint16_t getCRC() const;
-    // read a block (up to 256 bytes) into 'buf'
-    // returns 0 on success, -1 on end of tape, and 1 on CRC error
+    /*!
+     * Read a block (up to 256 bytes) into 'buf'.
+     * Returns 0 on success, -1 on end of tape, and 1 on CRC error.
+     */
     int readBlock(uint8_t *buf, size_t& nBytes);
-    // read a chunk (up to 4096 bytes) into 'buf'
-    // returns 0 on success, -1 on end of tape, and 1 on CRC error
+    /*!
+     * Read a chunk (up to 4096 bytes) into 'buf'.
+     * Returns 0 on success, -1 on end of tape, and 1 on CRC error.
+     */
     int readChunk(uint8_t *buf, size_t& nBytes, bool& isHeader);
    protected:
     virtual int getSample_() = 0;

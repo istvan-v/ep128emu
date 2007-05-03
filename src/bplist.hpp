@@ -107,35 +107,37 @@ namespace Ep128Emu {
     BreakPointList()
     {
     }
-    // Create breakpoint list from ASCII format breakpoint definitions,
-    // separated by any whitespace characters (space, tab, or newline).
-    // A breakpoint definition consists of an address or address range in
-    // one of the following formats (each 'n' is a hexadecimal digit):
-    //   nn             a single I/O port address
-    //   nn-nn          all I/O port addresses in the specified range
-    //   nnnn           a single CPU memory address
-    //   nnnn-nnnn      all CPU memory addresses in the specified range
-    //   nn:nnnn        a single raw memory address, as segment:offset
-    //   nn:nnnn-nnnn   range of raw memory addresses
-    //                  (segment:first_offset-last_offset)
-    // and these optional modifiers:
-    //   r              the breakpoint is triggered on reads
-    //   w              the breakpoint is triggered on writes
-    //   p0             the breakpoint has a priority of 0
-    //   p1             the breakpoint has a priority of 1
-    //   p2             the breakpoint has a priority of 2
-    //   p3             the breakpoint has a priority of 3
-    //   i              ignore other breakpoints if the program counter
-    //                  is at an address for which this breakpoint is set
-    //                  (read/write flags and priority are not used in
-    //                  this case)
-    // by default, the breakpoint is triggered on both reads and writes if
-    // 'r' or 'w' is not used, and has a priority of 2.
-    // Example: 8000-8003rp1 means break on reading CPU addresses 0x8000,
-    // 0x8001, 0x8002, and 0x8003, if the breakpoint priority threshold is
-    // less than or equal to 1.
-    // If there are any syntax errors in the list, Ep128Emu::Exception is
-    // thrown, and no breakpoints are added.
+    /*!
+     * Create breakpoint list from ASCII format breakpoint definitions,
+     * separated by any whitespace characters (space, tab, or newline).
+     * A breakpoint definition consists of an address or address range in
+     * one of the following formats (each 'n' is a hexadecimal digit):
+     *   nn             a single I/O port address
+     *   nn-nn          all I/O port addresses in the specified range
+     *   nnnn           a single CPU memory address
+     *   nnnn-nnnn      all CPU memory addresses in the specified range
+     *   nn:nnnn        a single raw memory address, as segment:offset
+     *   nn:nnnn-nnnn   range of raw memory addresses
+     *                  (segment:first_offset-last_offset)
+     * and these optional modifiers:
+     *   r              the breakpoint is triggered on reads
+     *   w              the breakpoint is triggered on writes
+     *   p0             the breakpoint has a priority of 0
+     *   p1             the breakpoint has a priority of 1
+     *   p2             the breakpoint has a priority of 2
+     *   p3             the breakpoint has a priority of 3
+     *   i              ignore other breakpoints if the program counter
+     *                  is at an address for which this breakpoint is set
+     *                  (read/write flags and priority are not used in
+     *                  this case)
+     * by default, the breakpoint is triggered on both reads and writes if
+     * 'r' or 'w' is not used, and has a priority of 2.
+     * Example: 8000-8003rp1 means break on reading CPU addresses 0x8000,
+     * 0x8001, 0x8002, and 0x8003, if the breakpoint priority threshold is
+     * less than or equal to 1.
+     * If there are any syntax errors in the list, Ep128Emu::Exception is
+     * thrown, and no breakpoints are added.
+     */
     BreakPointList(const std::string& lst);
     void addMemoryBreakPoint(uint8_t segment, uint16_t addr,
                              bool r, bool w, bool ignoreFlag, int priority);

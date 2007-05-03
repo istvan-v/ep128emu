@@ -160,10 +160,12 @@ namespace Ep128 {
     virtual void interruptRequest();
     virtual void clearInterruptRequest();
    public:
-    // Run DAVE emulation for 2 us (clock frequency = 500 kHz).
-    // Return value is audio output in left_channel + (right_channel << 16)
-    // format, where the range for a single channel is 0 to 40320 (sum of 4
-    // sound generators and tape feedback, 0 to 8064 each).
+    /*!
+     * Run DAVE emulation for 2 us (clock frequency = 500 kHz).
+     * Return value is audio output in left_channel + (right_channel << 16)
+     * format, where the range for a single channel is 0 to 40320 (sum of 4
+     * sound generators and tape feedback, 0 to 8064 each).
+     */
     inline uint32_t runOneCycle()
     {
       if (--clockCnt > 0)
@@ -171,53 +173,71 @@ namespace Ep128 {
       clockCnt = clockDiv;
       return runOneCycle_();
     }
-    // Write to a DAVE register.
+    /*!
+     * Write to a DAVE register.
+     */
     void writePort(uint16_t addr, uint8_t value);
-    // Read from a DAVE register.
+    /*!
+     * Read from a DAVE register.
+     */
     uint8_t readPort(uint16_t addr) const;
-    // Set hardware interrupt 1 state, and (possibly) trigger interrupt.
+    /*!
+     * Set hardware interrupt 1 state, and (possibly) trigger interrupt.
+     */
     void setInt1State(int new_state);
-    // Set hardware interrupt 2 state, and (possibly) trigger interrupt.
+    /*!
+     * Set hardware interrupt 2 state, and (possibly) trigger interrupt.
+     */
     void setInt2State(int new_state);
-    // Set tape input state, and level (0: low, 1: high).
+    /*!
+     * Set tape input state, and level (0: low, 1: high).
+     */
     void setTapeInput(int state, int level);
-    // Set state of key 'keyCode' (0 to 127, see table below) to pressed
-    // (state != 0) or released (state == 0).
-    //        +-------+-------+-------+-------+-------+-------+-------+-------+
-    //        |  0x00 |  0x01 |  0x02 |  0x03 |  0x04 |  0x05 |  0x06 |  0x07 |
-    //        |  0x08 |  0x09 |  0x0A |  0x0B |  0x0C |  0x0D |  0x0E |  0x0F |
-    // +------+-------+-------+-------+-------+-------+-------+-------+-------+
-    // | 0x00 |     N |     \ |     B |     C |     V |     X |     Z | SHF_L |
-    // +------+-------+-------+-------+-------+-------+-------+-------+-------+
-    // | 0x08 |     H |  LOCK |     G |     D |     F |     S |     A |  CTRL |
-    // +------+-------+-------+-------+-------+-------+-------+-------+-------+
-    // | 0x10 |     U |     Q |     Y |     R |     T |     E |     W |   TAB |
-    // +------+-------+-------+-------+-------+-------+-------+-------+-------+
-    // | 0x18 |     7 |     1 |     6 |     4 |     5 |     3 |     2 |   ESC |
-    // +------+-------+-------+-------+-------+-------+-------+-------+-------+
-    // | 0x20 |    F4 |    F8 |    F3 |    F6 |    F5 |    F7 |    F2 |    F1 |
-    // +------+-------+-------+-------+-------+-------+-------+-------+-------+
-    // | 0x28 |     8 |       |     9 |     - |     0 |     ^ | ERASE |       |
-    // +------+-------+-------+-------+-------+-------+-------+-------+-------+
-    // | 0x30 |     J |       |     K |     ; |     L |     : |     ] |       |
-    // +------+-------+-------+-------+-------+-------+-------+-------+-------+
-    // | 0x38 |  STOP |  DOWN | RIGHT |    UP |  HOLD |  LEFT | ENTER |   ALT |
-    // +------+-------+-------+-------+-------+-------+-------+-------+-------+
-    // | 0x40 |     M |   DEL |     , |     / |     . | SHF_R | SPACE |   INS |
-    // +------+-------+-------+-------+-------+-------+-------+-------+-------+
-    // | 0x48 |     I |       |     O |     @ |     P |     [ |       |       |
-    // +------+-------+-------+-------+-------+-------+-------+-------+-------+
-    // | 0x70 | JOY1R | JOY1L | JOY1D | JOY1U | JOY1F |       |       |       |
-    // +------+-------+-------+-------+-------+-------+-------+-------+-------+
-    // | 0x78 | JOY2R | JOY2L | JOY2D | JOY2U | JOY2F |       |       |       |
-    // +------+-------+-------+-------+-------+-------+-------+-------+-------+
+    /*!
+     * Set state of key 'keyCode' (0 to 127, see table below) to pressed
+     * (state != 0) or released (state == 0).
+     *        +-------+-------+-------+-------+-------+-------+-------+-------+
+     *        |  0x00 |  0x01 |  0x02 |  0x03 |  0x04 |  0x05 |  0x06 |  0x07 |
+     *        |  0x08 |  0x09 |  0x0A |  0x0B |  0x0C |  0x0D |  0x0E |  0x0F |
+     * +------+-------+-------+-------+-------+-------+-------+-------+-------+
+     * | 0x00 |     N |     \ |     B |     C |     V |     X |     Z | SHF_L |
+     * +------+-------+-------+-------+-------+-------+-------+-------+-------+
+     * | 0x08 |     H |  LOCK |     G |     D |     F |     S |     A |  CTRL |
+     * +------+-------+-------+-------+-------+-------+-------+-------+-------+
+     * | 0x10 |     U |     Q |     Y |     R |     T |     E |     W |   TAB |
+     * +------+-------+-------+-------+-------+-------+-------+-------+-------+
+     * | 0x18 |     7 |     1 |     6 |     4 |     5 |     3 |     2 |   ESC |
+     * +------+-------+-------+-------+-------+-------+-------+-------+-------+
+     * | 0x20 |    F4 |    F8 |    F3 |    F6 |    F5 |    F7 |    F2 |    F1 |
+     * +------+-------+-------+-------+-------+-------+-------+-------+-------+
+     * | 0x28 |     8 |       |     9 |     - |     0 |     ^ | ERASE |       |
+     * +------+-------+-------+-------+-------+-------+-------+-------+-------+
+     * | 0x30 |     J |       |     K |     ; |     L |     : |     ] |       |
+     * +------+-------+-------+-------+-------+-------+-------+-------+-------+
+     * | 0x38 |  STOP |  DOWN | RIGHT |    UP |  HOLD |  LEFT | ENTER |   ALT |
+     * +------+-------+-------+-------+-------+-------+-------+-------+-------+
+     * | 0x40 |     M |   DEL |     , |     / |     . | SHF_R | SPACE |   INS |
+     * +------+-------+-------+-------+-------+-------+-------+-------+-------+
+     * | 0x48 |     I |       |     O |     @ |     P |     [ |       |       |
+     * +------+-------+-------+-------+-------+-------+-------+-------+-------+
+     * | 0x70 | JOY1R | JOY1L | JOY1D | JOY1U | JOY1F |       |       |       |
+     * +------+-------+-------+-------+-------+-------+-------+-------+-------+
+     * | 0x78 | JOY2R | JOY2L | JOY2D | JOY2U | JOY2F |       |       |       |
+     * +------+-------+-------+-------+-------+-------+-------+-------+-------+
+     */
     void setKeyboardState(int keyCode, int state);
-    // Reset DAVE.
+    /*!
+     * Reset DAVE.
+     */
     void reset(bool isColdReset = false);
-    // save snapshot
+    /*!
+     * Save snapshot.
+     */
     void saveState(Ep128Emu::File::Buffer&);
     void saveState(Ep128Emu::File&);
-    // load snapshot
+    /*!
+     * Load snapshot.
+     */
     void loadState(Ep128Emu::File::Buffer&);
     void registerChunkType(Ep128Emu::File&);
   };

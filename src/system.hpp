@@ -50,9 +50,11 @@ namespace Ep128Emu {
     ~ThreadLock();
     ThreadLock& operator=(const ThreadLock&);
     void wait();
-    // wait with a timeout of 't' (in milliseconds)
-    // returns 'true' if the lock was signaled before the timeout,
-    // and 'false' otherwise
+    /*!
+     * Wait with a timeout of 't' (in milliseconds).
+     * Returns 'true' if the lock was signaled before the timeout,
+     * and 'false' otherwise.
+     */
     bool wait(size_t t);
     void notify();
   };
@@ -69,15 +71,21 @@ namespace Ep128Emu {
     ThreadLock  threadLock_;
     bool    isJoined_;
    protected:
-    // thread routine (should be implemented by classes derived from Thread)
+    /*!
+     * Thread routine (should be implemented by classes derived from Thread).
+     */
     virtual void run() = 0;
-    // wait until start() is called by another thread
+    /*!
+     * Wait until start() is called by another thread.
+     */
     inline void wait()
     {
       threadLock_.wait();
     }
-    // wait until start() is called by another thread (return value = true),
-    // or the timeout of 't' milliseconds is elapsed (return value = false)
+    /*!
+     * Wait until start() is called by another thread (return value = true),
+     * or the timeout of 't' milliseconds is elapsed (return value = false).
+     */
     inline bool wait(size_t t)
     {
       return threadLock_.wait(t);
@@ -85,14 +93,18 @@ namespace Ep128Emu {
    public:
     Thread();
     virtual ~Thread();
-    // signal the child thread, allowing it to execute run() after the thread
-    // object is created, or to return from wait()
+    /*!
+     * Signal the child thread, allowing it to execute run() after the thread
+     * object is created, or to return from wait().
+     */
     inline void start()
     {
       threadLock_.notify();
     }
-    // wait until the child thread finishes (implies calling start() first,
-    // and the destructor calls join())
+    /*!
+     * Wait until the child thread finishes (implies calling start() first,
+     * and the destructor calls join()).
+     */
     void join();
   };
 
@@ -131,23 +143,33 @@ namespace Ep128Emu {
     static uint32_t getRandomSeedFromTime();
   };
 
-  // remove leading and trailing whitespace from string
+  /*!
+   * Remove leading and trailing whitespace from string.
+   */
   void stripString(std::string& s);
 
-  // convert string to upper case
+  /*!
+   * Convert string to upper case.
+   */
   void stringToUpperCase(std::string& s);
 
-  // convert string to lower case
+  /*!
+   * Convert string to lower case.
+   */
   void stringToLowerCase(std::string& s);
 
-  // split path into directory name and base name
-  // note: the result of passing multiple references to the same string
-  // is undefined
+  /*!
+   * Split path into directory name and base name.
+   * NOTE: the result of passing multiple references to the same string
+   * is undefined.
+   */
   void splitPath(const std::string& path_,
                  std::string& dirname_, std::string& basename_);
 
-  // returns full path to ~/.ep128emu, creating the directory first
-  // if it does not exist yet
+  /*!
+   * Returns full path to ~/.ep128emu, creating the directory first
+   * if it does not exist yet.
+   */
   std::string getEp128EmuHomeDirectory();
 
 }       // namespace Ep128Emu

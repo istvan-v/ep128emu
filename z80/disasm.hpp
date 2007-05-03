@@ -35,15 +35,17 @@ namespace Ep128 {
     static const unsigned char opcodeTableCB[768];
     static const unsigned char opcodeTableED[768];
    public:
-    // Disassemble one Z80 instruction, reading from memory of virtual
-    // machine 'vm', starting at address 'addr', and write the result to
-    // 'buf' (not including a newline character). 'offs' is added to the
-    // instruction address that is printed. The maximum line width is 40
-    // characters.
-    // Returns the address of the next instruction. If 'isCPUAddress' is
-    // true, 'addr' is interpreted as a 16-bit CPU address, otherwise it
-    // is assumed to be a 22-bit physical address (8 bit segment + 14 bit
-    // offset).
+    /*!
+     * Disassemble one Z80 instruction, reading from memory of virtual
+     * machine 'vm', starting at address 'addr', and write the result to
+     * 'buf' (not including a newline character). 'offs' is added to the
+     * instruction address that is printed. The maximum line width is 40
+     * characters.
+     * Returns the address of the next instruction. If 'isCPUAddress' is
+     * true, 'addr' is interpreted as a 16-bit CPU address, otherwise it
+     * is assumed to be a 22-bit physical address (8 bit segment + 14 bit
+     * offset).
+     */
     static uint32_t disassembleInstruction(std::string& buf,
                                            const Ep128Emu::VirtualMachine& vm,
                                            uint32_t addr,
