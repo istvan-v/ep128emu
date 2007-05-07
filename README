@@ -195,7 +195,13 @@ Configuration / Revert
 
 Save snapshot
 
-  Save snapshot to the selected file (see notes above).
+  Save a snapshot of the current state of the emulated machine to the
+  selected file. The snapshot will also include the current memory
+  configuration and ROM images, but clock frequency and timing settings
+  are not restored when loading a snapshot. The file format may be
+  subject to changes between different releases of the emulator. Note
+  that the state of any floppy drives is currently not saved, and the
+  drives are reset on loading a snapshot.
 
 Load snapshot
 
@@ -209,13 +215,7 @@ Quick snapshot / Set file name
 
 Quick snapshot / Save (Ctrl + F9)
 
-  Save a snapshot of the current state of the emulated machine to the
-  quick snapshot file. The snapshot will also include the current memory
-  configuration and ROM images, but clock frequency and timing settings
-  are not restored when loading a snapshot. The file format may be
-  subject to changes between different releases of the emulator. Note
-  that the state of any floppy drives is currently not saved, and the
-  drives are reset on loading a snapshot.
+  Save snapshot to the quick snapshot file (see notes above).
 
 Quick snapshot / Load (Ctrl + F10)
 
@@ -227,7 +227,8 @@ Record demo
   record keyboard events to the selected file until the recording is
   stopped. The events can be replayed with accurate timing when the
   file is loaded later. Note that the file format may change between
-  different releases of the emulator. Events that
+  different releases of the emulator, and the timing may also be
+  incorrect when using a different version to play a demo file.
 
 Stop demo (Ctrl + F12)
 
