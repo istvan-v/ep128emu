@@ -161,7 +161,6 @@ class Ep128EmuGUI {open
   decl {static void menuCallback_Machine_ColdReset(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Machine_ResetFreqs(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Machine_ResetAll(Fl_Widget *o, void *v);} {}
-  decl {static void menuCallback_Machine_EnableSID(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Machine_QuickCfgL1(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Machine_QuickCfgL2(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Machine_QuickCfgS1(Fl_Widget *o, void *v);} {}

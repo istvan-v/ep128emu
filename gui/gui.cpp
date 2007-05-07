@@ -1723,20 +1723,6 @@ void Ep128EmuGUI::menuCallback_Machine_ResetAll(Fl_Widget *o, void *v)
   }
 }
 
-void Ep128EmuGUI::menuCallback_Machine_EnableSID(Fl_Widget *o, void *v)
-{
-  (void) o;
-  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
-  if (gui_.lockVMThread()) {
-    try {
-      gui_.vm.writeMemory(0xFD40, 0x00, true);
-    }
-    catch (...) {
-    }
-    gui_.unlockVMThread();
-  }
-}
-
 void Ep128EmuGUI::menuCallback_Machine_QuickCfgL1(Fl_Widget *o, void *v)
 {
   (void) o;
