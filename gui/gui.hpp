@@ -26,6 +26,7 @@
 #include "display.hpp"
 #include "fldisp.hpp"
 #include "gldisp.hpp"
+#include "joystick.hpp"
 #include "soundio.hpp"
 #include "vm.hpp"
 #include "vmthread.hpp"
@@ -38,6 +39,7 @@
 
 class Ep128EmuGUI_DiskConfigWindow;
 class Ep128EmuGUI_DisplayConfigWindow;
+class Ep128EmuGUI_KbdConfigWindow;
 class Ep128EmuGUI_SoundConfigWindow;
 class Ep128EmuGUI_MachineConfigWindow;
 class Ep128EmuGUI_DebugWindow;
@@ -46,6 +48,7 @@ class Ep128EmuGUI_AboutWindow;
 #include "gui_fl.hpp"
 #include "disk_cfg_fl.hpp"
 #include "disp_cfg_fl.hpp"
+#include "kbd_cfg_fl.hpp"
 #include "snd_cfg_fl.hpp"
 #include "vm_cfg_fl.hpp"
 #include "debug_fl.hpp"

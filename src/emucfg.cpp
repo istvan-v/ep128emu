@@ -243,6 +243,23 @@ namespace Ep128Emu {
       }
     }
     // ----------------
+    joystickSettingsChanged = true;
+    joystick.registerConfigurationVariables(*this);
+    (*this)["joystick.enableJoystick"].setCallback(
+        &configChangeCallback<bool>, (void *) &joystickSettingsChanged, true);
+    (*this)["joystick.enablePWM"].setCallback(
+        &configChangeCallback<bool>, (void *) &joystickSettingsChanged, true);
+    (*this)["joystick.enableAutoFire"].setCallback(
+        &configChangeCallback<bool>, (void *) &joystickSettingsChanged, true);
+    (*this)["joystick.axisThreshold"].setCallback(
+        &configChangeCallback<double>, (void *) &joystickSettingsChanged, true);
+    (*this)["joystick.pwmFrequency"].setCallback(
+        &configChangeCallback<double>, (void *) &joystickSettingsChanged, true);
+    (*this)["joystick.autoFireFrequency"].setCallback(
+        &configChangeCallback<double>, (void *) &joystickSettingsChanged, true);
+    (*this)["joystick.autoFirePulseWidth"].setCallback(
+        &configChangeCallback<double>, (void *) &joystickSettingsChanged, true);
+    // ----------------
     for (int i = 0; i < 4; i++) {
       FloppyDriveSettings *floppy_ = (FloppyDriveSettings *) 0;
       bool                *floppyChanged_ = (bool *) 0;

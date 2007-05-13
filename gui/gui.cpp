@@ -70,6 +70,7 @@ void Ep128EmuGUI::init_()
   windowToShow = (Fl_Window *) 0;
   diskConfigWindow = (Ep128EmuGUI_DiskConfigWindow *) 0;
   displaySettingsWindow = (Ep128EmuGUI_DisplayConfigWindow *) 0;
+  keyboardConfigWindow = (Ep128EmuGUI_KbdConfigWindow *) 0;
   soundSettingsWindow = (Ep128EmuGUI_SoundConfigWindow *) 0;
   machineConfigWindow = (Ep128EmuGUI_MachineConfigWindow *) 0;
   debugWindow = (Ep128EmuGUI_DebugWindow *) 0;
@@ -473,6 +474,8 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Options_FloppyRpD, (void *) this);
   mainMenuBar->add("Options/Floppy/Replace disk/All drives",
                    (char *) 0, &menuCallback_Options_FloppyRpl, (void *) this);
+  mainMenuBar->add("Options/Keyboard map",
+                   (char *) 0, &menuCallback_Options_KbdConfig, (void *) this);
   mainMenuBar->add("Options/Set working directory",
                    (char *) 0, &menuCallback_Options_FileIODir, (void *) this);
   mainMenuBar->add("Debug/Start debugger",
@@ -501,8 +504,10 @@ void Ep128EmuGUI::run()
   vmThread.lock(0x7FFFFFFF);
   vmThread.setUserData((void *) this);
   vmThread.setErrorCallback(&errorMessageCallback);
+  vmThread.setProcessCallback(&pollJoystickInput);
   vm.setFileNameCallback(&fileNameCallback, (void *) this);
   vm.setBreakPointCallback(&breakPointCallback, (void *) this);
+  applyEmulatorConfiguration();
   vmThread.unlock();
   // run emulation
   vmThread.pause(false);
@@ -851,11 +856,17 @@ void Ep128EmuGUI::applyEmulatorConfiguration(bool updateWindowFlag_)
     try {
       bool    updateMenuFlag_ = config.soundSettingsChanged;
       config.applySettings();
+      if (config.joystickSettingsChanged) {
+        joystickInput.setConfiguration(config.joystick);
+        config.joystickSettingsChanged = false;
+      }
       if (updateWindowFlag_) {
         if (diskConfigWindow->shown())
           diskConfigWindow->updateWindow();
         if (displaySettingsWindow->shown())
           displaySettingsWindow->updateWindow();
+        if (keyboardConfigWindow->shown())
+          keyboardConfigWindow->updateWindow();
         if (soundSettingsWindow->shown())
           soundSettingsWindow->updateWindow();
         if (machineConfigWindow->shown())
@@ -1052,6 +1063,25 @@ void Ep128EmuGUI::screenshotCallback(void *userData,
   }
   if (f)
     std::fclose(f);
+}
+
+void Ep128EmuGUI::pollJoystickInput(void *userData)
+{
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(userData));
+  while (true) {
+    int     e = gui_.joystickInput.getEvent();
+    if (!e)
+      break;
+    int     keyCode = (e > 0 ? e : (-e));
+    bool    isKeyPress = (e > 0);
+    // NOTE: since this function is called from the emulation thread, it
+    // could be unsafe to access the configuration from here; however, the
+    // emulation thread is locked while the keyboard map is updated (see
+    // applyEmulatorConfiguration())
+    int     n = gui_.config.convertKeyCode(keyCode);
+    if (n >= 0)
+      gui_.vm.setKeyboardState(uint8_t(n), isKeyPress);
+  }
 }
 
 bool Ep128EmuGUI::closeDemoFile(bool stopDemo_)
@@ -2080,6 +2110,13 @@ void Ep128EmuGUI::menuCallback_Options_FloppyRpl(Fl_Widget *o, void *v)
   }
 }
 
+void Ep128EmuGUI::menuCallback_Options_KbdConfig(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  gui_.keyboardConfigWindow->show();
+}
+
 void Ep128EmuGUI::menuCallback_Options_FileIODir(Fl_Widget *o, void *v)
 {
   (void) o;
@@ -2105,13 +2142,13 @@ void Ep128EmuGUI::menuCallback_Debug_OpenDebugger(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   if (!gui_.debugWindow->shown()) {
-    if (!gui_.debugWindowShowFlag) {
-      if (gui_.lockVMThread()) {
-        gui_.debugWindowOpenFlag = true;
-        gui_.debugWindow->show();
-      }
-    }
+    if (gui_.debugWindowShowFlag)
+      return;
+    if (!gui_.lockVMThread())
+      return;
+    gui_.debugWindowOpenFlag = true;
   }
+  gui_.debugWindow->show();
 }
 
 void Ep128EmuGUI::menuCallback_Help_About(Fl_Widget *o, void *v)

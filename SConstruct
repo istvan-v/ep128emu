@@ -71,12 +71,15 @@ if not configure.CheckCHeader('GL/gl.h'):
 haveDotconf = configure.CheckCHeader('dotconf.h')
 if configure.CheckCHeader('stdint.h'):
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_STDINT_H'])
+haveSDL = configure.CheckCHeader('SDL/SDL.h')
 configure.Finish()
 
 if not havePortAudioV19:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DUSING_OLD_PORTAUDIO_API'])
 if haveDotconf:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_DOTCONF_H'])
+if haveSDL:
+    ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_SDL_H'])
 
 ep128emuGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
 ep128emuGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
@@ -102,6 +105,7 @@ ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
     src/fileio.cpp
     src/fldisp.cpp
     src/gldisp.cpp
+    src/joystick.cpp
     src/snd_conv.cpp
     src/soundio.cpp
     src/system.cpp
@@ -140,6 +144,8 @@ ep128emuEnvironment.Append(CPPPATH = ['./z80', './gui'])
 ep128emuEnvironment.Prepend(LIBS = ['ep128', 'z80', 'ep128emu'])
 if haveDotconf:
     ep128emuEnvironment.Append(LIBS = ['dotconf'])
+if haveSDL:
+    ep128emuEnvironment.Append(LIBS = ['SDL'])
 ep128emuEnvironment.Append(LIBS = ['portaudio', 'sndfile'])
 if not win32CrossCompile:
     if sys.platform[:5] == 'linux':
@@ -152,8 +158,8 @@ else:
 ep128emu = ep128emuEnvironment.Program('ep128emu',
     ['gui/gui.cpp']
     + fluidCompile(['gui/gui.fl', 'gui/disk_cfg.fl', 'gui/disp_cfg.fl',
-                    'gui/snd_cfg.fl', 'gui/vm_cfg.fl', 'gui/debug.fl',
-                    'gui/about.fl'])
+                    'gui/kbd_cfg.fl', 'gui/snd_cfg.fl', 'gui/vm_cfg.fl',
+                    'gui/debug.fl', 'gui/about.fl'])
     + ['gui/main.cpp'])
 Depends(ep128emu, ep128Lib)
 Depends(ep128emu, z80Lib)
@@ -166,6 +172,8 @@ tapeeditEnvironment.Append(CPPPATH = ['./tapeutil'])
 tapeeditEnvironment.Prepend(LIBS = ['ep128emu'])
 if haveDotconf:
     tapeeditEnvironment.Append(LIBS = ['dotconf'])
+if haveSDL:
+    tapeeditEnvironment.Append(LIBS = ['SDL'])
 tapeeditEnvironment.Append(LIBS = ['sndfile'])
 if not win32CrossCompile:
     tapeeditEnvironment.Append(LIBS = ['pthread'])
@@ -183,6 +191,8 @@ makecfgEnvironment.Append(CPPPATH = ['./installer'])
 makecfgEnvironment.Prepend(LIBS = ['ep128emu'])
 if haveDotconf:
     makecfgEnvironment.Append(LIBS = ['dotconf'])
+if haveSDL:
+    makecfgEnvironment.Append(LIBS = ['SDL'])
 makecfgEnvironment.Append(LIBS = ['sndfile'])
 if not win32CrossCompile:
     makecfgEnvironment.Append(LIBS = ['pthread'])

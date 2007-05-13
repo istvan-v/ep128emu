@@ -59,7 +59,8 @@ namespace Ep128Emu {
       tapeSampleRate(0L),
       tapeSampleSize(0),
       userData(userData_),
-      errorCallback(&defaultErrorCallback)
+      errorCallback(&defaultErrorCallback),
+      processCallback((void (*)(void *)) 0)
   {
     for (int i = 0; i < 128; i++)
       keyboardState[i] = false;
@@ -153,6 +154,8 @@ namespace Ep128Emu {
     mutex_.unlock();
     // run emulation, or wait if paused
     try {
+      if (processCallback)
+        processCallback(userData);
       if (!pauseFlag) {
         vm.run(2000);
       }
@@ -368,6 +371,11 @@ namespace Ep128Emu {
   void VMThread::stopDemo()
   {
     queueMessage(allocateMessage<Message_StopDemo>());
+  }
+
+  void VMThread::setProcessCallback(void (*func)(void *userData_))
+  {
+    processCallback = func;
   }
 
   VMThread::Message * VMThread::allocateMessage_()

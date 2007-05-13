@@ -27,14 +27,10 @@ General
     order highpass filters with configurable cutoff frequency, and an
     optional parametric equalizer can be applied to the audio signal
   * recording sound output to a WAV format sound file
+  * saving screenshots as 768x576 8-bit RLE compressed TGA files
   * saving and loading snapshots of the state of the emulated machine
   * demo recording (snapshot combined with stream of keyboard events
     which can be played back with accurate timing)
-  * tape emulation with playback, recording, and setting tape position;
-    markers can be created for quick positioning to specific tape
-    locations (useful for tapes with multiple files); uses custom file
-    format which is PCM audio data with 1 to 8 bits of sample resolution
-    and variable sample rate, and header including the table of markers
   * GUI tape editor utility for copying Enterprise files from/to
     ep128emu tape images
   * simple GUI debugger with support for breakpoints/watchpoints,
@@ -49,6 +45,9 @@ General
     paging) or 22 bit physical (all ROM and RAM data can be accessed,
     regardless of memory paging) addresses. Watchpoints can also be set
     on I/O ports and physical addresses.
+  * configurable keyboard map for the emulated machine; it is also
+    possible to use external game controller devices like joysticks and
+    gamepads
 
 Enterprise emulation
 --------------------
@@ -64,6 +63,12 @@ Enterprise emulation
     tape and keyboard/joystick, memory paging, and sound output (all
     effects are supported, and the polynomial counters generate the same
     pseudo-random "noise" pattern as on the real machine)
+  * tape emulation with playback, recording, and setting tape position;
+    markers can be created for quick positioning to specific tape
+    locations (useful for tapes with multiple files); uses custom file
+    format which is PCM audio data with 1 to 8 bits of sample resolution
+    and variable sample rate, and header including the table of markers;
+    there is also limited (read only) support for EPTE format tape files
   * WD177x (floppy disk controller) emulation for EXDOS
   * optional extension ROM (epfileio.rom) that implements a FILE: device
     for direct access to files on the host system in a single user

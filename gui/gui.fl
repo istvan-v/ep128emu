@@ -41,6 +41,8 @@ class Ep128EmuGUI {open
   }
   decl {friend class Ep128EmuGUI_DisplayConfigWindow;} {public
   }
+  decl {friend class Ep128EmuGUI_KbdConfigWindow;} {public
+  }
   decl {friend class Ep128EmuGUI_SoundConfigWindow;} {public
   }
   decl {friend class Ep128EmuGUI_MachineConfigWindow;} {public
@@ -95,10 +97,12 @@ class Ep128EmuGUI {open
   decl {Ep128Emu::ConfigurationDB guiConfig;} {}
   decl {Ep128EmuGUI_DiskConfigWindow *diskConfigWindow;} {}
   decl {Ep128EmuGUI_DisplayConfigWindow *displaySettingsWindow;} {}
+  decl {Ep128EmuGUI_KbdConfigWindow *keyboardConfigWindow;} {}
   decl {Ep128EmuGUI_SoundConfigWindow *soundSettingsWindow;} {}
   decl {Ep128EmuGUI_MachineConfigWindow *machineConfigWindow;} {}
   decl {Ep128EmuGUI_DebugWindow *debugWindow;} {}
   decl {Ep128EmuGUI_AboutWindow *aboutWindow;} {}
+  decl {Ep128Emu::JoystickInput joystickInput;} {}
   decl {void init_();} {}
   decl {void updateDisplay(double t = 0.025);} {public
   }
@@ -123,6 +127,7 @@ class Ep128EmuGUI {open
   decl {static void fltkCheckCallback(void *userData);} {}
   decl {static void breakPointCallback(void *userData, bool isIO, bool isWrite, uint16_t addr, uint8_t value);} {}
   decl {static void screenshotCallback(void *userData, const unsigned char *buf, int w_, int h_);} {}
+  decl {static void pollJoystickInput(void *userData);} {}
   decl {bool closeDemoFile(bool stopDemo_);} {}
   decl {void saveQuickConfig(int n);} {}
   decl {static void menuCallback_File_LoadFile(Fl_Widget *o, void *v);} {}
@@ -185,10 +190,11 @@ class Ep128EmuGUI {open
   decl {static void menuCallback_Options_FloppyRpC(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_FloppyRpD(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_FloppyRpl(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_KbdConfig(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_FileIODir(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Debug_OpenDebugger(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Help_About(Fl_Widget *o, void *v);} {}
-  Function {Ep128EmuGUI(Ep128Emu::VideoDisplay& display_, Ep128Emu::AudioOutput& audioOutput_, Ep128Emu::VirtualMachine& vm_, Ep128Emu::VMThread& vmThread_, Ep128Emu::EmulatorConfiguration& config_) : display(display_), audioOutput(audioOutput_), vm(vm_), vmThread(vmThread_), config(config_)} {open
+  Function {Ep128EmuGUI(Ep128Emu::VideoDisplay& display_, Ep128Emu::AudioOutput& audioOutput_, Ep128Emu::VirtualMachine& vm_, Ep128Emu::VMThread& vmThread_, Ep128Emu::EmulatorConfiguration& config_) : display(display_), audioOutput(audioOutput_), vm(vm_), vmThread(vmThread_), config(config_), joystickInput(true)} {open
   } {
     code {{
   this->init_();
@@ -251,6 +257,7 @@ class Ep128EmuGUI {open
     code {{
   diskConfigWindow = new Ep128EmuGUI_DiskConfigWindow(*this);
   displaySettingsWindow = new Ep128EmuGUI_DisplayConfigWindow(*this);
+  keyboardConfigWindow = new Ep128EmuGUI_KbdConfigWindow(*this);
   soundSettingsWindow = new Ep128EmuGUI_SoundConfigWindow(*this);
   machineConfigWindow = new Ep128EmuGUI_MachineConfigWindow(*this);
   debugWindow = new Ep128EmuGUI_DebugWindow(*this);
@@ -266,6 +273,7 @@ class Ep128EmuGUI {open
   browseFileWindow->hide();
   diskConfigWindow->hide();
   displaySettingsWindow->hide();
+  keyboardConfigWindow->hide();
   soundSettingsWindow->hide();
   machineConfigWindow->hide();
   aboutWindow->hide();
@@ -277,6 +285,7 @@ class Ep128EmuGUI {open
   delete browseFileWindow;
   delete diskConfigWindow;
   delete displaySettingsWindow;
+  delete keyboardConfigWindow;
   delete soundSettingsWindow;
   delete machineConfigWindow;
   delete debugWindow;

@@ -23,6 +23,7 @@
 #include "ep128emu.hpp"
 #include "cfg_db.hpp"
 #include "display.hpp"
+#include "joystick.hpp"
 #include "soundio.hpp"
 #include "vm.hpp"
 
@@ -126,6 +127,9 @@ namespace Ep128Emu {
     // --------
     int           keyboard[128][2];
     bool          keyboardMapChanged;
+    // --------
+    JoystickInput::JoystickConfiguration  joystick;
+    bool          joystickSettingsChanged;
     // --------
     struct FloppyDriveSettings {
       std::string imageFile;

@@ -52,6 +52,7 @@ namespace Ep128Emu {
     int             tapeSampleSize;
     void            *userData;
     void            (*errorCallback)(void *userData_, const char *msg);
+    void            (*processCallback)(void *userData_);
     bool            keyboardState[128];
    public:
     VMThread(VirtualMachine& vm_, void *userData_ = (void *) 0);
@@ -147,6 +148,12 @@ namespace Ep128Emu {
      * Stop playing or recording demo.
      */
     void stopDemo();
+    /*!
+     * Set function to be called by the emulation thread at an interval of
+     * a few milliseconds. This function may throw an std::exception, in which
+     * case the error callback will be called to display the error message.
+     */
+    void setProcessCallback(void (*func)(void *userData_));
   // --------------------------------------------------------------------------
    private:
     virtual void run();

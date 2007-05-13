@@ -50,9 +50,6 @@ int main(int argc, char **argv)
       if (std::strcmp(argv[i], "-cfg") == 0 && i < (argc - 1)) {
         i++;
       }
-      if (std::strcmp(argv[i], "-prg") == 0 && i < (argc - 1)) {
-        i++;
-      }
       else if (std::strcmp(argv[i], "-ep128") == 0) {
         cfgFileName = "ep128cfg.dat";
       }
