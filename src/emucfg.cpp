@@ -93,6 +93,9 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "vm.soundClockFrequency",
                                 vm.soundClockFrequency, 500000U,
                                 vmConfigurationChanged, 250000.0, 1000000.0);
+    defineConfigurationVariable(*this, "vm.speedPercentage",
+                                vm.speedPercentage, 100U,
+                                soundSettingsChanged, 0.0, 1000.0);
     defineConfigurationVariable(*this, "vm.enableMemoryTimingEmulation",
                                 vm.enableMemoryTimingEmulation, true,
                                 vmConfigurationChanged);
@@ -136,6 +139,9 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "display.gamma",
                                 display.gamma, 1.0,
                                 displaySettingsChanged, 0.25, 4.0);
+    defineConfigurationVariable(*this, "display.hueShift",
+                                display.hueShift, 0.0,
+                                displaySettingsChanged, -180.0, 180.0);
     defineConfigurationVariable(*this, "display.saturation",
                                 display.saturation, 1.0,
                                 displaySettingsChanged, 0.0, 2.0);
@@ -166,15 +172,15 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "display.blue.gamma",
                                 display.blue.gamma, 1.0,
                                 displaySettingsChanged, 0.25, 4.0);
-    defineConfigurationVariable(*this, "display.effects.param1",
-                                display.effects.param1, 0.35,
-                                displaySettingsChanged, 0.0, 0.5);
-    defineConfigurationVariable(*this, "display.effects.param2",
-                                display.effects.param2, 0.7,
+    defineConfigurationVariable(*this, "display.lineShade",
+                                display.lineShade, 0.75,
                                 displaySettingsChanged, 0.0, 1.0);
-    defineConfigurationVariable(*this, "display.effects.param3",
-                                display.effects.param3, 0.3,
-                                displaySettingsChanged, 0.0, 1.0);
+    defineConfigurationVariable(*this, "display.blendScale",
+                                display.blendScale, 1.0,
+                                displaySettingsChanged, 0.5, 2.0);
+    defineConfigurationVariable(*this, "display.motionBlur",
+                                display.motionBlur, 0.25,
+                                displaySettingsChanged, 0.0, 0.95);
     defineConfigurationVariable(*this, "display.width",
                                 display.width, 768,
                                 displaySettingsChanged, 384.0, 1536.0);
@@ -201,7 +207,7 @@ namespace Ep128Emu {
                                 sound.latency, 0.1,
                                 soundSettingsChanged, 0.005, 0.5);
     defineConfigurationVariable(*this, "sound.hwPeriods",
-                                sound.hwPeriods, int(4),
+                                sound.hwPeriods, int(16),
                                 soundSettingsChanged, 2.0, 16.0);
     defineConfigurationVariable(*this, "sound.swPeriods",
                                 sound.swPeriods, int(3),
@@ -303,14 +309,26 @@ namespace Ep128Emu {
     // ----------------
     defineConfigurationVariable(*this, "tape.imageFile",
                                 tape.imageFile, std::string(""),
-                                tapeSettingsChanged);
+                                tapeFileChanged);
     defineConfigurationVariable(*this, "tape.defaultSampleRate",
                                 tape.defaultSampleRate, int(24000),
-                                tapeDefaultSampleRateChanged,
+                                tapeSettingsChanged,
                                 10000.0, 120000.0);
-    defineConfigurationVariable(*this, "tape.fastMode",
-                                tape.fastMode, false,
-                                fastTapeModeChanged);
+    defineConfigurationVariable(*this, "tape.soundFileChannel",
+                                tape.soundFileChannel, int(0),
+                                tapeSoundFileSettingsChanged,
+                                0.0, 15.0);
+    defineConfigurationVariable(*this, "tape.enableSoundFileFilter",
+                                tape.enableSoundFileFilter, false,
+                                tapeSoundFileSettingsChanged);
+    defineConfigurationVariable(*this, "tape.soundFileFilterMinFreq",
+                                tape.soundFileFilterMinFreq, 500.0,
+                                tapeSoundFileSettingsChanged,
+                                0.0, 2000.0);
+    defineConfigurationVariable(*this, "tape.soundFileFilterMaxFreq",
+                                tape.soundFileFilterMaxFreq, 5000.0,
+                                tapeSoundFileSettingsChanged,
+                                1000.0, 20000.0);
     // ----------------
     defineConfigurationVariable(*this, "fileio.workingDirectory",
                                 fileio.workingDirectory, std::string("."),
@@ -322,6 +340,10 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "debug.noBreakOnDataRead",
                                 debug.noBreakOnDataRead, false,
                                 debugSettingsChanged);
+    // ----------------
+    defineConfigurationVariable(*this, "videoCapture.frameRate",
+                                videoCapture.frameRate, int(30),
+                                videoCaptureSettingsChanged, 24.0, 60.0);
   }
 
   EmulatorConfiguration::~EmulatorConfiguration()
@@ -365,30 +387,33 @@ namespace Ep128Emu {
       VideoDisplay::DisplayParameters dp(videoDisplay.getDisplayParameters());
       dp.displayQuality = display.quality;
       dp.bufferingMode = display.bufferingMode;
-      dp.brightness = display.brightness;
-      dp.contrast = display.contrast;
-      dp.gamma = display.gamma;
-      dp.saturation = display.saturation;
-      dp.redBrightness = display.red.brightness;
-      dp.redContrast = display.red.contrast;
-      dp.redGamma = display.red.gamma;
-      dp.greenBrightness = display.green.brightness;
-      dp.greenContrast = display.green.contrast;
-      dp.greenGamma = display.green.gamma;
-      dp.blueBrightness = display.blue.brightness;
-      dp.blueContrast = display.blue.contrast;
-      dp.blueGamma = display.blue.gamma;
-      dp.blendScale1 = display.effects.param1;
-      dp.blendScale2 = display.effects.param2;
-      dp.blendScale3 = display.effects.param3;
-      dp.pixelAspectRatio = display.pixelAspectRatio;
+      dp.brightness = float(display.brightness);
+      dp.contrast = float(display.contrast);
+      dp.gamma = float(display.gamma);
+      dp.hueShift = float(display.hueShift);
+      dp.saturation = float(display.saturation);
+      dp.redBrightness = float(display.red.brightness);
+      dp.redContrast = float(display.red.contrast);
+      dp.redGamma = float(display.red.gamma);
+      dp.greenBrightness = float(display.green.brightness);
+      dp.greenContrast = float(display.green.contrast);
+      dp.greenGamma = float(display.green.gamma);
+      dp.blueBrightness = float(display.blue.brightness);
+      dp.blueContrast = float(display.blue.contrast);
+      dp.blueGamma = float(display.blue.gamma);
+      dp.lineShade = float(display.lineShade);
+      dp.blendScale = float(display.blendScale);
+      dp.motionBlur = float(display.motionBlur);
+      dp.pixelAspectRatio = float(display.pixelAspectRatio);
       videoDisplay.setDisplayParameters(dp);
       // NOTE: resolution changes are not handled here
       displaySettingsChanged = false;
     }
     if (soundSettingsChanged) {
-      vm_.setEnableAudioOutput(sound.enabled);
-      if (!sound.enabled) {
+      bool    soundEnableFlag = (sound.enabled && vm.speedPercentage == 100U);
+      videoDisplay.limitFrameRate(vm.speedPercentage == 0U);
+      vm_.setEnableAudioOutput(soundEnableFlag);
+      if (!soundEnableFlag) {
         // close device if sound is disabled
         audioOutput.closeDevice();
       }
@@ -491,11 +516,11 @@ namespace Ep128Emu {
       }
       floppyDChanged = false;
     }
-    if (tapeDefaultSampleRateChanged) {
-      vm_.setDefaultTapeSampleRate(tape.defaultSampleRate);
-      tapeDefaultSampleRateChanged = false;
-    }
     if (tapeSettingsChanged) {
+      vm_.setDefaultTapeSampleRate(tape.defaultSampleRate);
+      tapeSettingsChanged = false;
+    }
+    if (tapeFileChanged) {
       try {
         vm_.setTapeFileName(tape.imageFile);
       }
@@ -504,11 +529,14 @@ namespace Ep128Emu {
         vm_.setTapeFileName(tape.imageFile);
         errorCallback(errorCallbackUserData, e.what());
       }
-      tapeSettingsChanged = false;
+      tapeFileChanged = false;
     }
-    if (fastTapeModeChanged) {
-      vm_.setEnableFastTapeMode(tape.fastMode);
-      fastTapeModeChanged = false;
+    if (tapeSoundFileSettingsChanged) {
+      vm_.setTapeSoundFileParameters(tape.soundFileChannel,
+                                     tape.enableSoundFileFilter,
+                                     float(tape.soundFileFilterMinFreq),
+                                     float(tape.soundFileFilterMaxFreq));
+      tapeSoundFileSettingsChanged = false;
     }
     if (fileioSettingsChanged) {
       try {
@@ -529,6 +557,9 @@ namespace Ep128Emu {
       vm_.setBreakPointPriorityThreshold(debug.bpPriorityThreshold);
       vm_.setNoBreakOnDataRead(debug.noBreakOnDataRead);
       debugSettingsChanged = false;
+    }
+    if (videoCaptureSettingsChanged) {
+      videoCaptureSettingsChanged = false;
     }
   }
 

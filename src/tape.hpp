@@ -17,11 +17,14 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-#include "ep128emu.hpp"
-#include <cstdio>
-
 #ifndef EP128EMU_TAPE_HPP
 #define EP128EMU_TAPE_HPP
+
+#include "ep128emu.hpp"
+#include <cstdio>
+#include <vector>
+
+#include <sndfile.h>
 
 namespace Ep128Emu {
 
@@ -312,6 +315,89 @@ namespace Ep128Emu {
      * Delete all cue points. Has no effect if the file is read-only.
      */
     virtual void deleteAllCuePoints();
+  };
+
+  class Tape_SoundFile : public Tape {
+   public:
+    class TapeFilter {
+     private:
+      std::vector<float> irFFT;
+      std::vector<float> fftBuf;
+      std::vector<float> outBuf;
+      size_t  sampleCnt;
+     public:
+      TapeFilter(size_t irSamples = 1024);
+      virtual ~TapeFilter();
+      void setFilterParameters(float sampleRate, float minFreq, float maxFreq);
+      float processSample(float inputSignal);
+      static void fft(float *buf, size_t n, bool isInverse);
+    };
+   private:
+    SNDFILE     *sf;            // tape image file
+    std::vector<short>  buf;    // 1024 interleaved sample frames
+    int         nChannels;
+    int         requestedChannel;
+    bool        enableFIRFilter;
+    bool        isBufferDirty;  // true if 'buf' has been changed,
+                                // and not written to file yet
+    TapeFilter  firFilter;
+    // ----------------
+    void seek_(size_t pos_);
+    bool writeBuffer_();
+    void flushBuffer_();
+   public:
+    /*!
+     * Open tape file 'fileName'.
+     * 'mode' can be one of the following values:
+     *   0, 1: open tape file read-write if possible, and fail if it does not
+     *         exist
+     *   2:    open an existing tape file read-only
+     */
+    Tape_SoundFile(const char *fileName, int mode = 0, int bitsPerSample = 1);
+    virtual ~Tape_SoundFile();
+    /*!
+     * Run tape emulation for a period of 1.0 / getSampleRate() seconds.
+     */
+   protected:
+    virtual void runOneSample_();
+   public:
+    /*!
+     * Turn motor on (newState = true) or off (newState = false).
+     */
+    virtual void setIsMotorOn(bool newState);
+    /*!
+     * Stop playback and recording.
+     */
+    virtual void stop();
+    /*!
+     * Seek to the specified time (in seconds).
+     */
+    virtual void seek(double t);
+    /*!
+     * Seek forward (if isForward = true) or backward (if isForward = false)
+     * to the nearest cue point, or by 't' seconds if no cue point is found.
+     */
+    virtual void seekToCuePoint(bool isForward = true, double t = 10.0);
+    /*!
+     * Create a new cue point at the current tape position.
+     * Has no effect if the file does not have a cue point table, or it
+     * is read-only.
+     */
+    virtual void addCuePoint();
+    /*!
+     * Delete the cue point nearest to the current tape position.
+     * Has no effect if the file is read-only.
+     */
+    virtual void deleteNearestCuePoint();
+    /*!
+     * Delete all cue points. Has no effect if the file is read-only.
+     */
+    virtual void deleteAllCuePoints();
+    /*!
+     * Set parameters for sound file reading.
+     */
+    void setParameters(int requestedChannel_, bool enableFIRFilter_,
+                       float filterMinFreq_, float filterMaxFreq_);
   };
 
   /*!

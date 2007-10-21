@@ -74,7 +74,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
   o->value(double(gui.config.vm.cpuClockFrequency));
 }}
-              xywh {30 75 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 1 maximum 5e+08 step 1 value 4e+06 textcolor 52
+              xywh {30 70 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 1 maximum 5e+08 step 1 value 4e+06 textcolor 52
               code0 {o->cursor_color(FL_YELLOW);}
             }
             Fl_Value_Input vmVideoFrequencyValuator {
@@ -88,7 +88,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
   updateWindow();
 }}
-              xywh {30 110 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 100000 maximum 4e+07 step 1 value 890625 textcolor 52
+              xywh {30 105 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 100000 maximum 4e+07 step 1 value 890625 textcolor 52
               code0 {o->cursor_color(FL_YELLOW);}
             }
             Fl_Value_Input vmSoundClockFrequencyValuator {
@@ -102,7 +102,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
   o->value(double(gui.config.vm.soundClockFrequency));
 }}
-              xywh {30 145 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 250000 maximum 1e+06 step 1 value 500000 textcolor 52
+              xywh {30 140 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 250000 maximum 1e+06 step 1 value 500000 textcolor 52
               code0 {o->cursor_color(FL_YELLOW);}
             }
             Fl_Light_Button enableMemoryTimingValuator {
@@ -111,12 +111,12 @@ class Ep128EmuGUI_MachineConfigWindow {open
   gui.config.vm.enableMemoryTimingEmulation = (o->value() != 0);
   gui.config.vmConfigurationChanged = true;
 }}
-              xywh {30 180 240 25} color 39 labelcolor 52
+              xywh {30 175 240 25} color 39 labelcolor 52
             }
           }
           Fl_Group {} {
             label {File I/O} open
-            xywh {20 225 360 60} box ENGRAVED_FRAME color 38 labelcolor 52 align 21
+            xywh {20 225 360 65} box ENGRAVED_FRAME color 38 labelcolor 52 align 21
           } {
             Fl_Light_Button vmEnableFileIOValuator {
               label {Enable virtual file I/O}
@@ -128,25 +128,16 @@ class Ep128EmuGUI_MachineConfigWindow {open
             }
           }
           Fl_Group {} {
-            label {Tape emulation} open
-            xywh {20 295 360 100} box ENGRAVED_FRAME color 38 labelcolor 52 align 21
+            label {Video capture settings} open
+            xywh {20 300 360 65} box ENGRAVED_FRAME color 38 labelcolor 52 align 21
           } {
-            Fl_Light_Button tapeEnableFastModeValuator {
-              label {Enable fast tape mode}
+            Fl_Value_Input videoCaptureFrameRateValuator {
+              label {Frame rate}
               callback {{
-  gui.config.tape.fastMode = (o->value() != 0);
-  gui.config.fastTapeModeChanged = true;
+  gui.config.videoCapture.frameRate = int(o->clamp(o->value()) + 0.5);
+  gui.config.videoCaptureSettingsChanged = true;
 }}
-              tooltip {Allow the emulation to run faster than real time while recording or playing tape} xywh {30 325 240 25} color 39 labelcolor 52
-            }
-            Fl_Value_Input tapeDefaultSampleRateValuator {
-              label {Default tape sample rate (Hz)}
-              callback {{
-  gui.config.tape.defaultSampleRate = int(o->clamp(o->value()) + 0.5);
-  gui.config.tapeDefaultSampleRateChanged = true;
-  o->value(double(gui.config.tape.defaultSampleRate));
-}}
-              xywh {30 360 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 10000 maximum 120000 step 1 value 24000 textcolor 52
+              tooltip {Number of frames per second for video recording; the allowed settings are 24, 25, 30, 32, 40, 48, 50, and 60} xywh {30 325 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 24 maximum 60 step 1 value 30 textcolor 52
               code0 {o->cursor_color(FL_YELLOW);}
             }
           }
@@ -731,6 +722,65 @@ class Ep128EmuGUI_MachineConfigWindow {open
             }
           }
         }
+        Fl_Group {} {
+          label Tape open
+          xywh {10 35 380 370} color 38 selection_color 38 labelcolor 52 hide
+        } {
+          Fl_Group {} {
+            label {General tape emulation settings} open
+            xywh {20 45 360 65} box ENGRAVED_FRAME color 38 labelcolor 52 align 21
+          } {
+            Fl_Value_Input tapeDefaultSampleRateValuator {
+              label {Default tape sample rate (Hz)}
+              callback {{
+  gui.config.tape.defaultSampleRate = int(o->clamp(o->value()) + 0.5);
+  gui.config.tapeSettingsChanged = true;
+  o->value(double(gui.config.tape.defaultSampleRate));
+}}
+              xywh {30 70 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 10000 maximum 120000 step 1 value 24000 textcolor 52
+              code0 {o->cursor_color(FL_YELLOW);}
+            }
+          }
+          Fl_Group {} {
+            label {Sound file input} open
+            xywh {20 120 360 100} box ENGRAVED_FRAME color 38 labelcolor 52 align 21
+          } {
+            Fl_Value_Input tapeChannelValuator {
+              label {Channel number}
+              callback {{
+  gui.config.tape.soundFileChannel = int(o->clamp(o->value()) + 0.5);
+  gui.config.tapeSoundFileSettingsChanged = true;
+  o->value(double(gui.config.tape.soundFileChannel));
+}}
+              tooltip {Channel to use in multichannel sound files (for stereo files, channel 0 is left, and channel 1 is right)} xywh {30 145 40 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 maximum 15 step 1 textcolor 52
+              code0 {o->cursor_color(FL_YELLOW);}
+            }
+            Fl_Light_Button tapeEnableFilterValuator {
+              label {Enable filter}
+              callback {{
+  gui.config.tape.enableSoundFileFilter = (o->value() != 0);
+  gui.config.tapeSoundFileSettingsChanged = true;
+}}
+              tooltip {Apply a linear phase FIR bandpass filter to sound file input (enabling this increases CPU usage)} xywh {30 180 160 25} color 39 labelcolor 52
+            }
+            Fl_Value_Slider tapeMinFreqValuator {
+              label {Min freq}
+              callback {{
+  gui.config.tape.soundFileFilterMinFreq = o->value();
+  gui.config.tapeSoundFileSettingsChanged = true;
+}}
+              tooltip {The lowest frequency not attenuated by the bandpass filter (if enabled) in Hz} xywh {260 145 110 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 4 maximum 2000 step 1 value 500 textcolor 52
+            }
+            Fl_Value_Slider tapeMaxFreqValuator {
+              label {Max freq}
+              callback {{
+  gui.config.tape.soundFileFilterMaxFreq = o->value();
+  gui.config.tapeSoundFileSettingsChanged = true;
+}}
+              tooltip {The highest frequency not attenuated by the bandpass filter (if enabled) in Hz} xywh {260 180 110 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 4 minimum 1000 maximum 20000 step 10 value 5000 textcolor 52
+            }
+          }
+        }
       }
     }
   }
@@ -767,8 +817,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   vmSoundClockFrequencyValuator->value(double(gui.config.vm.soundClockFrequency));
   enableMemoryTimingValuator->value(gui.config.vm.enableMemoryTimingEmulation ? 1 : 0);
   vmEnableFileIOValuator->value(gui.config.vm.enableFileIO ? 1 : 0);
-  tapeEnableFastModeValuator->value(gui.config.tape.fastMode ? 1 : 0);
-  tapeDefaultSampleRateValuator->value(double(gui.config.tape.defaultSampleRate));
+  videoCaptureFrameRateValuator->value(double(gui.config.videoCapture.frameRate));
   memoryRAMSizeValuator->value(double(gui.config.memory.ram.size));
   memoryROM00FileNameValuator->value(gui.config.memory.rom[0x00].file.c_str());
   memoryROM00OffsetValuator->value(double(gui.config.memory.rom[0x00].offset));
@@ -810,6 +859,11 @@ class Ep128EmuGUI_MachineConfigWindow {open
   memoryROM32OffsetValuator->value(double(gui.config.memory.rom[0x32].offset));
   memoryROM33FileNameValuator->value(gui.config.memory.rom[0x33].file.c_str());
   memoryROM33OffsetValuator->value(double(gui.config.memory.rom[0x33].offset));
+  tapeDefaultSampleRateValuator->value(double(gui.config.tape.defaultSampleRate));
+  tapeChannelValuator->value(double(gui.config.tape.soundFileChannel));
+  tapeEnableFilterValuator->value(gui.config.tape.enableSoundFileFilter ? 1 : 0);
+  tapeMinFreqValuator->value(gui.config.tape.soundFileFilterMinFreq);
+  tapeMaxFreqValuator->value(gui.config.tape.soundFileFilterMaxFreq);
 }} {}
   }
   Function {setROMImageFile(uint8_t segment_, const std::string& fileName_)} {open private return_type void
@@ -864,7 +918,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   try {
     std::string tmp;
     if (gui.browseFile(tmp, gui.romImageDirectory,
-                       "ROM image files (*)",
+                       "ROM image files (*.rom)",
                        Fl_File_Chooser::SINGLE,
                        "Select ROM image file")) {
       setROMImageFile(segment_, tmp);

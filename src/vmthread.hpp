@@ -29,12 +29,23 @@ namespace Ep128Emu {
   class VMThread : private Thread {
    public:
     VirtualMachine& vm;
+    struct VMThreadStatus : public VirtualMachine::VMStatus {
+      // 'threadStatus' is zero if the emulation thread is running,
+      // and non-zero if it has terminated (negative if the termination
+      // occured due to an error).
+      int       threadStatus;
+      float     speedPercentage;
+      bool      isPaused;
+      // --------
+      VMThreadStatus(VMThread& vmThread_);
+    };
    private:
     class Message;
     Mutex           mutex_;
     unsigned long   lockCnt;
     ThreadLock      threadLock1;
     ThreadLock      threadLock2;
+    Timer           speedTimer;
     Message         *messageQueue;
     Message         *lastMessage;
     Message         *freeMessageStack;
@@ -43,13 +54,11 @@ namespace Ep128Emu {
     bool            joinFlag;
     bool            errorFlag;
     bool            pauseFlag;
-    bool            isRecordingDemo;
-    bool            isPlayingDemo;
-    bool            tapeReadOnly;
-    double          tapePosition;
-    double          tapeLength;
-    long            tapeSampleRate;
-    int             tapeSampleSize;
+    float           timesliceLength;
+    float           avgTimesliceLength;
+    double          prvTime;
+    double          nxtTime;
+    VirtualMachine::VMStatus  vmStatus;
     void            *userData;
     void            (*errorCallback)(void *userData_, const char *msg);
     void            (*processCallback)(void *userData_);
@@ -57,16 +66,6 @@ namespace Ep128Emu {
    public:
     VMThread(VirtualMachine& vm_, void *userData_ = (void *) 0);
     virtual ~VMThread();
-    /*!
-     * Get status information about the virtual machine. Return value is
-     * zero if the emulation thread is running, and non-zero if it has
-     * terminated (negative if the termination occured due to an error).
-     */
-    int getStatus(bool& isPaused_,
-                  bool& isRecordingDemo_, bool& isPlayingDemo_,
-                  bool& tapeReadOnly_,
-                  double& tapePosition_, double& tapeLength_,
-                  long& tapeSampleRate_, int& tapeSampleSize_);
     /*!
      * Block the execution of the emulation thread, so that the main thread
      * can safely access the virtual machine object. Returns zero on success,
@@ -154,6 +153,11 @@ namespace Ep128Emu {
      * case the error callback will be called to display the error message.
      */
     void setProcessCallback(void (*func)(void *userData_));
+    /*!
+     * Set maximum emulation speed as a percentage (100 = normal speed).
+     * A zero or negative value means no limit.
+     */
+    void setSpeedPercentage(int speedPercentage_);
   // --------------------------------------------------------------------------
    private:
     virtual void run();

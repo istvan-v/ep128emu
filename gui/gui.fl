@@ -8,33 +8,6 @@ decl {\#include "gui.hpp"} {selected
 
 decl {\#include <FL/Fl_File_Chooser.H>} {} 
 
-class EmulatorWindowGroup {open : {public Fl_Group}
-} {
-  decl {void *gui_;} {}
-  Function {EmulatorWindowGroup(int xx, int yy, int ww, int hh, const char *lbl_ = (char *) 0) : Fl_Group(xx, yy, ww, hh, lbl_)} {open
-  } {
-    code {{
-  gui_ = (void *) 0;
-}} {}
-  }
-  Function {~EmulatorWindowGroup()} {open return_type virtual
-  } {}
-  Function {handle(int event)} {open return_type {virtual int}
-  } {
-    code {{
-  if (gui_)
-    return ((Ep128EmuGUI *) gui_)->handleFLTKEvent(event);
-  return 0;
-}} {}
-  }
-  Function {setGUI(void *gui__)} {open return_type void
-  } {
-    code {{
-  gui_ = gui__;
-}} {}
-  }
-} 
-
 class Ep128EmuGUI {open
 } {
   decl {friend class Ep128EmuGUI_DiskConfigWindow;} {public
@@ -66,9 +39,12 @@ class Ep128EmuGUI {open
   decl {int oldWindowHeight;} {}
   decl {int oldDisplayMode;} {}
   decl {int oldDemoStatus;} {}
+  decl {int32_t oldSpeedPercentage;} {}
   decl {bool oldPauseFlag;} {}
   decl {long oldTapeSampleRate;} {}
   decl {int oldTapeSampleSize;} {}
+  decl {uint32_t floppyDriveLEDStateFilter;} {}
+  decl {uint8_t oldFloppyDriveLEDState;} {}
   decl {bool oldTapeReadOnlyFlag;} {}
   decl {long oldTapePosition;} {}
   decl {uint32_t functionKeyState;} {}
@@ -103,7 +79,12 @@ class Ep128EmuGUI {open
   decl {Ep128EmuGUI_DebugWindow *debugWindow;} {}
   decl {Ep128EmuGUI_AboutWindow *aboutWindow;} {}
   decl {Ep128Emu::JoystickInput joystickInput;} {}
+  decl {Ep128Emu::Timer statsTimer;} {}
+  decl {char windowTitleBuf[48];} {}
   decl {void init_();} {}
+  decl {void updateDisplay_windowTitle();} {}
+  decl {void updateDisplay_windowMode();} {}
+  decl {void updateDisplay_windowSize();} {}
   decl {void updateDisplay(double t = 0.025);} {public
   }
   decl {void errorMessage(const char *msg);} {public
@@ -111,8 +92,7 @@ class Ep128EmuGUI {open
   decl {void run();} {public
   }
   decl {void resizeWindow(int w, int h);} {}
-  decl {int handleFLTKEvent(int event);} {public
-  }
+  decl {static int handleFLTKEvent(void *userData, int event);} {}
   decl {bool lockVMThread(size_t t = 2000);} {public
   }
   decl {void unlockVMThread();} {public
@@ -143,10 +123,18 @@ class Ep128EmuGUI {open
   decl {static void menuCallback_File_StopDemo(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_RecordSound(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_StopSndRecord(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_RecordVideo(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_File_StopAVIRecord(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_Screenshot(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_File_Quit(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Machine_Pause(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Machine_FullSpeed(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_Speed_10(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_Speed_25(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_Speed_50(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_Speed_100(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_Speed_200(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Machine_Speed_400(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Machine_OpenTape(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Machine_TapePlay(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Machine_TapeStop(Fl_Widget *o, void *v);} {}
@@ -201,39 +189,51 @@ class Ep128EmuGUI {open
 }} {}
     Fl_Window mainWindow {
       label ep128emu open
-      xywh {248 54 400 360} type Single color 37 selection_color 0 resizable size_range {384 348 1536 1182} visible
+      xywh {248 54 400 360} type Single color 37 selection_color 0 resizable
+      code0 {o->add(emulatorWindow);} size_range {384 348 1536 1182} visible
     } {
       Fl_Menu_Bar mainMenuBar {open
-        xywh {0 0 340 30} box FLAT_BOX color 37 selection_color 236 labelcolor 52 textcolor 52
+        xywh {0 0 300 30} box FLAT_BOX color 37 selection_color 236 labelcolor 52 textcolor 52
       } {}
-      Fl_Group emulatorWindowGroup {open
-        xywh {0 30 400 300} color 0
-        code0 {o->add(emulatorWindow);}
-        code1 {o->setGUI(this);}
-        class EmulatorWindowGroup
-      } {}
+      Fl_Group diskStatusDisplayGroup {
+        label {Disk: } open
+        xywh {345 0 30 30} box PLASTIC_THIN_UP_BOX color 0 labelsize 12 labelcolor 52 align 4
+      } {
+        Fl_Box driveALEDDisplay {
+          xywh {351 2 18 5} box THIN_DOWN_BOX color 0
+        }
+        Fl_Box driveBLEDDisplay {
+          xywh {351 9 18 5} box THIN_DOWN_BOX color 0
+        }
+        Fl_Box driveCLEDDisplay {
+          xywh {351 16 18 5} box THIN_DOWN_BOX color 0
+        }
+        Fl_Box driveDLEDDisplay {
+          xywh {351 23 18 5} box THIN_DOWN_BOX color 0
+        }
+      }
       Fl_Group statusDisplayGroup {open
         xywh {40 330 360 30} color 37
       } {
-        Fl_Output demoStatusDisplay1 {
-          xywh {50 335 50 20} box NO_BOX color 37 selection_color 236 labelsize 12 labelcolor 52 textsize 12 textcolor 52
-          code0 {o->value("Demo: ");}
+        Fl_Box demoStatusDisplay1 {
+          label {Demo:}
+          xywh {50 335 50 20} color 37 selection_color 236 labelsize 12 labelcolor 52 align 20
         }
-        Fl_Output demoStatusDisplay2 {
-          xywh {97 335 20 20} color 0 selection_color 236 labelsize 12 labelcolor 52 align 8 textfont 5 textsize 12 textcolor 247
+        Fl_Box demoStatusDisplay2 {
+          xywh {97 335 20 20} box THIN_DOWN_BOX color 0 selection_color 236 labelfont 5 labelsize 12 labelcolor 247 align 16
         }
-        Fl_Output tapeInfoDisplay {
-          xywh {130 335 150 20} box NO_BOX color 37 selection_color 236 labelsize 12 labelcolor 52 textsize 12 textcolor 52
-          code0 {o->value("Tape: none");}
+        Fl_Box tapeInfoDisplay {
+          xywh {130 335 150 20} color 37 selection_color 236 labelsize 12 labelcolor 52 align 16
+          code0 {o->label("Tape: none");}
         }
         Fl_Group tapeStatusDisplayGroup {open
-          xywh {290 335 100 20} box DOWN_BOX color 0 labelsize 12 align 4
+          xywh {290 335 100 20} box THIN_DOWN_BOX color 0 labelsize 12 align 4
         } {
-          Fl_Output tapeStatusDisplay {
-            xywh {290 335 20 20} box NO_BOX color 0 selection_color 236 labelsize 12 align 8 textfont 5 textsize 12 textcolor 247
+          Fl_Box tapeStatusDisplay {
+            xywh {290 335 20 20} color 0 selection_color 236 labelfont 5 labelsize 12 labelcolor 247 align 24
           }
-          Fl_Output tapePositionDisplay {
-            xywh {310 335 80 20} box NO_BOX color 0 selection_color 236 labelsize 12 textfont 4 textsize 12 textcolor 247
+          Fl_Box tapePositionDisplay {
+            xywh {310 335 73 20} color 0 selection_color 236 labelfont 4 labelsize 12 labelcolor 247 align 24
           }
         }
       }
@@ -280,7 +280,7 @@ class Ep128EmuGUI {open
   mainWindow->hide();
   Fl::remove_check(&fltkCheckCallback, (void *) this);
   Fl::wait(0.0);
-  emulatorWindowGroup->remove(*emulatorWindow);
+  mainWindow->remove(*emulatorWindow);
   delete errorMessageWindow;
   delete browseFileWindow;
   delete diskConfigWindow;
@@ -291,7 +291,9 @@ class Ep128EmuGUI {open
   delete debugWindow;
   delete aboutWindow;
   delete mainWindow;
+  config.vm.speedPercentage = 100U;
   config.sound.file = "";
+  config.tape.imageFile = "";
 }} {}
   }
 } 

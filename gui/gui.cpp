@@ -51,9 +51,12 @@ void Ep128EmuGUI::init_()
   oldWindowHeight = -1;
   oldDisplayMode = 0;
   oldDemoStatus = -1;
+  oldSpeedPercentage = 100;
   oldPauseFlag = true;
   oldTapeSampleRate = -1L;
   oldTapeSampleSize = -1;
+  floppyDriveLEDStateFilter = 0U;
+  oldFloppyDriveLEDState = 0x00;
   oldTapeReadOnlyFlag = false;
   oldTapePosition = -2L;
   functionKeyState = 0U;
@@ -102,6 +105,96 @@ void Ep128EmuGUI::init_()
   Fl::add_check(&fltkCheckCallback, (void *) this);
 }
 
+void Ep128EmuGUI::updateDisplay_windowTitle()
+{
+  if (oldPauseFlag) {
+    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.4 beta (paused)");
+  }
+  else {
+    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.4 beta (%d%%)",
+                 int(oldSpeedPercentage));
+  }
+  mainWindow->label(&(windowTitleBuf[0]));
+}
+
+void Ep128EmuGUI::updateDisplay_windowMode()
+{
+  if (((displayMode ^ oldDisplayMode) & 2) != 0) {
+    if ((displayMode & 2) != 0)
+      mainWindow->fullscreen();
+    else
+      mainWindow->fullscreen_off(32, 32,
+                                 config.display.width, config.display.height);
+  }
+  resizeWindow(config.display.width, config.display.height);
+  Fl::redraw();
+  Fl::flush();
+  int     newWindowWidth = mainWindow->w();
+  int     newWindowHeight = mainWindow->h();
+  if ((displayMode & 1) == 0) {
+    if (newWindowWidth >= 745)
+      statusDisplayGroup->resize(newWindowWidth - 360, 0, 360, 30);
+    else
+      statusDisplayGroup->resize(newWindowWidth - 360, newWindowHeight - 30,
+                                 360, 30);
+    statusDisplayGroup->show();
+    mainMenuBar->resize(0, 0, 300, 30);
+    mainMenuBar->show();
+    diskStatusDisplayGroup->resize(345, 0, 30, 30);
+    diskStatusDisplayGroup->show();
+  }
+  else {
+    statusDisplayGroup->hide();
+    mainMenuBar->hide();
+    diskStatusDisplayGroup->hide();
+  }
+  oldWindowWidth = -1;
+  oldWindowHeight = -1;
+  oldDisplayMode = displayMode;
+  if ((displayMode & 1) == 0)
+    emulatorWindow->cursor(FL_CURSOR_DEFAULT);
+  else
+    emulatorWindow->cursor(FL_CURSOR_NONE);
+  mainWindow->redraw();
+  mainMenuBar->redraw();
+  diskStatusDisplayGroup->redraw();
+  statusDisplayGroup->redraw();
+}
+
+void Ep128EmuGUI::updateDisplay_windowSize()
+{
+  int     newWindowWidth = mainWindow->w();
+  int     newWindowHeight = mainWindow->h();
+  if ((displayMode & 1) == 0) {
+    int   h = newWindowHeight - (newWindowWidth >= 745 ? 30 : 60);
+    emulatorWindow->resize(0, 30, newWindowWidth, h);
+    if ((displayMode & 2) == 0) {
+      config.display.width = newWindowWidth;
+      config.display.height = h;
+    }
+    if (newWindowWidth >= 745)
+      statusDisplayGroup->resize(newWindowWidth - 360, 0, 360, 30);
+    else
+      statusDisplayGroup->resize(newWindowWidth - 360, newWindowHeight - 30,
+                                 360, 30);
+    mainMenuBar->resize(0, 0, 300, 30);
+    diskStatusDisplayGroup->resize(345, 0, 30, 30);
+  }
+  else {
+    emulatorWindow->resize(0, 0, newWindowWidth, newWindowHeight);
+    if ((displayMode & 2) == 0) {
+      config.display.width = newWindowWidth;
+      config.display.height = newWindowHeight;
+    }
+  }
+  oldWindowWidth = newWindowWidth;
+  oldWindowHeight = newWindowHeight;
+  mainWindow->redraw();
+  mainMenuBar->redraw();
+  diskStatusDisplayGroup->redraw();
+  statusDisplayGroup->redraw();
+}
+
 void Ep128EmuGUI::updateDisplay(double t)
 {
 #ifdef WIN32
@@ -133,102 +226,25 @@ void Ep128EmuGUI::updateDisplay(double t)
     return;
   }
   updateDisplayEntered = true;
-  int     newWindowWidth = mainWindow->w();
-  int     newWindowHeight = mainWindow->h();
-  bool    isPaused_ = false;
-  bool    isRecordingDemo_ = false;
-  bool    isPlayingDemo_ = false;
-  bool    tapeReadOnly_ = false;
-  double  tapePosition_ = 0.0;
-  double  tapeLength_ = 0.0;
-  long    tapeSampleRate_ = 0L;
-  int     tapeSampleSize_ = 0;
-  int   vmThreadStatus = vmThread.getStatus(isPaused_, isRecordingDemo_,
-                                            isPlayingDemo_, tapeReadOnly_,
-                                            tapePosition_, tapeLength_,
-                                            tapeSampleRate_, tapeSampleSize_);
-  if (vmThreadStatus != 0) {
+  Ep128Emu::VMThread::VMThreadStatus  vmThreadStatus(vmThread);
+  if (vmThreadStatus.threadStatus != 0) {
     exitFlag = true;
-    if (vmThreadStatus < 0)
+    if (vmThreadStatus.threadStatus < 0)
       errorFlag = true;
   }
   if (displayMode != oldDisplayMode) {
-    if (((displayMode ^ oldDisplayMode) & 2) != 0) {
-      if ((displayMode & 2) != 0)
-        mainWindow->fullscreen();
-      else
-        mainWindow->fullscreen_off(32, 32,
-                                   config.display.width, config.display.height);
-    }
-    resizeWindow(config.display.width, config.display.height);
-    Fl::redraw();
-    Fl::flush();
-    newWindowWidth = mainWindow->w();
-    newWindowHeight = mainWindow->h();
-    if ((displayMode & 1) == 0) {
-      if (newWindowWidth >= 700)
-        statusDisplayGroup->resize(newWindowWidth - 360, 0, 360, 30);
-      else
-        statusDisplayGroup->resize(newWindowWidth - 360, newWindowHeight - 30,
-                                   360, 30);
-      statusDisplayGroup->show();
-      mainMenuBar->resize(0, 0, 340, 30);
-      mainMenuBar->show();
-    }
-    else {
-      statusDisplayGroup->hide();
-      mainMenuBar->hide();
-    }
-    oldWindowWidth = -1;
-    oldWindowHeight = -1;
-    oldDisplayMode = displayMode;
-    if ((displayMode & 1) == 0)
-      emulatorWindow->cursor(FL_CURSOR_DEFAULT);
-    else
-      emulatorWindow->cursor(FL_CURSOR_NONE);
-    mainWindow->redraw();
-    mainMenuBar->redraw();
-    statusDisplayGroup->redraw();
+    updateDisplay_windowMode();
   }
-  else if (newWindowWidth != oldWindowWidth ||
-           newWindowHeight != oldWindowHeight) {
-    if ((displayMode & 1) == 0) {
-      int   h = newWindowHeight - (newWindowWidth >= 700 ? 30 : 60);
-      emulatorWindowGroup->resize(0, 30, newWindowWidth, h);
-      emulatorWindow->resize(0, 30, newWindowWidth, h);
-      if ((displayMode & 2) == 0) {
-        config.display.width = newWindowWidth;
-        config.display.height = h;
-      }
-      if (newWindowWidth >= 700)
-        statusDisplayGroup->resize(newWindowWidth - 360, 0, 360, 30);
-      else
-        statusDisplayGroup->resize(newWindowWidth - 360, newWindowHeight - 30,
-                                   360, 30);
-      mainMenuBar->resize(0, 0, 340, 30);
-    }
-    else {
-      emulatorWindowGroup->resize(0, 0, newWindowWidth, newWindowHeight);
-      emulatorWindow->resize(0, 0, newWindowWidth, newWindowHeight);
-      if ((displayMode & 2) == 0) {
-        config.display.width = newWindowWidth;
-        config.display.height = newWindowHeight;
-      }
-    }
-    oldWindowWidth = newWindowWidth;
-    oldWindowHeight = newWindowHeight;
-    mainWindow->redraw();
-    mainMenuBar->redraw();
-    statusDisplayGroup->redraw();
+  else if (mainWindow->w() != oldWindowWidth ||
+           mainWindow->h() != oldWindowHeight) {
+    updateDisplay_windowSize();
   }
-  if (isPaused_ != oldPauseFlag) {
-    oldPauseFlag = isPaused_;
-    if (isPaused_)
-      mainWindow->label("ep128emu 2.1.0 beta (paused)");
-    else
-      mainWindow->label("ep128emu 2.1.0 beta");
+  if (vmThreadStatus.isPaused != oldPauseFlag) {
+    oldPauseFlag = vmThreadStatus.isPaused;
+    updateDisplay_windowTitle();
   }
-  int   newDemoStatus = (isRecordingDemo_ ? 2 : (isPlayingDemo_ ? 1 : 0));
+  int   newDemoStatus = (vmThreadStatus.isRecordingDemo ?
+                         2 : (vmThreadStatus.isPlayingDemo ? 1 : 0));
   if (newDemoStatus != oldDemoStatus) {
     const Fl_Menu_Item *m = mainMenuBar->find_item("File/Stop demo (Ctrl+F12)");
     if (newDemoStatus == 0) {
@@ -242,70 +258,98 @@ void Ep128EmuGUI::updateDisplay(double t)
       demoStatusDisplay1->show();
       demoStatusDisplay2->show();
       if (newDemoStatus == 1) {
-        demoStatusDisplay2->textcolor(247);
-        demoStatusDisplay2->value("P");
+        demoStatusDisplay2->labelcolor(247);
+        demoStatusDisplay2->label("P");
       }
       else {
-        demoStatusDisplay2->textcolor(FL_RED);
-        demoStatusDisplay2->value("R");
+        demoStatusDisplay2->labelcolor(FL_RED);
+        demoStatusDisplay2->label("R");
       }
       const_cast<Fl_Menu_Item *>(m)->activate();
     }
     oldDemoStatus = newDemoStatus;
     mainWindow->redraw();
   }
-  if (tapeSampleRate_ != oldTapeSampleRate ||
-      tapeSampleSize_ != oldTapeSampleSize ||
-      tapeReadOnly_ != oldTapeReadOnlyFlag) {
-    oldTapeSampleRate = tapeSampleRate_;
-    oldTapeSampleSize = tapeSampleSize_;
-    oldTapeReadOnlyFlag = tapeReadOnly_;
-    char  tmpBuf[256];
-    if (tapeSampleRate_ < 1L || tapeSampleSize_ < 1)
-      std::sprintf(&(tmpBuf[0]), "Tape: none");
+  if (vmThreadStatus.tapeSampleRate != oldTapeSampleRate ||
+      vmThreadStatus.tapeSampleSize != oldTapeSampleSize ||
+      vmThreadStatus.tapeReadOnly != oldTapeReadOnlyFlag) {
+    oldTapeSampleRate = vmThreadStatus.tapeSampleRate;
+    oldTapeSampleSize = vmThreadStatus.tapeSampleSize;
+    oldTapeReadOnlyFlag = vmThreadStatus.tapeReadOnly;
+    if (vmThreadStatus.tapeSampleRate < 1L || vmThreadStatus.tapeSampleSize < 1)
+      tapeInfoDisplay->label("Tape: none");
     else {
+      char  tmpBuf[256];
       std::sprintf(&(tmpBuf[0]), "Tape: %ldHz %dbit %s",
-                   tapeSampleRate_, tapeSampleSize_,
-                   (tapeReadOnly_ ? "RO" : "RW"));
+                   vmThreadStatus.tapeSampleRate, vmThreadStatus.tapeSampleSize,
+                   (vmThreadStatus.tapeReadOnly ? "RO" : "RW"));
+      tapeInfoDisplay->copy_label(&(tmpBuf[0]));
     }
-    tapeInfoDisplay->value(&(tmpBuf[0]));
     mainWindow->redraw();
   }
   if (tapeButtonState != oldTapeButtonState) {
     oldTapeButtonState = tapeButtonState;
     switch (tapeButtonState) {
     case 1:
-      tapeStatusDisplay->textcolor(247);
-      tapeStatusDisplay->value(" P");
+      tapeStatusDisplay->labelcolor(247);
+      tapeStatusDisplay->label("P");
       break;
     case 2:
-      tapeStatusDisplay->textcolor(FL_RED);
-      tapeStatusDisplay->value(" R");
+      tapeStatusDisplay->labelcolor(FL_RED);
+      tapeStatusDisplay->label("R");
       break;
     default:
-      tapeStatusDisplay->textcolor(247);
-      tapeStatusDisplay->value("");
+      tapeStatusDisplay->labelcolor(247);
+      tapeStatusDisplay->label("");
       break;
     }
     tapeStatusDisplayGroup->redraw();
   }
-  long  newTapePosition = long(tapePosition_ * 10.0 + 0.25);
+  long  newTapePosition = long(vmThreadStatus.tapePosition * 10.0 + 0.25);
   newTapePosition = (newTapePosition >= 0L ? newTapePosition : -1L);
   if (newTapePosition != oldTapePosition) {
     oldTapePosition = newTapePosition;
-    char  tmpBuf[256];
     if (newTapePosition >= 0L) {
+      char  tmpBuf[256];
       int   h, m, s, ds;
       ds = int(newTapePosition % 10L);
       s = int((newTapePosition / 10L) % 60L);
       m = int((newTapePosition / 600L) % 60L);
       h = int((newTapePosition / 36000L) % 100L);
       std::sprintf(&(tmpBuf[0]), "%2d:%02d:%02d.%d", h, m, s, ds);
+      tapePositionDisplay->copy_label(&(tmpBuf[0]));
     }
     else
-      std::sprintf(&(tmpBuf[0]), " -:--:--.-");
-    tapePositionDisplay->value(&(tmpBuf[0]));
+      tapePositionDisplay->label("-:--:--.-");
     tapeStatusDisplayGroup->redraw();
+  }
+  floppyDriveLEDStateFilter =
+      uint32_t(((floppyDriveLEDStateFilter & 0x7F7F7F7FU) << 1)
+               | vmThreadStatus.floppyDriveLEDState);
+  uint8_t newFloppyDriveLEDState =
+      uint8_t(bool(floppyDriveLEDStateFilter & 0x000000FFU))
+      | (uint8_t(bool(floppyDriveLEDStateFilter & 0x0000FF00U)) << 1)
+      | (uint8_t(bool(floppyDriveLEDStateFilter & 0x00FF0000U)) << 2)
+      | (uint8_t(bool(floppyDriveLEDStateFilter & 0xFF000000U)) << 3);
+  if (newFloppyDriveLEDState != oldFloppyDriveLEDState) {
+    oldFloppyDriveLEDState = newFloppyDriveLEDState;
+    Fl_Color  ledColors_[2] = { FL_BLACK, Fl_Color(87) };
+    driveALEDDisplay->color(ledColors_[newFloppyDriveLEDState & 0x01]);
+    driveALEDDisplay->redraw();
+    driveBLEDDisplay->color(ledColors_[(newFloppyDriveLEDState & 0x02) >> 1]);
+    driveBLEDDisplay->redraw();
+    driveCLEDDisplay->color(ledColors_[(newFloppyDriveLEDState & 0x04) >> 2]);
+    driveCLEDDisplay->redraw();
+    driveDLEDDisplay->color(ledColors_[(newFloppyDriveLEDState & 0x08) >> 3]);
+    driveDLEDDisplay->redraw();
+  }
+  if (statsTimer.getRealTime() >= 0.5) {
+    statsTimer.reset();
+    int32_t newSpeedPercentage = int32_t(vmThreadStatus.speedPercentage + 0.5f);
+    if (newSpeedPercentage != oldSpeedPercentage) {
+      oldSpeedPercentage = newSpeedPercentage;
+      updateDisplay_windowTitle();
+    }
   }
   Fl::wait(t);
   updateDisplayEntered = false;
@@ -320,7 +364,7 @@ void Ep128EmuGUI::errorMessage(const char *msg)
     Fl::lock();
   }
   if (msg)
-    errorMessageText->label(msg);
+    errorMessageText->copy_label(msg);
   else
     errorMessageText->label("");
   errorMessageWindow->set_modal();
@@ -345,10 +389,11 @@ void Ep128EmuGUI::run()
 {
   config.setErrorCallback(&errorMessageCallback, (void *) this);
   // set initial window size from saved configuration
+  flDisplay->setFLTKEventCallback(&handleFLTKEvent, (void *) this);
   mainWindow->resizable((Fl_Widget *) 0);
-  emulatorWindowGroup->resizable((Fl_Widget *) 0);
   emulatorWindow->color(36, 36);
   resizeWindow(config.display.width, config.display.height);
+  updateDisplay_windowTitle();
   // create menu bar
   mainMenuBar->add("File/Configuration/Load from ASCII file",
                    (char *) 0, &menuCallback_File_LoadConfig, (void *) this);
@@ -376,16 +421,32 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_File_StopDemo, (void *) this);
   mainMenuBar->add("File/Load demo",
                    (char *) 0, &menuCallback_File_LoadFile, (void *) this);
-  mainMenuBar->add("File/Record sound file",
+  mainMenuBar->add("File/Record audio/Start...",
                    (char *) 0, &menuCallback_File_RecordSound, (void *) this);
-  mainMenuBar->add("File/Stop sound recording",
+  mainMenuBar->add("File/Record audio/Stop",
                    (char *) 0, &menuCallback_File_StopSndRecord, (void *) this);
+  mainMenuBar->add("File/Record video/Start...",
+                   (char *) 0, &menuCallback_File_RecordVideo, (void *) this);
+  mainMenuBar->add("File/Record video/Stop",
+                   (char *) 0, &menuCallback_File_StopAVIRecord, (void *) this);
   mainMenuBar->add("File/Save screenshot",
                    (char *) 0, &menuCallback_File_Screenshot, (void *) this);
   mainMenuBar->add("File/Quit",
                    (char *) 0, &menuCallback_File_Quit, (void *) this);
-  mainMenuBar->add("Machine/Full speed",
+  mainMenuBar->add("Machine/Speed/No limit",
                    (char *) 0, &menuCallback_Machine_FullSpeed, (void *) this);
+  mainMenuBar->add("Machine/Speed/10%",
+                   (char *) 0, &menuCallback_Machine_Speed_10, (void *) this);
+  mainMenuBar->add("Machine/Speed/25%",
+                   (char *) 0, &menuCallback_Machine_Speed_25, (void *) this);
+  mainMenuBar->add("Machine/Speed/50%",
+                   (char *) 0, &menuCallback_Machine_Speed_50, (void *) this);
+  mainMenuBar->add("Machine/Speed/100%",
+                   (char *) 0, &menuCallback_Machine_Speed_100, (void *) this);
+  mainMenuBar->add("Machine/Speed/200%",
+                   (char *) 0, &menuCallback_Machine_Speed_200, (void *) this);
+  mainMenuBar->add("Machine/Speed/400%",
+                   (char *) 0, &menuCallback_Machine_Speed_400, (void *) this);
   mainMenuBar->add("Machine/Tape/Select image file",
                    (char *) 0, &menuCallback_Machine_OpenTape, (void *) this);
   mainMenuBar->add("Machine/Tape/Play (Shift + F9)",
@@ -482,7 +543,9 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Debug_OpenDebugger, (void *) this);
   mainMenuBar->add("Help/About",
                    (char *) 0, &menuCallback_Help_About, (void *) this);
-  mainMenuBar->mode(int(mainMenuBar->find_item("Machine/Full speed")
+  const_cast<Fl_Menu_Item *>(mainMenuBar->find_item(
+                                 "File/Record video/Stop"))->deactivate();
+  mainMenuBar->mode(int(mainMenuBar->find_item("Machine/Speed/No limit")
                         - mainMenuBar->menu()),
                     FL_MENU_TOGGLE);
   updateMenu();
@@ -562,7 +625,7 @@ void Ep128EmuGUI::resizeWindow(int w, int h)
     config.display.width = w;
     config.display.height = h;
     if ((displayMode & 1) == 0)
-      h += (w >= 700 ? 30 : 60);
+      h += (w >= 745 ? 30 : 60);
     mainWindow->resize(mainWindow->x(), mainWindow->y(), w, h);
     if ((displayMode & 1) == 0)
       mainWindow->size_range(384, 348, 1536, 1182);
@@ -575,19 +638,26 @@ void Ep128EmuGUI::resizeWindow(int w, int h)
     emulatorWindow->cursor(FL_CURSOR_NONE);
 }
 
-int Ep128EmuGUI::handleFLTKEvent(int event)
+int Ep128EmuGUI::handleFLTKEvent(void *userData, int event)
 {
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(userData));
   switch (event) {
   case FL_FOCUS:
     return 1;
   case FL_UNFOCUS:
-    functionKeyState = 0U;
+    gui_.functionKeyState = 0U;
     try {
-      vmThread.resetKeyboard();
+      gui_.vmThread.resetKeyboard();
     }
     catch (std::exception& e) {
-      errorMessage(e.what());
+      gui_.errorMessage(e.what());
     }
+    return 1;
+  case FL_PUSH:
+  case FL_DRAG:
+    gui_.emulatorWindow->take_focus();
+    return 1;
+  case FL_RELEASE:
     return 1;
   case FL_KEYUP:
   case FL_KEYDOWN:
@@ -595,31 +665,31 @@ int Ep128EmuGUI::handleFLTKEvent(int event)
       int   keyCode = Fl::event_key();
       bool  isKeyPress = (event == FL_KEYDOWN);
       if (!(keyCode >= (FL_F + 9) && keyCode <= (FL_F + 12))) {
-        int   n = config.convertKeyCode(keyCode);
-        if (n >= 0 && (functionKeyState == 0U || !isKeyPress)) {
+        int   n = gui_.config.convertKeyCode(keyCode);
+        if (n >= 0 && (gui_.functionKeyState == 0U || !isKeyPress)) {
           try {
 #ifdef WIN32
             if (keyCode == FL_Shift_L || keyCode == FL_Shift_R) {
               // work around FLTK bug
-              int   tmp = config.convertKeyCode(FL_Shift_L);
+              int   tmp = gui_.config.convertKeyCode(FL_Shift_L);
               if (tmp >= 0)
-                vmThread.setKeyboardState(uint8_t(tmp),
-                                          (GetKeyState(VK_LSHIFT) < 0));
-              tmp = config.convertKeyCode(FL_Shift_R);
+                gui_.vmThread.setKeyboardState(uint8_t(tmp),
+                                               (GetKeyState(VK_LSHIFT) < 0));
+              tmp = gui_.config.convertKeyCode(FL_Shift_R);
               if (tmp >= 0)
-                vmThread.setKeyboardState(uint8_t(tmp),
-                                          (GetKeyState(VK_RSHIFT) < 0));
+                gui_.vmThread.setKeyboardState(uint8_t(tmp),
+                                               (GetKeyState(VK_RSHIFT) < 0));
             }
             else
 #endif
             {
-              vmThread.setKeyboardState(uint8_t(n), isKeyPress);
+              gui_.vmThread.setKeyboardState(uint8_t(n), isKeyPress);
             }
           }
           catch (std::exception& e) {
-            errorMessage(e.what());
+            gui_.errorMessage(e.what());
           }
-          if (functionKeyState == 0U || isKeyPress)
+          if (gui_.functionKeyState == 0U || isKeyPress)
             return 1;
         }
       }
@@ -669,85 +739,85 @@ int Ep128EmuGUI::handleFLTKEvent(int event)
       }
       if (n >= 0) {
         uint32_t  bitMask = 1U << n;
-        bool      wasPressed = !!(functionKeyState & bitMask);
+        bool      wasPressed = !!(gui_.functionKeyState & bitMask);
         if (isKeyPress != wasPressed) {
           if (isKeyPress)
-            functionKeyState |= bitMask;
+            gui_.functionKeyState |= bitMask;
           else
-            functionKeyState &= (bitMask ^ uint32_t(0xFFFFFFFFU));
+            gui_.functionKeyState &= (bitMask ^ uint32_t(0xFFFFFFFFU));
           if (isKeyPress) {
             switch (n) {
             case 0:                                     // F5:
-              menuCallback_Machine_TapePlay((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Machine_TapePlay((Fl_Widget *) 0, userData);
               break;
             case 1:                                     // F6:
-              menuCallback_Machine_OpenTape((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Machine_OpenTape((Fl_Widget *) 0, userData);
               break;
             case 2:                                     // F7:
-              menuCallback_File_LoadFile((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_File_LoadFile((Fl_Widget *) 0, userData);
               break;
             case 4:                                     // F9:
-              menuCallback_Options_DpyMode((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Options_DpyMode((Fl_Widget *) 0, userData);
               break;
             case 5:                                     // F10:
-              menuCallback_Machine_Pause((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Machine_Pause((Fl_Widget *) 0, userData);
               break;
             case 6:                                     // F11:
-              menuCallback_Machine_Reset((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Machine_Reset((Fl_Widget *) 0, userData);
               break;
             case 7:                                     // F12:
-              menuCallback_Machine_TapeNxtCP((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Machine_TapeNxtCP((Fl_Widget *) 0, userData);
               break;
             case 8:                                     // Shift + F5:
-              menuCallback_Machine_TapeStop((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Machine_TapeStop((Fl_Widget *) 0, userData);
               break;
             case 9:                                     // Shift + F6:
-              menuCallback_Machine_TapeRecord((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Machine_TapeRecord((Fl_Widget *) 0, userData);
               break;
             case 10:                                    // Shift + F7:
-              menuCallback_File_SaveSnapshot((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_File_SaveSnapshot((Fl_Widget *) 0, userData);
               break;
             case 12:                                    // Shift + F9:
-              menuCallback_Machine_TapePlay((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Machine_TapePlay((Fl_Widget *) 0, userData);
               break;
             case 13:                                    // Shift + F10:
-              menuCallback_Machine_TapeStop((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Machine_TapeStop((Fl_Widget *) 0, userData);
               break;
             case 14:                                    // Shift + F11:
-              menuCallback_Machine_ResetAll((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Machine_ResetAll((Fl_Widget *) 0, userData);
               break;
             case 15:                                    // Shift + F12:
-              menuCallback_Machine_TapeRecord((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Machine_TapeRecord((Fl_Widget *) 0, userData);
               break;
             case 20:                                    // Ctrl + F9:
-              menuCallback_File_QSSave((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_File_QSSave((Fl_Widget *) 0, userData);
               break;
             case 21:                                    // Ctrl + F10:
-              menuCallback_File_QSLoad((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_File_QSLoad((Fl_Widget *) 0, userData);
               break;
             case 22:                                    // Ctrl + F11:
-              menuCallback_Machine_ColdReset((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Machine_ColdReset((Fl_Widget *) 0, userData);
               break;
             case 23:                                    // Ctrl + F12:
-              menuCallback_File_StopDemo((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_File_StopDemo((Fl_Widget *) 0, userData);
               break;
             case 24:                                    // Alt + D:
-              menuCallback_Options_FloppyCfg((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Options_FloppyCfg((Fl_Widget *) 0, userData);
               break;
             case 25:                                    // Alt + M:
-              menuCallback_Debug_OpenDebugger((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Debug_OpenDebugger((Fl_Widget *) 0, userData);
               break;
             case 26:                                    // Alt + W:
-              menuCallback_Machine_FullSpeed((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Machine_FullSpeed((Fl_Widget *) 0, userData);
               break;
             case 27:                                    // Pause:
-              menuCallback_Machine_Pause((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Machine_Pause((Fl_Widget *) 0, userData);
               break;
             case 30:                                    // PageDown:
-              menuCallback_Machine_QuickCfgL1((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Machine_QuickCfgL1((Fl_Widget *) 0, userData);
               break;
             case 31:                                    // PageUp:
-              menuCallback_Machine_QuickCfgL2((Fl_Widget *) 0, (void *) this);
+              gui_.menuCallback_Machine_QuickCfgL2((Fl_Widget *) 0, userData);
               break;
             }
           }
@@ -856,6 +926,9 @@ void Ep128EmuGUI::applyEmulatorConfiguration(bool updateWindowFlag_)
     try {
       bool    updateMenuFlag_ = config.soundSettingsChanged;
       config.applySettings();
+      vmThread.setSpeedPercentage(config.vm.speedPercentage == 100U &&
+                                  config.sound.enabled ?
+                                  0 : int(config.vm.speedPercentage));
       if (config.joystickSettingsChanged) {
         joystickInput.setConfiguration(config.joystick);
         config.joystickSettingsChanged = false;
@@ -888,12 +961,12 @@ void Ep128EmuGUI::applyEmulatorConfiguration(bool updateWindowFlag_)
 void Ep128EmuGUI::updateMenu()
 {
   const Fl_Menu_Item  *m;
-  m = mainMenuBar->find_item("Machine/Full speed");
-  if (config.sound.enabled)
-    const_cast<Fl_Menu_Item *>(m)->clear();
-  else
+  m = mainMenuBar->find_item("Machine/Speed/No limit");
+  if (config.vm.speedPercentage == 0U)
     const_cast<Fl_Menu_Item *>(m)->set();
-  m = mainMenuBar->find_item("File/Stop sound recording");
+  else
+    const_cast<Fl_Menu_Item *>(m)->clear();
+  m = mainMenuBar->find_item("File/Record audio/Stop");
   if (config.sound.file.length() > 0)
     const_cast<Fl_Menu_Item *>(m)->activate();
   else
@@ -1422,6 +1495,65 @@ void Ep128EmuGUI::menuCallback_File_StopSndRecord(Fl_Widget *o, void *v)
   }
 }
 
+void Ep128EmuGUI::menuCallback_File_RecordVideo(Fl_Widget *o, void *v)
+{
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    std::string tmp;
+    if (!gui_.browseFile(tmp, gui_.soundFileDirectory, "AVI files (*.avi)",
+                         Fl_File_Chooser::CREATE,
+                         "Record video output to AVI file")) {
+      return;
+    }
+    if (tmp.length() < 1) {
+      gui_.menuCallback_File_StopAVIRecord(o, v);
+      return;
+    }
+    if (gui_.lockVMThread()) {
+      try {
+        gui_.vm.openVideoCapture(gui_.config.videoCapture.frameRate,
+                                 &Ep128EmuGUI::errorMessageCallback,
+                                 &Ep128EmuGUI::fileNameCallback, v);
+        const_cast<Fl_Menu_Item *>(gui_.mainMenuBar->find_item(
+                                       "File/Record video/Stop"))->activate();
+        gui_.vm.setVideoCaptureFile(tmp);
+      }
+      catch (...) {
+        gui_.unlockVMThread();
+        throw;
+      }
+      gui_.unlockVMThread();
+    }
+  }
+  catch (std::exception& e) {
+    gui_.menuCallback_File_StopAVIRecord(o, v);
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_File_StopAVIRecord(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    if (gui_.lockVMThread()) {
+      try {
+        gui_.vm.closeVideoCapture();
+        const_cast<Fl_Menu_Item *>(gui_.mainMenuBar->find_item(
+                                       "File/Record video/Stop"))->deactivate();
+      }
+      catch (...) {
+        gui_.unlockVMThread();
+        throw;
+      }
+      gui_.unlockVMThread();
+    }
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
 void Ep128EmuGUI::menuCallback_File_Screenshot(Fl_Widget *o, void *v)
 {
   (void) o;
@@ -1458,7 +1590,87 @@ void Ep128EmuGUI::menuCallback_Machine_FullSpeed(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    gui_.config["sound.enabled"] = !gui_.config.sound.enabled;
+    Ep128Emu::ConfigurationDB::ConfigurationVariable& cv =
+        gui_.config["vm.speedPercentage"];
+    cv = ((unsigned int) cv == 0U ? 100U : 0U);
+    gui_.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Machine_Speed_10(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    gui_.config["vm.speedPercentage"] = 10U;
+    gui_.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Machine_Speed_25(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    gui_.config["vm.speedPercentage"] = 25U;
+    gui_.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Machine_Speed_50(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    gui_.config["vm.speedPercentage"] = 50U;
+    gui_.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Machine_Speed_100(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    gui_.config["vm.speedPercentage"] = 100U;
+    gui_.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Machine_Speed_200(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    gui_.config["vm.speedPercentage"] = 200U;
+    gui_.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI::menuCallback_Machine_Speed_400(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  try {
+    gui_.config["vm.speedPercentage"] = 400U;
     gui_.applyEmulatorConfiguration();
   }
   catch (std::exception& e) {
@@ -1472,7 +1684,8 @@ void Ep128EmuGUI::menuCallback_Machine_OpenTape(Fl_Widget *o, void *v)
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
     std::string tmp;
-    if (gui_.browseFile(tmp, gui_.tapeImageDirectory, "Tape files (*)",
+    if (gui_.browseFile(tmp, gui_.tapeImageDirectory,
+                        "Tape files (*.{tap,wav,aif,aiff,au,snd})",
                         Fl_File_Chooser::CREATE, "Select tape image file")) {
       Ep128EmuGUI::menuCallback_Machine_TapeStop(o, v);
       gui_.config["tape.imageFile"] = tmp;
@@ -1855,7 +2068,7 @@ void Ep128EmuGUI::menuCallback_Options_SndIncVol(Fl_Widget *o, void *v)
   try {
     Ep128Emu::ConfigurationDB::ConfigurationVariable& cv =
         gui_.config["sound.volume"];
-    cv = double(cv) * 1.1892;
+    cv = double(cv) * 1.2589;
     gui_.applyEmulatorConfiguration(true);
   }
   catch (std::exception& e) {
@@ -1870,7 +2083,7 @@ void Ep128EmuGUI::menuCallback_Options_SndDecVol(Fl_Widget *o, void *v)
   try {
     Ep128Emu::ConfigurationDB::ConfigurationVariable& cv =
         gui_.config["sound.volume"];
-    cv = double(cv) * 0.8409;
+    cv = double(cv) * 0.7943;
     gui_.applyEmulatorConfiguration(true);
   }
   catch (std::exception& e) {

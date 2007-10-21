@@ -129,6 +129,7 @@ namespace Ep128Emu {
     void queueMessage(Message *m);
     static void decodeLine(unsigned char *outBuf,
                            const unsigned char *inBuf, size_t nBytes);
+    void frameDone();
     void checkScreenshotCallback();
     // ----------------
     Message       *messageQueue;
@@ -138,18 +139,19 @@ namespace Ep128Emu {
     // for 578 lines (576 + 2 border)
     Message_LineData  **lineBuffers;
     int           curLine;
-    int           lineCnt;      // nr. of lines received so far in this frame
-    int           prvLineCnt;
-    float         avgLineCnt;
-    int           lineReload;
+    int           vsyncCnt;
     int           framesPending;
     bool          skippingFrame;
     bool          vsyncState;
     volatile bool videoResampleEnabled;
     volatile bool exitFlag;
+    volatile bool limitFrameRateFlag;
     DisplayParameters   displayParameters;
     DisplayParameters   savedDisplayParameters;
+    Timer         limitFrameRateTimer;
     ThreadLock    threadLock;
+    int           (*fltkEventCallback)(void *, int);
+    void          *fltkEventCallbackUserData;
     void          (*screenshotCallback)(void *,
                                         const unsigned char *, int, int);
     void          *screenshotCallbackUserData;
@@ -205,6 +207,16 @@ namespace Ep128Emu {
                                                     const unsigned char *buf,
                                                     int w_, int h_),
                                        void *userData_);
+    /*!
+     * Set function to be called by handle().
+     */
+    virtual void setFLTKEventCallback(int (*func)(void *userData, int event),
+                                      void *userData_ = (void *) 0);
+    /*!
+     * If enabled, limit the number of frames displayed per second to a
+     * maximum of 50.
+     */
+    virtual void limitFrameRate(bool isEnabled);
    protected:
     virtual void draw();
    public:

@@ -49,42 +49,44 @@ namespace Ep128Emu {
       void    (*indexToRGBFunc)(uint8_t color,
                                 float& red, float& green, float& blue);
       /*! Brightness (default: 0.0). */
-      double  brightness;
+      float   brightness;
       /*! Contrast (default: 1.0). */
-      double  contrast;
+      float   contrast;
       /*! Gamma (default: 1.0, higher values result in a brighter display). */
-      double  gamma;
+      float   gamma;
+      /*! color hue shift (-180.0 to 180.0, default: 0.0) */
+      float   hueShift;
       /*! Color saturation (default: 1.0). */
-      double  saturation;
+      float   saturation;
       /*! Brightness for red channel. */
-      double  redBrightness;
+      float   redBrightness;
       /*! Contrast for red channel. */
-      double  redContrast;
+      float   redContrast;
       /*! Gamma for red channel. */
-      double  redGamma;
+      float   redGamma;
       /*! Brightness for green channel. */
-      double  greenBrightness;
+      float   greenBrightness;
       /*! Contrast for green channel. */
-      double  greenContrast;
+      float   greenContrast;
       /*! Gamma for green channel. */
-      double  greenGamma;
+      float   greenGamma;
       /*! Brightness for blue channel. */
-      double  blueBrightness;
+      float   blueBrightness;
       /*! Contrast for blue channel. */
-      double  blueContrast;
+      float   blueContrast;
       /*! Gamma for blue channel. */
-      double  blueGamma;
-      /*! Controls vertical filtering of textures (0 to 0.5). */
-      double  blendScale1;
-      /*! Scale applied to new pixels written to frame buffer. */
-      double  blendScale2;
-      /*! Scale applied to old pixels in frame buffer. */
-      double  blendScale3;
+      float   blueGamma;
+      /*! controls vertical filtering of textures (0.0 to 1.0) */
+      float   lineShade;
+      /*! scale applied to pixels written to the frame buffer */
+      float   blendScale;
+      /*! scale applied to old pixels in frame buffer */
+      float   motionBlur;
       /*!
        * Pixel aspect ratio to assume.
        * (calculated as (screen_width / screen_height) / (X_res / Y_res))
        */
-      double  pixelAspectRatio;
+      float   pixelAspectRatio;
      private:
       static void defaultIndexToRGBFunc(uint8_t color,
                                         float& red, float& green, float& blue);
@@ -133,6 +135,11 @@ namespace Ep128Emu {
      * the current line (0 to 56).
      */
     virtual void vsyncStateChange(bool newState, unsigned int currentSlot_) = 0;
+    /*!
+     * If enabled, limit the number of frames displayed per second to a
+     * maximum of 50.
+     */
+    virtual void limitFrameRate(bool isEnabled);
   };
 
 }       // namespace Ep128Emu

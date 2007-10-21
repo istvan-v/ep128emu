@@ -1,5 +1,5 @@
-ep128emu 2.1.0
-==============
+ep128emu 2.0.4 beta
+===================
 
 ep128emu is an open source, portable emulator of the Enterprise 128
 computer, written in C++, and supporting Windows and POSIX platforms
@@ -335,11 +335,11 @@ Display / Cycle display mode (F9)
 
 Sound / Increase volume
 
-  Increase sound output volume by about 1.5 dB.
+  Increase sound output volume by about 2 dB.
 
 Sound / Decrease volume
 
-  Decrease sound output volume by about 1.5 dB.
+  Decrease sound output volume by about 2 dB.
 
 Floppy / Configure...
 

@@ -453,8 +453,8 @@ class Ep128EmuDisplaySndConfiguration {
     sound.latency = 0.05;
     sound.hwPeriods = 8;
 #else
-    sound.latency = 0.075;
-    sound.hwPeriods = 12;
+    sound.latency = 0.1;
+    sound.hwPeriods = 16;
 #endif
     sound.dcBlockFilter1Freq = 10.0;
     sound.dcBlockFilter2Freq = 10.0;
@@ -521,16 +521,32 @@ class Ep128EmuGUIConfiguration {
 int main(int argc, char **argv)
 {
   Fl::lock();
+  bool    forceInstallFlag = false;
   std::string installDirectory = "";
-  if (argc > 1)
-    installDirectory = argv[argc - 1];
-  else {
+  {
+    int     i = 0;
+    while (++i < argc) {
+      if (argv[i][0] == '-') {
+        if (argv[i][1] == '-' && argv[i][2] == '\0')
+          break;
+        if (argv[i][1] == 'f' && argv[i][2] == '\0') {
+          forceInstallFlag = true;
+          continue;
+        }
+      }
+      installDirectory = argv[i];
+    }
+    if (i < (argc - 1))
+      installDirectory = argv[argc - 1];
+  }
+#ifndef WIN32
+  if (installDirectory.length() == 0 && forceInstallFlag)
+    installDirectory = Ep128Emu::getEp128EmuHomeDirectory();
+#endif
+  if (installDirectory.length() == 0) {
     std::string tmp = "";
 #ifndef WIN32
-    if (std::getenv("HOME") != (char *) 0) {
-      tmp = std::getenv("HOME");
-      tmp += "/.ep128emu";
-    }
+    tmp = Ep128Emu::getEp128EmuHomeDirectory();
 #endif
     Fl_File_Chooser *w =
         new Fl_File_Chooser(tmp.c_str(), "*",
@@ -611,10 +627,14 @@ int main(int argc, char **argv)
   std::string romDirectory = installDirectory + "roms";
   romDirectory += c;
   Ep128EmuConfigInstallerGUI  *gui = new Ep128EmuConfigInstallerGUI();
-  gui->mainWindow->show();
-  do {
-    Fl::wait(0.05);
-  } while (gui->mainWindow->shown());
+  if (!forceInstallFlag) {
+    gui->mainWindow->show();
+    do {
+      Fl::wait(0.05);
+    } while (gui->mainWindow->shown());
+  }
+  else
+    gui->enableCfgInstall = true;
   try {
     Ep128Emu::ConfigurationDB     *config = (Ep128Emu::ConfigurationDB *) 0;
     Ep128EmuMachineConfiguration  *mCfg = (Ep128EmuMachineConfiguration *) 0;

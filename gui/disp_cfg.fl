@@ -292,8 +292,16 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   o->value(gui.config.display.pixelAspectRatio);
   gui.config.displaySettingsChanged = true;
 }}
-          tooltip {The assumed pixel aspect ratio of the screen; 1.0 means square pixels (the default), larger values make the display narrower, while smaller values result in a wider display. Type new value, or click and drag to change it.} xywh {20 370 55 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 0.5 maximum 2 step 0.001 value 1 textcolor 52
+          tooltip {The assumed pixel aspect ratio of the screen; 1.0 means square pixels (the default), larger values make the display narrower, while smaller values result in a wider display. Type new value, or click and drag to change it.} xywh {20 370 50 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 0.5 maximum 2 step 0.001 value 1 textcolor 52
           code0 {o->cursor_color(FL_YELLOW);}
+        }
+        Fl_Value_Slider displayHueShiftValuator {
+          label {Hue shift}
+          callback {{
+  gui.config.display.hueShift = o->value();
+  gui.config.displaySettingsChanged = true;
+}}
+          xywh {195 266 120 21} type {Horz Knob} color 36 selection_color 45 labelsize 12 labelcolor 52 align 8 minimum -180 maximum 180 step 1 textcolor 52
         }
         Fl_Value_Slider displaySaturationValuator {
           label Saturation
@@ -301,31 +309,31 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.display.saturation = o->value();
   gui.config.displaySettingsChanged = true;
 }}
-          xywh {200 265 110 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 8 maximum 2 value 1 textcolor 52
+          xywh {195 293 120 21} type {Horz Knob} color 36 selection_color 45 labelsize 12 labelcolor 52 align 8 maximum 2 value 1 textcolor 52
         }
         Fl_Value_Slider displayFXParam1Valuator {
-          label {Effect 1}
+          label {Line shade}
           callback {{
-  gui.config.display.effects.param1 = o->value();
+  gui.config.display.lineShade = o->value();
   gui.config.displaySettingsChanged = true;
 }}
-          tooltip {Controls vertical filtering of scanlines when display quality is set to 3} xywh {200 300 110 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 8 maximum 0.5 value 0.25 textcolor 52
+          tooltip {Controls vertical filtering of scanlines when display quality is set to 3} xywh {195 320 120 21} type {Horz Knob} color 36 selection_color 45 labelsize 12 labelcolor 52 align 8 value 0.75 textcolor 52
         }
         Fl_Value_Slider displayFXParam2Valuator {
-          label {Effect 2}
+          label {Blend scale}
           callback {{
-  gui.config.display.effects.param2 = o->value();
+  gui.config.display.blendScale = o->value();
   gui.config.displaySettingsChanged = true;
 }}
-          tooltip {Scale factor for new frame (used for motion blur effect in single buffered OpenGL mode)} xywh {200 335 110 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 8 value 0.75 textcolor 52
+          tooltip {Scale factor applied to the RGB values displayed (OpenGL / single buffered mode only)} xywh {195 347 120 21} type {Horz Knob} color 36 selection_color 45 labelsize 12 labelcolor 52 align 8 minimum 0.5 maximum 2 step 0.02 value 1 textcolor 52
         }
         Fl_Value_Slider displayFXParam3Valuator {
-          label {Effect 3}
+          label {Motion blur}
           callback {{
-  gui.config.display.effects.param3 = o->value();
+  gui.config.display.motionBlur = o->value();
   gui.config.displaySettingsChanged = true;
 }}
-          tooltip {Scale factor for previous frame (used for motion blur effect in single buffered OpenGL mode)} xywh {200 370 110 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 8 value 0.25 textcolor 52
+          tooltip {Amount of temporal filtering in OpenGL / single buffered mode} xywh {195 374 120 21} type {Horz Knob} color 36 selection_color 45 labelsize 12 labelcolor 52 align 8 maximum 0.95 value 0.25 textcolor 52
         }
       }
       Fl_Button {} {
@@ -425,10 +433,11 @@ class Ep128EmuGUI_DisplayConfigWindow {open
     displayBufferingModeValuator->value(-1);
   displayQualityValuator->value(double(gui.config.display.quality));
   pixelAspectRatioValuator->value(gui.config.display.pixelAspectRatio);
+  displayHueShiftValuator->value(gui.config.display.hueShift);
   displaySaturationValuator->value(gui.config.display.saturation);
-  displayFXParam1Valuator->value(gui.config.display.effects.param1);
-  displayFXParam2Valuator->value(gui.config.display.effects.param2);
-  displayFXParam3Valuator->value(gui.config.display.effects.param3);
+  displayFXParam1Valuator->value(gui.config.display.lineShade);
+  displayFXParam2Valuator->value(gui.config.display.blendScale);
+  displayFXParam3Valuator->value(gui.config.display.motionBlur);
 }} {}
   }
 } 

@@ -1425,6 +1425,50 @@ namespace Ep128 {
     }
   }
 
+  void Ep128VM::getVMStatus(VMStatus& vmStatus_)
+  {
+    vmStatus_.tapeReadOnly = getIsTapeReadOnly();
+    vmStatus_.tapePosition = getTapePosition();
+    vmStatus_.tapeLength = getTapeLength();
+    vmStatus_.tapeSampleRate = getTapeSampleRate();
+    vmStatus_.tapeSampleSize = getTapeSampleSize();
+    uint32_t  n = 0U;
+    for (int i = 3; i >= 0; i--) {
+      n = n << 8;
+      n |= (uint32_t(floppyDrives[i].getLEDState()) << 1);
+    }
+    vmStatus_.floppyDriveLEDState = n;
+    vmStatus_.isPlayingDemo = isPlayingDemo;
+    if (demoFile != (Ep128Emu::File *) 0 && !isRecordingDemo)
+      stopDemoRecording(true);
+    vmStatus_.isRecordingDemo = isRecordingDemo;
+  }
+
+  void Ep128VM::openVideoCapture(
+      int frameRate_,
+      void (*errorCallback_)(void *userData, const char *msg),
+      void (*fileNameCallback_)(void *userData, std::string& fileName),
+      void *userData_)
+  {
+    // TODO: implement this
+    (void) frameRate_;
+    (void) errorCallback_;
+    (void) fileNameCallback_;
+    (void) userData_;
+    throw Ep128Emu::Exception("video capture is not implemented yet");
+  }
+
+  void Ep128VM::setVideoCaptureFile(const std::string& fileName_)
+  {
+    // TODO: implement this
+    (void) fileName_;
+  }
+
+  void Ep128VM::closeVideoCapture()
+  {
+    // TODO: implement this
+  }
+
   void Ep128VM::setDiskImageFile(int n, const std::string& fileName_,
                                  int nTracks_, int nSides_,
                                  int nSectorsPerTrack_)
@@ -1433,6 +1477,16 @@ namespace Ep128 {
       throw Ep128Emu::Exception("invalid floppy drive number");
     floppyDrives[n].setDiskImageFile(fileName_,
                                      nTracks_, nSides_, nSectorsPerTrack_);
+  }
+
+  uint32_t Ep128VM::getFloppyDriveLEDState() const
+  {
+    uint32_t  n = 0U;
+    for (int i = 3; i >= 0; i--) {
+      n = n << 8;
+      n |= (uint32_t(floppyDrives[i].getLEDState()) << 1);
+    }
+    return n;
   }
 
   void Ep128VM::setTapeFileName(const std::string& fileName)
@@ -1693,7 +1747,7 @@ namespace Ep128 {
     saveMachineConfiguration(f);
     saveState(f);
     demoBuffer.clear();
-    demoBuffer.writeUInt32(0x00020100); // version 2.1.0
+    demoBuffer.writeUInt32(0x00020004); // version 2.0.4
     demoFile = &f;
     isRecordingDemo = true;
     demoTimeCnt = 0U;
@@ -1838,7 +1892,7 @@ namespace Ep128 {
     // check version number
     unsigned int  version = buf.readUInt32();
 #if 0
-    if (version != 0x00020100) {
+    if (version != 0x00020004) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible ep128 demo format");
     }

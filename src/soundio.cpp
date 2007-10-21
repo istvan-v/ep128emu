@@ -284,8 +284,13 @@ namespace Ep128Emu {
           break;
         }
         nextTime = nextTime + periodTime;
-        if (t > 0.001)
+        if (t > 0.00075) {
           Timer::wait(t);
+        }
+        else if (t < -0.5) {
+          timer_.reset();
+          nextTime = 0.0;
+        }
 #  endif
         for (size_t i = 0; i < nFrames; i++) {
           Buffer& buf_ = buffers[0];

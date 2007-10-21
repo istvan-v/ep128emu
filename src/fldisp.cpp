@@ -29,6 +29,13 @@
 
 #include "fldisp.hpp"
 
+static int defaultFLTKEventCallback(void *userData, int event)
+{
+  (void) userData;
+  (void) event;
+  return 0;
+}
+
 namespace Ep128Emu {
 
   void FLTKDisplay_::decodeLine(unsigned char *outBuf,
@@ -240,18 +247,18 @@ namespace Ep128Emu {
       freeMessageStack((Message *) 0),
       messageQueueMutex(),
       lineBuffers((Message_LineData **) 0),
-      curLine(0),
-      lineCnt(0),
-      prvLineCnt(312),
-      avgLineCnt(312.0f),
-      lineReload(-40),
+      curLine(-26),
+      vsyncCnt(-16),
       framesPending(0),
       skippingFrame(false),
       vsyncState(false),
       videoResampleEnabled(false),
       exitFlag(false),
+      limitFrameRateFlag(false),
       displayParameters(),
       savedDisplayParameters(),
+      fltkEventCallback(&defaultFLTKEventCallback),
+      fltkEventCallbackUserData((void *) 0),
       screenshotCallback((void (*)(void *, const unsigned char *, int, int)) 0),
       screenshotCallbackUserData((void *) 0),
       screenshotCallbackCnt(0)
@@ -306,16 +313,16 @@ namespace Ep128Emu {
 
   int FLTKDisplay_::handle(int event)
   {
-    (void) event;
-    return 0;
+    return fltkEventCallback(fltkEventCallbackUserData, event);
   }
 
   void FLTKDisplay_::setDisplayParameters(const DisplayParameters& dp)
   {
     if (dp.displayQuality != savedDisplayParameters.displayQuality ||
         dp.bufferingMode != savedDisplayParameters.bufferingMode) {
-      vsyncStateChange(true, 8);
-      vsyncStateChange(false, 28);
+      curLine = -26;
+      vsyncCnt = -16;
+      frameDone();
     }
     Message_SetParameters *m = allocateMessage<Message_SetParameters>();
     m->dp = dp;
@@ -340,49 +347,44 @@ namespace Ep128Emu {
       }
     }
     curLine += 2;
-    if (++lineCnt >= 500) {
-      lineCnt = 312;
-      vsyncState = false;
-      vsyncStateChange(true, 8);
-      vsyncStateChange(false, 28);
+    vsyncCnt++;
+    if (vsyncCnt >= 264 && (vsyncState || vsyncCnt >= 338)) {
+      curLine = -26;
+      vsyncCnt = -16;
+      frameDone();
     }
   }
 
   void FLTKDisplay_::vsyncStateChange(bool newState, unsigned int currentSlot_)
   {
-    (void) currentSlot_;
-    if (newState == vsyncState || (newState && lineCnt < 100))
-      return;
     vsyncState = newState;
-    if (newState) {
-      avgLineCnt = (avgLineCnt * 0.95f) + (float(prvLineCnt) * 0.05f);
-      int   tmp = int(avgLineCnt + 0.5f);
-      tmp = (savedDisplayParameters.displayQuality == 0 ? 272 : 274) - tmp;
-      if (lineCnt == (prvLineCnt + 1))
-        lineReload = lineReload | 1;
-      else
-        lineReload = lineReload & (~(int(1)));
-      if (tmp != lineReload) {
-        if (tmp > lineReload)
-          tmp = lineReload + ((((tmp - lineReload) >> 1) + 1) & (~(int(1))));
-        else
-          tmp = lineReload - ((((lineReload - tmp) >> 1) + 1) & (~(int(1))));
-        lineReload = tmp;
-      }
-      curLine = lineReload;
-      prvLineCnt = lineCnt;
-      lineCnt = 0;
-      return;
+    if (newState && vsyncCnt >= 264) {
+      curLine = ((currentSlot_ < 20 || currentSlot_ >= 48) ? -26 : -27);
+      vsyncCnt = -16;
+      frameDone();
     }
+  }
+
+  void FLTKDisplay_::frameDone()
+  {
     messageQueueMutex.lock();
     bool    skippedFrame = skippingFrame;
     if (!skippedFrame)
       framesPending++;
-    skippingFrame = (framesPending > 3);    // should this be configurable ?
+    bool    overrunFlag = (framesPending > 3);  // should this be configurable ?
+    skippingFrame = overrunFlag;
+    if (limitFrameRateFlag) {
+      if (limitFrameRateTimer.getRealTime() < 0.02)
+        skippingFrame = true;
+      else
+        limitFrameRateTimer.reset();
+    }
     messageQueueMutex.unlock();
     if (skippedFrame) {
-      Fl::awake();
-      threadLock.wait(1);
+      if (overrunFlag || !limitFrameRateFlag) {
+        Fl::awake();
+        threadLock.wait(1);
+      }
       return;
     }
     Message *m = allocateMessage<Message_FrameDone>();
@@ -405,6 +407,22 @@ namespace Ep128Emu {
         screenshotCallbackCnt = 0;
       }
     }
+  }
+
+  void FLTKDisplay_::setFLTKEventCallback(int (*func)(void *userData,
+                                                      int event),
+                                          void *userData_)
+  {
+    if (func)
+      fltkEventCallback = func;
+    else
+      fltkEventCallback = &defaultFLTKEventCallback;
+    fltkEventCallbackUserData = userData_;
+  }
+
+  void FLTKDisplay_::limitFrameRate(bool isEnabled)
+  {
+    limitFrameRateFlag = isEnabled;
   }
 
   void FLTKDisplay_::checkScreenshotCallback()
@@ -506,11 +524,12 @@ namespace Ep128Emu {
     for (size_t i = 0; i < 256; i++) {
       palette[i] = pixelConv(rTbl[i], gTbl[i], bTbl[i]);
     }
+    double  lineShade_ = double(dp.lineShade * 0.5f);
     for (size_t i = 0; i < 256; i++) {
       for (size_t j = 0; j < 256; j++) {
-        double  r = (rTbl[i] + rTbl[j]) * dp.blendScale1;
-        double  g = (gTbl[i] + gTbl[j]) * dp.blendScale1;
-        double  b = (bTbl[i] + bTbl[j]) * dp.blendScale1;
+        double  r = (rTbl[i] + rTbl[j]) * lineShade_;
+        double  g = (gTbl[i] + gTbl[j]) * lineShade_;
+        double  b = (bTbl[i] + bTbl[j]) * lineShade_;
         palette2[(i << 8) + j] = pixelConv(r, g, b);
       }
     }
@@ -541,8 +560,8 @@ namespace Ep128Emu {
     savedDisplayParameters.displayQuality = 0;
     savedDisplayParameters.bufferingMode = 0;
     try {
-      linesChanged = new uint8_t[576];
-      for (size_t n = 0; n < 576; n++)
+      linesChanged = new uint8_t[578];
+      for (size_t n = 0; n < 578; n++)
         linesChanged[n] = 0x00;
     }
     catch (...) {
@@ -571,7 +590,7 @@ namespace Ep128Emu {
     int     y1 = displayHeight_;
     double  aspectScale_ = (768.0 / 576.0)
                            / ((double(windowWidth_) / double(windowHeight_))
-                              * displayParameters.pixelAspectRatio);
+                              * double(displayParameters.pixelAspectRatio));
     if (aspectScale_ > 1.0001) {
       displayHeight_ = int((double(windowHeight_) / aspectScale_) + 0.5);
       y0 = (windowHeight_ - displayHeight_) >> 1;
@@ -830,7 +849,7 @@ namespace Ep128Emu {
     // make sure that all lines are updated at a slow rate
     if (!screenshotCallbackCnt) {
       if (forceUpdateLineMask) {
-        for (size_t yc = 0; yc < 576; yc++) {
+        for (size_t yc = 0; yc < 578; yc++) {
           if (linesChanged[yc] & 0x01) {
             linesChanged[yc] = 0x00;
             continue;
@@ -849,11 +868,11 @@ namespace Ep128Emu {
         forceUpdateLineMask = 0;
       }
       else {
-        std::memset(linesChanged, 0x00, 576);
+        std::memset(linesChanged, 0x00, 578);
       }
     }
     else {
-      std::memset(linesChanged, 0x00, 576);
+      std::memset(linesChanged, 0x00, 578);
       checkScreenshotCallback();
     }
 
@@ -892,7 +911,7 @@ namespace Ep128Emu {
       if (typeid(*m) == typeid(Message_LineData)) {
         Message_LineData  *msg;
         msg = static_cast<Message_LineData *>(m);
-        if (msg->lineNum >= 0 && msg->lineNum < 576) {
+        if (msg->lineNum >= 0 && msg->lineNum < 578) {
           // check if this line has changed
           if (lineBuffers[msg->lineNum] != (Message_LineData *) 0) {
             if (*(lineBuffers[msg->lineNum]) == *msg) {
@@ -928,9 +947,9 @@ namespace Ep128Emu {
         msg = static_cast<Message_SetParameters *>(m);
         displayParameters = msg->dp;
         DisplayParameters tmp_dp(displayParameters);
-        tmp_dp.blendScale1 = 0.5;
+        tmp_dp.lineShade = 1.0f;
         colormap.setParams(tmp_dp);
-        for (size_t n = 0; n < 576; n++)
+        for (size_t n = 0; n < 578; n++)
           linesChanged[n] |= uint8_t(0x80);
       }
       deleteMessage(m);
@@ -952,7 +971,7 @@ namespace Ep128Emu {
       forceUpdateLineCnt = 0;
       forceUpdateTimer.reset();
     }
-    else if (forceUpdateTimer.getRealTime() >= 0.125) {
+    else if (forceUpdateTimer.getRealTime() >= 0.085) {
       forceUpdateLineMask |= (uint8_t(1) << forceUpdateLineCnt);
       forceUpdateLineCnt++;
       forceUpdateLineCnt &= uint8_t(7);
@@ -963,8 +982,7 @@ namespace Ep128Emu {
 
   int FLTKDisplay::handle(int event)
   {
-    (void) event;
-    return 0;
+    return fltkEventCallback(fltkEventCallbackUserData, event);
   }
 
   void FLTKDisplay::setDisplayParameters(const DisplayParameters& dp)

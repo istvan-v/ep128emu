@@ -62,7 +62,7 @@ namespace Ep128Emu {
   class AudioConverter_ : public T {
    private:
     AudioOutput&  audioOutput_;
-    int16_t       buf[16];
+    int16_t       buf[32];
     size_t        bufPos;
    public:
     AudioConverter_(AudioOutput& audioOutput__,
@@ -84,9 +84,9 @@ namespace Ep128Emu {
     {
       buf[bufPos++] = left;
       buf[bufPos++] = right;
-      if (bufPos >= 16) {
+      if (bufPos >= 32) {
         bufPos = 0;
-        audioOutput_.sendAudioData(&(buf[0]), 8);
+        audioOutput_.sendAudioData(&(buf[0]), 16);
       }
     }
   };
@@ -112,10 +112,13 @@ namespace Ep128Emu {
       tapePlaybackOn(false),
       tapeRecordOn(false),
       tapeMotorOn(false),
-      fastTapeModeEnabled(false),
       tape((Tape *) 0),
       tapeFileName(""),
       defaultTapeSampleRate(24000L),
+      tapeSoundFileChannel(0),
+      tapeEnableSoundFileFilter(false),
+      tapeSoundFileFilterMinFreq(500.0f),
+      tapeSoundFileFilterMaxFreq(5000.0f),
       breakPointCallback(&defaultBreakPointCallback),
       breakPointCallbackUserData((void *) 0),
       noBreakOnDataRead(false),
@@ -174,9 +177,7 @@ namespace Ep128Emu {
       audioConverter->setOutputSampleRate(audioOutputSampleRate);
     }
     writingAudioOutput =
-        (audioConverter != (AudioConverter *) 0 && audioOutputEnabled &&
-         !(tape != (Tape *) 0 && fastTapeModeEnabled &&
-           tapeMotorOn && tapePlaybackOn));
+        (audioConverter != (AudioConverter *) 0 && audioOutputEnabled);
     if (haveTape() && getIsTapeMotorOn() && getTapeButtonState() != 0)
       stopDemo();
   }
@@ -228,9 +229,7 @@ namespace Ep128Emu {
                                                audioOutputEQ_Q);
       }
       writingAudioOutput =
-          (audioConverter != (AudioConverter *) 0 && audioOutputEnabled &&
-           !(tape != (Tape *) 0 && fastTapeModeEnabled &&
-             tapeMotorOn && tapePlaybackOn));
+          (audioConverter != (AudioConverter *) 0 && audioOutputEnabled);
     }
   }
 
@@ -284,9 +283,7 @@ namespace Ep128Emu {
   {
     audioOutputEnabled = isEnabled;
     writingAudioOutput =
-        (audioConverter != (AudioConverter *) 0 && audioOutputEnabled &&
-         !(tape != (Tape *) 0 && fastTapeModeEnabled &&
-           tapeMotorOn && tapePlaybackOn));
+        (audioConverter != (AudioConverter *) 0 && audioOutputEnabled);
   }
 
   void VirtualMachine::setEnableDisplay(bool isEnabled)
@@ -320,6 +317,39 @@ namespace Ep128Emu {
     (void) isPressed;
   }
 
+  void VirtualMachine::getVMStatus(VMStatus& vmStatus_)
+  {
+    vmStatus_.tapeReadOnly = getIsTapeReadOnly();
+    vmStatus_.tapePosition = getTapePosition();
+    vmStatus_.tapeLength = getTapeLength();
+    vmStatus_.tapeSampleRate = getTapeSampleRate();
+    vmStatus_.tapeSampleSize = getTapeSampleSize();
+    vmStatus_.floppyDriveLEDState = getFloppyDriveLEDState();
+    vmStatus_.isPlayingDemo = getIsPlayingDemo();
+    vmStatus_.isRecordingDemo = getIsRecordingDemo();
+  }
+
+  void VirtualMachine::openVideoCapture(
+      int frameRate_,
+      void (*errorCallback_)(void *userData, const char *msg),
+      void (*fileNameCallback_)(void *userData, std::string& fileName),
+      void *userData_)
+  {
+    (void) frameRate_;
+    (void) errorCallback_;
+    (void) fileNameCallback_;
+    (void) userData_;
+  }
+
+  void VirtualMachine::setVideoCaptureFile(const std::string& fileName_)
+  {
+    (void) fileName_;
+  }
+
+  void VirtualMachine::closeVideoCapture()
+  {
+  }
+
   void VirtualMachine::setDiskImageFile(int n, const std::string& fileName_,
                                         int nTracks_, int nSides_,
                                         int nSectorsPerTrack_)
@@ -329,6 +359,11 @@ namespace Ep128Emu {
     (void) nTracks_;
     (void) nSides_;
     (void) nSectorsPerTrack_;
+  }
+
+  uint32_t VirtualMachine::getFloppyDriveLEDState() const
+  {
+    return 0U;
   }
 
   void VirtualMachine::setEnableFileIO(bool isEnabled)
@@ -485,9 +520,29 @@ namespace Ep128Emu {
       tape->deleteAllCuePoints();
   }
 
-  void VirtualMachine::setEnableFastTapeMode(bool isEnabled)
+  void VirtualMachine::setTapeSoundFileParameters(int requestedChannel_,
+                                                  bool enableFilter_,
+                                                  float filterMinFreq_,
+                                                  float filterMaxFreq_)
   {
-    fastTapeModeEnabled = isEnabled;
+    if (requestedChannel_ == tapeSoundFileChannel &&
+        enableFilter_ == tapeEnableSoundFileFilter &&
+        filterMinFreq_ == tapeSoundFileFilterMinFreq &&
+        filterMaxFreq_ == tapeSoundFileFilterMaxFreq)
+      return;
+    tapeSoundFileChannel = requestedChannel_;
+    tapeEnableSoundFileFilter = enableFilter_;
+    tapeSoundFileFilterMinFreq = filterMinFreq_;
+    tapeSoundFileFilterMaxFreq = filterMaxFreq_;
+    if (tape) {
+      if (typeid(*tape) == typeid(Tape_SoundFile)) {
+        Tape_SoundFile& tape_ = *(dynamic_cast<Tape_SoundFile *>(tape));
+        tape_.setParameters(tapeSoundFileChannel,
+                            tapeEnableSoundFileFilter,
+                            tapeSoundFileFilterMinFreq,
+                            tapeSoundFileFilterMaxFreq);
+      }
+    }
   }
 
   void VirtualMachine::setBreakPoints(const BreakPointList& bpList)
@@ -661,6 +716,13 @@ namespace Ep128Emu {
     tape = openTapeFile(fileName.c_str(), 0,
                         defaultTapeSampleRate, bitsPerSample);
     tapeFileName = fileName;
+    if (typeid(*tape) == typeid(Tape_SoundFile)) {
+      Tape_SoundFile& tape_ = *(dynamic_cast<Tape_SoundFile *>(tape));
+      tape_.setParameters(tapeSoundFileChannel,
+                          tapeEnableSoundFileFilter,
+                          tapeSoundFileFilterMinFreq,
+                          tapeSoundFileFilterMaxFreq);
+    }
     if (tapeRecordOn)
       tape->record();
     else if (tapePlaybackOn)
@@ -672,9 +734,7 @@ namespace Ep128Emu {
   {
     tapeMotorOn = newState;
     writingAudioOutput =
-        (audioConverter != (AudioConverter *) 0 && audioOutputEnabled &&
-         !(tape != (Tape *) 0 && fastTapeModeEnabled &&
-           tapeMotorOn && tapePlaybackOn));
+        (audioConverter != (AudioConverter *) 0 && audioOutputEnabled);
     if (tape)
       tape->setIsMotorOn(newState);
   }
@@ -708,23 +768,23 @@ namespace Ep128Emu {
                                                audioOutputEQ_Q);
       }
       writingAudioOutput =
-          (audioConverter != (AudioConverter *) 0 && audioOutputEnabled &&
-           !(tape != (Tape *) 0 && fastTapeModeEnabled &&
-             tapeMotorOn && tapePlaybackOn));
+          (audioConverter != (AudioConverter *) 0 && audioOutputEnabled);
     }
   }
 
   int VirtualMachine::openFileInWorkingDirectory(std::FILE*& f,
-                                                 const std::string& baseName_,
+                                                 std::string& fileName_,
                                                  const char *mode,
                                                  bool createOnly_)
   {
     f = (std::FILE *) 0;
     try {
-      std::string fullName(fileIOWorkingDirectory);
-      if (baseName_.length() > 0) {
+      std::string fullName;
+      bool        haveFileName = false;
+      if (fileName_.length() > 0) {
+        haveFileName = true;
         // convert file name to lower case, replace invalid characters with '_'
-        std::string baseName(baseName_);
+        std::string baseName(fileName_);
         stringToLowerCase(baseName);
         for (size_t i = 0; i < baseName.length(); i++) {
           const std::string&  s = baseName;
@@ -732,21 +792,21 @@ namespace Ep128Emu {
                 s[i] == '.' || s[i] == '+' || s[i] == '-' || s[i] == '_'))
             baseName[i] = '_';
         }
-        fullName += baseName;
+        fullName = fileIOWorkingDirectory + baseName;
       }
       else {
-        fullName = "";
         if (fileNameCallback)
           fileNameCallback(fileNameCallbackUserData, fullName);
         if (fullName.length() == 0)
           return -2;                    // error: invalid file name
+        fileName_ = fullName;
       }
       // attempt to stat() file
 #ifndef WIN32
       struct stat   st;
       std::memset(&st, 0, sizeof(struct stat));
       int   err = stat(fullName.c_str(), &st);
-      if (err != 0 && baseName_.length() > 0) {
+      if (err != 0 && haveFileName) {
         // not found, try case insensitive file search
         std::string tmpName(fullName);
         tmpName[0] = tmpName.c_str()[0];    // unshare string

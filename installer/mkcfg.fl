@@ -22,14 +22,14 @@ class Ep128EmuConfigInstallerGUI {open
 }} {}
     Fl_Window mainWindow {
       label {Reinstall ep128emu configuration files ?} open
-      xywh {296 333 370 95} type Double visible
+      xywh {296 333 370 95} type Double color 37 visible
     } {
       Fl_Check_Button {} {
         label {Use Hungarian keyboard map}
         callback {{
   keyboardMapHU = (o->value() != 0);
 }}
-        xywh {10 15 25 25} down_box DOWN_BOX
+        xywh {10 15 25 25} down_box DOWN_BOX labelcolor 52
         code0 {o->value(0);}
       }
       Fl_Button {} {
@@ -38,32 +38,32 @@ class Ep128EmuConfigInstallerGUI {open
   enableCfgInstall = true;
   mainWindow->hide();
 }}
-        xywh {210 55 70 25}
+        xywh {210 55 70 25} color 38 selection_color 39 labelcolor 52
       }
       Fl_Button {} {
         label Cancel
         callback {{
   mainWindow->hide();
 }}
-        xywh {290 55 70 25}
+        xywh {290 55 70 25} color 38 selection_color 39 labelcolor 52
       }
     }
     Fl_Window errorWindow {
       label Error open
-      xywh {302 467 280 150} type Double modal visible
+      xywh {302 467 280 150} type Double color 37 modal visible
     } {
       Fl_Box {} {
-        xywh {10 10 260 95} box ENGRAVED_FRAME
+        xywh {10 10 260 95} box THIN_UP_BOX color 38
       }
       Fl_Box errorMessageText {
-        xywh {20 15 240 85} box FLAT_BOX align 144
+        xywh {20 15 240 85} box FLAT_BOX color 38 labelcolor 52 align 144
       }
       Fl_Button {} {
         label OK
         callback {{
   errorWindow->hide();
 }}
-        xywh {105 115 70 25}
+        xywh {105 115 70 25} color 38 selection_color 39 labelcolor 52
       }
     }
   }
@@ -83,7 +83,7 @@ class Ep128EmuConfigInstallerGUI {open
   } {
     code {{
   if (msg)
-    errorMessageText->label(msg);
+    errorMessageText->copy_label(msg);
   else
     errorMessageText->label("");
   errorWindow->set_modal();
@@ -91,6 +91,7 @@ class Ep128EmuConfigInstallerGUI {open
   do {
     Fl::wait(0.05);
   } while (errorWindow->shown());
+  errorMessageText->label("");
 }} {}
   }
 } 

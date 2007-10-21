@@ -3,6 +3,7 @@
 import sys
 
 win32CrossCompile = 0
+disableSDL = 0          # set this to 1 on Linux with SDL version >= 1.2.10
 
 compilerFlags = Split('''
     -Wall -W -ansi -pedantic -Wno-long-long -Wshadow -g -O2
@@ -15,6 +16,8 @@ fltkConfig = 'fltk-config'
 ep128emuLibEnvironment = Environment()
 ep128emuLibEnvironment.Append(CCFLAGS = compilerFlags)
 ep128emuLibEnvironment.Append(CPPPATH = ['.', './src', '/usr/local/include'])
+if sys.platform[:6] == 'darwin':
+    ep128emuLibEnvironment.Append(CPPPATH = ['/usr/X11R6/include'])
 ep128emuLibEnvironment.Append(LINKFLAGS = ['-L.'])
 if win32CrossCompile:
     ep128emuLibEnvironment['AR'] = 'wine D:/MinGW/bin/ar.exe'
@@ -32,7 +35,7 @@ ep128emuGUIEnvironment = ep128emuLibEnvironment.Copy()
 if win32CrossCompile:
     ep128emuGUIEnvironment.Prepend(LIBS = ['fltk'])
 elif not ep128emuGUIEnvironment.ParseConfig(
-        '%s --cxxflags --ldflags --libs' % fltkConfig):
+        '%s --cxxflags --ldflags' % fltkConfig):
     print 'WARNING: could not run fltk-config'
     ep128emuGUIEnvironment.Append(LIBS = ['fltk'])
 
@@ -41,7 +44,7 @@ if win32CrossCompile:
     ep128emuGLGUIEnvironment.Prepend(LIBS = ['fltk_gl', 'fltk',
                                              'glu32', 'opengl32'])
 elif not ep128emuGLGUIEnvironment.ParseConfig(
-        '%s --use-gl --cxxflags --ldflags --libs' % fltkConfig):
+        '%s --use-gl --cxxflags --ldflags' % fltkConfig):
     print 'WARNING: could not run fltk-config'
     ep128emuGLGUIEnvironment.Append(LIBS = ['fltk_gl', 'GL'])
 
@@ -71,7 +74,10 @@ if not configure.CheckCHeader('GL/gl.h'):
 haveDotconf = configure.CheckCHeader('dotconf.h')
 if configure.CheckCHeader('stdint.h'):
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_STDINT_H'])
-haveSDL = configure.CheckCHeader('SDL/SDL.h')
+if not disableSDL:
+    haveSDL = configure.CheckCHeader('SDL/SDL.h')
+else:
+    haveSDL = 0
 configure.Finish()
 
 if not havePortAudioV19:
@@ -165,6 +171,10 @@ Depends(ep128emu, ep128Lib)
 Depends(ep128emu, z80Lib)
 Depends(ep128emu, ep128emuLib)
 
+if sys.platform[:6] == 'darwin':
+    Command('ep128emu.app/Contents/MacOS/ep128emu', 'ep128emu',
+            'mkdir -p ep128emu.app/Contents/MacOS ; cp -pf $SOURCES $TARGET')
+
 # -----------------------------------------------------------------------------
 
 tapeeditEnvironment = ep128emuGUIEnvironment.Copy()
@@ -184,6 +194,10 @@ tapeedit = tapeeditEnvironment.Program('tapeedit',
     fluidCompile(['tapeutil/tapeedit.fl']) + ['tapeutil/tapeio.cpp'])
 Depends(tapeedit, ep128emuLib)
 
+if sys.platform[:6] == 'darwin':
+    Command('ep128emu.app/Contents/MacOS/tapeedit', 'tapeedit',
+            'mkdir -p ep128emu.app/Contents/MacOS ; cp -pf $SOURCES $TARGET')
+
 # -----------------------------------------------------------------------------
 
 makecfgEnvironment = ep128emuGUIEnvironment.Copy()
@@ -202,4 +216,8 @@ else:
 makecfg = makecfgEnvironment.Program('makecfg',
     ['installer/makecfg.cpp'] + fluidCompile(['installer/mkcfg.fl']))
 Depends(makecfg, ep128emuLib)
+
+if sys.platform[:6] == 'darwin':
+    Command('ep128emu.app/Contents/MacOS/makecfg', 'makecfg',
+            'mkdir -p ep128emu.app/Contents/MacOS ; cp -pf $SOURCES $TARGET')
 

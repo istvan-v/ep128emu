@@ -52,10 +52,13 @@ namespace Ep128Emu {
     bool            tapePlaybackOn;
     bool            tapeRecordOn;
     bool            tapeMotorOn;
-    bool            fastTapeModeEnabled;
     Tape            *tape;
     std::string     tapeFileName;
     long            defaultTapeSampleRate;
+    int             tapeSoundFileChannel;
+    bool            tapeEnableSoundFileFilter;
+    float           tapeSoundFileFilterMinFreq;
+    float           tapeSoundFileFilterMaxFreq;
    protected:
     void            (*breakPointCallback)(void *userData,
                                           bool isIO, bool isWrite,
@@ -68,6 +71,26 @@ namespace Ep128Emu {
     void            (*fileNameCallback)(void *userData, std::string& fileName);
     void            *fileNameCallbackUserData;
    public:
+    struct VMStatus {
+      bool      isRecordingDemo;
+      bool      isPlayingDemo;
+      bool      tapeReadOnly;
+      double    tapePosition;
+      double    tapeLength;
+      long      tapeSampleRate;
+      int       tapeSampleSize;
+      // floppy drive LED state is the sum of any of the following values:
+      //   0x00000001: drive 0 red LED is on
+      //   0x00000002: drive 0 green LED is on
+      //   0x00000100: drive 1 red LED is on
+      //   0x00000200: drive 1 green LED is on
+      //   0x00010000: drive 2 red LED is on
+      //   0x00020000: drive 2 green LED is on
+      //   0x01000000: drive 3 red LED is on
+      //   0x02000000: drive 3 green LED is on
+      uint32_t  floppyDriveLEDState;
+    };
+    // --------
     VirtualMachine(VideoDisplay& display_, AudioOutput& audioOutput_);
     virtual ~VirtualMachine();
     /*!
@@ -151,6 +174,35 @@ namespace Ep128Emu {
      * Set state of key 'keyCode' (0 to 127).
      */
     virtual void setKeyboardState(int keyCode, bool isPressed);
+    /*!
+     * Returns status information about the emulated machine (see also
+     * struct VMStatus above, and the comments for functions that return
+     * individual status values).
+     */
+    virtual void getVMStatus(VMStatus& vmStatus_);
+    /*!
+     * Create video capture object with the specified frame rate (24 to 60)
+     * if it does not exist yet, and optionally set callbacks for printing
+     * error messages and asking for a new output file on reaching 2 GB file
+     * size.
+     */
+    virtual void openVideoCapture(
+        int frameRate_ = 30,
+        void (*errorCallback_)(void *userData, const char *msg) =
+            (void (*)(void *, const char *)) 0,
+        void (*fileNameCallback_)(void *userData, std::string& fileName) =
+            (void (*)(void *, std::string&)) 0,
+        void *userData_ = (void *) 0);
+    /*!
+     * Set output file name for video capture (an empty file name means no
+     * file is written). openVideoCapture() should be called first.
+     */
+    virtual void setVideoCaptureFile(const std::string& fileName_);
+    /*!
+     * Destroy video capture object, freeing all allocated memory and closing
+     * the output file.
+     */
+    virtual void closeVideoCapture();
     // -------------------------- DISK AND FILE I/O ---------------------------
     /*!
      * Load disk image for drive 'n' (counting from zero); an empty file
@@ -159,6 +211,19 @@ namespace Ep128Emu {
     virtual void setDiskImageFile(int n, const std::string& fileName_,
                                   int nTracks_ = -1, int nSides_ = 2,
                                   int nSectorsPerTrack_ = 9);
+    /*!
+     * Returns the current state of the floppy drive LEDs, which is the sum
+     * of any of the following values:
+     *   0x00000001: drive 0 red LED is on
+     *   0x00000002: drive 0 green LED is on
+     *   0x00000100: drive 1 red LED is on
+     *   0x00000200: drive 1 green LED is on
+     *   0x00010000: drive 2 red LED is on
+     *   0x00020000: drive 2 green LED is on
+     *   0x01000000: drive 3 red LED is on
+     *   0x02000000: drive 3 green LED is on
+     */
+    virtual uint32_t getFloppyDriveLEDState() const;
     /*!
      * Set if the emulated machine should be allowed to access files in the
      * working directory.
@@ -251,10 +316,12 @@ namespace Ep128Emu {
      */
     virtual void tapeDeleteAllCuePoints();
     /*!
-     * Set if audio output is turned off on tape I/O, allowing the emulation
-     * to run faster than real time.
+     * Set parameters for tape sound file I/O.
      */
-    virtual void setEnableFastTapeMode(bool isEnabled);
+    virtual void setTapeSoundFileParameters(int requestedChannel_,
+                                            bool enableFilter_,
+                                            float filterMinFreq_,
+                                            float filterMaxFreq_);
     // ------------------------------ DEBUGGING -------------------------------
     /*!
      * Add breakpoints from the specified breakpoint list (see also
@@ -464,15 +531,16 @@ namespace Ep128Emu {
       return this->displayEnabled;
     }
     void setAudioConverterSampleRate(float sampleRate_);
+   public:
     /*!
-     * Open a file in the user specified working directory. 'baseName_' is the
+     * Open a file in the user specified working directory. 'fileName_' is the
      * file name without any leading directory components; it is converted to
      * lower case, invalid characters are replaced with underscores, and the
-     * file is searched case-insensitively. If 'baseName_' is empty, the file
+     * file is searched case-insensitively. If 'fileName_' is empty, the file
      * name callback (if any) is called, which should return either a full path
-     * file name, or an empty string in which case this function fails and
-     * returns -2 (invalid file name). 'mode' is the mode parameter to be
-     * passed to std::fopen().
+     * file name that will be stored in 'fileName_', or an empty string in
+     * which case this function fails and returns -2 (invalid file name).
+     * 'mode' is the mode parameter to be passed to std::fopen().
      * On success, the file handle is stored in 'f', and zero is returned.
      * Otherwise, 'f' is set to NULL, and the return value is one of the
      * following error codes:
@@ -485,7 +553,7 @@ namespace Ep128Emu {
      *       according to the reason for the failure
      *   -6: the file already exists (if 'createOnly_' is true)
      */
-    int openFileInWorkingDirectory(std::FILE*& f, const std::string& baseName_,
+    int openFileInWorkingDirectory(std::FILE*& f, std::string& fileName_,
                                    const char *mode, bool createOnly_ = false);
   };
 

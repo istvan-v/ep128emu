@@ -18,6 +18,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include "gui.hpp"
+#include "system.hpp"
 
 #include <iostream>
 #include <cstdio>
@@ -35,12 +36,13 @@ int main(int argc, char **argv)
   Fl_Window *w = (Fl_Window *) 0;
   Ep128Emu::VirtualMachine  *vm = (Ep128Emu::VirtualMachine *) 0;
   Ep128Emu::AudioOutput     *audioOutput = (Ep128Emu::AudioOutput *) 0;
-  Ep128Emu::EmulatorConfiguration *config =
+  Ep128Emu::EmulatorConfiguration   *config =
       (Ep128Emu::EmulatorConfiguration *) 0;
   Ep128Emu::VMThread        *vmThread = (Ep128Emu::VMThread *) 0;
   Ep128EmuGUI               *gui_ = (Ep128EmuGUI *) 0;
   bool      glEnabled = true;
   const char  *cfgFileName = "ep128cfg.dat";
+  int       snapshotNameIndex = 0;
   int       retval = 0;
   bool      configLoaded = false;
 
@@ -48,6 +50,9 @@ int main(int argc, char **argv)
     // find out machine type to be emulated
     for (int i = 1; i < argc; i++) {
       if (std::strcmp(argv[i], "-cfg") == 0 && i < (argc - 1)) {
+        i++;
+      }
+      else if (std::strcmp(argv[i], "-snapshot") == 0 && i < (argc - 1)) {
         i++;
       }
       else if (std::strcmp(argv[i], "-ep128") == 0) {
@@ -68,6 +73,8 @@ int main(int argc, char **argv)
                      "print this message" << std::endl;
         std::cerr << "    -cfg <FILENAME>     "
                      "load ASCII format configuration file" << std::endl;
+        std::cerr << "    -snapshot <FNAME>   "
+                     "load snapshot or demo file on startup" << std::endl;
         std::cerr << "    -opengl             "
                      "use OpenGL video driver (this is the default)"
                   << std::endl;
@@ -96,12 +103,39 @@ int main(int argc, char **argv)
         *vm, *(dynamic_cast<Ep128Emu::VideoDisplay *>(w)), *audioOutput);
     config->setErrorCallback(&cfgErrorFunc, (void *) 0);
     // load base configuration (if available)
-    try {
-      Ep128Emu::File  f(cfgFileName, true);
-      config->registerChunkType(f);
-      f.processAllChunks();
-    }
-    catch (...) {
+    {
+      Ep128Emu::File  *f = (Ep128Emu::File *) 0;
+      try {
+        try {
+          f = new Ep128Emu::File(cfgFileName, true);
+        }
+        catch (Ep128Emu::Exception& e) {
+          std::string cmdLine = "\"";
+          cmdLine += argv[0];
+          size_t  i = cmdLine.length();
+          while (i > 0) {
+            i--;
+            if (cmdLine[i] == '/' || cmdLine[i] == '\\') {
+              i++;
+              break;
+            }
+          }
+          cmdLine.resize(i);
+          cmdLine += "makecfg\"";
+#ifdef __APPLE__
+          cmdLine += " -f";
+#endif
+          std::system(cmdLine.c_str());
+          f = new Ep128Emu::File(cfgFileName, true);
+        }
+        config->registerChunkType(*f);
+        f->processAllChunks();
+        delete f;
+      }
+      catch (...) {
+        if (f)
+          delete f;
+      }
     }
     configLoaded = true;
     // check command line for any additional configuration
@@ -115,8 +149,17 @@ int main(int argc, char **argv)
           throw Ep128Emu::Exception("missing configuration file name");
         config->loadState(argv[i], false);
       }
+      else if (std::strcmp(argv[i], "-snapshot") == 0) {
+        if (++i >= argc)
+          throw Ep128Emu::Exception("missing snapshot file name");
+        snapshotNameIndex = i;
+      }
       else {
         const char  *s = argv[i];
+#ifdef __APPLE__
+        if (std::strncmp(s, "-psn_", 5) == 0)
+          continue;
+#endif
         if (*s == '-')
           s++;
         if (*s == '-')
@@ -136,6 +179,11 @@ int main(int argc, char **argv)
       }
     }
     config->applySettings();
+    if (snapshotNameIndex >= 1) {
+      Ep128Emu::File  f(argv[snapshotNameIndex], false);
+      vm->registerChunkTypes(f);
+      f.processAllChunks();
+    }
     vmThread = new Ep128Emu::VMThread(*vm);
     gui_ = new Ep128EmuGUI(*(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
                            *audioOutput, *vm, *vmThread, *config);

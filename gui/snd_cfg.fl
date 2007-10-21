@@ -49,7 +49,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
   gui.config.sound.enabled = (o->value() != 0);
   gui.config.soundSettingsChanged = true;
 }}
-          tooltip {Note: disabling sound output will also make the emulation run faster than real time} xywh {20 55 170 25} color 39 labelcolor 52
+          xywh {20 55 170 25} color 39 labelcolor 52
         }
         Fl_Light_Button soundHighQualityValuator {
           label {High quality}
@@ -112,21 +112,25 @@ class Ep128EmuGUI_SoundConfigWindow {open
 }}
           tooltip {Audio output latency in milliseconds; smaller values improve the responsiveness of the emulator, but may cause the sound to skip} xywh {200 55 120 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 8 minimum 5 maximum 500 step 1 value 100 textcolor 52
         }
-        Fl_Value_Output soundHWPeriodsValuator {
+        Fl_Value_Input soundHWPeriodsValuator {
           label {Hardware buffers}
           callback {{
-  gui.config.sound.hwPeriods = int(o->value() + 0.5);
+  gui.config.sound.hwPeriods = int(o->clamp(o->value()) + 0.5);
+  o->value(double(gui.config.sound.hwPeriods));
   gui.config.soundSettingsChanged = true;
 }}
-          tooltip {Number of sound card buffers; click and drag to change the value} xywh {200 90 35 25} color 0 selection_color 238 labelcolor 52 align 8 minimum 2 maximum 16 step 1 value 4 textcolor 52
+          tooltip {Number of sound card buffers; click and drag to change the value} xywh {200 90 35 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 2 maximum 16 step 1 value 4 textcolor 52
+          code0 {o->cursor_color(FL_YELLOW);}
         }
-        Fl_Value_Output soundSWPeriodsValuator {
+        Fl_Value_Input soundSWPeriodsValuator {
           label {Software buffers}
           callback {{
-  gui.config.sound.swPeriods = int(o->value() + 0.5);
+  gui.config.sound.swPeriods = int(o->clamp(o->value()) + 0.5);
+  o->value(double(gui.config.sound.swPeriods));
   gui.config.soundSettingsChanged = true;
 }}
-          tooltip {Number of buffers in emulator ring buffer; click and drag to change the value} xywh {200 125 35 25} color 0 selection_color 238 labelcolor 52 align 8 minimum 2 maximum 16 step 1 value 4 textcolor 52
+          tooltip {Number of buffers in emulator ring buffer; click and drag to change the value} xywh {200 125 35 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 2 maximum 16 step 1 value 4 textcolor 52
+          code0 {o->cursor_color(FL_YELLOW);}
         }
       }
       Fl_Group {} {open

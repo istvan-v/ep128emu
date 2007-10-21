@@ -51,17 +51,22 @@ namespace Ep128Emu {
       joinFlag(false),
       errorFlag(false),
       pauseFlag(true),
-      isRecordingDemo(false),
-      isPlayingDemo(false),
-      tapeReadOnly(true),
-      tapePosition(-1.0),
-      tapeLength(-1.0),
-      tapeSampleRate(0L),
-      tapeSampleSize(0),
+      timesliceLength(0.0f),
+      avgTimesliceLength(0.002f),
+      prvTime(0.0),
+      nxtTime(0.0),
       userData(userData_),
       errorCallback(&defaultErrorCallback),
       processCallback((void (*)(void *)) 0)
   {
+    vmStatus.isRecordingDemo = false;
+    vmStatus.isPlayingDemo = false;
+    vmStatus.tapeReadOnly = true;
+    vmStatus.tapePosition = -1.0;
+    vmStatus.tapeLength = -1.0;
+    vmStatus.tapeSampleRate = 0L;
+    vmStatus.tapeSampleSize = 0;
+    vmStatus.floppyDriveLEDState = 0U;
     for (int i = 0; i < 128; i++)
       keyboardState[i] = false;
     this->start();
@@ -83,19 +88,20 @@ namespace Ep128Emu {
     catch (...) {
       errorFlag = true;
     }
-    isRecordingDemo = false;
-    isPlayingDemo = false;
+    vmStatus.isRecordingDemo = false;
+    vmStatus.isPlayingDemo = false;
     try {
       vm.setTapeFileName(std::string(""));
     }
     catch (...) {
       errorFlag = true;
     }
-    tapeReadOnly = true;
-    tapePosition = -1.0;
-    tapeLength = -1.0;
-    tapeSampleRate = 0L;
-    tapeSampleSize = 0;
+    vmStatus.tapeReadOnly = true;
+    vmStatus.tapePosition = -1.0;
+    vmStatus.tapeLength = -1.0;
+    vmStatus.tapeSampleRate = 0L;
+    vmStatus.tapeSampleSize = 0;
+    vmStatus.floppyDriveLEDState = 0U;
     while (messageQueue) {
       Message *m = messageQueue;
       messageQueue = m->nextMessage;
@@ -151,13 +157,20 @@ namespace Ep128Emu {
       m->nextMessage = freeMessageStack;
       freeMessageStack = m;
     }
+    nxtTime += double(timesliceLength);
     mutex_.unlock();
     // run emulation, or wait if paused
+    double  curTime = prvTime;
     try {
       if (processCallback)
         processCallback(userData);
       if (!pauseFlag) {
         vm.run(2000);
+        curTime = speedTimer.getRealTime();
+        if (curTime < nxtTime)
+          Timer::wait(nxtTime - curTime);
+        else if (curTime > (nxtTime + 0.25))
+          nxtTime = curTime;
       }
       else {
         uint8_t dummyLineData[96];
@@ -168,6 +181,8 @@ namespace Ep128Emu {
         for (int i = 0; i < 125; i++)
           vm.getVideoDisplay().drawLine(&(dummyLineData[0]), 96);
         Timer::wait(0.01);
+        curTime = speedTimer.getRealTime();
+        nxtTime = curTime;
       }
     }
     catch (Exception& e) {
@@ -185,14 +200,13 @@ namespace Ep128Emu {
     }
     // update status information
     mutex_.lock();
+    float   deltaTime = float(curTime - prvTime);
+    prvTime = curTime;
+    deltaTime = (deltaTime > 0.0f ? deltaTime : 0.0f);
+    deltaTime = (deltaTime < 1.0f ? deltaTime : 1.0f);
+    avgTimesliceLength = (avgTimesliceLength * 0.995f) + (deltaTime * 0.005f);
     try {
-      isRecordingDemo = vm.getIsRecordingDemo();
-      isPlayingDemo = vm.getIsPlayingDemo();
-      tapeReadOnly = vm.getIsTapeReadOnly();
-      tapePosition = vm.getTapePosition();
-      tapeLength = vm.getTapeLength();
-      tapeSampleRate = vm.getTapeSampleRate();
-      tapeSampleSize = vm.getTapeSampleSize();
+      vm.getVMStatus(vmStatus);
     }
     catch (...) {
       errorFlag = true;
@@ -220,26 +234,26 @@ namespace Ep128Emu {
     this->cleanup();
   }
 
-  int VMThread::getStatus(bool& isPaused_,
-                          bool& isRecordingDemo_, bool& isPlayingDemo_,
-                          bool& tapeReadOnly_,
-                          double& tapePosition_, double& tapeLength_,
-                          long& tapeSampleRate_, int& tapeSampleSize_)
+  VMThread::VMThreadStatus::VMThreadStatus(VMThread& vmThread_)
+    : threadStatus(0)
   {
-    int     retval = 0;
-    mutex_.lock();
-    isPaused_ = pauseFlag;
-    isRecordingDemo_ = isRecordingDemo;
-    isPlayingDemo_ = isPlayingDemo;
-    tapeReadOnly_ = tapeReadOnly;
-    tapePosition_ = tapePosition;
-    tapeLength_ = tapeLength;
-    tapeSampleRate_ = tapeSampleRate;
-    tapeSampleSize_ = tapeSampleSize;
-    if (exitFlag)
-      retval = (errorFlag ? -1 : 1);
-    mutex_.unlock();
-    return retval;
+    vmThread_.mutex_.lock();
+    if (vmThread_.avgTimesliceLength > 0.0000002f)
+      speedPercentage = 0.2f / vmThread_.avgTimesliceLength;
+    else
+      speedPercentage = 1000000.0f;
+    isPaused = vmThread_.pauseFlag;
+    isRecordingDemo = vmThread_.vmStatus.isRecordingDemo;
+    isPlayingDemo = vmThread_.vmStatus.isPlayingDemo;
+    tapeReadOnly = vmThread_.vmStatus.tapeReadOnly;
+    tapePosition = vmThread_.vmStatus.tapePosition;
+    tapeLength = vmThread_.vmStatus.tapeLength;
+    tapeSampleRate = vmThread_.vmStatus.tapeSampleRate;
+    tapeSampleSize = vmThread_.vmStatus.tapeSampleSize;
+    floppyDriveLEDState = vmThread_.vmStatus.floppyDriveLEDState;
+    if (vmThread_.exitFlag)
+      threadStatus = (vmThread_.errorFlag ? -1 : 1);
+    vmThread_.mutex_.unlock();
   }
 
   int VMThread::lock(size_t t)
@@ -280,6 +294,7 @@ namespace Ep128Emu {
     if (!lockCnt)
       threadLock1.notify();
     mutex_.unlock();
+    Timer::wait(0.0);           // allow the VM thread to actually wake up
   }
 
   // --------------------------------------------------------------------------
@@ -378,6 +393,16 @@ namespace Ep128Emu {
     processCallback = func;
   }
 
+  void VMThread::setSpeedPercentage(int speedPercentage_)
+  {
+    mutex_.lock();
+    if (speedPercentage_ > 0)
+      timesliceLength = 0.2f / float(speedPercentage_);
+    else
+      timesliceLength = 0.0f;
+    mutex_.unlock();
+  }
+
   VMThread::Message * VMThread::allocateMessage_()
   {
     mutex_.lock();
@@ -388,9 +413,13 @@ namespace Ep128Emu {
       return m;
     }
     if (messageCnt >= 1024) {
+      // too many messages, delete oldest one
+      messageCnt--;
+      Message *m = messageQueue;
+      messageQueue = m->nextMessage;
       mutex_.unlock();
-      errorCallback(userData, "message queue overflow");
-      return (Message *) 0;
+      m->~Message();
+      return m;
     }
     mutex_.unlock();
     Message *m = (Message *) std::malloc(sizeof(Message_Dummy));

@@ -49,6 +49,19 @@ typedef void (APIENTRY *PFNGLBLENDCOLORPROC)(GLclampf, GLclampf, GLclampf,
 #  endif
 #endif
 
+#ifndef WIN32
+#  define   glBlendColor_         glBlendColor
+#else
+static PFNGLBLENDCOLORPROC      glBlendColor__ = (PFNGLBLENDCOLORPROC) 0;
+static inline void glBlendColor_(GLclampf r, GLclampf g, GLclampf b, GLclampf a)
+{
+  if (glBlendColor__)
+    glBlendColor__(r, g, b, a);
+  else
+    glDisable(GL_BLEND);
+}
+#endif
+
 static void setTextureParameters(int displayQuality)
 {
   glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
@@ -131,11 +144,12 @@ namespace Ep128Emu {
     for (size_t i = 0; i < 256; i++) {
       palette[i] = pixelConv(rTbl[i], gTbl[i], bTbl[i]);
     }
+    double  lineShade_ = double(dp.lineShade * 0.5f);
     for (size_t i = 0; i < 256; i++) {
       for (size_t j = 0; j < 256; j++) {
-        double  r = (rTbl[i] + rTbl[j]) * dp.blendScale1;
-        double  g = (gTbl[i] + gTbl[j]) * dp.blendScale1;
-        double  b = (bTbl[i] + bTbl[j]) * dp.blendScale1;
+        double  r = (rTbl[i] + rTbl[j]) * lineShade_;
+        double  g = (gTbl[i] + gTbl[j]) * lineShade_;
+        double  b = (bTbl[i] + bTbl[j]) * lineShade_;
         palette2[(i << 8) + j] = pixelConv(r, g, b);
       }
     }
@@ -396,7 +410,7 @@ namespace Ep128Emu {
                                          double x0, double y0,
                                          double x1, double y1)
   {
-    if (displayParameters.blendScale1 >= 0.495) {
+    if (displayParameters.lineShade >= 0.995f) {
       drawFrame_quality2(lineBuffers_, x0, y0, x1, y1);
       return;
     }
@@ -499,7 +513,7 @@ namespace Ep128Emu {
     double  x0, y0, x1, y1;
     double  aspectScale = (768.0 / 576.0)
                           / ((double(this->w()) / double(this->h()))
-                             * displayParameters.pixelAspectRatio);
+                             * double(displayParameters.pixelAspectRatio));
     x0 = 0.0;
     y0 = 0.0;
     x1 = 1.0;
@@ -538,6 +552,8 @@ namespace Ep128Emu {
       glVertex2f(GLfloat(x1), GLfloat(1.0));
       glEnd();
     }
+    if (x0 >= x1 || y0 >= y1)
+      return;
 
     GLuint  textureID_ = GLuint(textureID);
     GLint   savedTextureID = 0;
@@ -545,6 +561,10 @@ namespace Ep128Emu {
     glGetIntegerv(GL_TEXTURE_BINDING_2D, &savedTextureID);
     glBindTexture(GL_TEXTURE_2D, textureID_);
     setTextureParameters(displayParameters.displayQuality);
+#ifdef WIN32
+    if (!glBlendColor__)
+      glBlendColor__ = (PFNGLBLENDCOLORPROC) wglGetProcAddress("glBlendColor");
+#endif
 
     if (displayParameters.displayQuality == 0 &&
         displayParameters.bufferingMode == 0) {
@@ -629,26 +649,16 @@ namespace Ep128Emu {
       }
     }
     else if (displayParameters.bufferingMode != 2) {
+      float   blendScale3 = displayParameters.motionBlur;
+      float   blendScale2 = (1.0f - blendScale3) * displayParameters.blendScale;
       if (!(displayParameters.bufferingMode != 0 ||
-            (displayParameters.blendScale2 > 0.99 &&
-             displayParameters.blendScale3 < 0.01))) {
+            (blendScale2 > 0.99f && blendScale2 < 1.01f &&
+             blendScale3 < 0.01f))) {
         glEnable(GL_BLEND);
-#ifndef WIN32
-        glBlendColor(GLclampf(displayParameters.blendScale2),
-                     GLclampf(displayParameters.blendScale2),
-                     GLclampf(displayParameters.blendScale2),
-                     GLclampf(1.0 - displayParameters.blendScale3));
-#else
-        PFNGLBLENDCOLORPROC glBlendColor_ =
-            (PFNGLBLENDCOLORPROC) wglGetProcAddress("glBlendColor");
-        if (glBlendColor_)
-          glBlendColor_(GLclampf(displayParameters.blendScale2),
-                        GLclampf(displayParameters.blendScale2),
-                        GLclampf(displayParameters.blendScale2),
-                        GLclampf(1.0 - displayParameters.blendScale3));
-        else
-          glDisable(GL_BLEND);
-#endif
+        glBlendColor_(GLclampf(blendScale2),
+                      GLclampf(blendScale2),
+                      GLclampf(blendScale2),
+                      GLclampf(1.0f - blendScale3));
         glBlendFunc(GL_CONSTANT_COLOR, GL_ONE_MINUS_CONSTANT_ALPHA);
       }
       else
@@ -710,31 +720,8 @@ namespace Ep128Emu {
       ringBufferReadPos = ringBufferReadPos + d;
       if (ringBufferReadPos >= 4.0)
         ringBufferReadPos -= 4.0;
-#ifdef WIN32
-      PFNGLBLENDCOLORPROC glBlendColor_ =
-          (PFNGLBLENDCOLORPROC) wglGetProcAddress("glBlendColor");
-#endif
-      bool    blendEnabled_ = true;
-      if (readPosFrac >= 0.002 && readPosFrac <= 0.998)
-        glEnable(GL_BLEND);
-      else {
+      if (readPosFrac <= 0.998) {
         glDisable(GL_BLEND);
-        blendEnabled_ = false;
-      }
-      if (blendEnabled_) {
-#ifndef WIN32
-        glBlendColor(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
-                     GLclampf(1.0 - readPosFrac));
-#else
-        if (glBlendColor_)
-          glBlendColor_(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
-                        GLclampf(1.0 - readPosFrac));
-        else
-          glDisable(GL_BLEND);
-#endif
-        glBlendFunc(GL_CONSTANT_ALPHA, GL_ZERO);
-      }
-      if (blendEnabled_ || readPosFrac < 0.5) {
         switch (displayParameters.displayQuality) {
         case 0:
           // full horizontal resolution, no interlace (768x288)
@@ -755,20 +742,15 @@ namespace Ep128Emu {
           break;
         }
       }
-      if (blendEnabled_) {
-#ifndef WIN32
-        glBlendColor(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
-                     GLclampf(readPosFrac));
-#else
-        if (glBlendColor_)
+      if (readPosFrac >= 0.002) {
+        if (readPosFrac <= 0.9975) {
+          glEnable(GL_BLEND);
           glBlendColor_(GLclampf(1.0), GLclampf(1.0), GLclampf(1.0),
                         GLclampf(readPosFrac));
+          glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA);
+        }
         else
           glDisable(GL_BLEND);
-#endif
-        glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE);
-      }
-      if (blendEnabled_ || readPosFrac > 0.5) {
         switch (displayParameters.displayQuality) {
         case 0:
           // full horizontal resolution, no interlace (768x288)
@@ -927,6 +909,9 @@ namespace Ep128Emu {
             displayParameters.bufferingMode != msg->dp.bufferingMode) {
           Fl::remove_idle(&fltkIdleCallback, (void *) this);
           if (displayParameters.bufferingMode != msg->dp.bufferingMode) {
+#ifdef WIN32
+            glBlendColor__ = (PFNGLBLENDCOLORPROC) 0;
+#endif
             // if double buffering mode has changed, also need to generate
             // a new texture ID
             GLuint  oldTextureID = GLuint(textureID);
@@ -976,7 +961,7 @@ namespace Ep128Emu {
           colormap.setParams(displayParameters);
         else {
           DisplayParameters tmp_dp(displayParameters);
-          tmp_dp.blendScale1 = 0.5;
+          tmp_dp.lineShade = 1.0f;
           colormap.setParams(tmp_dp);
         }
         for (size_t yc = 0; yc < 289; yc++)
@@ -1011,7 +996,7 @@ namespace Ep128Emu {
       forceUpdateLineCnt = 0;
       forceUpdateTimer.reset();
     }
-    else if (forceUpdateTimer.getRealTime() >= 0.125) {
+    else if (forceUpdateTimer.getRealTime() >= 0.085) {
       forceUpdateLineMask |= (uint8_t(1) << forceUpdateLineCnt);
       forceUpdateLineCnt++;
       forceUpdateLineCnt &= uint8_t(7);
@@ -1022,8 +1007,7 @@ namespace Ep128Emu {
 
   int OpenGLDisplay::handle(int event)
   {
-    (void) event;
-    return 0;
+    return fltkEventCallback(fltkEventCallbackUserData, event);
   }
 
 }       // namespace Ep128Emu

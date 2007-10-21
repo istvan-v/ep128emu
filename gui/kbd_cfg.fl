@@ -874,7 +874,7 @@ class Ep128EmuGUI_KbdConfigWindow {open
   char    buf[256];
   std::sprintf(&(buf[0]), "Press key for '%s', F9 for no key, F10 or F11 to keep "
                           "the original key, or F12 to close this window", keyName);
-  defineKeyWindowText->label(&(buf[0]));
+  defineKeyWindowText->copy_label(&(buf[0]));
   defineKeyWindow->set_modal();
   defineKeyWindow->show();
   defineKeyWindow->keyCode_ = -1;
@@ -887,6 +887,7 @@ class Ep128EmuGUI_KbdConfigWindow {open
       defineKeyWindow->keyCode_ = tmp;
   } while (defineKeyWindow->keyCode_ < 0 && defineKeyWindow->shown());
   gui.joystickInput.unlock();
+  defineKeyWindowText->label("");
   if (!defineKeyWindow->shown())
     return;
   if (defineKeyWindow->keyCode_ == (FL_F + 12)) {
@@ -901,7 +902,7 @@ class Ep128EmuGUI_KbdConfigWindow {open
   std::sprintf(&(buf[0]),
                "Press alternate key for '%s', F9 for no key, F10 or "
                "F11 to keep the original key, or F12 to close this window", keyName);
-  defineKeyWindowText->label(&(buf[0]));
+  defineKeyWindowText->copy_label(&(buf[0]));
   defineKeyWindow->keyCode_ = -1;
   gui.joystickInput.lock();
   gui.joystickInput.flushEvents();
@@ -912,6 +913,7 @@ class Ep128EmuGUI_KbdConfigWindow {open
       defineKeyWindow->keyCode_ = tmp;
   } while (defineKeyWindow->keyCode_ < 0 && defineKeyWindow->shown());
   gui.joystickInput.unlock();
+  defineKeyWindowText->label("");
   if (!defineKeyWindow->shown())
     return;
   if (defineKeyWindow->keyCode_ == (FL_F + 12)) {

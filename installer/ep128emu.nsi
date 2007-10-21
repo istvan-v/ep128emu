@@ -14,7 +14,7 @@
 
   ;Name and file
   Name "ep128emu"
-  OutFile "ep128emu-2.1.0.exe"
+  OutFile "ep128emu-2.0.4-beta.exe"
 
   ;Default installation folder
   InstallDir "$PROGRAMFILES\ep128emu2"
@@ -76,6 +76,7 @@ Section "ep128emu2" SecMain
   File "..\makecfg.exe"
   File "D:\MinGW\bin\mingwm10.dll"
   File "D:\MinGW\bin\portaudio.dll.0.0.19"
+  File "D:\MinGW\bin\SDL.dll"
   File "..\tapeedit.exe"
 
   SetOutPath "$INSTDIR\config"
@@ -128,6 +129,8 @@ Section "Source code" SecSrc
   File "..\NEWS"
   File "..\README"
   File "..\SConstruct"
+  File "..\*.patch"
+  File "..\*.sh"
 
   SetOutPath "$INSTDIR\src\config"
 
@@ -149,6 +152,25 @@ Section "Source code" SecSrc
   File "..\installer\*.nsi"
   File "..\installer\*.fl"
   File "..\installer\makecfg.cpp"
+
+  SetOutPath "$INSTDIR\src\msvc"
+
+  SetOutPath "$INSTDIR\src\msvc\include"
+
+  File "..\msvc\include\*.h"
+
+  SetOutPath "$INSTDIR\src\ep128emu.app"
+
+  SetOutPath "$INSTDIR\src\ep128emu.app\Contents"
+
+  File "..\ep128emu.app\Contents\Info.plist"
+  File "..\ep128emu.app\Contents\PkgInfo"
+
+  SetOutPath "$INSTDIR\src\ep128emu.app\Contents\MacOS"
+
+  SetOutPath "$INSTDIR\src\ep128emu.app\Contents\Resources"
+
+  File "..\ep128emu.app\Contents\Resources\ep128emu.icns"
 
   SetOutPath "$INSTDIR\src\roms"
 
@@ -272,6 +294,7 @@ Section "Uninstall"
   Delete "$INSTDIR\makecfg.exe"
   Delete "$INSTDIR\mingwm10.dll"
   Delete "$INSTDIR\portaudio.dll.0.0.19"
+  Delete "$INSTDIR\SDL.dll"
   Delete "$INSTDIR\tapeedit.exe"
   Delete "$INSTDIR\config\EP_Keyboard_HU.cfg"
   Delete "$INSTDIR\config\EP_Keyboard_US.cfg"

@@ -34,6 +34,10 @@
 
 #include <map>
 
+namespace Ep128Emu {
+  class VideoCapture;
+}
+
 namespace Ep128 {
 
   class Ep128VM : public Ep128Emu::VirtualMachine {
@@ -238,6 +242,35 @@ namespace Ep128 {
      * Set state of key 'keyCode' (0 to 127; see dave.hpp).
      */
     virtual void setKeyboardState(int keyCode, bool isPressed);
+    /*!
+     * Returns status information about the emulated machine (see also
+     * struct VMStatus above, and the comments for functions that return
+     * individual status values).
+     */
+    virtual void getVMStatus(VirtualMachine::VMStatus& vmStatus_);
+    /*!
+     * Create video capture object with the specified frame rate (24 to 60)
+     * if it does not exist yet, and optionally set callbacks for printing
+     * error messages and asking for a new output file on reaching 2 GB file
+     * size.
+     */
+    virtual void openVideoCapture(
+        int frameRate_ = 30,
+        void (*errorCallback_)(void *userData, const char *msg) =
+            (void (*)(void *, const char *)) 0,
+        void (*fileNameCallback_)(void *userData, std::string& fileName) =
+            (void (*)(void *, std::string&)) 0,
+        void *userData_ = (void *) 0);
+    /*!
+     * Set output file name for video capture (an empty file name means no
+     * file is written). openVideoCapture() should be called first.
+     */
+    virtual void setVideoCaptureFile(const std::string& fileName_);
+    /*!
+     * Destroy video capture object, freeing all allocated memory and closing
+     * the output file.
+     */
+    virtual void closeVideoCapture();
     // -------------------------- DISK AND FILE I/O ---------------------------
     /*!
      * Load disk image for drive 'n' (counting from zero); an empty file
@@ -246,6 +279,19 @@ namespace Ep128 {
     virtual void setDiskImageFile(int n, const std::string& fileName_,
                                   int nTracks_ = -1, int nSides_ = 2,
                                   int nSectorsPerTrack_ = 9);
+    /*!
+     * Returns the current state of the floppy drive LEDs, which is the sum
+     * of any of the following values:
+     *   0x00000001: drive 0 red LED is on
+     *   0x00000002: drive 0 green LED is on
+     *   0x00000100: drive 1 red LED is on
+     *   0x00000200: drive 1 green LED is on
+     *   0x00010000: drive 2 red LED is on
+     *   0x00020000: drive 2 green LED is on
+     *   0x01000000: drive 3 red LED is on
+     *   0x02000000: drive 3 green LED is on
+     */
+    virtual uint32_t getFloppyDriveLEDState() const;
     // ---------------------------- TAPE EMULATION ----------------------------
     /*!
      * Set tape image file name (if the file name is NULL or empty, tape

@@ -21,6 +21,8 @@
 #include "tape.hpp"
 #include <cstdio>
 #include <cstdlib>
+#include <cmath>
+#include <sndfile.h>
 
 static const char *epteFileMagic = "ENTERPRISE 128K TAPE FILE       ";
 
@@ -759,6 +761,457 @@ namespace Ep128Emu {
 
   // --------------------------------------------------------------------------
 
+  Tape_SoundFile::TapeFilter::TapeFilter(size_t irSamples)
+  {
+    if (irSamples < 16 || irSamples > 32768 ||
+        (irSamples & (irSamples - 1)) != 0)
+      throw std::exception();
+    irFFT.resize(irSamples << 2);
+    fftBuf.resize(irSamples << 2);
+    outBuf.resize(irSamples);
+    sampleCnt = 0;
+    for (size_t i = 0; i < (irSamples << 2); i++)
+      irFFT[i] = 0.0f;
+    irFFT[irSamples >> 1] = 1.0f;
+    this->fft(&(irFFT.front()), (irSamples << 1), false);
+    for (size_t i = 0; i < (irSamples << 2); i++)
+      fftBuf[i] = 0.0f;
+    for (size_t i = 0; i < irSamples; i++)
+      outBuf[i] = 0.0f;
+  }
+
+  Tape_SoundFile::TapeFilter::~TapeFilter()
+  {
+  }
+
+  void Tape_SoundFile::TapeFilter::setFilterParameters(float sampleRate,
+                                                       float minFreq,
+                                                       float maxFreq)
+  {
+    size_t  n = outBuf.size();
+    // calculate linear phase filter
+    size_t  fhpp, fhps, flpp, flps;
+    fhpp = size_t(long(float(long(n)) * (minFreq / sampleRate) + 0.5f));
+    fhps = size_t(long(float(long(n)) * (0.25f * minFreq / sampleRate) + 0.5f));
+    flpp = size_t(long(float(long(n)) * (maxFreq / sampleRate) + 0.5f));
+    flps = size_t(long(float(long(n)) * (4.0f * maxFreq / sampleRate) + 0.5f));
+    for (size_t i = 0; i <= (n >> 1); i++) {
+      double  a = 1.0 / double(long(n));
+      if (i <= fhps || i >= flps)
+        a = 0.0;
+      else {
+        if (i > fhps && i < fhpp) {
+          double  w = std::sin(2.0 * std::atan(1.0)
+                               * double(long(i - fhps))
+                               / double(long(fhpp - fhps)));
+          a *= (w * w);
+        }
+        if (i > flpp && i < flps) {
+          double  w = std::cos(2.0 * std::atan(1.0)
+                               * double(long(i - flpp))
+                               / double(long(flps - flpp)));
+          a *= (w * w);
+        }
+      }
+      irFFT[(i << 1) + 0] = float((i & 1) == 0 ? a : -a);
+      irFFT[(i << 1) + 1] = 0.0f;
+    }
+    // apply von Hann window to impulse response
+    this->fft(&(irFFT.front()), n, true);
+    for (size_t i = 0; i < n; i++) {
+      double  w = std::sin(4.0 * std::atan(1.0) * double(long(i))
+                                                / double(long(n)));
+      irFFT[i] *= float(w * w);
+    }
+    // pad to double length
+    for (size_t i = n; i < (n << 1); i++)
+      irFFT[i] = 0.0f;
+    this->fft(&(irFFT.front()), (n << 1), false);
+  }
+
+  float Tape_SoundFile::TapeFilter::processSample(float inputSignal)
+  {
+    size_t  n = outBuf.size();
+    if (sampleCnt >= n) {
+      sampleCnt = 0;
+      // copy remaining samples from previous buffer
+      for (size_t i = 0; i < n; i++)
+        outBuf[i] = fftBuf[i + n];
+      // pad input to double length
+      for (size_t i = n; i < (n << 1); i++)
+        fftBuf[i] = 0.0f;
+      // convolve
+      this->fft(&(fftBuf.front()), (n << 1), false);
+      for (size_t i = 0; i <= n; i++) {
+        double  re1 = fftBuf[(i << 1) + 0];
+        double  im1 = fftBuf[(i << 1) + 1];
+        double  re2 = irFFT[(i << 1) + 0];
+        double  im2 = irFFT[(i << 1) + 1];
+        fftBuf[(i << 1) + 0] = re1 * re2 - im1 * im2;
+        fftBuf[(i << 1) + 1] = re1 * im2 + im1 * re2;
+      }
+      this->fft(&(fftBuf.front()), (n << 1), true);
+      // mix new buffer to output
+      for (size_t i = 0; i < n; i++)
+        outBuf[i] += fftBuf[i];
+    }
+    fftBuf[sampleCnt] = inputSignal;
+    float   outputSignal = outBuf[sampleCnt] / float(long(n));
+    sampleCnt++;
+    return outputSignal;
+  }
+
+  void Tape_SoundFile::TapeFilter::fft(float *buf, size_t n, bool isInverse)
+  {
+    // check FFT size
+    if (n < 16 || n > 65536 || (n & (n - 1)) != 0)
+      throw std::exception();
+    if (!isInverse) {
+      // convert real data to interleaved real/imaginary format
+      size_t  i = n;
+      do {
+        i--;
+        buf[(i << 1) + 0] = buf[i];
+        buf[(i << 1) + 1] = 0.0f;
+      } while (i);
+    }
+    else {
+      buf[1] = 0.0f;
+      buf[n + 1] = 0.0f;
+      for (size_t i = 1; i < (n >> 1); i++) {
+        buf[((n - i) << 1) + 0] = buf[(i << 1) + 0];
+        buf[((n - i) << 1) + 1] = -(buf[(i << 1) + 1]);
+      }
+    }
+    // pack data in reverse bit order
+    size_t  i, j;
+    for (i = 0, j = 0; i < n; i++) {
+      if (i < j) {
+        float   tmp1 = buf[(i << 1) + 0];
+        float   tmp2 = buf[(i << 1) + 1];
+        buf[(i << 1) + 0] = buf[(j << 1) + 0];
+        buf[(i << 1) + 1] = buf[(j << 1) + 1];
+        buf[(j << 1) + 0] = tmp1;
+        buf[(j << 1) + 1] = tmp2;
+      }
+      for (size_t k = (n >> 1); k > 0; k >>= 1) {
+        j ^= k;
+        if ((j & k) != 0)
+          break;
+      }
+    }
+    // calculate FFT
+    for (size_t k = 1; k < n; k <<= 1) {
+      double  ph_inc_re = std::cos(4.0 * std::atan(1.0) / double(long(k)));
+      double  ph_inc_im = std::sin((isInverse ? 4.0 : -4.0)
+                                   * std::atan(1.0) / double(long(k)));
+      for (j = 0; j < n; j += (k << 1)) {
+        double  ph_re = 1.0;
+        double  ph_im = 0.0;
+        for (i = j; i < (j + k); i++) {
+          double  re1 = buf[(i << 1) + 0];
+          double  im1 = buf[(i << 1) + 1];
+          double  re2 = buf[((i + k) << 1) + 0];
+          double  im2 = buf[((i + k) << 1) + 1];
+          buf[(i << 1) + 0] = float(re1 + re2 * ph_re - im2 * ph_im);
+          buf[(i << 1) + 1] = float(im1 + re2 * ph_im + im2 * ph_re);
+          buf[((i + k) << 1) + 0] = float(re1 - re2 * ph_re + im2 * ph_im);
+          buf[((i + k) << 1) + 1] = float(im1 - re2 * ph_im - im2 * ph_re);
+          double  tmp = ph_re * ph_inc_re - ph_im * ph_inc_im;
+          ph_im = ph_re * ph_inc_im + ph_im * ph_inc_re;
+          ph_re = tmp;
+        }
+      }
+    }
+    if (!isInverse) {
+      buf[1] = 0.0f;
+      buf[n + 1] = 0.0f;
+    }
+    else {
+      // convert from interleaved real/imaginary format to pure real data
+      for (i = 0; i < n; i++)
+        buf[i] = buf[(i << 1) + 0];
+      for (i = n; i < (n << 1); i++)
+        buf[i] = 0.0f;
+    }
+  }
+
+  // --------------------------------------------------------------------------
+
+  bool Tape_SoundFile::writeBuffer_()
+  {
+    sf_count_t  filePos = sf_count_t((tapePosition >> 10) << 10);
+    if (sf_seek(sf, filePos, SEEK_SET) != filePos)
+      return false;
+    // write data
+    long    n = long(sf_writef_short(sf, &(buf.front()), sf_count_t(1024)));
+    n = (n >= 0L ? n : 0L);
+    size_t  endPos = filePos + size_t(n);
+    if (endPos > tapeLength)
+      tapeLength = endPos;
+    return (n == 1024L);
+  }
+
+  void Tape_SoundFile::seek_(size_t pos_)
+  {
+    // clamp position to tape length
+    size_t  pos = (pos_ < tapeLength ? pos_ : tapeLength);
+    size_t  oldBlockNum = (tapePosition >> 10);
+    size_t  newBlockNum = (pos >> 10);
+
+    if (newBlockNum == oldBlockNum) {
+      tapePosition = pos;
+      return;
+    }
+    bool    err = false;
+    try {
+      // flush any pending file changes
+      flushBuffer_();
+    }
+    catch (...) {
+      err = true;
+    }
+    tapePosition = pos;
+    // FIXME: should check for errors ?
+    (void) sf_seek(sf, sf_count_t(newBlockNum << 10), SEEK_SET);
+    // fill buffer
+    int   n = int(sf_readf_short(sf, &(buf.front()), sf_count_t(1024)));
+    n = (n >= 0 ? n : 0) * nChannels;
+    for ( ; n < int(buf.size()); n++)
+      buf[n] = 0;
+    if (err)
+      throw Exception("error writing tape file - is the disk full ?");
+  }
+
+  void Tape_SoundFile::flushBuffer_()
+  {
+    if (isBufferDirty) {
+      bool    err = !(writeBuffer_());
+      isBufferDirty = false;
+      if (err)
+        throw Exception("error writing tape file - is the disk full ?");
+    }
+  }
+
+  Tape_SoundFile::Tape_SoundFile(const char *fileName,
+                                 int mode, int bitsPerSample)
+    : Tape(bitsPerSample),
+      sf((SNDFILE *) 0),
+      nChannels(1),
+      requestedChannel(0),
+      enableFIRFilter(false),
+      isBufferDirty(false),
+      firFilter(2048)
+  {
+    if (fileName == (char *) 0 || fileName[0] == '\0')
+      throw Exception("invalid tape file name");
+    if (!(mode >= 0 && mode <= 2))
+      throw Exception("invalid tape open mode parameter");
+    isReadOnly = (mode == 2);
+    if (!isReadOnly) {
+      // check if file exists so that libsndfile does not create an empty file
+      std::FILE *f = std::fopen(fileName, "rb");
+      if (f)
+        std::fclose(f);
+      else
+        throw Exception("error opening tape file");
+    }
+    SF_INFO sfinfo;
+    std::memset(&sfinfo, 0, sizeof(SF_INFO));
+    sf = sf_open(fileName, (isReadOnly ? SFM_READ : SFM_RDWR), &sfinfo);
+    if (!sf) {
+      if (!isReadOnly) {
+        isReadOnly = true;
+        sf = sf_open(fileName, SFM_READ, &sfinfo);
+      }
+      if (!sf)
+        throw Exception("error opening tape file");
+    }
+    try {
+      int32_t   nFrames = int32_t(sfinfo.frames);
+      if (sf_count_t(nFrames) != sfinfo.frames)
+        throw Exception("invalid tape file length");
+      if (nFrames < 0 || nFrames >= 0x40000000)
+        throw Exception("invalid tape file length");
+      tapeLength = size_t(nFrames);
+      if (sfinfo.samplerate < 10000 || sfinfo.samplerate > 120000)
+        throw Exception("invalid tape file sample rate");
+      sampleRate = sfinfo.samplerate;
+      if (sfinfo.channels < 1 || sfinfo.channels > 16)
+        throw Exception("invalid number of channels in tape file");
+      nChannels = sfinfo.channels;
+      if (!sfinfo.seekable)
+        throw Exception("invalid tape file");
+      switch (sfinfo.format & SF_FORMAT_SUBMASK) {
+      case SF_FORMAT_IMA_ADPCM:
+      case SF_FORMAT_MS_ADPCM:
+        fileBitsPerSample = 4;
+        break;
+      case SF_FORMAT_PCM_S8:
+      case SF_FORMAT_PCM_U8:
+      case SF_FORMAT_ULAW:
+      case SF_FORMAT_ALAW:
+        fileBitsPerSample = 8;
+        break;
+      case SF_FORMAT_PCM_16:
+        fileBitsPerSample = 16;
+        break;
+      case SF_FORMAT_PCM_24:
+        fileBitsPerSample = 24;
+        break;
+      case SF_FORMAT_PCM_32:
+      case SF_FORMAT_FLOAT:
+        fileBitsPerSample = 32;
+        break;
+      case SF_FORMAT_DOUBLE:
+        fileBitsPerSample = 64;
+        break;
+      default:
+        throw Exception("invalid tape file format");
+      }
+      buf.resize(size_t(nChannels * 1024));
+      // fill buffer
+      int   n = int(sf_readf_short(sf, &(buf.front()), sf_count_t(1024)));
+      n = (n >= 0 ? n : 0) * nChannels;
+      for ( ; n < int(buf.size()); n++)
+        buf[n] = 0;
+    }
+    catch (...) {
+      (void) sf_close(sf);
+      throw;
+    }
+  }
+
+  Tape_SoundFile::~Tape_SoundFile()
+  {
+    // flush any pending file changes, and close file
+    // FIXME: errors are not handled here
+    try {
+      flushBuffer_();
+    }
+    catch (...) {
+    }
+    (void) sf_close(sf);
+  }
+
+  void Tape_SoundFile::runOneSample_()
+  {
+    int   bufPos = (int(tapePosition & 0x03FF) * nChannels) + requestedChannel;
+    int   tmp = buf[bufPos];
+    if (isRecordOn) {
+      int   tmp2 = (inputState >= 0 ? inputState : 0);
+      switch (requestedBitsPerSample) {
+      case 1:
+        tmp2 = (tmp2 > 0 ? 16384 : -16384);
+        break;
+      case 2:
+        tmp2 = ((tmp2 <= 3 ? tmp2 : 3) << 14) - 24576;
+        break;
+      case 4:
+        tmp2 = ((tmp2 <= 15 ? tmp2 : 15) << 12) - 30720;
+        break;
+      case 8:
+        tmp2 = ((tmp2 <= 255 ? tmp2 : 255) << 8) - 32640;
+        break;
+      }
+      buf[bufPos] = short(tmp2);
+      isBufferDirty = true;
+    }
+    if (enableFIRFilter) {
+      float tmp2 = firFilter.processSample(float(tmp));
+      tmp = int(tmp2 + (tmp2 >= 0.0f ? 0.5f : -0.5f));
+    }
+    tmp = tmp + 32768;
+    tmp = (tmp >= 0 ? (tmp <= 65535 ? tmp : 65535) : 0);
+    outputState = tmp >> (16 - requestedBitsPerSample);
+
+    size_t  pos = tapePosition + 1;
+    // unless recording, clamp position to tape length
+    pos = ((pos < tapeLength || isRecordOn) ? pos : tapeLength);
+    size_t  oldBlockNum = (tapePosition >> 10);
+    size_t  newBlockNum = (pos >> 10);
+
+    if (newBlockNum == oldBlockNum) {
+      tapePosition = pos;
+      return;
+    }
+    bool    err = false;
+    try {
+      // flush any pending file changes
+      flushBuffer_();
+    }
+    catch (...) {
+      err = true;
+    }
+    tapePosition = pos;
+    // FIXME: should check for errors ?
+    (void) sf_seek(sf, sf_count_t(newBlockNum << 10), SEEK_SET);
+    // fill buffer
+    int   n = int(sf_readf_short(sf, &(buf.front()), sf_count_t(1024)));
+    n = (n >= 0 ? n : 0) * nChannels;
+    for ( ; n < int(buf.size()); n++)
+      buf[n] = 0;
+    if (err)
+      throw Exception("error writing tape file - is the disk full ?");
+  }
+
+  void Tape_SoundFile::setIsMotorOn(bool newState)
+  {
+    isMotorOn = newState;
+    if (!isMotorOn)
+      flushBuffer_();
+  }
+
+  void Tape_SoundFile::stop()
+  {
+    isPlaybackOn = false;
+    isRecordOn = false;
+    flushBuffer_();
+  }
+
+  void Tape_SoundFile::seek(double t)
+  {
+    this->seek_(size_t(long(t > 0.0 ? (t * double(sampleRate) + 0.5) : 0.0)));
+  }
+
+  void Tape_SoundFile::seekToCuePoint(bool isForward, double t)
+  {
+    if (isForward)
+      this->seek(getPosition() + (t > 0.0 ? t : 0.0));
+    else
+      this->seek(getPosition() - (t < 0.0 ? t : 0.0));
+  }
+
+  void Tape_SoundFile::addCuePoint()
+  {
+  }
+
+  void Tape_SoundFile::deleteNearestCuePoint()
+  {
+  }
+
+  void Tape_SoundFile::deleteAllCuePoints()
+  {
+  }
+
+  void Tape_SoundFile::setParameters(int requestedChannel_,
+                                     bool enableFIRFilter_,
+                                     float filterMinFreq_,
+                                     float filterMaxFreq_)
+  {
+    requestedChannel =
+        (requestedChannel_ >= 0 ?
+         (requestedChannel_ < nChannels ? requestedChannel_ : (nChannels - 1))
+         : 0);
+    enableFIRFilter = enableFIRFilter_;
+    if (enableFIRFilter) {
+      firFilter.setFilterParameters(float(sampleRate),
+                                    filterMinFreq_, filterMaxFreq_);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+
   Tape *openTapeFile(const char *fileName, int mode,
                      long sampleRate_, int bitsPerSample)
   {
@@ -768,9 +1221,15 @@ namespace Ep128Emu {
         t = new Tape_EPTE(fileName, bitsPerSample);
       }
       catch (...) {
+        try {
+          t = new Tape_SoundFile(fileName, mode, bitsPerSample);
+        }
+        catch (...) {
+          t = new Tape_Ep128Emu(fileName, mode, sampleRate_, bitsPerSample);
+        }
       }
     }
-    if (!t)
+    else
       t = new Tape_Ep128Emu(fileName, mode, sampleRate_, bitsPerSample);
     return t;
   }

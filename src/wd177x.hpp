@@ -85,6 +85,10 @@ namespace Ep128Emu {
     virtual bool haveDisk() const;
     virtual bool getIsWriteProtected() const;
     void setEnableBusyFlagHack(bool isEnabled);
+    inline bool getLEDState() const
+    {
+      return bool(statusRegister & 0x01);
+    }
     virtual void reset();
    protected:
     virtual void interruptRequest();

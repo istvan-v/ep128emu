@@ -431,8 +431,16 @@ namespace Ep128Emu {
     mkdir(dirName.c_str(), 0700);
     if (dirName[dirName.size() - 1] != '/')
       dirName += '/';
+#  ifndef __APPLE__
     dirName += ".ep128emu";
-    mkdir(dirName.c_str(), 0700);
+#  else
+    dirName += "Library";
+    mkdir(dirName.c_str(), 0750);
+    dirName += "/Application Support";
+    mkdir(dirName.c_str(), 0750);
+    dirName += "/ep128emu";
+#  endif
+    mkdir(dirName.c_str(), 0750);
 #else
     const char  *s = std::getenv("USERPROFILE");
     if (s) {

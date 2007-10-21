@@ -44,6 +44,7 @@ namespace Ep128Emu {
       unsigned int  cpuClockFrequency;
       unsigned int  videoClockFrequency;
       unsigned int  soundClockFrequency;
+      unsigned int  speedPercentage;    // NOTE: this uses soundSettingsChanged
       bool          enableMemoryTimingEmulation;
       bool          enableFileIO;
     } vm;
@@ -76,6 +77,7 @@ namespace Ep128Emu {
       double      brightness;
       double      contrast;
       double      gamma;
+      double      hueShift;
       double      saturation;
       struct {
         double    brightness;
@@ -92,11 +94,9 @@ namespace Ep128Emu {
         double    contrast;
         double    gamma;
       } blue;
-      struct {
-        double    param1;
-        double    param2;
-        double    param3;
-      } effects;
+      double      lineShade;
+      double      blendScale;
+      double      motionBlur;
       int         width;
       int         height;
       double      pixelAspectRatio;
@@ -159,12 +159,15 @@ namespace Ep128Emu {
     struct TapeConfiguration_ {
       std::string imageFile;
       int         defaultSampleRate;
-      bool        fastMode;
+      int         soundFileChannel;
+      bool        enableSoundFileFilter;
+      double      soundFileFilterMinFreq;
+      double      soundFileFilterMaxFreq;
     };
     TapeConfiguration_    tape;
+    bool          tapeFileChanged;
     bool          tapeSettingsChanged;
-    bool          tapeDefaultSampleRateChanged;
-    bool          fastTapeModeChanged;
+    bool          tapeSoundFileSettingsChanged;
     // --------
     struct FileIOConfiguration_ {
       std::string workingDirectory;
@@ -177,6 +180,11 @@ namespace Ep128Emu {
       bool        noBreakOnDataRead;
     } debug;
     bool          debugSettingsChanged;
+    // --------
+    struct {
+      int         frameRate;
+    } videoCapture;
+    bool          videoCaptureSettingsChanged;
     // ----------------
     EmulatorConfiguration(VirtualMachine& vm__,
                           VideoDisplay& videoDisplay_,

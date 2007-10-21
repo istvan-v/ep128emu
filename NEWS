@@ -1,9 +1,10 @@
-Changes in version 2.1.0
+Changes in version 2.0.4
 ------------------------
 
   * keyboard map can be configured with the GUI
   * external game devices like joysticks and gamepads are supported, and
     can be assigned in the keyboard map like normal keys
+  * improved television vertical sync emulation
 
 Changes in version 2.0.3
 ------------------------
