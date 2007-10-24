@@ -359,7 +359,7 @@ namespace Ep128Emu {
   {
     vsyncState = newState;
     if (newState && vsyncCnt >= 264) {
-      curLine = ((currentSlot_ < 20 || currentSlot_ >= 48) ? -26 : -27);
+      curLine = ((currentSlot_ < 20U || currentSlot_ >= 48U) ? -26 : -27);
       vsyncCnt = -16;
       frameDone();
     }

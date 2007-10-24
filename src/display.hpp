@@ -54,7 +54,7 @@ namespace Ep128Emu {
       float   contrast;
       /*! Gamma (default: 1.0, higher values result in a brighter display). */
       float   gamma;
-      /*! color hue shift (-180.0 to 180.0, default: 0.0) */
+      /*! Color hue shift (-180.0 to 180.0, default: 0.0). */
       float   hueShift;
       /*! Color saturation (default: 1.0). */
       float   saturation;
@@ -76,11 +76,11 @@ namespace Ep128Emu {
       float   blueContrast;
       /*! Gamma for blue channel. */
       float   blueGamma;
-      /*! controls vertical filtering of textures (0.0 to 1.0) */
+      /*! Controls vertical filtering of textures (0.0 to 1.0). */
       float   lineShade;
-      /*! scale applied to pixels written to the frame buffer */
+      /*! Scale applied to pixels written to the frame buffer. */
       float   blendScale;
-      /*! scale applied to old pixels in frame buffer */
+      /*! Scale applied to old pixels in frame buffer. */
       float   motionBlur;
       /*!
        * Pixel aspect ratio to assume.
