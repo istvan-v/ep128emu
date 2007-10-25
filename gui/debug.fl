@@ -16,6 +16,7 @@ class Ep128EmuGUI_DebugWindow {open
   decl {char windowTitle[64];} {}
   decl {int savedWindowPositionX;} {}
   decl {int savedWindowPositionY;} {}
+  decl {Fl_Widget *focusWidget;} {}
   decl {uint32_t memoryDumpStartAddress;} {}
   decl {uint32_t memoryDumpEndAddress;} {}
   decl {uint32_t memoryDumpViewAddress;} {}
@@ -36,6 +37,7 @@ class Ep128EmuGUI_DebugWindow {open
   std::strcpy(&(windowTitle[0]), "ep128emu debugger");
   savedWindowPositionX = 32;
   savedWindowPositionY = 32;
+  focusWidget = (Fl_Widget *) 0;
   memoryDumpStartAddress = 0x00000000U;
   memoryDumpEndAddress = 0x0000007FU;
   memoryDumpViewAddress = 0x00000000U;
@@ -51,6 +53,7 @@ class Ep128EmuGUI_DebugWindow {open
 }} {}
     Fl_Window window {
       callback {{
+  focusWidget = (Fl_Widget *) 0;
   gui.vm.setSingleStepMode(false);
   this->hide();
 }} open
@@ -505,25 +508,28 @@ class Ep128EmuGUI_DebugWindow {open
           }
         }
       }
-      Fl_Button {} {
+      Fl_Button stepButton {
         label Step
         callback {{
+  focusWidget = stepButton;
   gui.vm.setSingleStepMode(true);
   this->hide();
 }}
         xywh {265 415 80 25} color 38 selection_color 39 labelcolor 52
       }
-      Fl_Button {} {
+      Fl_Button stepOverButton {
         label {Step over}
         callback {{
+  focusWidget = stepButton;
   gui.vm.setSingleStepMode(true, true);
   this->hide();
 }}
         xywh {355 415 80 25} color 38 selection_color 39 labelcolor 52
       }
-      Fl_Button {} {
+      Fl_Button continueButton {
         label Continue
         callback {{
+  focusWidget = continueButton;
   gui.vm.setSingleStepMode(false);
   this->hide();
 }}
@@ -545,8 +551,13 @@ class Ep128EmuGUI_DebugWindow {open
   } {
     code {{
   updateWindow();
-  if (!window->shown())
+  if (!window->shown()) {
     window->resize(savedWindowPositionX, savedWindowPositionY, 540, 450);
+    if (focusWidget)
+      focusWidget->take_focus();
+    else
+      stepButton->take_focus();
+  }
   window->show();
 }} {}
   }
