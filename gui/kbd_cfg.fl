@@ -741,7 +741,7 @@ class Ep128EmuGUI_KbdConfigWindow {open
     gui.errorMessage(e.what());
   }
 }}
-        xywh {15 355 60 25} color 38 selection_color 39 labelcolor 52
+        xywh {425 355 60 25} color 38 selection_color 39 labelcolor 52
       }
       Fl_Button {} {
         label OK
@@ -754,7 +754,7 @@ class Ep128EmuGUI_KbdConfigWindow {open
   }
   window->hide();
 }}
-        xywh {85 355 60 25} color 38 selection_color 39 labelcolor 52
+        xywh {495 355 60 25} color 38 selection_color 39 labelcolor 52
       }
       Fl_Button {} {
         label Save
@@ -780,14 +780,14 @@ class Ep128EmuGUI_KbdConfigWindow {open
     gui.errorMessage(e.what());
   }
 }}
-        xywh {245 355 60 25} color 38 selection_color 39 labelcolor 52
+        xywh {195 355 60 25} color 38 selection_color 39 labelcolor 52
       }
       Fl_Button {} {
         label Load
         callback {{
   gui.menuCallback_File_LoadConfig(o, (void *) &gui);
 }}
-        xywh {315 355 60 25} color 38 selection_color 39 labelcolor 52
+        xywh {265 355 60 25} color 38 selection_color 39 labelcolor 52
       }
       Fl_Button {} {
         label {Clear all}
@@ -795,7 +795,7 @@ class Ep128EmuGUI_KbdConfigWindow {open
   for (int i = 0; i < 256; i++)
     setKeyMap(i, -1);
 }}
-        xywh {475 355 80 25} color 38 selection_color 39 labelcolor 52
+        xywh {15 355 80 25} color 38 selection_color 39 labelcolor 52
       }
     }
     Fl_Window defineKeyWindow {
