@@ -143,6 +143,7 @@ namespace Ep128Emu {
     int           framesPending;
     bool          skippingFrame;
     bool          vsyncState;
+    bool          oddFrame;
     volatile bool videoResampleEnabled;
     volatile bool exitFlag;
     volatile bool limitFrameRateFlag;

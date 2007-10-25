@@ -247,11 +247,12 @@ namespace Ep128Emu {
       freeMessageStack((Message *) 0),
       messageQueueMutex(),
       lineBuffers((Message_LineData **) 0),
-      curLine(-26),
-      vsyncCnt(-16),
+      curLine(0),
+      vsyncCnt(0),
       framesPending(0),
       skippingFrame(false),
       vsyncState(false),
+      oddFrame(false),
       videoResampleEnabled(false),
       exitFlag(false),
       limitFrameRateFlag(false),
@@ -320,8 +321,9 @@ namespace Ep128Emu {
   {
     if (dp.displayQuality != savedDisplayParameters.displayQuality ||
         dp.bufferingMode != savedDisplayParameters.bufferingMode) {
-      curLine = -26;
-      vsyncCnt = -16;
+      curLine = 0;
+      vsyncCnt = 0;
+      oddFrame = false;
       frameDone();
     }
     Message_SetParameters *m = allocateMessage<Message_SetParameters>();
@@ -346,11 +348,16 @@ namespace Ep128Emu {
         queueMessage(m);
       }
     }
-    curLine += 2;
-    vsyncCnt++;
-    if (vsyncCnt >= 264 && (vsyncState || vsyncCnt >= 338)) {
-      curLine = -26;
-      vsyncCnt = -16;
+    if (vsyncCnt != 0) {
+      curLine += 2;
+      if (vsyncCnt >= 262 && (vsyncState || vsyncCnt >= 336))
+        vsyncCnt = -18;
+      vsyncCnt++;
+    }
+    else {
+      curLine = (oddFrame ? -1 : 0);
+      vsyncCnt++;
+      oddFrame = false;
       frameDone();
     }
   }
@@ -358,10 +365,9 @@ namespace Ep128Emu {
   void FLTKDisplay_::vsyncStateChange(bool newState, unsigned int currentSlot_)
   {
     vsyncState = newState;
-    if (newState && vsyncCnt >= 264) {
-      curLine = ((currentSlot_ < 20U || currentSlot_ >= 48U) ? -26 : -27);
-      vsyncCnt = -16;
-      frameDone();
+    if (newState && vsyncCnt >= 262) {
+      vsyncCnt = -18;
+      oddFrame = (currentSlot_ >= 20U && currentSlot_ < 48U);
     }
   }
 
@@ -632,7 +638,7 @@ namespace Ep128Emu {
                                       sizeof(unsigned char));
     int   lineNumbers_[5];
     if (pixelBuf_) {
-      int   curLine_ = 0;
+      int   curLine_ = 2;
       int   fracY_ = 0;
       bool  skippingLines_ = true;
       lineNumbers_[3] = -2;
@@ -832,14 +838,14 @@ namespace Ep128Emu {
           fracY_ += 576;
           while (fracY_ >= displayHeight_) {
             fracY_ -= displayHeight_;
-            curLine_ = (curLine_ < 575 ? (curLine_ + 1) : curLine_);
+            curLine_ = (curLine_ < 577 ? (curLine_ + 1) : curLine_);
           }
         }
         else {
           fracY_ += 288;
           while (fracY_ >= displayHeight_) {
             fracY_ -= displayHeight_;
-            curLine_ = (curLine_ < 573 ? (curLine_ + 2) : curLine_);
+            curLine_ = (curLine_ < 575 ? (curLine_ + 2) : curLine_);
           }
         }
       }

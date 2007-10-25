@@ -245,11 +245,11 @@ namespace Ep128Emu {
     // no texture filtering or effects
     for (size_t yc = 0; yc < 288; yc += 8) {
       for (size_t offs = 0; offs < 8; offs++) {
-        linesChanged[yc + offs] = false;
+        linesChanged[yc + offs + 1] = false;
         // decode video data
         const unsigned char *bufp = (unsigned char *) 0;
         size_t  nBytes = 0;
-        size_t  lineNum = (yc + offs) << 1;
+        size_t  lineNum = (yc + offs + 1) << 1;
         if (lineBuffers_[lineNum + 0] != (Message_LineData *) 0) {
           lineBuffers_[lineNum + 0]->getLineData(bufp, nBytes);
           decodeLine(curLine_, bufp, nBytes);
@@ -578,17 +578,17 @@ namespace Ep128Emu {
         // quality=0 with single buffered display is special case: only those
         // lines are updated that have changed since the last frame
         for (offs = 0; offs < 8; offs++) {
-          if (linesChanged[yc + offs])
+          if (linesChanged[yc + offs + 1])
             break;
         }
         if (offs == 8)
           continue;
         for (offs = 0; offs < 8; offs++) {
-          linesChanged[yc + offs] = false;
+          linesChanged[yc + offs + 1] = false;
           // decode video data
           const unsigned char *bufp = (unsigned char *) 0;
           size_t  nBytes = 0;
-          size_t  lineNum = (yc + offs) << 1;
+          size_t  lineNum = (yc + offs + 1) << 1;
           if (lineBuffers[lineNum + 0] != (Message_LineData *) 0) {
             lineBuffers[lineNum + 0]->getLineData(bufp, nBytes);
             decodeLine(curLine_, bufp, nBytes);
