@@ -137,10 +137,12 @@ namespace Ep128 {
     bool      singleStepModeEnabled;
     bool      singleStepModeStepOverFlag;
     int32_t   singleStepModeNextAddr;
-    int64_t   tapeSamplesPerDaveCycle;
+    int64_t   tapeSamplesPerNickCycle;
     int64_t   tapeSamplesRemaining;
+    bool      tapeCallbackFlag;
     bool      isRemote1On;
     bool      isRemote2On;
+    uint32_t  soundOutputSignal;
     Ep128Emu::File  *demoFile;
     // contains demo data, which is the emulator version number as a 32-bit
     // integer ((MAJOR << 16) + (MINOR << 8) + PATCHLEVEL), followed by a
@@ -174,6 +176,14 @@ namespace Ep128 {
     uint8_t   spectrumEmulatorIOPorts[4];
     uint8_t   cmosMemory[64];
     int64_t   prvRTCTime;
+    struct Ep128VMCallback {
+      void      (*func)(void *);
+      void      *userData;
+      Ep128VMCallback *nxt;
+    };
+    Ep128VMCallback   callbacks[16];
+    Ep128VMCallback   *firstCallback;
+    Ep128Emu::VideoCapture  *videoCapture;
     // ----------------
     void updateTimingParameters();
     inline void updateCPUCycles(int cycles);
@@ -196,12 +206,20 @@ namespace Ep128 {
     static uint8_t cmosMemoryIOReadCallback(void *userData, uint16_t addr);
     static void cmosMemoryIOWriteCallback(void *userData,
                                           uint16_t addr, uint8_t value);
+    static void tapeCallback(void *userData);
+    static void demoPlayCallback(void *userData);
+    static void demoRecordCallback(void *userData);
+    static void videoCaptureCallback(void *userData);
     void stopDemoPlayback();
     void stopDemoRecording(bool writeFile_);
     uint8_t checkSingleStepModeBreak();
     void spectrumEmulatorNMI_AttrWrite(uint32_t addr, uint8_t value);
     void updateRTC();
     void resetCMOSMemory();
+    // Set function to be called at every NICK cycle. The functions are called
+    // in the order of being registered; up to 16 callbacks can be set.
+    void setCallback(void (*func)(void *userData), void *userData_,
+                     bool isEnabled);
    public:
     Ep128VM(Ep128Emu::VideoDisplay&, Ep128Emu::AudioOutput&);
     virtual ~Ep128VM();

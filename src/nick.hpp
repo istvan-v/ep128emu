@@ -186,10 +186,13 @@ class x : public NickRenderer {                 \
     uint8_t   currentSlot;      // 0 to 56
     uint8_t   *lineBuf;         // 57 slots = 912 pixels
     uint8_t   *lineBufPtr;
+    uint8_t   *oldLineBufPtr;
     uint8_t   borderColor;
     uint8_t   dataBusState;
     bool      lptClockEnabled;
     bool      vsyncFlag;
+    // --------
+    void clearLineBuffer();
    protected:
     /*!
      * Called when the IRQ state changes, with a true parameter when the
@@ -233,6 +236,12 @@ class x : public NickRenderer {                 \
     void writePort(uint16_t portNum, uint8_t value);
     uint8_t readPortDebug(uint16_t portNum) const;
     void randomizeRegisters();
+    // returns a pointer to the video output generated in the last cycle
+    // (16 pixels); the format is the same as in the case of drawLine()
+    inline const uint8_t * getVideoOutput() const
+    {
+      return oldLineBufPtr;
+    }
     void runOneSlot();
     void saveState(Ep128Emu::File::Buffer&);
     void saveState(Ep128Emu::File&);

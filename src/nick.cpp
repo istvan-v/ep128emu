@@ -778,6 +778,7 @@ namespace Ep128 {
       currentSlot--;
       break;
     }
+    oldLineBufPtr = lineBufPtr;
     if (!currentRenderer) {
       *(lineBufPtr++) = 0x01;
       *(lineBufPtr++) = borderColor;
@@ -828,10 +829,8 @@ namespace Ep128 {
     vsyncFlag = false;
     try {
       uint32_t  *p = new uint32_t[129];     // for 513 bytes (57 * 9)
-      for (size_t i = 0; i < 129; i++)
-        p[i] = 0;
       lineBuf = reinterpret_cast<uint8_t *>(p);
-      lineBufPtr = lineBuf;
+      clearLineBuffer();
     }
     catch (...) {
       lineBuf = (uint8_t *) 0;
@@ -846,6 +845,19 @@ namespace Ep128 {
       delete[] reinterpret_cast<uint32_t *>(lineBuf);
       lineBuf = (uint8_t *) 0;
     }
+  }
+
+  void Nick::clearLineBuffer()
+  {
+    uint32_t  *p = reinterpret_cast<uint32_t *>(lineBuf);
+    for (int i = 0; i < 129; i++)
+      p[i] = 0U;
+    for (int i = 0; i < 114; i += 2) {
+      lineBuf[i] = 0x01;
+      lineBuf[i + 1] = borderColor;
+    }
+    lineBufPtr = lineBuf;
+    oldLineBufPtr = lineBuf;
   }
 
   void Nick::convertPixelToRGB(uint8_t pixelValue,
@@ -1059,14 +1071,9 @@ namespace Ep128 {
       currentSlot = uint8_t(buf.readByte() % 57U);
       borderColor = buf.readByte();
       dataBusState = buf.readByte();
-      lineBufPtr = lineBuf;
-      {
-        size_t  i = (currentSlot >= 7 ? (currentSlot - 7) : (currentSlot + 50));
-        while (i--) {
-          *(lineBufPtr++) = 0x01;
-          *(lineBufPtr++) = borderColor;
-        }
-      }
+      clearLineBuffer();
+      lineBufPtr = &(lineBuf[(currentSlot >= 7 ?
+                              (currentSlot - 7) : (currentSlot + 50)) << 1]);
       lptClockEnabled = buf.readBoolean();
       if (buf.getPosition() != buf.getDataSize())
         throw Ep128Emu::Exception("trailing garbage at end of "
@@ -1079,7 +1086,7 @@ namespace Ep128 {
       writePort(2, 0);
       writePort(3, 0);
       currentSlot = 0;
-      lineBufPtr = lineBuf;
+      clearLineBuffer();
       throw;
     }
   }

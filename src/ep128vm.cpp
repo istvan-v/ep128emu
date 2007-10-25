@@ -660,6 +660,7 @@ namespace Ep128 {
   {
     if (isPlayingDemo) {
       isPlayingDemo = false;
+      setCallback(&demoPlayCallback, this, false);
       demoTimeCnt = 0U;
       demoBuffer.clear();
       // clear keyboard state at end of playback
@@ -671,6 +672,7 @@ namespace Ep128 {
   void Ep128VM::stopDemoRecording(bool writeFile_)
   {
     isRecordingDemo = false;
+    setCallback(&demoRecordCallback, this, false);
     if (writeFile_ && demoFile != (Ep128Emu::File *) 0) {
       try {
         // put end of demo event
@@ -702,11 +704,11 @@ namespace Ep128 {
     daveCyclesPerNickCycle =
         (int64_t(daveFrequency) << 32) / int64_t(nickFrequency);
     if (haveTape()) {
-      tapeSamplesPerDaveCycle =
-          (int64_t(getTapeSampleRate()) << 32) / int64_t(daveFrequency);
+      tapeSamplesPerNickCycle =
+          (int64_t(getTapeSampleRate()) << 32) / int64_t(nickFrequency);
     }
     else
-      tapeSamplesPerDaveCycle = 0;
+      tapeSamplesPerNickCycle = 0;
     cpuCyclesRemaining = 0;
     cpuSyncToNickCnt = 0;
   }
@@ -934,6 +936,72 @@ namespace Ep128 {
     }
   }
 
+  void Ep128VM::tapeCallback(void *userData)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    vm.tapeSamplesRemaining += vm.tapeSamplesPerNickCycle;
+    if (vm.tapeSamplesRemaining > 0) {
+      // assume tape sample rate < nickFrequency
+      vm.tapeSamplesRemaining -= (int64_t(1) << 32);
+      int   daveTapeInput = vm.runTape(int(vm.soundOutputSignal & 0xFFFFU));
+      vm.dave.setTapeInput(daveTapeInput, daveTapeInput);
+    }
+  }
+
+  void Ep128VM::demoPlayCallback(void *userData)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    while (!vm.demoTimeCnt) {
+      if (vm.haveTape() &&
+          vm.getIsTapeMotorOn() && vm.getTapeButtonState() != 0) {
+        vm.stopDemoPlayback();
+      }
+      try {
+        uint8_t evtType = vm.demoBuffer.readByte();
+        uint8_t evtBytes = vm.demoBuffer.readByte();
+        uint8_t evtData = 0;
+        while (evtBytes) {
+          evtData = vm.demoBuffer.readByte();
+          evtBytes--;
+        }
+        switch (evtType) {
+        case 0x00:
+          vm.stopDemoPlayback();
+          break;
+        case 0x01:
+          vm.dave.setKeyboardState(evtData, 1);
+          break;
+        case 0x02:
+          vm.dave.setKeyboardState(evtData, 0);
+          break;
+        }
+        vm.demoTimeCnt = readDemoTimeCnt(vm.demoBuffer);
+      }
+      catch (...) {
+        vm.stopDemoPlayback();
+      }
+      if (!vm.isPlayingDemo) {
+        vm.demoBuffer.clear();
+        vm.demoTimeCnt = 0U;
+        break;
+      }
+    }
+    if (vm.demoTimeCnt)
+      vm.demoTimeCnt--;
+  }
+
+  void Ep128VM::demoRecordCallback(void *userData)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    vm.demoTimeCnt++;
+  }
+
+  void Ep128VM::videoCaptureCallback(void *userData)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+
+  }
+
   uint8_t Ep128VM::checkSingleStepModeBreak()
   {
     uint16_t  addr = z80.getReg().PC.W.l;
@@ -1057,6 +1125,69 @@ namespace Ep128 {
     prvRTCTime = int64_t(-1);
   }
 
+  void Ep128VM::setCallback(void (*func)(void *userData), void *userData_,
+                            bool isEnabled)
+  {
+    if (!func)
+      return;
+    const size_t  maxCallbacks = sizeof(callbacks) / sizeof(Ep128VMCallback);
+    int     ndx = -1;
+    for (size_t i = 0; i < maxCallbacks; i++) {
+      if (callbacks[i].func == func && callbacks[i].userData == userData_) {
+        ndx = int(i);
+        break;
+      }
+    }
+    if (ndx >= 0) {
+      Ep128VMCallback   *prv = (Ep128VMCallback *) 0;
+      Ep128VMCallback   *p = firstCallback;
+      while (p) {
+        if (p == &(callbacks[ndx])) {
+          if (prv)
+            prv->nxt = p->nxt;
+          else
+            firstCallback = p->nxt;
+          break;
+        }
+        prv = p;
+        p = p->nxt;
+      }
+      if (!isEnabled) {
+        callbacks[ndx].func = (void (*)(void *)) 0;
+        callbacks[ndx].userData = (void *) 0;
+        callbacks[ndx].nxt = (Ep128VMCallback *) 0;
+      }
+    }
+    if (!isEnabled)
+      return;
+    if (ndx < 0) {
+      for (size_t i = 0; i < maxCallbacks; i++) {
+        if (callbacks[i].func == (void (*)(void *)) 0) {
+          ndx = int(i);
+          break;
+        }
+      }
+      if (ndx < 0)
+        throw Ep128Emu::Exception("Ep128VM: too many callbacks");
+    }
+    callbacks[ndx].func = func;
+    callbacks[ndx].userData = userData_;
+    callbacks[ndx].nxt = (Ep128VMCallback *) 0;
+    if (isEnabled) {
+      Ep128VMCallback   *prv = (Ep128VMCallback *) 0;
+      Ep128VMCallback   *p = firstCallback;
+      while (p) {
+        prv = p;
+        p = p->nxt;
+      }
+      p = &(callbacks[ndx]);
+      if (prv)
+        prv->nxt = p;
+      else
+        firstCallback = p;
+    }
+  }
+
   // --------------------------------------------------------------------------
 
   Ep128VM::Ep128VM(Ep128Emu::VideoDisplay& display_,
@@ -1081,10 +1212,12 @@ namespace Ep128 {
       singleStepModeEnabled(false),
       singleStepModeStepOverFlag(false),
       singleStepModeNextAddr(int32_t(-1)),
-      tapeSamplesPerDaveCycle(0),
+      tapeSamplesPerNickCycle(0),
       tapeSamplesRemaining(0),
+      tapeCallbackFlag(false),
       isRemote1On(false),
       isRemote2On(false),
+      soundOutputSignal(0U),
       demoFile((Ep128Emu::File *) 0),
       demoBuffer(),
       isRecordingDemo(false),
@@ -1095,8 +1228,15 @@ namespace Ep128 {
       breakPointPriorityThreshold(0),
       cmosMemoryRegisterSelect(0xFF),
       spectrumEmulatorEnabled(false),
-      prvRTCTime(int64_t(-1))
+      prvRTCTime(int64_t(-1)),
+      firstCallback((Ep128VMCallback *) 0),
+      videoCapture((Ep128Emu::VideoCapture *) 0)
   {
+    for (size_t i = 0; i < (sizeof(callbacks) / sizeof(Ep128VMCallback)); i++) {
+      callbacks[i].func = (void (*)(void *)) 0;
+      callbacks[i].userData = (void *) 0;
+      callbacks[i].nxt = (Ep128VMCallback *) 0;
+    }
     for (size_t i = 0; i < 4; i++) {
       pageTable[i] = 0x00;
       spectrumEmulatorIOPorts[i] = 0xFF;
@@ -1193,61 +1333,29 @@ namespace Ep128 {
           dave.setKeyboardState(i, 0);
       }
     }
+    bool    newTapeCallbackFlag =
+        (haveTape() && getIsTapeMotorOn() && getTapeButtonState() != 0);
+    if (newTapeCallbackFlag != tapeCallbackFlag) {
+      tapeCallbackFlag = newTapeCallbackFlag;
+      if (!tapeCallbackFlag)
+        dave.setTapeInput(0, 0);
+      setCallback(&tapeCallback, this, tapeCallbackFlag);
+    }
     nickCyclesRemaining +=
         ((int64_t(microseconds) << 26) * int64_t(nickFrequency)
          / int64_t(15625));     // 10^6 / 2^6
     while (nickCyclesRemaining > 0) {
-      if (isPlayingDemo) {
-        while (!demoTimeCnt) {
-          if (haveTape() && getIsTapeMotorOn() && getTapeButtonState() != 0)
-            stopDemoPlayback();
-          try {
-            uint8_t evtType = demoBuffer.readByte();
-            uint8_t evtBytes = demoBuffer.readByte();
-            uint8_t evtData = 0;
-            while (evtBytes) {
-              evtData = demoBuffer.readByte();
-              evtBytes--;
-            }
-            switch (evtType) {
-            case 0x00:
-              stopDemoPlayback();
-              break;
-            case 0x01:
-              dave.setKeyboardState(evtData, 1);
-              break;
-            case 0x02:
-              dave.setKeyboardState(evtData, 0);
-              break;
-            }
-            demoTimeCnt = readDemoTimeCnt(demoBuffer);
-          }
-          catch (...) {
-            stopDemoPlayback();
-          }
-          if (!isPlayingDemo) {
-            demoBuffer.clear();
-            demoTimeCnt = 0U;
-            break;
-          }
-        }
-        if (demoTimeCnt)
-          demoTimeCnt--;
+      Ep128VMCallback   *p = firstCallback;
+      while (p) {
+        Ep128VMCallback *nxt = p->nxt;
+        p->func(p->userData);
+        p = nxt;
       }
       daveCyclesRemaining += daveCyclesPerNickCycle;
       while (daveCyclesRemaining > 0) {
         daveCyclesRemaining -= (int64_t(1) << 32);
-        uint32_t  tmp = dave.runOneCycle();
-        sendAudioOutput(tmp);
-        if (haveTape()) {
-          tapeSamplesRemaining += tapeSamplesPerDaveCycle;
-          if (tapeSamplesRemaining > 0) {
-            // assume tape sample rate < daveFrequency
-            tapeSamplesRemaining -= (int64_t(1) << 32);
-            int   daveTapeInput = runTape(int(tmp & 0xFFFFU));
-            dave.setTapeInput(daveTapeInput, daveTapeInput);
-          }
-        }
+        soundOutputSignal = dave.runOneCycle();
+        sendAudioOutput(soundOutputSignal);
       }
       cpuCyclesRemaining += cpuCyclesPerNickCycle;
       cpuSyncToNickCnt += cpuCyclesPerNickCycle;
@@ -1255,8 +1363,6 @@ namespace Ep128 {
         z80.executeInstruction();
       nick.runOneSlot();
       nickCyclesRemaining -= (int64_t(1) << 32);
-      if (isRecordingDemo)
-        demoTimeCnt++;
     }
   }
 
@@ -1494,8 +1600,8 @@ namespace Ep128 {
     Ep128Emu::VirtualMachine::setTapeFileName(fileName);
     setTapeMotorState(isRemote1On || isRemote2On);
     if (haveTape()) {
-      tapeSamplesPerDaveCycle =
-          (int64_t(getTapeSampleRate()) << 32) / int64_t(daveFrequency);
+      tapeSamplesPerNickCycle =
+          (int64_t(getTapeSampleRate()) << 32) / int64_t(nickFrequency);
     }
     tapeSamplesRemaining = 0;
   }
@@ -1750,6 +1856,7 @@ namespace Ep128 {
     demoBuffer.writeUInt32(0x00020004); // version 2.0.4
     demoFile = &f;
     isRecordingDemo = true;
+    setCallback(&demoRecordCallback, this, true);
     demoTimeCnt = 0U;
   }
 
@@ -1916,6 +2023,7 @@ namespace Ep128 {
     // initialize time counter with first delta time
     demoTimeCnt = readDemoTimeCnt(buf);
     isPlayingDemo = true;
+    setCallback(&demoPlayCallback, this, true);
     // copy any remaining demo data to local buffer
     demoBuffer.clear();
     demoBuffer.writeData(buf.getData() + buf.getPosition(),
