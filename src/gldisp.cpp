@@ -157,11 +157,14 @@ namespace Ep128Emu {
 
   uint16_t OpenGLDisplay::Colormap::pixelConv(double r, double g, double b)
   {
-    unsigned int  ri, gi, bi;
-    ri = (r > 0.0 ? (r < 1.0 ? (unsigned int) (r * 31.0 + 0.5) : 31U) : 0U);
-    gi = (g > 0.0 ? (g < 1.0 ? (unsigned int) (g * 63.0 + 0.5) : 63U) : 0U);
-    bi = (b > 0.0 ? (b < 1.0 ? (unsigned int) (b * 31.0 + 0.5) : 31U) : 0U);
-    return uint16_t((ri << 11) + (gi << 5) + bi);
+    int ri = int(r >= 0.0f ? (r < 1.0f ? (r * 248.0f + 4.0f) : 252.0f) : 4.0f);
+    int gi = int(g >= 0.0f ? (g < 1.0f ? (g * 504.0f + 4.0f) : 508.0f) : 4.0f);
+    int bi = int(b >= 0.0f ? (b < 1.0f ? (b * 248.0f + 4.0f) : 252.0f) : 4.0f);
+    if (((ri | bi) & 7) < 2 && (gi & 7) >= 6)
+      gi = gi + 4;
+    if (((ri & bi) & 7) >= 6 && (gi & 7) < 2)
+      gi = gi - 4;
+    return uint16_t(((ri & 0x00F8) << 8) | ((gi & 0x01F8) << 2) | (bi >> 3));
   }
 
   // --------------------------------------------------------------------------
