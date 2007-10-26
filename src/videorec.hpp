@@ -39,11 +39,11 @@ namespace Ep128Emu {
      public:
       AudioConverter_(VideoCapture& videoCapture_,
                       float inputSampleRate_, float outputSampleRate_,
-                      float dcBlockFreq1 = 5.0f, float dcBlockFreq2 = 15.0f,
-                      float ampScale_ = 0.7943f);
+                      float dcBlockFreq1 = 10.0f, float dcBlockFreq2 = 10.0f,
+                      float ampScale_ = 0.7071f);
       virtual ~AudioConverter_();
      protected:
-      virtual void audioOutput(int16_t outputSignal_);
+      virtual void audioOutput(int16_t left, int16_t right);
     };
     std::FILE   *aviFile;
     uint8_t     *lineBuf;               // 720 bytes
@@ -59,7 +59,7 @@ namespace Ep128Emu {
     uint8_t     *outBufY;               // 384x288
     uint8_t     *outBufV;               // 192x144
     uint8_t     *outBufU;               // 192x144
-    int16_t     *audioBuf;              // 8 * (sampleRate / frameRate) samples
+    int16_t     *audioBuf;              // 8 * (sampleRate / frameRate) frames
     uint8_t     *duplicateFrameBitmap;
     int         frameRate;              // video frames per second
     int         audioBufSize;           // = (sampleRate / frameRate)
@@ -71,37 +71,20 @@ namespace Ep128Emu {
     int64_t     curTime;
     int64_t     frame0Time;
     int64_t     frame1Time;
-    int32_t     soundOutputAccumulator;
+    uint32_t    soundOutputAccumulatorL;
+    uint32_t    soundOutputAccumulatorR;
     int         cycleCnt;
     int32_t     interpTime;
     int         curLine;
     int         vsyncCnt;
+    int         hsyncCnt;
     bool        oddFrame;
-    uint8_t     burstValue;
-    unsigned int  syncLengthCnt;
-    unsigned int  hsyncCnt;
-    unsigned int  hsyncPeriodLength;
-    unsigned int  lineLengthCnt;
-    unsigned int  lineLength;
-    unsigned int  lineStart;
-    unsigned int  hsyncPeriodMin;
-    unsigned int  hsyncPeriodMax;
-    unsigned int  lineLengthMin;
-    unsigned int  lineLengthMax;
-    float       lineLengthFilter;
-    int         vsyncThreshold1;
-    int         vsyncThreshold2;
-    int         vsyncReload;
-    int         lineReload;
     size_t      lineBufBytes;
-    size_t      lineBufLength;
-    uint8_t     lineBufFlags;
     size_t      framesWritten;
     size_t      duplicateFrames;
     size_t      fileSize;
-    VideoDisplay::DisplayParameters displayParameters;
-    AudioConverter                  *audioConverter;
-    VideoDisplayColormap<uint32_t>  colormap;
+    AudioConverter  *audioConverter;
+    uint32_t    *colormap;
     void        (*errorCallback)(void *userData, const char *msg);
     void        *errorCallbackUserData;
     void        (*fileNameCallback)(void *userData, std::string& fileName);
@@ -122,14 +105,15 @@ namespace Ep128Emu {
     static void defaultErrorCallback(void *userData, const char *msg);
     static void defaultFileNameCallback(void *userData, std::string& fileName);
    public:
-    VideoCapture(void indexToYUVFunc(uint8_t color, bool isNTSC,
-                                     float& y, float& u, float& v) =
-                     (void (*)(uint8_t, bool, float&, float&, float&)) 0,
+    VideoCapture(void indexToRGBFunc(uint8_t color,
+                                     float& r, float& g, float& b) =
+                     (void (*)(uint8_t, float&, float&, float&)) 0,
                  int frameRate_ = 30);
     virtual ~VideoCapture();
-    void runOneCycle(const uint8_t *videoInput, int16_t audioInput);
+    void runOneCycle(const uint8_t *videoInput, uint32_t audioInput);
+    void horizontalSync();
+    void vsyncStateChange(bool newState, unsigned int currentSlot_);
     void setClockFrequency(size_t freq_);
-    void setNTSCMode(bool ntscMode);
     void openFile(const char *fileName);
     void setErrorCallback(void (*func)(void *userData, const char *msg),
                           void *userData_);

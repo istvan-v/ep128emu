@@ -28,6 +28,7 @@
 #include "vm.hpp"
 #include "ep128vm.hpp"
 #include "z80/disasm.hpp"
+#include "videorec.hpp"
 
 #include <cstdio>
 #include <vector>

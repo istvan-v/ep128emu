@@ -44,15 +44,20 @@ namespace Ep128Emu {
   {
   }
 
-  void VideoCapture::AudioConverter_::audioOutput(int16_t outputSignal_)
+  void VideoCapture::AudioConverter_::audioOutput(int16_t left, int16_t right)
   {
-    if (videoCapture.audioBufSamples
-        < (videoCapture.audioBufSize * videoCapture.audioBuffers)) {
-      videoCapture.audioBuf[videoCapture.audioBufWritePos++] = outputSignal_;
-      if (videoCapture.audioBufWritePos
-          >= (videoCapture.audioBufSize * videoCapture.audioBuffers)) {
+    const int   totalBufSize =
+        videoCapture.audioBufSize * videoCapture.audioBuffers * 2;
+    if (videoCapture.audioBufSamples < totalBufSize) {
+      videoCapture.audioBuf[videoCapture.audioBufWritePos++] = left;
+      if (videoCapture.audioBufWritePos >= totalBufSize)
         videoCapture.audioBufWritePos = 0;
-      }
+      videoCapture.audioBufSamples++;
+    }
+    if (videoCapture.audioBufSamples < totalBufSize) {
+      videoCapture.audioBuf[videoCapture.audioBufWritePos++] = right;
+      if (videoCapture.audioBufWritePos >= totalBufSize)
+        videoCapture.audioBufWritePos = 0;
       videoCapture.audioBufSamples++;
     }
   }
@@ -73,8 +78,7 @@ namespace Ep128Emu {
   // --------------------------------------------------------------------------
 
   VideoCapture::VideoCapture(
-      void (*indexToYUVFunc)(uint8_t color, bool isNTSC,
-                             float& y, float& u, float& v),
+      void (*indexToRGBFunc)(uint8_t color, float& r, float& g, float& b),
       int frameRate_)
     : aviFile((std::FILE *) 0),
       lineBuf((uint8_t *) 0),
@@ -102,37 +106,20 @@ namespace Ep128Emu {
       curTime(0L),
       frame0Time(-1L),
       frame1Time(0L),
-      soundOutputAccumulator(0),
+      soundOutputAccumulatorL(0U),
+      soundOutputAccumulatorR(0U),
       cycleCnt(0),
       interpTime(0),
       curLine(0),
       vsyncCnt(0),
+      hsyncCnt(0),
       oddFrame(false),
-      burstValue(0x08),
-      syncLengthCnt(0U),
-      hsyncCnt(0U),
-      hsyncPeriodLength(570U),
-      lineLengthCnt(0U),
-      lineLength(570U),
-      lineStart(80U),
-      hsyncPeriodMin(494U),
-      hsyncPeriodMax(646U),
-      lineLengthMin(513U),
-      lineLengthMax(627U),
-      lineLengthFilter(570.0f),
-      vsyncThreshold1(338),
-      vsyncThreshold2(264),
-      vsyncReload(-16),
-      lineReload(-6),
       lineBufBytes(0),
-      lineBufLength(0),
-      lineBufFlags(0x00),
       framesWritten(0),
       duplicateFrames(0),
       fileSize(0),
-      displayParameters(),
       audioConverter((AudioConverter *) 0),
-      colormap(),
+      colormap((uint32_t *) 0),
       errorCallback(&defaultErrorCallback),
       errorCallbackUserData((void *) this),
       fileNameCallback(&defaultFileNameCallback),
@@ -193,31 +180,36 @@ namespace Ep128Emu {
       totalSize += bufSize4;
       outBufU = reinterpret_cast<uint8_t *>(&(videoBuf[totalSize]));
       std::memset(outBufU, 0x80, bufSize3);
-      audioBuf = new int16_t[audioBufSize * audioBuffers];
-      for (int i = 0; i < (audioBufSize * audioBuffers); i++)
+      audioBuf = new int16_t[audioBufSize * audioBuffers * 2];
+      for (int i = 0; i < (audioBufSize * audioBuffers * 2); i++)
         audioBuf[i] = int16_t(0);
       size_t  nBytes = 0x08000000 / size_t(audioBufSize);
       duplicateFrameBitmap = new uint8_t[nBytes];
       std::memset(duplicateFrameBitmap, 0x00, nBytes);
-      if (indexToYUVFunc)
-        displayParameters.indexToYUVFunc = indexToYUVFunc;
-      // scale video signal to YCrCb range
-      displayParameters.brightness = -1.5f / 255.0f;
-      displayParameters.contrast = 220.0f / 255.0f;
-      displayParameters.saturation = 224.0f / 220.0f;
-      colormap.setDisplayParameters(displayParameters, true);
-      // change pixel format for more efficient processing
-      uint32_t  *p = colormap.getFirstEntry();
-      while (p) {
-        uint32_t  tmp = *p;
-        tmp = ((tmp & 0x00FF0000U) << 4) | ((tmp & 0x0000FF00U) << 2)
-              | (tmp & 0x000000FFU);
-        if (!(tmp & 0x000000F0U))
-          tmp = (tmp & 0x0FF3FC00U) | 0x00000010U;
-        (*p) = tmp;
-        p = colormap.getNextEntry(p);
-      }
       audioConverter = new AudioConverter_(*this, 221681.0f, float(sampleRate));
+      // initialize colormap
+      colormap = new uint32_t[256];
+      for (int i = 0; i < 256; i++) {
+        float   r = float(i) / 255.0f;
+        float   g = r;
+        float   b = r;
+        if (indexToRGBFunc)
+          indexToRGBFunc(uint8_t(i), r, g, b);
+        float   y = (0.299f * r) + (0.587f * g) + (0.114f * b);
+        float   u = 0.492f * (b - y);
+        float   v = 0.877f * (r - y);
+        // scale video signal to YCrCb range
+        y = 16.0f + (y * 219.5f);
+        u = 128.0f + (u * (111.5f / (0.886f * 0.492f)));
+        v = 128.0f + (v * (111.5f / (0.701f * 0.877f)));
+        y = (y > 16.0f ? (y < 235.0f ? y : 235.0f) : 16.0f);
+        u = (u > 16.0f ? (u < 239.0f ? u : 239.0f) : 16.0f);
+        v = (v > 16.0f ? (v < 239.0f ? v : 239.0f) : 16.0f);
+        // change pixel format for more efficient processing
+        colormap[i] = uint32_t(int32_t(y + 0.5f)
+                               | (int32_t(u + 0.5f) << 10)
+                               | (int32_t(v + 0.5f) << 20));
+      }
     }
     catch (...) {
       if (lineBuf)
@@ -228,6 +220,8 @@ namespace Ep128Emu {
         delete[] duplicateFrameBitmap;
       if (audioConverter)
         delete audioConverter;
+      if (colormap)
+        delete[] colormap;
       throw;
     }
     setClockFrequency(1773448);
@@ -240,148 +234,46 @@ namespace Ep128Emu {
     delete[] audioBuf;
     delete[] duplicateFrameBitmap;
     delete audioConverter;
+    delete[] colormap;
   }
 
-  void VideoCapture::runOneCycle(const uint8_t *videoInput, int16_t audioInput)
+  void VideoCapture::runOneCycle(const uint8_t *videoInput, uint32_t audioInput)
   {
-    soundOutputAccumulator += int32_t(audioInput);
-    if (++cycleCnt >= 8) {
+    soundOutputAccumulatorL += uint32_t(audioInput & 0xFFFFU);
+    soundOutputAccumulatorR += uint32_t(audioInput >> 16);
+    if (++cycleCnt >= 4) {
       cycleCnt = 0;
-      int32_t tmp = ((soundOutputAccumulator + 262148) >> 3) - 32768;
-      soundOutputAccumulator = 0;
-      audioConverter->sendInputSignal(tmp);
+      uint32_t  tmpL = (soundOutputAccumulatorL + 2U) >> 2;
+      uint32_t  tmpR = (soundOutputAccumulatorR + 2U) >> 2;
+      soundOutputAccumulatorL = 0U;
+      soundOutputAccumulatorR = 0U;
+      audioConverter->sendInputSignal(tmpL | (tmpR << 16));
     }
     uint8_t   c = videoInput[0];
-    if (c & 0x80) {                                     // sync
-      if (syncLengthCnt == 0U) {                        // hsync start
-        while (hsyncCnt >= hsyncPeriodMax) {
-          hsyncCnt -= hsyncPeriodLength;
-          hsyncPeriodLength = (hsyncPeriodLength * 3U + hsyncPeriodMax) >> 2;
-        }
-        if (hsyncCnt >= hsyncPeriodMin) {
-          hsyncPeriodLength = hsyncCnt;
-          hsyncCnt = 0U;
-        }
-      }
-      syncLengthCnt++;
-      if (syncLengthCnt >= 26U) {                       // vsync
-        if (vsyncCnt >= vsyncThreshold2) {
-          vsyncCnt = vsyncReload;
-          oddFrame = ((lineLengthCnt + 6U) > (lineLength >> 1));
-        }
-      }
-    }
-    else
-      syncLengthCnt = 0U;
-    lineBufFlags |= uint8_t(0x80 - ((c ^ burstValue) & 0x09));
-    unsigned int  l = ((unsigned int) c & 0x01U) ^ 0x05U;
-    if (lineLengthCnt < lineStart) {
-      lineBufLength = lineLengthCnt + l;
-    }
-    else if (lineLengthCnt < lineLength) {
-      size_t  nBytes = size_t((1 << (c & 0x02)) + 1);
-      std::memcpy(&(lineBuf[lineBufBytes]), videoInput, nBytes);
-      lineBufBytes += nBytes;
-    }
-    else {
-      lineBufLength = size_t(lineLengthCnt) - lineBufLength;
+    lineBuf[lineBufBytes++] = c;
+    for (uint8_t i = 0; i < c; i++)
+      lineBuf[lineBufBytes++] = videoInput[i + 1];
+    if (++hsyncCnt >= 56)
       lineDone();
-    }
-    lineLengthCnt = lineLengthCnt + l;
-    hsyncCnt = hsyncCnt + l;
     curTime += timesliceLength;
   }
 
   void VideoCapture::setClockFrequency(size_t freq_)
   {
-    freq_ = (freq_ + 4) & (~(size_t(7)));
     if (freq_ == clockFrequency)
       return;
     clockFrequency = freq_;
     timesliceLength = (int64_t(1000000) << 32) / int64_t(freq_);
-    audioConverter->setInputSampleRate(float(long(freq_ >> 3)));
-  }
-
-  void VideoCapture::setNTSCMode(bool ntscMode)
-  {
-    if (ntscMode != displayParameters.ntscMode) {
-      lineBufBytes = 0;
-      lineBufLength = 0;
-      lineBufFlags = 0x00;
-      if (!ntscMode) {
-        burstValue = 0x08;
-        syncLengthCnt = 0U;
-        hsyncCnt = 0U;
-        hsyncPeriodLength = 570U;
-        lineLengthCnt = 0U;
-        lineLength = 570U;
-        lineStart = 80U;
-        hsyncPeriodMin = 494U;
-        hsyncPeriodMax = 646U;
-        lineLengthMin = 513U;
-        lineLengthMax = 627U;
-        lineLengthFilter = 570.0f;
-        vsyncThreshold1 = 338;
-        vsyncThreshold2 = 264;
-        vsyncReload = -16;
-        lineReload = -6;
-      }
-      else {
-        burstValue = 0x09;
-        syncLengthCnt = 0U;
-        hsyncCnt = 0U;
-        hsyncPeriodLength = 456U;
-        lineLengthCnt = 0U;
-        lineLength = 456U;
-        lineStart = 64U;
-        hsyncPeriodMin = 380U;
-        hsyncPeriodMax = 532U;
-        lineLengthMin = 399U;
-        lineLengthMax = 513U;
-        lineLengthFilter = 456.0f;
-        vsyncThreshold1 = 292;
-        vsyncThreshold2 = 242;
-        vsyncReload = 0;
-        lineReload = 12;
-      }
-      displayParameters.ntscMode = ntscMode;
-    }
+    audioConverter->setInputSampleRate(float(long(freq_)) * 0.25f);
   }
 
   void VideoCapture::lineDone()
   {
-    lineLengthCnt = lineLengthCnt - lineLength;
-    while (hsyncCnt >= hsyncPeriodMax) {
-      hsyncCnt -= hsyncPeriodLength;
-      hsyncPeriodLength = (hsyncPeriodLength * 3U + hsyncPeriodMax) >> 2;
-    }
-    lineLengthFilter =
-        (lineLengthFilter * 0.9f) + (float(int(hsyncPeriodLength)) * 0.1f);
-    lineLength = (unsigned int) (int(lineLengthFilter + 0.5f));
-    if (lineLengthCnt != hsyncCnt) {
-      int     hsyncPhaseError = int(lineLengthCnt) - int(hsyncCnt);
-      if (hsyncPhaseError >= int(hsyncPeriodLength >> 1))
-        hsyncPhaseError -= int(hsyncPeriodLength);
-      if (hsyncPhaseError <= -(int(hsyncPeriodLength >> 1)))
-        hsyncPhaseError += int(hsyncPeriodLength);
-      unsigned int  tmp = (unsigned int) (hsyncPhaseError >= 0 ?
-                                          hsyncPhaseError : (-hsyncPhaseError));
-      tmp = (tmp + 6U) >> 2;
-      tmp = (tmp < 10U ? tmp : 10U);
-      if (hsyncPhaseError >= 0)
-        lineLength += tmp;
-      else
-        lineLength -= tmp;
-      if (lineLength > lineLengthMax)
-        lineLength = lineLengthMax;
-      else if (lineLength < lineLengthMin)
-        lineLength = lineLengthMin;
-    }
+
     if (curLine >= 2 && curLine < 578)
       decodeLine();
+    hsyncCnt = 0;
     lineBufBytes = 0;
-    lineBufLength = 0;
-    lineBufFlags = 0x00;
     curLine += 2;
     if (vsyncCnt >= vsyncThreshold1) {
       vsyncCnt = vsyncReload;
@@ -399,97 +291,497 @@ namespace Ep128Emu {
     int       lineNum = curLine - 2;
     if (lineNum < 0 || lineNum >= 576)
       return;
+
     lineNum = lineNum >> 1;
-    int       xc = 0;
-    size_t    bufPos = 0;
-    uint8_t   videoFlags = uint8_t(((lineNum & 1) << 1)
-                                   | ((lineBufFlags & 0x80) >> 2));
-    size_t    pixelSample2 = lineBufLength;
-    if (displayParameters.ntscMode)
-      videoFlags = videoFlags | 0x10;
-    uint32_t  tmpBuf2[512];
-    if (pixelSample2 == (displayParameters.ntscMode ? 392 : 490) &&
-        !(lineBufFlags & 0x01)) {
-      // faster code for the case when resampling is not needed
-      do {
-        size_t  n = colormap.convertFourPixels(&(tmpBuf2[xc]),
-                                               &(lineBuf[bufPos]),
-                                               videoFlags);
-        bufPos = bufPos + n;
-        xc = xc + 4;
-      } while (xc < videoWidth);
-    }
-    else {
-      // need to resample video signal
-      uint32_t  tmpBuf[4];
-      size_t    pixelSample1 = 980;
-      size_t    pixelSampleCnt = 0;
-      uint8_t   readPos = 4;
-      do {
-        if (readPos >= 4) {
-          readPos = readPos & 3;
-          if (bufPos >= lineBufBytes)
-            break;
-          pixelSample1 = ((lineBuf[bufPos] & 0x01) ? 784 : 980);
-          size_t  n = colormap.convertFourPixels(&(tmpBuf[0]),
-                                                 &(lineBuf[bufPos]),
-                                                 videoFlags);
-          bufPos += n;
-        }
-        uint32_t  pixel0 = tmpBuf[readPos];
-        pixelSampleCnt += pixelSample2;
-        if (pixelSampleCnt >= pixelSample1) {
-          pixelSampleCnt -= pixelSample1;
-          if (++readPos >= 4) {
-            readPos = readPos & 3;
-            if (bufPos >= lineBufBytes)
-              break;
-            pixelSample1 = ((lineBuf[bufPos] & 0x01) ? 784 : 980);
-            size_t  n = colormap.convertFourPixels(&(tmpBuf[0]),
-                                                   &(lineBuf[bufPos]),
-                                                   videoFlags);
-            bufPos += n;
-          }
-        }
-        uint32_t  pixel1 = tmpBuf[readPos];
-        pixelSampleCnt += pixelSample2;
-        if (pixelSampleCnt >= pixelSample1) {
-          pixelSampleCnt -= pixelSample1;
-          readPos++;
-        }
-        // average two pixels for improved quality
-        tmpBuf2[xc++] = ((pixel0 + pixel1 + 0x00100401U) >> 1) & 0x0FF3FCFFU;
-      } while (xc < videoWidth);
-      for ( ; xc < videoWidth; xc++)
-        tmpBuf2[xc] = 0x08020010U;
-    }
     int       offs = lineNum * videoWidth;
     uint8_t   *yPtr = &(frameBuf1Y[offs]);
     offs = (lineNum >> 1) * (videoWidth >> 1);
     uint8_t   *vPtr = &(frameBuf1V[offs]);
     uint8_t   *uPtr = &(frameBuf1U[offs]);
+    const uint8_t   *bufp = lineBuf;
+
     if (!(lineNum & 1)) {
-      for (xc = 0; xc < videoWidth; xc += 2) {
-        uint32_t  pixel0 = tmpBuf2[xc + 0];
-        uint32_t  pixel1 = tmpBuf2[xc + 1];
-        yPtr[xc + 0] = uint8_t(pixel0 & 0xFFU);
-        yPtr[xc + 1] = uint8_t(pixel1 & 0xFFU);
-        pixel0 = pixel0 + pixel1 + 0x00100400U;
-        vPtr[xc >> 1] = uint8_t((pixel0 >> 21) & 0xFFU);
-        uPtr[xc >> 1] = uint8_t((pixel0 >> 11) & 0xFFU);
+      for (size_t i = 0; i < 48; i++) {
+        uint8_t c = *(bufp++);
+        switch (c) {
+        case 0x01:
+          {
+            uint32_t  tmp = colormap[*(bufp++)];
+            yPtr[7] = yPtr[6] = yPtr[5] = yPtr[4] =
+            yPtr[3] = yPtr[2] = yPtr[1] = yPtr[0] = uint8_t(tmp & 0xFFU);
+            vPtr[3] = vPtr[2] = vPtr[1] = vPtr[0] =
+                uint8_t((tmp >> 20) & 0xFFU);
+            uPtr[3] = uPtr[2] = uPtr[1] = uPtr[0] =
+                uint8_t((tmp >> 10) & 0xFFU);
+          }
+          break;
+        case 0x02:
+          {
+            uint32_t  tmp = colormap[*(bufp++)];
+            yPtr[3] = yPtr[2] = yPtr[1] = yPtr[0] = uint8_t(tmp & 0xFFU);
+            vPtr[1] = vPtr[0] = uint8_t((tmp >> 20) & 0xFFU);
+            uPtr[1] = uPtr[0] = uint8_t((tmp >> 10) & 0xFFU);
+            tmp = colormap[*(bufp++)];
+            yPtr[7] = yPtr[6] = yPtr[5] = yPtr[4] = uint8_t(tmp & 0xFFU);
+            vPtr[3] = vPtr[2] = uint8_t((tmp >> 20) & 0xFFU);
+            uPtr[3] = uPtr[2] = uint8_t((tmp >> 10) & 0xFFU);
+          }
+          break;
+        case 0x03:
+          {
+            unsigned char c0 = *(bufp++);
+            unsigned char c1 = *(bufp++);
+            unsigned char b = *(bufp++);
+            uint32_t  p0 = colormap[((b & 128) ? c1 : c0)];
+            uint32_t  p1 = colormap[((b &  64) ? c1 : c0)];
+            yPtr[0] = uint8_t(p0 & 0xFFU);
+            yPtr[1] = uint8_t(p1 & 0xFFU);
+            p0 = (p0 + p1) + 0x00100400U;
+            vPtr[0] = uint8_t((p0 >> 21) & 0xFFU);
+            uPtr[0] = uint8_t((p0 >> 11) & 0xFFU);
+            p0 = colormap[((b &  32) ? c1 : c0)];
+            p1 = colormap[((b &  16) ? c1 : c0)];
+            yPtr[2] = uint8_t(p0 & 0xFFU);
+            yPtr[3] = uint8_t(p1 & 0xFFU);
+            p0 = (p0 + p1) + 0x00100400U;
+            vPtr[1] = uint8_t((p0 >> 21) & 0xFFU);
+            uPtr[1] = uint8_t((p0 >> 11) & 0xFFU);
+            p0 = colormap[((b &   8) ? c1 : c0)];
+            p1 = colormap[((b &   4) ? c1 : c0)];
+            yPtr[4] = uint8_t(p0 & 0xFFU);
+            yPtr[5] = uint8_t(p1 & 0xFFU);
+            p0 = (p0 + p1) + 0x00100400U;
+            vPtr[2] = uint8_t((p0 >> 21) & 0xFFU);
+            uPtr[2] = uint8_t((p0 >> 11) & 0xFFU);
+            p0 = colormap[((b &   2) ? c1 : c0)];
+            p1 = colormap[((b &   1) ? c1 : c0)];
+            yPtr[6] = uint8_t(p0 & 0xFFU);
+            yPtr[7] = uint8_t(p1 & 0xFFU);
+            p0 = (p0 + p1) + 0x00100400U;
+            vPtr[3] = uint8_t((p0 >> 21) & 0xFFU);
+            uPtr[3] = uint8_t((p0 >> 11) & 0xFFU);
+          }
+          break;
+        case 0x04:
+          {
+            uint32_t  tmp = colormap[*(bufp++)];
+            yPtr[1] = yPtr[0] = uint8_t(tmp & 0xFFU);
+            vPtr[0] = uint8_t((tmp >> 20) & 0xFFU);
+            uPtr[0] = uint8_t((tmp >> 10) & 0xFFU);
+            tmp = colormap[*(bufp++)];
+            yPtr[3] = yPtr[2] = uint8_t(tmp & 0xFFU);
+            vPtr[1] = uint8_t((tmp >> 20) & 0xFFU);
+            uPtr[1] = uint8_t((tmp >> 10) & 0xFFU);
+            tmp = colormap[*(bufp++)];
+            yPtr[5] = yPtr[4] = uint8_t(tmp & 0xFFU);
+            vPtr[2] = uint8_t((tmp >> 20) & 0xFFU);
+            uPtr[2] = uint8_t((tmp >> 10) & 0xFFU);
+            tmp = colormap[*(bufp++)];
+            yPtr[7] = yPtr[6] = uint8_t(tmp & 0xFFU);
+            vPtr[3] = uint8_t((tmp >> 20) & 0xFFU);
+            uPtr[3] = uint8_t((tmp >> 10) & 0xFFU);
+          }
+          break;
+        case 0x06:
+          {
+            unsigned char c0 = *(bufp++);
+            unsigned char c1 = *(bufp++);
+            unsigned char b = *(bufp++);
+            uint32_t  p0 = colormap[((b & 128) ? c1 : c0)];
+            uint32_t  p1 = colormap[((b &  64) ? c1 : c0)];
+            uint32_t  p2 = colormap[((b &  32) ? c1 : c0)];
+            uint32_t  p3 = colormap[((b &  16) ? c1 : c0)];
+            yPtr[0] = uint8_t(((p0 + p1 + 1U) >> 1) & 0xFFU);
+            yPtr[1] = uint8_t(((p2 + p3 + 1U) >> 1) & 0xFFU);
+            p0 = (p0 + p1 + p2 + p3) + 0x00200800U;
+            vPtr[0] = uint8_t((p0 >> 22) & 0xFFU);
+            uPtr[0] = uint8_t((p0 >> 12) & 0xFFU);
+            p0 = colormap[((b &   8) ? c1 : c0)];
+            p1 = colormap[((b &   4) ? c1 : c0)];
+            p2 = colormap[((b &   2) ? c1 : c0)];
+            p3 = colormap[((b &   1) ? c1 : c0)];
+            yPtr[2] = uint8_t(((p0 + p1 + 1U) >> 1) & 0xFFU);
+            yPtr[3] = uint8_t(((p2 + p3 + 1U) >> 1) & 0xFFU);
+            p0 = (p0 + p1 + p2 + p3) + 0x00200800U;
+            vPtr[1] = uint8_t((p0 >> 22) & 0xFFU);
+            uPtr[1] = uint8_t((p0 >> 12) & 0xFFU);
+            c0 = *(bufp++);
+            c1 = *(bufp++);
+            b = *(bufp++);
+            p0 = colormap[((b & 128) ? c1 : c0)];
+            p1 = colormap[((b &  64) ? c1 : c0)];
+            p2 = colormap[((b &  32) ? c1 : c0)];
+            p3 = colormap[((b &  16) ? c1 : c0)];
+            yPtr[4] = uint8_t(((p0 + p1 + 1U) >> 1) & 0xFFU);
+            yPtr[5] = uint8_t(((p2 + p3 + 1U) >> 1) & 0xFFU);
+            p0 = (p0 + p1 + p2 + p3) + 0x00200800U;
+            vPtr[2] = uint8_t((p0 >> 22) & 0xFFU);
+            uPtr[2] = uint8_t((p0 >> 12) & 0xFFU);
+            p0 = colormap[((b &   8) ? c1 : c0)];
+            p1 = colormap[((b &   4) ? c1 : c0)];
+            p2 = colormap[((b &   2) ? c1 : c0)];
+            p3 = colormap[((b &   1) ? c1 : c0)];
+            yPtr[6] = uint8_t(((p0 + p1 + 1U) >> 1) & 0xFFU);
+            yPtr[7] = uint8_t(((p2 + p3 + 1U) >> 1) & 0xFFU);
+            p0 = (p0 + p1 + p2 + p3) + 0x00200800U;
+            vPtr[3] = uint8_t((p0 >> 22) & 0xFFU);
+            uPtr[3] = uint8_t((p0 >> 12) & 0xFFU);
+          }
+          break;
+        case 0x08:
+          {
+            uint32_t  p0 = colormap[*(bufp++)];
+            uint32_t  p1 = colormap[*(bufp++)];
+            yPtr[0] = uint8_t(p0 & 0xFFU);
+            yPtr[1] = uint8_t(p1 & 0xFFU);
+            p0 = (p0 + p1) + 0x00100400U;
+            vPtr[0] = uint8_t((p0 >> 21) & 0xFFU);
+            uPtr[0] = uint8_t((p0 >> 11) & 0xFFU);
+            p0 = colormap[*(bufp++)];
+            p1 = colormap[*(bufp++)];
+            yPtr[2] = uint8_t(p0 & 0xFFU);
+            yPtr[3] = uint8_t(p1 & 0xFFU);
+            p0 = (p0 + p1) + 0x00100400U;
+            vPtr[1] = uint8_t((p0 >> 21) & 0xFFU);
+            uPtr[1] = uint8_t((p0 >> 11) & 0xFFU);
+            p0 = colormap[*(bufp++)];
+            p1 = colormap[*(bufp++)];
+            yPtr[4] = uint8_t(p0 & 0xFFU);
+            yPtr[5] = uint8_t(p1 & 0xFFU);
+            p0 = (p0 + p1) + 0x00100400U;
+            vPtr[2] = uint8_t((p0 >> 21) & 0xFFU);
+            uPtr[2] = uint8_t((p0 >> 11) & 0xFFU);
+            p0 = colormap[*(bufp++)];
+            p1 = colormap[*(bufp++)];
+            yPtr[6] = uint8_t(p0 & 0xFFU);
+            yPtr[7] = uint8_t(p1 & 0xFFU);
+            p0 = (p0 + p1) + 0x00100400U;
+            vPtr[3] = uint8_t((p0 >> 21) & 0xFFU);
+            uPtr[3] = uint8_t((p0 >> 11) & 0xFFU);
+          }
+          break;
+        case 0x10:
+          {
+            uint32_t  p0 = colormap[*(bufp++)];
+            uint32_t  p1 = colormap[*(bufp++)];
+            uint32_t  p2 = colormap[*(bufp++)];
+            uint32_t  p3 = colormap[*(bufp++)];
+            yPtr[0] = uint8_t(((p0 + p1 + 1U) >> 1) & 0xFFU);
+            yPtr[1] = uint8_t(((p2 + p3 + 1U) >> 1) & 0xFFU);
+            p0 = (p0 + p1 + p2 + p3) + 0x00200800U;
+            vPtr[0] = uint8_t((p0 >> 22) & 0xFFU);
+            uPtr[0] = uint8_t((p0 >> 12) & 0xFFU);
+            p0 = colormap[*(bufp++)];
+            p1 = colormap[*(bufp++)];
+            p2 = colormap[*(bufp++)];
+            p3 = colormap[*(bufp++)];
+            yPtr[2] = uint8_t(((p0 + p1 + 1U) >> 1) & 0xFFU);
+            yPtr[3] = uint8_t(((p2 + p3 + 1U) >> 1) & 0xFFU);
+            p0 = (p0 + p1 + p2 + p3) + 0x00200800U;
+            vPtr[1] = uint8_t((p0 >> 22) & 0xFFU);
+            uPtr[1] = uint8_t((p0 >> 12) & 0xFFU);
+            p0 = colormap[*(bufp++)];
+            p1 = colormap[*(bufp++)];
+            p2 = colormap[*(bufp++)];
+            p3 = colormap[*(bufp++)];
+            yPtr[4] = uint8_t(((p0 + p1 + 1U) >> 1) & 0xFFU);
+            yPtr[5] = uint8_t(((p2 + p3 + 1U) >> 1) & 0xFFU);
+            p0 = (p0 + p1 + p2 + p3) + 0x00200800U;
+            vPtr[2] = uint8_t((p0 >> 22) & 0xFFU);
+            uPtr[2] = uint8_t((p0 >> 12) & 0xFFU);
+            p0 = colormap[*(bufp++)];
+            p1 = colormap[*(bufp++)];
+            p2 = colormap[*(bufp++)];
+            p3 = colormap[*(bufp++)];
+            yPtr[6] = uint8_t(((p0 + p1 + 1U) >> 1) & 0xFFU);
+            yPtr[7] = uint8_t(((p2 + p3 + 1U) >> 1) & 0xFFU);
+            p0 = (p0 + p1 + p2 + p3) + 0x00200800U;
+            vPtr[3] = uint8_t((p0 >> 22) & 0xFFU);
+            uPtr[3] = uint8_t((p0 >> 12) & 0xFFU);
+          }
+          break;
+        default:
+          yPtr[7] = yPtr[6] = yPtr[5] = yPtr[4] =
+          yPtr[3] = yPtr[2] = yPtr[1] = yPtr[0] = 0x00;
+          vPtr[3] = vPtr[2] = vPtr[1] = vPtr[0] = 0x00;
+          uPtr[3] = uPtr[2] = uPtr[1] = uPtr[0] = 0x00;
+          break;
+        }
+        yPtr = yPtr + 8;
+        vPtr = vPtr + 4;
+        uPtr = uPtr + 4;
       }
     }
     else {
-      for (xc = 0; xc < videoWidth; xc += 2) {
-        uint32_t  pixel0 = tmpBuf2[xc + 0];
-        uint32_t  pixel1 = tmpBuf2[xc + 1];
-        yPtr[xc + 0] = uint8_t(pixel0 & 0xFFU);
-        yPtr[xc + 1] = uint8_t(pixel1 & 0xFFU);
-        pixel0 = pixel0 + pixel1 + 0x00100400U;
-        uint32_t  v = ((pixel0 >> 21) & 0xFFU) + uint32_t(vPtr[xc >> 1]) + 1U;
-        vPtr[xc >> 1] = uint8_t(v >> 1);
-        uint32_t  u = ((pixel0 >> 11) & 0xFFU) + uint32_t(uPtr[xc >> 1]) + 1U;
-        uPtr[xc >> 1] = uint8_t(u >> 1);
+      for (size_t i = 0; i < 48; i++) {
+        uint8_t c = *(bufp++);
+        switch (c) {
+        case 0x01:
+          {
+            uint32_t  tmp = colormap[*(bufp++)];
+            yPtr[7] = yPtr[6] = yPtr[5] = yPtr[4] =
+            yPtr[3] = yPtr[2] = yPtr[1] = yPtr[0] = uint8_t(tmp & 0xFFU);
+            uint32_t  v = (tmp >> 20) & 0xFFU;
+            uint32_t  u = (tmp >> 10) & 0xFFU;
+            vPtr[0] = uint8_t((uint32_t(vPtr[0]) + v + 1U) >> 1);
+            vPtr[1] = uint8_t((uint32_t(vPtr[1]) + v + 1U) >> 1);
+            vPtr[2] = uint8_t((uint32_t(vPtr[2]) + v + 1U) >> 1);
+            vPtr[3] = uint8_t((uint32_t(vPtr[3]) + v + 1U) >> 1);
+            uPtr[0] = uint8_t((uint32_t(uPtr[0]) + u + 1U) >> 1);
+            uPtr[1] = uint8_t((uint32_t(uPtr[1]) + u + 1U) >> 1);
+            uPtr[2] = uint8_t((uint32_t(uPtr[2]) + u + 1U) >> 1);
+            uPtr[3] = uint8_t((uint32_t(uPtr[3]) + u + 1U) >> 1);
+          }
+          break;
+        case 0x02:
+          {
+            uint32_t  tmp = colormap[*(bufp++)];
+            yPtr[3] = yPtr[2] = yPtr[1] = yPtr[0] = uint8_t(tmp & 0xFFU);
+            uint32_t  v = (tmp >> 20) & 0xFFU;
+            uint32_t  u = (tmp >> 10) & 0xFFU;
+            vPtr[0] = uint8_t((uint32_t(vPtr[0]) + v + 1U) >> 1);
+            vPtr[1] = uint8_t((uint32_t(vPtr[1]) + v + 1U) >> 1);
+            uPtr[0] = uint8_t((uint32_t(uPtr[0]) + u + 1U) >> 1);
+            uPtr[1] = uint8_t((uint32_t(uPtr[1]) + u + 1U) >> 1);
+            tmp = colormap[*(bufp++)];
+            yPtr[7] = yPtr[6] = yPtr[5] = yPtr[4] = uint8_t(tmp & 0xFFU);
+            v = (tmp >> 20) & 0xFFU;
+            u = (tmp >> 10) & 0xFFU;
+            vPtr[2] = uint8_t((uint32_t(vPtr[2]) + v + 1U) >> 1);
+            vPtr[3] = uint8_t((uint32_t(vPtr[3]) + v + 1U) >> 1);
+            uPtr[2] = uint8_t((uint32_t(uPtr[2]) + u + 1U) >> 1);
+            uPtr[3] = uint8_t((uint32_t(uPtr[3]) + u + 1U) >> 1);
+          }
+          break;
+        case 0x03:
+          {
+            unsigned char c0 = *(bufp++);
+            unsigned char c1 = *(bufp++);
+            unsigned char b = *(bufp++);
+            uint32_t  p0 = colormap[((b & 128) ? c1 : c0)];
+            uint32_t  p1 = colormap[((b &  64) ? c1 : c0)];
+            yPtr[0] = uint8_t(p0 & 0xFFU);
+            yPtr[1] = uint8_t(p1 & 0xFFU);
+            p0 = (p0 + p1) + 0x00100400U;
+            vPtr[0] =
+                uint8_t((uint32_t(vPtr[0]) + ((p0 >> 21) & 0xFFU) + 1U) >> 1);
+            uPtr[0] =
+                uint8_t((uint32_t(uPtr[0]) + ((p0 >> 11) & 0xFFU) + 1U) >> 1);
+            p0 = colormap[((b &  32) ? c1 : c0)];
+            p1 = colormap[((b &  16) ? c1 : c0)];
+            yPtr[2] = uint8_t(p0 & 0xFFU);
+            yPtr[3] = uint8_t(p1 & 0xFFU);
+            p0 = (p0 + p1) + 0x00100400U;
+            vPtr[1] =
+                uint8_t((uint32_t(vPtr[1]) + ((p0 >> 21) & 0xFFU) + 1U) >> 1);
+            uPtr[1] =
+                uint8_t((uint32_t(uPtr[1]) + ((p0 >> 11) & 0xFFU) + 1U) >> 1);
+            p0 = colormap[((b &   8) ? c1 : c0)];
+            p1 = colormap[((b &   4) ? c1 : c0)];
+            yPtr[4] = uint8_t(p0 & 0xFFU);
+            yPtr[5] = uint8_t(p1 & 0xFFU);
+            p0 = (p0 + p1) + 0x00100400U;
+            vPtr[2] =
+                uint8_t((uint32_t(vPtr[2]) + ((p0 >> 21) & 0xFFU) + 1U) >> 1);
+            uPtr[2] =
+                uint8_t((uint32_t(uPtr[2]) + ((p0 >> 11) & 0xFFU) + 1U) >> 1);
+            p0 = colormap[((b &   2) ? c1 : c0)];
+            p1 = colormap[((b &   1) ? c1 : c0)];
+            yPtr[6] = uint8_t(p0 & 0xFFU);
+            yPtr[7] = uint8_t(p1 & 0xFFU);
+            p0 = (p0 + p1) + 0x00100400U;
+            vPtr[3] =
+                uint8_t((uint32_t(vPtr[3]) + ((p0 >> 21) & 0xFFU) + 1U) >> 1);
+            uPtr[3] =
+                uint8_t((uint32_t(uPtr[3]) + ((p0 >> 11) & 0xFFU) + 1U) >> 1);
+          }
+          break;
+        case 0x04:
+          {
+            uint32_t  tmp = colormap[*(bufp++)];
+            yPtr[1] = yPtr[0] = uint8_t(tmp & 0xFFU);
+            uint32_t  v = (tmp >> 20) & 0xFFU;
+            uint32_t  u = (tmp >> 10) & 0xFFU;
+            vPtr[0] = uint8_t((uint32_t(vPtr[0]) + v + 1U) >> 1);
+            uPtr[0] = uint8_t((uint32_t(uPtr[0]) + u + 1U) >> 1);
+            tmp = colormap[*(bufp++)];
+            yPtr[3] = yPtr[2] = uint8_t(tmp & 0xFFU);
+            v = (tmp >> 20) & 0xFFU;
+            u = (tmp >> 10) & 0xFFU;
+            vPtr[1] = uint8_t((uint32_t(vPtr[1]) + v + 1U) >> 1);
+            uPtr[1] = uint8_t((uint32_t(uPtr[1]) + u + 1U) >> 1);
+            tmp = colormap[*(bufp++)];
+            yPtr[5] = yPtr[4] = uint8_t(tmp & 0xFFU);
+            v = (tmp >> 20) & 0xFFU;
+            u = (tmp >> 10) & 0xFFU;
+            vPtr[2] = uint8_t((uint32_t(vPtr[2]) + v + 1U) >> 1);
+            uPtr[2] = uint8_t((uint32_t(uPtr[2]) + u + 1U) >> 1);
+            tmp = colormap[*(bufp++)];
+            yPtr[7] = yPtr[6] = uint8_t(tmp & 0xFFU);
+            v = (tmp >> 20) & 0xFFU;
+            u = (tmp >> 10) & 0xFFU;
+            vPtr[3] = uint8_t((uint32_t(vPtr[3]) + v + 1U) >> 1);
+            uPtr[3] = uint8_t((uint32_t(uPtr[3]) + u + 1U) >> 1);
+          }
+          break;
+        case 0x06:
+          {
+            unsigned char c0 = *(bufp++);
+            unsigned char c1 = *(bufp++);
+            unsigned char b = *(bufp++);
+            uint32_t  p0 = colormap[((b & 128) ? c1 : c0)];
+            uint32_t  p1 = colormap[((b &  64) ? c1 : c0)];
+            uint32_t  p2 = colormap[((b &  32) ? c1 : c0)];
+            uint32_t  p3 = colormap[((b &  16) ? c1 : c0)];
+            yPtr[0] = uint8_t(((p0 + p1 + 1U) >> 1) & 0xFFU);
+            yPtr[1] = uint8_t(((p2 + p3 + 1U) >> 1) & 0xFFU);
+            p0 = (p0 + p1 + p2 + p3) + 0x00200800U;
+            vPtr[0] =
+                uint8_t((uint32_t(vPtr[0]) + ((p0 >> 22) & 0xFFU) + 1U) >> 1);
+            uPtr[0] =
+                uint8_t((uint32_t(uPtr[0]) + ((p0 >> 12) & 0xFFU) + 1U) >> 1);
+            p0 = colormap[((b &   8) ? c1 : c0)];
+            p1 = colormap[((b &   4) ? c1 : c0)];
+            p2 = colormap[((b &   2) ? c1 : c0)];
+            p3 = colormap[((b &   1) ? c1 : c0)];
+            yPtr[2] = uint8_t(((p0 + p1 + 1U) >> 1) & 0xFFU);
+            yPtr[3] = uint8_t(((p2 + p3 + 1U) >> 1) & 0xFFU);
+            p0 = (p0 + p1 + p2 + p3) + 0x00200800U;
+            vPtr[1] =
+                uint8_t((uint32_t(vPtr[1]) + ((p0 >> 22) & 0xFFU) + 1U) >> 1);
+            uPtr[1] =
+                uint8_t((uint32_t(uPtr[1]) + ((p0 >> 12) & 0xFFU) + 1U) >> 1);
+            c0 = *(bufp++);
+            c1 = *(bufp++);
+            b = *(bufp++);
+            p0 = colormap[((b & 128) ? c1 : c0)];
+            p1 = colormap[((b &  64) ? c1 : c0)];
+            p2 = colormap[((b &  32) ? c1 : c0)];
+            p3 = colormap[((b &  16) ? c1 : c0)];
+            yPtr[4] = uint8_t(((p0 + p1 + 1U) >> 1) & 0xFFU);
+            yPtr[5] = uint8_t(((p2 + p3 + 1U) >> 1) & 0xFFU);
+            p0 = (p0 + p1 + p2 + p3) + 0x00200800U;
+            vPtr[2] =
+                uint8_t((uint32_t(vPtr[2]) + ((p0 >> 22) & 0xFFU) + 1U) >> 1);
+            uPtr[2] =
+                uint8_t((uint32_t(uPtr[2]) + ((p0 >> 12) & 0xFFU) + 1U) >> 1);
+            p0 = colormap[((b &   8) ? c1 : c0)];
+            p1 = colormap[((b &   4) ? c1 : c0)];
+            p2 = colormap[((b &   2) ? c1 : c0)];
+            p3 = colormap[((b &   1) ? c1 : c0)];
+            yPtr[6] = uint8_t(((p0 + p1 + 1U) >> 1) & 0xFFU);
+            yPtr[7] = uint8_t(((p2 + p3 + 1U) >> 1) & 0xFFU);
+            p0 = (p0 + p1 + p2 + p3) + 0x00200800U;
+            vPtr[3] =
+                uint8_t((uint32_t(vPtr[3]) + ((p0 >> 22) & 0xFFU) + 1U) >> 1);
+            uPtr[3] =
+                uint8_t((uint32_t(uPtr[3]) + ((p0 >> 12) & 0xFFU) + 1U) >> 1);
+          }
+          break;
+        case 0x08:
+          {
+            uint32_t  p0 = colormap[*(bufp++)];
+            uint32_t  p1 = colormap[*(bufp++)];
+            yPtr[0] = uint8_t(p0 & 0xFFU);
+            yPtr[1] = uint8_t(p1 & 0xFFU);
+            p0 = (p0 + p1) + 0x00100400U;
+            vPtr[0] =
+                uint8_t((uint32_t(vPtr[0]) + ((p0 >> 21) & 0xFFU) + 1U) >> 1);
+            uPtr[0] =
+                uint8_t((uint32_t(uPtr[0]) + ((p0 >> 11) & 0xFFU) + 1U) >> 1);
+            p0 = colormap[*(bufp++)];
+            p1 = colormap[*(bufp++)];
+            yPtr[2] = uint8_t(p0 & 0xFFU);
+            yPtr[3] = uint8_t(p1 & 0xFFU);
+            p0 = (p0 + p1) + 0x00100400U;
+            vPtr[1] =
+                uint8_t((uint32_t(vPtr[1]) + ((p0 >> 21) & 0xFFU) + 1U) >> 1);
+            uPtr[1] =
+                uint8_t((uint32_t(uPtr[1]) + ((p0 >> 11) & 0xFFU) + 1U) >> 1);
+            p0 = colormap[*(bufp++)];
+            p1 = colormap[*(bufp++)];
+            yPtr[4] = uint8_t(p0 & 0xFFU);
+            yPtr[5] = uint8_t(p1 & 0xFFU);
+            p0 = (p0 + p1) + 0x00100400U;
+            vPtr[2] =
+                uint8_t((uint32_t(vPtr[2]) + ((p0 >> 21) & 0xFFU) + 1U) >> 1);
+            uPtr[2] =
+                uint8_t((uint32_t(uPtr[2]) + ((p0 >> 11) & 0xFFU) + 1U) >> 1);
+            p0 = colormap[*(bufp++)];
+            p1 = colormap[*(bufp++)];
+            yPtr[6] = uint8_t(p0 & 0xFFU);
+            yPtr[7] = uint8_t(p1 & 0xFFU);
+            p0 = (p0 + p1) + 0x00100400U;
+            vPtr[3] =
+                uint8_t((uint32_t(vPtr[3]) + ((p0 >> 21) & 0xFFU) + 1U) >> 1);
+            uPtr[3] =
+                uint8_t((uint32_t(uPtr[3]) + ((p0 >> 11) & 0xFFU) + 1U) >> 1);
+          }
+          break;
+        case 0x10:
+          {
+            uint32_t  p0 = colormap[*(bufp++)];
+            uint32_t  p1 = colormap[*(bufp++)];
+            uint32_t  p2 = colormap[*(bufp++)];
+            uint32_t  p3 = colormap[*(bufp++)];
+            yPtr[0] = uint8_t(((p0 + p1 + 1U) >> 1) & 0xFFU);
+            yPtr[1] = uint8_t(((p2 + p3 + 1U) >> 1) & 0xFFU);
+            p0 = (p0 + p1 + p2 + p3) + 0x00200800U;
+            vPtr[0] =
+                uint8_t((uint32_t(vPtr[0]) + ((p0 >> 22) & 0xFFU) + 1U) >> 1);
+            uPtr[0] =
+                uint8_t((uint32_t(uPtr[0]) + ((p0 >> 12) & 0xFFU) + 1U) >> 1);
+            p0 = colormap[*(bufp++)];
+            p1 = colormap[*(bufp++)];
+            p2 = colormap[*(bufp++)];
+            p3 = colormap[*(bufp++)];
+            yPtr[2] = uint8_t(((p0 + p1 + 1U) >> 1) & 0xFFU);
+            yPtr[3] = uint8_t(((p2 + p3 + 1U) >> 1) & 0xFFU);
+            p0 = (p0 + p1 + p2 + p3) + 0x00200800U;
+            vPtr[1] =
+                uint8_t((uint32_t(vPtr[1]) + ((p0 >> 22) & 0xFFU) + 1U) >> 1);
+            uPtr[1] =
+                uint8_t((uint32_t(uPtr[1]) + ((p0 >> 12) & 0xFFU) + 1U) >> 1);
+            p0 = colormap[*(bufp++)];
+            p1 = colormap[*(bufp++)];
+            p2 = colormap[*(bufp++)];
+            p3 = colormap[*(bufp++)];
+            yPtr[4] = uint8_t(((p0 + p1 + 1U) >> 1) & 0xFFU);
+            yPtr[5] = uint8_t(((p2 + p3 + 1U) >> 1) & 0xFFU);
+            p0 = (p0 + p1 + p2 + p3) + 0x00200800U;
+            vPtr[2] =
+                uint8_t((uint32_t(vPtr[2]) + ((p0 >> 22) & 0xFFU) + 1U) >> 1);
+            uPtr[2] =
+                uint8_t((uint32_t(uPtr[2]) + ((p0 >> 12) & 0xFFU) + 1U) >> 1);
+            p0 = colormap[*(bufp++)];
+            p1 = colormap[*(bufp++)];
+            p2 = colormap[*(bufp++)];
+            p3 = colormap[*(bufp++)];
+            yPtr[6] = uint8_t(((p0 + p1 + 1U) >> 1) & 0xFFU);
+            yPtr[7] = uint8_t(((p2 + p3 + 1U) >> 1) & 0xFFU);
+            p0 = (p0 + p1 + p2 + p3) + 0x00200800U;
+            vPtr[3] =
+                uint8_t((uint32_t(vPtr[3]) + ((p0 >> 22) & 0xFFU) + 1U) >> 1);
+            uPtr[3] =
+                uint8_t((uint32_t(uPtr[3]) + ((p0 >> 12) & 0xFFU) + 1U) >> 1);
+          }
+          break;
+        default:
+          yPtr[7] = yPtr[6] = yPtr[5] = yPtr[4] =
+          yPtr[3] = yPtr[2] = yPtr[1] = yPtr[0] = 0x00;
+          vPtr[0] = uint8_t((uint32_t(vPtr[0]) + 1U) >> 1);
+          vPtr[1] = uint8_t((uint32_t(vPtr[1]) + 1U) >> 1);
+          vPtr[2] = uint8_t((uint32_t(vPtr[2]) + 1U) >> 1);
+          vPtr[3] = uint8_t((uint32_t(vPtr[3]) + 1U) >> 1);
+          uPtr[0] = uint8_t((uint32_t(uPtr[0]) + 1U) >> 1);
+          uPtr[1] = uint8_t((uint32_t(uPtr[1]) + 1U) >> 1);
+          uPtr[2] = uint8_t((uint32_t(uPtr[2]) + 1U) >> 1);
+          uPtr[3] = uint8_t((uint32_t(uPtr[3]) + 1U) >> 1);
+          break;
+        }
+        yPtr = yPtr + 8;
+        vPtr = vPtr + 4;
+        uPtr = uPtr + 4;
       }
     }
   }
@@ -497,8 +789,8 @@ namespace Ep128Emu {
   void VideoCapture::frameDone()
   {
     resampleFrame();
-    while (audioBufSamples >= audioBufSize) {
-      audioBufSamples -= audioBufSize;
+    while (audioBufSamples >= (audioBufSize * 2)) {
+      audioBufSamples -= (audioBufSize * 2);
       int64_t   frameTime =
           int64_t((4294967296000000.0 / double(frameRate)) + 0.5);
       if (frameTime > frame1Time)
@@ -536,9 +828,9 @@ namespace Ep128Emu {
         outBufY[i] = tmp2;
       } while (++i < n);
       writeFrame(bool(frameChanged));
-      audioBufReadPos += audioBufSize;
-      while (audioBufReadPos >= (audioBufSize * audioBuffers))
-        audioBufReadPos -= (audioBufSize * audioBuffers);
+      audioBufReadPos += (audioBufSize * 2);
+      while (audioBufReadPos >= (audioBufSize * audioBuffers * 2))
+        audioBufReadPos -= (audioBufSize * audioBuffers * 2);
       frame0Time -= frameTime;
       frame1Time -= frameTime;
       curTime -= frameTime;
@@ -634,15 +926,15 @@ namespace Ep128Emu {
           throw Exception("error writing AVI file");
       }
       bufp = &(headerBuf[0]);
-      nBytes = size_t(audioBufSize * 2);
+      nBytes = size_t(audioBufSize * 4);
       aviHeader_writeFourCC(bufp, "01wb");
       aviHeader_writeUInt32(bufp, uint32_t(nBytes));
       fileSize = fileSize + 8;
       if (std::fwrite(&(headerBuf[0]), 1, 8, aviFile) != 8)
         throw Exception("error writing AVI file");
       int     bufPos = audioBufReadPos;
-      for (int i = 0; i < audioBufSize; i++) {
-        if (bufPos >= (audioBufSize * audioBuffers))
+      for (int i = 0; i < (audioBufSize * 2); i++) {
+        if (bufPos >= (audioBufSize * audioBuffers * 2))
           bufPos = 0;
         int16_t tmp = audioBuf[bufPos++];
         fileSize++;
@@ -704,7 +996,7 @@ namespace Ep128Emu {
       uint8_t   headerBuf[512];
       uint8_t   *bufp = &(headerBuf[0]);
       size_t    frameSize = size_t(((videoWidth * videoHeight * 3) / 2)
-                                   + (audioBufSize * 2) + 16);
+                                   + (audioBufSize * 4) + 16);
       aviHeader_writeFourCC(bufp, "RIFF");
       aviHeader_writeUInt32(bufp, uint32_t(fileSize - 8));
       aviHeader_writeFourCC(bufp, "AVI ");
@@ -826,7 +1118,7 @@ namespace Ep128Emu {
       aviHeader_writeUInt32(bufp, uint32_t(framesWritten
                                            * size_t(audioBufSize)));
       // suggested buffer size
-      aviHeader_writeUInt32(bufp, uint32_t(audioBufSize * 2));
+      aviHeader_writeUInt32(bufp, uint32_t(audioBufSize * 4));
       // quality
       aviHeader_writeUInt32(bufp, 0x00000000U);
       // sample size
@@ -844,13 +1136,13 @@ namespace Ep128Emu {
       // audio format (WAVE_FORMAT_PCM)
       aviHeader_writeUInt16(bufp, 0x0001);
       // audio channels
-      aviHeader_writeUInt16(bufp, 0x0001);
+      aviHeader_writeUInt16(bufp, 0x0002);
       // samples per second
       aviHeader_writeUInt32(bufp, uint32_t(sampleRate));
       // bytes per second
-      aviHeader_writeUInt32(bufp, uint32_t(sampleRate * 2));
+      aviHeader_writeUInt32(bufp, uint32_t(sampleRate * 4));
       // block alignment
-      aviHeader_writeUInt16(bufp, 0x0002);
+      aviHeader_writeUInt16(bufp, 0x0004);
       // bits per sample
       aviHeader_writeUInt16(bufp, 0x0010);
       // additional format information size
@@ -906,7 +1198,7 @@ namespace Ep128Emu {
         aviHeader_writeFourCC(bufp, "01wb");
         aviHeader_writeUInt32(bufp, 0x00000010U);       // AVIIF_KEYFRAME
         aviHeader_writeUInt32(bufp, uint32_t(filePos));
-        frameBytes = size_t(audioBufSize) << 1;
+        frameBytes = size_t(audioBufSize) << 2;
         filePos = filePos + frameBytes + 8;
         aviHeader_writeUInt32(bufp, uint32_t(frameBytes));
         fileSize = fileSize + 32;
