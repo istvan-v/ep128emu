@@ -277,11 +277,10 @@ namespace Ep128Emu {
       if (v && (imageFile == (std::FILE *) 0 ||
                 currentTrack >= nTracks || currentTrack != trackRegister))
         statusRegister = statusRegister | 0x10; // seek error
-      if (imageFile) {
-        if (currentTrack == 0)
-          statusRegister = statusRegister | 0x04;
+      if (currentTrack == 0)
+        statusRegister = statusRegister | 0x04;
+      if (imageFile)
         statusRegister = statusRegister | 0x02; // index pulse
-      }
       statusRegister = statusRegister & 0xFE;   // clear busy flag
       if (!interruptRequestFlag) {
         interruptRequestFlag = true;
