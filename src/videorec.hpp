@@ -46,7 +46,7 @@ namespace Ep128Emu {
       virtual void audioOutput(int16_t left, int16_t right);
     };
     std::FILE   *aviFile;
-    uint8_t     *lineBuf;               // 720 bytes
+    uint8_t     *lineBuf;               // 1024 bytes
     uint8_t     *frameBuf0Y;            // 384x288
     uint8_t     *frameBuf0V;            // 192x144
     uint8_t     *frameBuf0U;            // 192x144
@@ -78,6 +78,7 @@ namespace Ep128Emu {
     int         curLine;
     int         vsyncCnt;
     int         hsyncCnt;
+    bool        vsyncState;
     bool        oddFrame;
     size_t      lineBufBytes;
     size_t      framesWritten;

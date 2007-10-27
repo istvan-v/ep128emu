@@ -142,6 +142,7 @@ namespace Ep128 {
     bool      tapeCallbackFlag;
     bool      isRemote1On;
     bool      isRemote2On;
+    bool      videoCaptureHSyncFlag;
     uint32_t  soundOutputSignal;
     Ep128Emu::File  *demoFile;
     // contains demo data, which is the emulator version number as a 32-bit

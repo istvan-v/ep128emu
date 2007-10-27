@@ -116,6 +116,7 @@ ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
     src/soundio.cpp
     src/system.cpp
     src/tape.cpp
+    src/videorec.cpp
     src/vm.cpp
     src/vmthread.cpp
     src/wd177x.cpp

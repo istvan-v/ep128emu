@@ -646,6 +646,7 @@ namespace Ep128 {
   {
     if (vm.getIsDisplayEnabled())
       vm.display.drawLine(buf, nBytes);
+    vm.videoCaptureHSyncFlag = true;
   }
 
   void Ep128VM::Nick_::vsyncStateChange(bool newState,
@@ -653,6 +654,8 @@ namespace Ep128 {
   {
     if (vm.getIsDisplayEnabled())
       vm.display.vsyncStateChange(newState, currentSlot_);
+    if (vm.videoCapture)
+      vm.videoCapture->vsyncStateChange(newState, currentSlot_);
   }
 
   // --------------------------------------------------------------------------
@@ -712,6 +715,8 @@ namespace Ep128 {
       tapeSamplesPerNickCycle = 0;
     cpuCyclesRemaining = 0;
     cpuSyncToNickCnt = 0;
+    if (videoCapture)
+      videoCapture->setClockFrequency(nickFrequency);
   }
 
   uint8_t Ep128VM::davePortReadCallback(void *userData, uint16_t addr)
@@ -1000,7 +1005,12 @@ namespace Ep128 {
   void Ep128VM::videoCaptureCallback(void *userData)
   {
     Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
-
+    if (vm.videoCaptureHSyncFlag) {
+      vm.videoCaptureHSyncFlag = false;
+      vm.videoCapture->horizontalSync();
+    }
+    vm.videoCapture->runOneCycle(vm.nick.getVideoOutput(),
+                                 vm.soundOutputSignal);
   }
 
   uint8_t Ep128VM::checkSingleStepModeBreak()
@@ -1218,6 +1228,7 @@ namespace Ep128 {
       tapeCallbackFlag(false),
       isRemote1On(false),
       isRemote2On(false),
+      videoCaptureHSyncFlag(false),
       soundOutputSignal(0U),
       demoFile((Ep128Emu::File *) 0),
       demoBuffer(),
@@ -1314,6 +1325,10 @@ namespace Ep128 {
 
   Ep128VM::~Ep128VM()
   {
+    if (videoCapture) {
+      delete videoCapture;
+      videoCapture = (Ep128Emu::VideoCapture *) 0;
+    }
     try {
       // FIXME: cannot handle errors here
       stopDemo();
@@ -1557,23 +1572,32 @@ namespace Ep128 {
       void (*fileNameCallback_)(void *userData, std::string& fileName),
       void *userData_)
   {
-    // TODO: implement this
-    (void) frameRate_;
-    (void) errorCallback_;
-    (void) fileNameCallback_;
-    (void) userData_;
-    throw Ep128Emu::Exception("video capture is not implemented yet");
+    if (!videoCapture) {
+      videoCapture =
+          new Ep128Emu::VideoCapture(&Nick::convertPixelToRGB, frameRate_);
+      videoCapture->setClockFrequency(nickFrequency);
+      setCallback(&videoCaptureCallback, this, true);
+    }
+    videoCapture->setErrorCallback(errorCallback_, userData_);
+    videoCapture->setFileNameCallback(fileNameCallback_, userData_);
   }
 
   void Ep128VM::setVideoCaptureFile(const std::string& fileName_)
   {
-    // TODO: implement this
-    (void) fileName_;
+    if (!videoCapture) {
+      throw Ep128Emu::Exception("internal error: "
+                                "video capture object does not exist");
+    }
+    videoCapture->openFile(fileName_.c_str());
   }
 
   void Ep128VM::closeVideoCapture()
   {
-    // TODO: implement this
+    if (videoCapture) {
+      setCallback(&videoCaptureCallback, this, false);
+      delete videoCapture;
+      videoCapture = (Ep128Emu::VideoCapture *) 0;
+    }
   }
 
   void Ep128VM::setDiskImageFile(int n, const std::string& fileName_,

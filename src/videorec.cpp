@@ -113,6 +113,7 @@ namespace Ep128Emu {
       curLine(0),
       vsyncCnt(0),
       hsyncCnt(0),
+      vsyncState(false),
       oddFrame(false),
       lineBufBytes(0),
       framesWritten(0),
@@ -131,7 +132,7 @@ namespace Ep128Emu {
         frameRate++;
       audioBufSize = sampleRate / frameRate;
       size_t    bufSize1 = size_t(videoWidth * videoHeight);
-      size_t    bufSize2 = 720 / 4;
+      size_t    bufSize2 = 1024 / 4;
       size_t    bufSize3 = (bufSize1 + 3) >> 2;
       size_t    bufSize4 = (bufSize3 + 3) >> 2;
       size_t    totalSize = bufSize2;
@@ -140,7 +141,7 @@ namespace Ep128Emu {
       uint32_t  *videoBuf = new uint32_t[totalSize];
       totalSize = 0;
       lineBuf = reinterpret_cast<uint8_t *>(&(videoBuf[totalSize]));
-      std::memset(lineBuf, 0x00, 720);
+      std::memset(lineBuf, 0x00, 1024);
       totalSize += bufSize2;
       frameBuf0Y = reinterpret_cast<uint8_t *>(&(videoBuf[totalSize]));
       std::memset(frameBuf0Y, 0x10, bufSize1);
@@ -186,7 +187,8 @@ namespace Ep128Emu {
       size_t  nBytes = 0x08000000 / size_t(audioBufSize);
       duplicateFrameBitmap = new uint8_t[nBytes];
       std::memset(duplicateFrameBitmap, 0x00, nBytes);
-      audioConverter = new AudioConverter_(*this, 221681.0f, float(sampleRate));
+      audioConverter =
+          new AudioConverter_(*this, 222656.25f, float(sampleRate));
       // initialize colormap
       colormap = new uint32_t[256];
       for (int i = 0; i < 256; i++) {
@@ -224,7 +226,7 @@ namespace Ep128Emu {
         delete[] colormap;
       throw;
     }
-    setClockFrequency(1773448);
+    setClockFrequency(890625);
   }
 
   VideoCapture::~VideoCapture()
@@ -253,9 +255,24 @@ namespace Ep128Emu {
     lineBuf[lineBufBytes++] = c;
     for (uint8_t i = 0; i < c; i++)
       lineBuf[lineBufBytes++] = videoInput[i + 1];
-    if (++hsyncCnt >= 56)
+    if (++hsyncCnt >= 60)
       lineDone();
     curTime += timesliceLength;
+  }
+
+  void VideoCapture::horizontalSync()
+  {
+    if (hsyncCnt >= 41)
+      hsyncCnt = 51;
+  }
+
+  void VideoCapture::vsyncStateChange(bool newState, unsigned int currentSlot_)
+  {
+    vsyncState = newState;
+    if (newState && vsyncCnt >= 262) {
+      vsyncCnt = -18;
+      oddFrame = (currentSlot_ >= 20U && currentSlot_ < 48U);
+    }
   }
 
   void VideoCapture::setClockFrequency(size_t freq_)
@@ -269,21 +286,22 @@ namespace Ep128Emu {
 
   void VideoCapture::lineDone()
   {
-
-    if (curLine >= 2 && curLine < 578)
+    if (curLine >= 0 && curLine < 578)
       decodeLine();
     hsyncCnt = 0;
     lineBufBytes = 0;
-    curLine += 2;
-    if (vsyncCnt >= vsyncThreshold1) {
-      vsyncCnt = vsyncReload;
-      oddFrame = false;
+    if (vsyncCnt != 0) {
+      curLine += 2;
+      if (vsyncCnt >= 262 && (vsyncState || vsyncCnt >= 336))
+        vsyncCnt = -18;
+      vsyncCnt++;
     }
-    if (vsyncCnt == 0) {
-      curLine = lineReload - (!oddFrame ? 0 : 1);
+    else {
+      curLine = (oddFrame ? -1 : 0);
+      vsyncCnt++;
+      oddFrame = false;
       frameDone();
     }
-    vsyncCnt++;
   }
 
   void VideoCapture::decodeLine()
@@ -836,7 +854,7 @@ namespace Ep128Emu {
       curTime -= frameTime;
     }
     int64_t   frameTime =
-        ((int64_t(audioBufSamples * 10000) << 32) + int64_t(sampleRate / 200))
+        ((int64_t(audioBufSamples * 5000) << 32) + int64_t(sampleRate / 200))
         / int64_t(sampleRate / 100);
     curTime += (frameTime - frame1Time);
     frame0Time += (frameTime - frame1Time);
@@ -1122,7 +1140,7 @@ namespace Ep128Emu {
       // quality
       aviHeader_writeUInt32(bufp, 0x00000000U);
       // sample size
-      aviHeader_writeUInt32(bufp, 0x00000002U);
+      aviHeader_writeUInt32(bufp, 0x00000004U);
       // left
       aviHeader_writeUInt16(bufp, 0x0000);
       // top
