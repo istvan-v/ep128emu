@@ -783,7 +783,7 @@ namespace Ep128 {
       *(lineBufPtr++) = 0x01;
       *(lineBufPtr++) = borderColor;
     }
-    else if (currentSlot >= 9 && currentSlot < 53) {
+    else if (currentSlot >= 8 && currentSlot < 54) {
       currentRenderer->doRender(lineBufPtr);
     }
     else {
