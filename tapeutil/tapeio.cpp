@@ -29,186 +29,9 @@
 #include <cmath>
 #include <cstdio>
 
-#include <sndfile.h>
 #include <FL/Fl.H>
 
 namespace Ep128Emu {
-
-  TapeFilter::TapeFilter(size_t irSamples)
-  {
-    if (irSamples < 16 || irSamples > 32768 ||
-        (irSamples & (irSamples - 1)) != 0)
-      throw std::exception();
-    irFFT.resize(irSamples << 2);
-    fftBuf.resize(irSamples << 2);
-    outBuf.resize(irSamples);
-    sampleCnt = 0;
-    for (size_t i = 0; i < (irSamples << 2); i++)
-      irFFT[i] = 0.0f;
-    irFFT[irSamples >> 1] = 1.0f;
-    this->fft(&(irFFT.front()), (irSamples << 1), false);
-    for (size_t i = 0; i < (irSamples << 2); i++)
-      fftBuf[i] = 0.0f;
-    for (size_t i = 0; i < irSamples; i++)
-      outBuf[i] = 0.0f;
-  }
-
-  TapeFilter::~TapeFilter()
-  {
-  }
-
-  void TapeFilter::setFilterParameters(float sampleRate,
-                                       float minFreq, float maxFreq)
-  {
-    size_t  n = outBuf.size();
-    // calculate linear phase filter
-    size_t  fhpp, fhps, flpp, flps;
-    fhpp = size_t(long(float(long(n)) * (minFreq / sampleRate) + 0.5f));
-    fhps = size_t(long(float(long(n)) * (0.25f * minFreq / sampleRate) + 0.5f));
-    flpp = size_t(long(float(long(n)) * (maxFreq / sampleRate) + 0.5f));
-    flps = size_t(long(float(long(n)) * (4.0f * maxFreq / sampleRate) + 0.5f));
-    for (size_t i = 0; i <= (n >> 1); i++) {
-      double  a = 1.0 / double(long(n));
-      if (i <= fhps || i >= flps)
-        a = 0.0;
-      else {
-        if (i > fhps && i < fhpp) {
-          double  w = std::sin(2.0 * std::atan(1.0)
-                               * double(long(i - fhps))
-                               / double(long(fhpp - fhps)));
-          a *= (w * w);
-        }
-        if (i > flpp && i < flps) {
-          double  w = std::cos(2.0 * std::atan(1.0)
-                               * double(long(i - flpp))
-                               / double(long(flps - flpp)));
-          a *= (w * w);
-        }
-      }
-      irFFT[(i << 1) + 0] = float((i & 1) == 0 ? a : -a);
-      irFFT[(i << 1) + 1] = 0.0f;
-    }
-    // apply von Hann window to impulse response
-    this->fft(&(irFFT.front()), n, true);
-    for (size_t i = 0; i < n; i++) {
-      double  w = std::sin(4.0 * std::atan(1.0) * double(long(i))
-                                                / double(long(n)));
-      irFFT[i] *= float(w * w);
-    }
-    // pad to double length
-    for (size_t i = n; i < (n << 1); i++)
-      irFFT[i] = 0.0f;
-    this->fft(&(irFFT.front()), (n << 1), false);
-  }
-
-  float TapeFilter::processSample(float inputSignal)
-  {
-    size_t  n = outBuf.size();
-    if (sampleCnt >= n) {
-      sampleCnt = 0;
-      // copy remaining samples from previous buffer
-      for (size_t i = 0; i < n; i++)
-        outBuf[i] = fftBuf[i + n];
-      // pad input to double length
-      for (size_t i = n; i < (n << 1); i++)
-        fftBuf[i] = 0.0f;
-      // convolve
-      this->fft(&(fftBuf.front()), (n << 1), false);
-      for (size_t i = 0; i <= n; i++) {
-        double  re1 = fftBuf[(i << 1) + 0];
-        double  im1 = fftBuf[(i << 1) + 1];
-        double  re2 = irFFT[(i << 1) + 0];
-        double  im2 = irFFT[(i << 1) + 1];
-        fftBuf[(i << 1) + 0] = re1 * re2 - im1 * im2;
-        fftBuf[(i << 1) + 1] = re1 * im2 + im1 * re2;
-      }
-      this->fft(&(fftBuf.front()), (n << 1), true);
-      // mix new buffer to output
-      for (size_t i = 0; i < n; i++)
-        outBuf[i] += fftBuf[i];
-    }
-    fftBuf[sampleCnt] = inputSignal;
-    float   outputSignal = outBuf[sampleCnt] / float(long(n));
-    sampleCnt++;
-    return outputSignal;
-  }
-
-  void TapeFilter::fft(float *buf, size_t n, bool isInverse)
-  {
-    // check FFT size
-    if (n < 16 || n > 65536 || (n & (n - 1)) != 0)
-      throw std::exception();
-    if (!isInverse) {
-      // convert real data to interleaved real/imaginary format
-      size_t  i = n;
-      do {
-        i--;
-        buf[(i << 1) + 0] = buf[i];
-        buf[(i << 1) + 1] = 0.0f;
-      } while (i);
-    }
-    else {
-      buf[1] = 0.0f;
-      buf[n + 1] = 0.0f;
-      for (size_t i = 1; i < (n >> 1); i++) {
-        buf[((n - i) << 1) + 0] = buf[(i << 1) + 0];
-        buf[((n - i) << 1) + 1] = -(buf[(i << 1) + 1]);
-      }
-    }
-    // pack data in reverse bit order
-    size_t  i, j;
-    for (i = 0, j = 0; i < n; i++) {
-      if (i < j) {
-        float   tmp1 = buf[(i << 1) + 0];
-        float   tmp2 = buf[(i << 1) + 1];
-        buf[(i << 1) + 0] = buf[(j << 1) + 0];
-        buf[(i << 1) + 1] = buf[(j << 1) + 1];
-        buf[(j << 1) + 0] = tmp1;
-        buf[(j << 1) + 1] = tmp2;
-      }
-      for (size_t k = (n >> 1); k > 0; k >>= 1) {
-        j ^= k;
-        if ((j & k) != 0)
-          break;
-      }
-    }
-    // calculate FFT
-    for (size_t k = 1; k < n; k <<= 1) {
-      double  ph_inc_re = std::cos(4.0 * std::atan(1.0) / double(long(k)));
-      double  ph_inc_im = std::sin((isInverse ? 4.0 : -4.0)
-                                   * std::atan(1.0) / double(long(k)));
-      for (j = 0; j < n; j += (k << 1)) {
-        double  ph_re = 1.0;
-        double  ph_im = 0.0;
-        for (i = j; i < (j + k); i++) {
-          double  re1 = buf[(i << 1) + 0];
-          double  im1 = buf[(i << 1) + 1];
-          double  re2 = buf[((i + k) << 1) + 0];
-          double  im2 = buf[((i + k) << 1) + 1];
-          buf[(i << 1) + 0] = float(re1 + re2 * ph_re - im2 * ph_im);
-          buf[(i << 1) + 1] = float(im1 + re2 * ph_im + im2 * ph_re);
-          buf[((i + k) << 1) + 0] = float(re1 - re2 * ph_re + im2 * ph_im);
-          buf[((i + k) << 1) + 1] = float(im1 - re2 * ph_im - im2 * ph_re);
-          double  tmp = ph_re * ph_inc_re - ph_im * ph_inc_im;
-          ph_im = ph_re * ph_inc_im + ph_im * ph_inc_re;
-          ph_re = tmp;
-        }
-      }
-    }
-    if (!isInverse) {
-      buf[1] = 0.0f;
-      buf[n + 1] = 0.0f;
-    }
-    else {
-      // convert from interleaved real/imaginary format to pure real data
-      for (i = 0; i < n; i++)
-        buf[i] = buf[(i << 1) + 0];
-      for (i = n; i < (n << 1); i++)
-        buf[i] = 0.0f;
-    }
-  }
-
-  // --------------------------------------------------------------------------
 
   TapeFile::TapeFile()
     : fileName(""),
@@ -250,8 +73,9 @@ namespace Ep128Emu {
 
   // --------------------------------------------------------------------------
 
-  TapeInput::TapeInput(Fl_Progress *disp)
-    : sampleCnt(0),
+  TapeInput::TapeInput(Tape *f_, Fl_Progress *disp)
+    : f(f_),
+      sampleCnt(0),
       percentsDone(0),
       progressDisplay(disp),
       prvState(-1),
@@ -265,10 +89,19 @@ namespace Ep128Emu {
       disp->value(0.0f);
       Fl::wait(0.0);
     }
+    if (f) {
+      totalSamples =
+          size_t(uint32_t(f->getLength() * double(f->getSampleRate()) + 0.5));
+      f->seek(0.0);
+      f->play();
+      f->setIsMotorOn(true);
+    }
   }
 
   TapeInput::~TapeInput()
   {
+    if (f)
+      delete f;
   }
 
   int TapeInput::getSample()
@@ -289,7 +122,12 @@ namespace Ep128Emu {
       }
     }
     sampleCnt++;
-    return getSample_();
+    if (f->getIsEndOfTape())
+      return -1;
+    f->runOneSample();
+    totalSamples =
+        size_t(uint32_t(f->getLength() * double(f->getSampleRate()) + 0.5));
+    return f->getOutputSignal();
   }
 
   long TapeInput::getHalfPeriod()
@@ -455,103 +293,6 @@ namespace Ep128Emu {
     return 0;
   }
 
-  TapeInput_TapeImage::TapeInput_TapeImage(Tape *f_,
-                                           Fl_Progress *disp)
-    : TapeInput(disp),
-      f(f_)
-  {
-    if (f) {
-      totalSamples =
-          size_t(uint32_t(f->getLength() * double(f->getSampleRate()) + 0.5));
-      f->seek(0.0);
-      f->play();
-      f->setIsMotorOn(true);
-    }
-  }
-
-  TapeInput_TapeImage::~TapeInput_TapeImage()
-  {
-    if (f)
-      delete f;
-  }
-
-  int TapeInput_TapeImage::getSample_()
-  {
-    if (f->getIsEndOfTape())
-      return -1;
-    f->runOneSample();
-    totalSamples =
-        size_t(uint32_t(f->getLength() * double(f->getSampleRate()) + 0.5));
-    return f->getOutputSignal();
-  }
-
-  TapeInput_SndFile::TapeInput_SndFile(SNDFILE *f_, SF_INFO& sfinfo,
-                                       Fl_Progress *disp,
-                                       int channel_,
-                                       float minFreq, float maxFreq)
-    : TapeInput(disp),
-      f(f_),
-      bufPos(256),
-      channel(0),
-      nChannels(0),
-      filter(2048),
-      prvSample(0.0f),
-      interpFlag(false)
-  {
-    if (f_) {
-      nChannels = size_t(sfinfo.channels);
-      channel = size_t(channel_ > 0 ?
-                       (channel_ < (sfinfo.channels - 1) ?
-                        channel_ : (sfinfo.channels - 1))
-                       : 0);
-      totalSamples = size_t(sfinfo.frames) << 1;
-      filter.setFilterParameters(float(sfinfo.samplerate), minFreq, maxFreq);
-      buf.resize(256 * nChannels);
-    }
-  }
-
-  TapeInput_SndFile::~TapeInput_SndFile()
-  {
-    if (f)
-      sf_close(f);
-  }
-
-  int TapeInput_SndFile::getSample_()
-  {
-    if (!interpFlag) {
-      interpFlag = true;
-      return (prvSample > 0.0f ? 1 : 0);
-    }
-    float   nxtSample = 0.0f;
-    if (bufPos < 256) {
-      nxtSample = buf[bufPos * nChannels + channel];
-      bufPos++;
-    }
-    else if (f != (SNDFILE *) 0) {
-      bufPos = 0;
-      sf_count_t  n;
-      n = sf_read_float(f, &(buf.front()), sf_count_t(256 * nChannels));
-      n = (n > sf_count_t(0) ? n : sf_count_t(0));
-      if (n < sf_count_t(256 * nChannels)) {
-        sf_close(f);
-        f = (SNDFILE *) 0;
-        do {
-          buf[n] = 0.0f;
-        } while (++n < sf_count_t(256 * nChannels));
-      }
-    }
-    else if (bufPos < 4096) {
-      bufPos++;
-    }
-    else
-      return -1;
-    nxtSample = filter.processSample(nxtSample);
-    int     retval = ((prvSample + nxtSample) > 0.0f ? 1 : 0);
-    prvSample = nxtSample;
-    interpFlag = false;
-    return retval;
-  }
-
   // --------------------------------------------------------------------------
 
   void TapeOutput::writePeriod(size_t periodLength)
@@ -701,26 +442,17 @@ namespace Ep128Emu {
   {
     if (fileName_ == (char *) 0 || fileName_[0] == '\0')
       throw Exception("invalid file name");
-    TapeInput *t = (TapeInput *) 0;
-    SF_INFO   sfinfo;
-    std::memset(&sfinfo, 0, sizeof(SF_INFO));
-    SNDFILE   *sf = sf_open(fileName_, SFM_READ, &sfinfo);
-    Tape      *f = (Tape *) 0;
-    if (!sf) {
-      f = openTapeFile(fileName_, 2, 24000L, 1);
+    Tape      *f = openTapeFile(fileName_, 2, 24000L, 1);
+    if (typeid(*f) == typeid(Tape_SoundFile)) {
+      dynamic_cast<Tape_SoundFile *>(f)->setParameters(channel_, true,
+                                                       minFreq_, maxFreq_);
     }
+    TapeInput *t = (TapeInput *) 0;
     try {
-      if (sf)
-        t = new TapeInput_SndFile(sf, sfinfo, disp,
-                                  channel_, minFreq_, maxFreq_);
-      else
-        t = new TapeInput_TapeImage(f, disp);
+      t = new TapeInput(f, disp);
     }
     catch (...) {
-      if (sf)
-        sf_close(sf);
-      if (f)
-        delete f;
+      delete f;
       throw;
     }
     TapeFile  *tf = (TapeFile *) 0;

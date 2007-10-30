@@ -27,27 +27,13 @@
 #include <string>
 #include <vector>
 
-#include <sndfile.h>
 #include <FL/Fl_Progress.H>
 
 namespace Ep128Emu {
 
-  class TapeFilter {
-   private:
-    std::vector<float> irFFT;
-    std::vector<float> fftBuf;
-    std::vector<float> outBuf;
-    size_t  sampleCnt;
-   public:
-    TapeFilter(size_t irSamples = 1024);
-    virtual ~TapeFilter();
-    void setFilterParameters(float sampleRate, float minFreq, float maxFreq);
-    float processSample(float inputSignal);
-    static void fft(float *buf, size_t n, bool isInverse);
-  };
-
   class TapeInput {
    private:
+    Tape      *f;
     size_t    sampleCnt;
     size_t    percentsDone;
     Fl_Progress *progressDisplay;
@@ -57,7 +43,7 @@ namespace Ep128Emu {
    protected:
     size_t    totalSamples;
    public:
-    TapeInput(Fl_Progress *);
+    TapeInput(Tape *f_, Fl_Progress *disp);
     virtual ~TapeInput();
     /*!
      * Returns tape signal (0 or 1), or -1 on end of file.
@@ -101,37 +87,6 @@ namespace Ep128Emu {
      * Returns 0 on success, -1 on end of tape, and 1 on CRC error.
      */
     int readChunk(uint8_t *buf, size_t& nBytes, bool& isHeader);
-   protected:
-    virtual int getSample_() = 0;
-  };
-
-  class TapeInput_TapeImage : public TapeInput {
-   private:
-    Tape    *f;
-   public:
-    TapeInput_TapeImage(Tape *f_, Fl_Progress *disp);
-    virtual ~TapeInput_TapeImage();
-    // returns tape signal (0 or 1), or -1 on end of file
-    virtual int getSample_();
-  };
-
-  class TapeInput_SndFile : public TapeInput {
-   private:
-    SNDFILE *f;
-    std::vector<float>  buf;
-    size_t  bufPos;
-    size_t  channel;
-    size_t  nChannels;
-    TapeFilter  filter;
-    float   prvSample;
-    bool    interpFlag;
-   public:
-    TapeInput_SndFile(SNDFILE *f_, SF_INFO& sfinfo, Fl_Progress *disp,
-                      int channel_ = 0,
-                      float minFreq = 600.0f, float maxFreq = 3000.0f);
-    virtual ~TapeInput_SndFile();
-    // returns tape signal (0 or 1), or -1 on end of file
-    virtual int getSample_();
   };
 
   class TapeFile {
