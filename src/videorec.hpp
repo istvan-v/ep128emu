@@ -45,10 +45,42 @@ namespace Ep128Emu {
      protected:
       virtual void audioOutput(int16_t left, int16_t right);
     };
+    class VideoCaptureFrameBuffer {
+     private:
+      uint32_t  *buf;
+      uint8_t   **linePtrs;
+      uint32_t  *lineBytes_;
+     public:
+      VideoCaptureFrameBuffer(int w, int h);
+      virtual ~VideoCaptureFrameBuffer();
+      inline uint8_t * operator[](long n)
+      {
+        return linePtrs[n];
+      }
+      inline const uint8_t * operator[](long n) const
+      {
+        return linePtrs[n];
+      }
+      inline uint32_t& lineBytes(long n)
+      {
+        return lineBytes_[n];
+      }
+      inline const uint32_t& lineBytes(long n) const
+      {
+        return lineBytes_[n];
+      }
+      // returns true if the lines are identical
+      bool compareLine(long dstLine,
+                       const VideoCaptureFrameBuffer& src, long srcLine);
+      void copyLine(long dstLine, long srcLine);
+      void copyLine(long dstLine,
+                    const VideoCaptureFrameBuffer& src, long srcLine);
+      void clearLine(long n);
+    };
+    // --------
     std::FILE   *aviFile;
-    uint8_t     *lineBuf;               // 1024 bytes
-    uint8_t     *tmpFrameBuf;           // 768x576
-    uint8_t     *outputFrameBuf;        // 768x576
+    VideoCaptureFrameBuffer tmpFrameBuf;    // 768x576
+    VideoCaptureFrameBuffer outputFrameBuf; // 768x576
     int16_t     *audioBuf;              // 8 * (sampleRate / frameRate) frames
     uint32_t    *frameSizes;
     int         frameRate;              // video frames per second
@@ -66,7 +98,6 @@ namespace Ep128Emu {
     bool        vsyncState;
     bool        oddFrame;
     bool        prvOddFrame;
-    size_t      lineBufBytes;
     size_t      framesWritten;
     size_t      duplicateFrames;
     size_t      fileSize;
@@ -78,8 +109,8 @@ namespace Ep128Emu {
     void        *fileNameCallbackUserData;
     // ----------------
     void lineDone();
-    void decodeLine();
     void frameDone();
+    void decodeLine(uint8_t *outBuf, const uint8_t *inBuf);
     size_t rleCompressLine(uint8_t *outBuf, const uint8_t *inBuf);
     void writeFrame(bool frameChanged);
     void writeAVIHeader();

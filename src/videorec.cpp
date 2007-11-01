@@ -63,6 +63,79 @@ namespace Ep128Emu {
     }
   }
 
+  VideoCapture::VideoCaptureFrameBuffer::VideoCaptureFrameBuffer(int w, int h)
+    : buf((uint32_t *) 0),
+      linePtrs((uint8_t **) 0),
+      lineBytes_((uint32_t *) 0)
+  {
+    try {
+      size_t  nBytes = (((((size_t(w) * 17) + 15) >> 4) + 3) >> 2) << 2;
+      buf = new uint32_t[(nBytes >> 2) * size_t(h)];
+      std::memset(buf, 0x00, nBytes * size_t(h));
+      linePtrs = new uint8_t*[h];
+      uint8_t *p = reinterpret_cast<uint8_t *>(buf);
+      for (int i = 0; i < h; i++) {
+        linePtrs[i] = p;
+        p = p + nBytes;
+      }
+      lineBytes_ = new uint32_t[h];
+      for (int i = 0; i < h; i++)
+        lineBytes_[i] = 0U;
+    }
+    catch (...) {
+      if (buf)
+        delete[] buf;
+      if (linePtrs)
+        delete[] linePtrs;
+      if (lineBytes_)
+        delete[] lineBytes_;
+      throw;
+    }
+  }
+
+  VideoCapture::VideoCaptureFrameBuffer::~VideoCaptureFrameBuffer()
+  {
+    delete[] buf;
+    delete[] linePtrs;
+    delete[] lineBytes_;
+  }
+
+  bool VideoCapture::VideoCaptureFrameBuffer::compareLine(
+      long dstLine, const VideoCaptureFrameBuffer& src, long srcLine)
+  {
+    if (lineBytes_[dstLine] != src.lineBytes_[srcLine])
+      return false;
+    if (src.lineBytes_[srcLine] == 0U)
+      return true;
+    return (std::memcmp(linePtrs[dstLine], src.linePtrs[srcLine],
+                        src.lineBytes_[srcLine]) == 0);
+  }
+
+  void VideoCapture::VideoCaptureFrameBuffer::copyLine(long dstLine,
+                                                       long srcLine)
+  {
+    std::memcpy(linePtrs[dstLine], linePtrs[srcLine], lineBytes_[srcLine]);
+    lineBytes_[dstLine] = lineBytes_[srcLine];
+  }
+
+  void VideoCapture::VideoCaptureFrameBuffer::copyLine(
+      long dstLine, const VideoCaptureFrameBuffer& src, long srcLine)
+  {
+    std::memcpy(linePtrs[dstLine], src.linePtrs[srcLine],
+                src.lineBytes_[srcLine]);
+    lineBytes_[dstLine] = src.lineBytes_[srcLine];
+  }
+
+  void VideoCapture::VideoCaptureFrameBuffer::clearLine(long n)
+  {
+    uint8_t *p = linePtrs[n];
+    for (int i = 0; i < 48; i++) {      // FIXME: assumes videoWidth == 768
+      *(p++) = 0x01;
+      *(p++) = 0x00;
+    }
+    lineBytes_[n] = 96U;
+  }
+
   void VideoCapture::defaultErrorCallback(void *userData, const char *msg)
   {
     (void) userData;
@@ -82,9 +155,8 @@ namespace Ep128Emu {
       void (*indexToRGBFunc)(uint8_t color, float& r, float& g, float& b),
       int frameRate_)
     : aviFile((std::FILE *) 0),
-      lineBuf((uint8_t *) 0),
-      tmpFrameBuf((uint8_t *) 0),
-      outputFrameBuf((uint8_t *) 0),
+      tmpFrameBuf(videoWidth, videoHeight),
+      outputFrameBuf(videoWidth, videoHeight),
       audioBuf((int16_t *) 0),
       frameSizes((uint32_t *) 0),
       frameRate(frameRate_),
@@ -102,7 +174,6 @@ namespace Ep128Emu {
       vsyncState(false),
       oddFrame(false),
       prvOddFrame(false),
-      lineBufBytes(0),
       framesWritten(0),
       duplicateFrames(0),
       fileSize(0),
@@ -118,19 +189,6 @@ namespace Ep128Emu {
       while (((sampleRate / frameRate) * frameRate) != sampleRate)
         frameRate++;
       audioBufSize = sampleRate / frameRate;
-      size_t    bufSize1 = (size_t(videoWidth * videoHeight) + 3) >> 2;
-      size_t    bufSize2 = 1024 / 4;
-      size_t    totalSize = bufSize2 + bufSize1 + bufSize1;
-      uint32_t  *videoBuf = new uint32_t[totalSize];
-      totalSize = 0;
-      lineBuf = reinterpret_cast<uint8_t *>(&(videoBuf[totalSize]));
-      std::memset(lineBuf, 0x00, 1024);
-      totalSize += bufSize2;
-      tmpFrameBuf = reinterpret_cast<uint8_t *>(&(videoBuf[totalSize]));
-      std::memset(tmpFrameBuf, 0x00, bufSize1 * sizeof(uint32_t));
-      totalSize += bufSize1;
-      outputFrameBuf = reinterpret_cast<uint8_t *>(&(videoBuf[totalSize]));
-      std::memset(outputFrameBuf, 0x00, bufSize1 * sizeof(uint32_t));
       audioBuf = new int16_t[audioBufSize * audioBuffers * 2];
       for (int i = 0; i < (audioBufSize * audioBuffers * 2); i++)
         audioBuf[i] = int16_t(0);
@@ -157,8 +215,6 @@ namespace Ep128Emu {
       }
     }
     catch (...) {
-      if (lineBuf)
-        delete[] reinterpret_cast<uint32_t *>(lineBuf);
       if (audioBuf)
         delete[] audioBuf;
       if (frameSizes)
@@ -175,7 +231,6 @@ namespace Ep128Emu {
   VideoCapture::~VideoCapture()
   {
     closeFile();
-    delete[] reinterpret_cast<uint32_t *>(lineBuf);
     delete[] audioBuf;
     delete[] frameSizes;
     delete audioConverter;
@@ -194,10 +249,14 @@ namespace Ep128Emu {
       soundOutputAccumulatorR = 0U;
       audioConverter->sendInputSignal(tmpL | (tmpR << 16));
     }
-    uint8_t   c = videoInput[0];
-    lineBuf[lineBufBytes++] = c;
-    for (uint8_t i = 0; i < c; i++)
-      lineBuf[lineBufBytes++] = videoInput[i + 1];
+    if (hsyncCnt < (videoWidth / 16) && curLine >= 0 && curLine < videoHeight) {
+      uint8_t *p = &(tmpFrameBuf[curLine][tmpFrameBuf.lineBytes(curLine)]);
+      uint8_t c = videoInput[0];
+      tmpFrameBuf.lineBytes(curLine) += (uint32_t(c) + uint32_t(1));
+      *(p++) = c;
+      for (uint8_t i = 0; i < c; i++)
+        *(p++) = videoInput[i + 1];
+    }
     if (++hsyncCnt >= 60)
       lineDone();
   }
@@ -212,7 +271,7 @@ namespace Ep128Emu {
   {
     vsyncState = newState;
     if (newState && vsyncCnt >= 262) {
-      vsyncCnt = (hsyncCnt < 51 ? -18 : -19);
+      vsyncCnt = (hsyncCnt < 51 ? -19 : -20);
       oddFrame = (currentSlot_ >= 20U && currentSlot_ < 48U);
     }
   }
@@ -227,56 +286,76 @@ namespace Ep128Emu {
 
   void VideoCapture::lineDone()
   {
-    if (curLine >= 0 && curLine < 578)
-      decodeLine();
+    if (curLine >= 0 && curLine < videoHeight &&
+        bool(curLine & 1) == prvOddFrame) {
+      // no interlace, need to duplicate line
+      tmpFrameBuf.copyLine(curLine ^ 1, curLine);
+    }
     hsyncCnt = 0;
-    lineBufBytes = 0;
     if (vsyncCnt != 0) {
       curLine += 2;
+      if (curLine < videoHeight)
+        tmpFrameBuf.lineBytes(curLine) = 0U;
       if (vsyncCnt >= 262 && (vsyncState || vsyncCnt >= 336))
-        vsyncCnt = -18;
+        vsyncCnt = -19;
       vsyncCnt++;
     }
     else {
-      prvOddFrame = bool(curLine & 1);
       for (int i = (curLine + 1); i < videoHeight; i++)
-        std::memset(&(tmpFrameBuf[i * videoWidth]), 0x00, size_t(videoWidth));
+        tmpFrameBuf.clearLine(i);
+      frameDone();
+      prvOddFrame = bool(curLine & 1);
       curLine = (oddFrame ? -1 : 0);
+      if (curLine >= 0)
+        tmpFrameBuf.lineBytes(curLine) = 0U;
       vsyncCnt++;
       oddFrame = false;
-      frameDone();
     }
   }
 
-  void VideoCapture::decodeLine()
+  void VideoCapture::frameDone()
   {
-    int       lineNum = curLine - 2;
-    if (lineNum < 0 || lineNum >= 576)
-      return;
+    if (audioBufSamples >= (audioBufSize * 2)) {
+      bool    frameChanged = false;
+      for (int i = 0; i < videoHeight; i++) {
+        if (!tmpFrameBuf.compareLine(i, outputFrameBuf, i)) {
+          frameChanged = true;
+          outputFrameBuf.copyLine(i, tmpFrameBuf, i);
+        }
+      }
+      do {
+        audioBufSamples -= (audioBufSize * 2);
+        writeFrame(frameChanged);
+        frameChanged = false;
+        audioBufReadPos += (audioBufSize * 2);
+        while (audioBufReadPos >= (audioBufSize * audioBuffers * 2))
+          audioBufReadPos -= (audioBufSize * audioBuffers * 2);
+      } while (audioBufSamples >= (audioBufSize * 2));
+    }
+  }
 
-    uint8_t       *outBuf = &(tmpFrameBuf[lineNum * videoWidth]);
-    const uint8_t *bufp = lineBuf;
-
-    for (size_t i = 0; i < 48; i++) {
-      uint8_t c = *(bufp++);
+  void VideoCapture::decodeLine(uint8_t *outBuf, const uint8_t *inBuf)
+  {
+    for (size_t i = 0; i < (videoWidth / 16); i++) {
+      uint8_t c = *(inBuf++);
       switch (c) {
       case 0x01:
         outBuf[15] = outBuf[14] = outBuf[13] = outBuf[12] =
         outBuf[11] = outBuf[10] = outBuf[9]  = outBuf[8]  =
         outBuf[7]  = outBuf[6]  = outBuf[5]  = outBuf[4]  =
-        outBuf[3]  = outBuf[2]  = outBuf[1]  = outBuf[0]  = *(bufp++);
+        outBuf[3]  = outBuf[2]  = outBuf[1]  = outBuf[0]  = *(inBuf++);
         break;
       case 0x02:
         outBuf[7]  = outBuf[6]  = outBuf[5]  = outBuf[4]  =
-        outBuf[3]  = outBuf[2]  = outBuf[1]  = outBuf[0]  = *(bufp++);
+        outBuf[3]  = outBuf[2]  = outBuf[1]  = outBuf[0]  = *(inBuf++);
         outBuf[15] = outBuf[14] = outBuf[13] = outBuf[12] =
-        outBuf[11] = outBuf[10] = outBuf[9]  = outBuf[8]  = *(bufp++);
+        outBuf[11] = outBuf[10] = outBuf[9]  = outBuf[8]  = *(inBuf++);
         break;
       case 0x03:
         {
-          uint8_t c0 = *(bufp++);
-          uint8_t c1 = *(bufp++);
-          uint8_t b = *(bufp++);
+          uint8_t c0 = *(inBuf++);
+          uint8_t c1 = *(inBuf++);
+          uint8_t b = *(inBuf++);
           outBuf[1]  = outBuf[0]  = ((b & 128) ? c1 : c0);
           outBuf[3]  = outBuf[2]  = ((b &  64) ? c1 : c0);
           outBuf[5]  = outBuf[4]  = ((b &  32) ? c1 : c0);
@@ -288,16 +367,16 @@ namespace Ep128Emu {
         }
         break;
       case 0x04:
-        outBuf[3]  = outBuf[2]  = outBuf[1]  = outBuf[0]  = *(bufp++);
-        outBuf[7]  = outBuf[6]  = outBuf[5]  = outBuf[4]  = *(bufp++);
-        outBuf[11] = outBuf[10] = outBuf[9]  = outBuf[8]  = *(bufp++);
-        outBuf[15] = outBuf[14] = outBuf[13] = outBuf[12] = *(bufp++);
+        outBuf[3]  = outBuf[2]  = outBuf[1]  = outBuf[0]  = *(inBuf++);
+        outBuf[7]  = outBuf[6]  = outBuf[5]  = outBuf[4]  = *(inBuf++);
+        outBuf[11] = outBuf[10] = outBuf[9]  = outBuf[8]  = *(inBuf++);
+        outBuf[15] = outBuf[14] = outBuf[13] = outBuf[12] = *(inBuf++);
         break;
       case 0x06:
         {
-          uint8_t c0 = *(bufp++);
-          uint8_t c1 = *(bufp++);
-          uint8_t b = *(bufp++);
+          uint8_t c0 = *(inBuf++);
+          uint8_t c1 = *(inBuf++);
+          uint8_t b = *(inBuf++);
           outBuf[0]  = ((b & 128) ? c1 : c0);
           outBuf[1]  = ((b &  64) ? c1 : c0);
           outBuf[2]  = ((b &  32) ? c1 : c0);
@@ -306,9 +385,9 @@ namespace Ep128Emu {
           outBuf[5]  = ((b &   4) ? c1 : c0);
           outBuf[6]  = ((b &   2) ? c1 : c0);
           outBuf[7]  = ((b &   1) ? c1 : c0);
-          c0 = *(bufp++);
-          c1 = *(bufp++);
-          b = *(bufp++);
+          c0 = *(inBuf++);
+          c1 = *(inBuf++);
+          b = *(inBuf++);
           outBuf[8]  = ((b & 128) ? c1 : c0);
           outBuf[9]  = ((b &  64) ? c1 : c0);
           outBuf[10] = ((b &  32) ? c1 : c0);
@@ -320,32 +399,32 @@ namespace Ep128Emu {
         }
         break;
       case 0x08:
-        outBuf[1]  = outBuf[0]  = *(bufp++);
-        outBuf[3]  = outBuf[2]  = *(bufp++);
-        outBuf[5]  = outBuf[4]  = *(bufp++);
-        outBuf[7]  = outBuf[6]  = *(bufp++);
-        outBuf[9]  = outBuf[8]  = *(bufp++);
-        outBuf[11] = outBuf[10] = *(bufp++);
-        outBuf[13] = outBuf[12] = *(bufp++);
-        outBuf[15] = outBuf[14] = *(bufp++);
+        outBuf[1]  = outBuf[0]  = *(inBuf++);
+        outBuf[3]  = outBuf[2]  = *(inBuf++);
+        outBuf[5]  = outBuf[4]  = *(inBuf++);
+        outBuf[7]  = outBuf[6]  = *(inBuf++);
+        outBuf[9]  = outBuf[8]  = *(inBuf++);
+        outBuf[11] = outBuf[10] = *(inBuf++);
+        outBuf[13] = outBuf[12] = *(inBuf++);
+        outBuf[15] = outBuf[14] = *(inBuf++);
         break;
       case 0x10:
-        outBuf[0]  = *(bufp++);
-        outBuf[1]  = *(bufp++);
-        outBuf[2]  = *(bufp++);
-        outBuf[3]  = *(bufp++);
-        outBuf[4]  = *(bufp++);
-        outBuf[5]  = *(bufp++);
-        outBuf[6]  = *(bufp++);
-        outBuf[7]  = *(bufp++);
-        outBuf[8]  = *(bufp++);
-        outBuf[9]  = *(bufp++);
-        outBuf[10] = *(bufp++);
-        outBuf[11] = *(bufp++);
-        outBuf[12] = *(bufp++);
-        outBuf[13] = *(bufp++);
-        outBuf[14] = *(bufp++);
-        outBuf[15] = *(bufp++);
+        outBuf[0]  = *(inBuf++);
+        outBuf[1]  = *(inBuf++);
+        outBuf[2]  = *(inBuf++);
+        outBuf[3]  = *(inBuf++);
+        outBuf[4]  = *(inBuf++);
+        outBuf[5]  = *(inBuf++);
+        outBuf[6]  = *(inBuf++);
+        outBuf[7]  = *(inBuf++);
+        outBuf[8]  = *(inBuf++);
+        outBuf[9]  = *(inBuf++);
+        outBuf[10] = *(inBuf++);
+        outBuf[11] = *(inBuf++);
+        outBuf[12] = *(inBuf++);
+        outBuf[13] = *(inBuf++);
+        outBuf[14] = *(inBuf++);
+        outBuf[15] = *(inBuf++);
         break;
       default:
         outBuf[15] = outBuf[14] = outBuf[13] = outBuf[12] =
@@ -355,37 +434,6 @@ namespace Ep128Emu {
         break;
       }
       outBuf = outBuf + 16;
-    }
-
-    if (bool(lineNum & 1) == prvOddFrame) {
-      // no interlace, need to duplicate line
-      std::memcpy(&(tmpFrameBuf[(lineNum ^ 1) * videoWidth]),
-                  &(tmpFrameBuf[lineNum * videoWidth]), size_t(videoWidth));
-    }
-  }
-
-  void VideoCapture::frameDone()
-  {
-    if (audioBufSamples >= (audioBufSize * 2)) {
-      bool    frameChanged = false;
-      for (int i = 0; i < videoHeight; i++) {
-        if (std::memcmp(&(tmpFrameBuf[i * videoWidth]),
-                        &(outputFrameBuf[i * videoWidth]),
-                        size_t(videoWidth)) != 0) {
-          frameChanged = true;
-          std::memcpy(&(outputFrameBuf[i * videoWidth]),
-                      &(tmpFrameBuf[i * videoWidth]),
-                      size_t(videoWidth));
-        }
-      }
-      do {
-        audioBufSamples -= (audioBufSize * 2);
-        writeFrame(frameChanged);
-        frameChanged = false;
-        audioBufReadPos += (audioBufSize * 2);
-        while (audioBufReadPos >= (audioBufSize * audioBuffers * 2))
-          audioBufReadPos -= (audioBufSize * audioBuffers * 2);
-      } while (audioBufSamples >= (audioBufSize * 2));
     }
   }
 
@@ -421,31 +469,33 @@ namespace Ep128Emu {
       else {
         int     j = i + 1;
         int     bytesToCopy = int(runLengths[i]);
-        for ( ; j < n; j++) {
+        int     minLength = 3;
+        do {
           int     tmp = int(runLengths[j]);
-          if (tmp >= 3 || (bytesToCopy + tmp) > 255)
+          if (tmp >= minLength || (bytesToCopy + tmp) > 255)
             break;
           bytesToCopy += tmp;
-        }
+          minLength = 4 | (bytesToCopy & 1);
+        } while (++j < n);
         if (bytesToCopy >= 3) {
           outBuf[nBytes++] = 0x00;
           outBuf[nBytes++] = uint8_t(bytesToCopy);
-          for (int k = i; k < j; k++) {
-            int     m = int(runLengths[k]);
-            uint8_t tmp = byteValues[k];
-            for (int l = 0; l < m; l++)
+          do {
+            int     k = int(runLengths[i]);
+            uint8_t tmp = byteValues[i];
+            do {
               outBuf[nBytes++] = tmp;
-          }
+            } while (--k != 0);
+          } while (++i < j);
           if (bytesToCopy & 1)
             outBuf[nBytes++] = 0x00;
         }
         else {
-          for (int k = i; k < j; k++) {
-            outBuf[nBytes++] = runLengths[k];
-            outBuf[nBytes++] = byteValues[k];
-          }
+          do {
+            outBuf[nBytes++] = runLengths[i];
+            outBuf[nBytes++] = byteValues[i];
+          } while (++i < j);
         }
-        i = j;
       }
     }
     outBuf[nBytes++] = 0x00;    // end of line
@@ -495,10 +545,11 @@ namespace Ep128Emu {
         if (savedFilePos < 4L)
           throw Exception("error seeking AVI file");
         savedFilePos = savedFilePos - 4L;
+        uint8_t lineBuf[1024];
         uint8_t rleBuf[1024];
         for (int i = (videoHeight - 1); i >= 0; i--) {
-          size_t  n = rleCompressLine(&(rleBuf[0]),
-                                      &(outputFrameBuf[i * videoWidth]));
+          decodeLine(&(lineBuf[0]), outputFrameBuf[i]);
+          size_t  n = rleCompressLine(&(rleBuf[0]), &(lineBuf[0]));
           nBytes += n;
           fileSize += n;
           if (std::fwrite(&(rleBuf[0]), 1, n, aviFile) != n)
