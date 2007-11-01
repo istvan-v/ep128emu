@@ -342,7 +342,7 @@ namespace Ep128Emu {
                                 debugSettingsChanged);
     // ----------------
     defineConfigurationVariable(*this, "videoCapture.frameRate",
-                                videoCapture.frameRate, int(30),
+                                videoCapture.frameRate, int(50),
                                 videoCaptureSettingsChanged, 24.0, 60.0);
   }
 
