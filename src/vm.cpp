@@ -331,11 +331,13 @@ namespace Ep128Emu {
 
   void VirtualMachine::openVideoCapture(
       int frameRate_,
+      bool yuvFormat_,
       void (*errorCallback_)(void *userData, const char *msg),
       void (*fileNameCallback_)(void *userData, std::string& fileName),
       void *userData_)
   {
     (void) frameRate_;
+    (void) yuvFormat_;
     (void) errorCallback_;
     (void) fileNameCallback_;
     (void) userData_;

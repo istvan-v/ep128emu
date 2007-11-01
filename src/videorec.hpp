@@ -28,11 +28,9 @@ namespace Ep128Emu {
 
   class VideoCapture {
    public:
-    static const int  videoWidth = 768;
-    static const int  videoHeight = 576;
     static const int  sampleRate = 48000;
     static const int  audioBuffers = 8;
-   private:
+   protected:
     class AudioConverter_ : public AudioConverterHighQuality {
      private:
       VideoCapture& videoCapture;
@@ -45,6 +43,64 @@ namespace Ep128Emu {
      protected:
       virtual void audioOutput(int16_t left, int16_t right);
     };
+    // --------
+    std::FILE   *aviFile;
+    int16_t     *audioBuf;              // 8 * (sampleRate / frameRate) frames
+    int         frameRate;              // video frames per second
+    int         audioBufSize;           // = (sampleRate / frameRate)
+    int         audioBufReadPos;
+    int         audioBufWritePos;
+    int         audioBufSamples;        // write position - read position
+    size_t      clockFrequency;
+    uint32_t    soundOutputAccumulatorL;
+    uint32_t    soundOutputAccumulatorR;
+    int         curLine;
+    int         vsyncCnt;
+    int         hsyncCnt;
+    bool        vsyncState;
+    bool        oddFrame;
+    size_t      framesWritten;
+    size_t      duplicateFrames;
+    size_t      fileSize;
+    AudioConverter  *audioConverter;
+    size_t      aviHeaderSize;
+    void        (*errorCallback)(void *userData, const char *msg);
+    void        *errorCallbackUserData;
+    void        (*fileNameCallback)(void *userData, std::string& fileName);
+    void        *fileNameCallbackUserData;
+    // ----------------
+    static void aviHeader_writeFourCC(uint8_t*& bufp, const char *s);
+    static void aviHeader_writeUInt16(uint8_t*& bufp, uint16_t n);
+    static void aviHeader_writeUInt32(uint8_t*& bufp, uint32_t n);
+    static void defaultErrorCallback(void *userData, const char *msg);
+    static void defaultFileNameCallback(void *userData, std::string& fileName);
+    virtual void writeAVIHeader() = 0;
+    virtual void writeAVIIndex() = 0;
+    void closeFile();
+    void errorMessage(const char *msg);
+   public:
+    VideoCapture(int frameRate_ = 50);
+    virtual ~VideoCapture();
+    virtual void runOneCycle(const uint8_t *videoInput,
+                             uint32_t audioInput) = 0;
+    virtual void setClockFrequency(size_t freq_) = 0;
+    void horizontalSync();
+    void vsyncStateChange(bool newState, unsigned int currentSlot_);
+    void openFile(const char *fileName);
+    void setErrorCallback(void (*func)(void *userData, const char *msg),
+                          void *userData_);
+    void setFileNameCallback(void (*func)(void *userData,
+                                          std::string& fileName),
+                             void *userData_);
+  };
+
+  // --------------------------------------------------------------------------
+
+  class VideoCapture_RLE8 : public VideoCapture {
+   public:
+    static const int  videoWidth = 768;
+    static const int  videoHeight = 576;
+   private:
     class VideoCaptureFrameBuffer {
      private:
       uint32_t  *buf;
@@ -78,66 +134,75 @@ namespace Ep128Emu {
       void clearLine(long n);
     };
     // --------
-    std::FILE   *aviFile;
     VideoCaptureFrameBuffer tmpFrameBuf;    // 768x576
     VideoCaptureFrameBuffer outputFrameBuf; // 768x576
-    int16_t     *audioBuf;              // 8 * (sampleRate / frameRate) frames
     uint32_t    *frameSizes;
-    int         frameRate;              // video frames per second
-    int         audioBufSize;           // = (sampleRate / frameRate)
-    int         audioBufReadPos;
-    int         audioBufWritePos;
-    int         audioBufSamples;        // write position - read position
-    size_t      clockFrequency;
-    uint32_t    soundOutputAccumulatorL;
-    uint32_t    soundOutputAccumulatorR;
     int         cycleCnt;
-    int         curLine;
-    int         vsyncCnt;
-    int         hsyncCnt;
-    bool        vsyncState;
-    bool        oddFrame;
     bool        prvOddFrame;
-    size_t      framesWritten;
-    size_t      duplicateFrames;
-    size_t      fileSize;
-    AudioConverter  *audioConverter;
     uint8_t     *colormap;
-    void        (*errorCallback)(void *userData, const char *msg);
-    void        *errorCallbackUserData;
-    void        (*fileNameCallback)(void *userData, std::string& fileName);
-    void        *fileNameCallbackUserData;
     // ----------------
     void lineDone();
     void frameDone();
     void decodeLine(uint8_t *outBuf, const uint8_t *inBuf);
     size_t rleCompressLine(uint8_t *outBuf, const uint8_t *inBuf);
     void writeFrame(bool frameChanged);
-    void writeAVIHeader();
-    void writeAVIIndex();
-    void closeFile();
-    void errorMessage(const char *msg);
-    static void aviHeader_writeFourCC(uint8_t*& bufp, const char *s);
-    static void aviHeader_writeUInt16(uint8_t*& bufp, uint16_t n);
-    static void aviHeader_writeUInt32(uint8_t*& bufp, uint32_t n);
-    static void defaultErrorCallback(void *userData, const char *msg);
-    static void defaultFileNameCallback(void *userData, std::string& fileName);
+    virtual void writeAVIHeader();
+    virtual void writeAVIIndex();
    public:
-    VideoCapture(void indexToRGBFunc(uint8_t color,
-                                     float& r, float& g, float& b) =
-                     (void (*)(uint8_t, float&, float&, float&)) 0,
-                 int frameRate_ = 30);
-    virtual ~VideoCapture();
-    void runOneCycle(const uint8_t *videoInput, uint32_t audioInput);
-    void horizontalSync();
-    void vsyncStateChange(bool newState, unsigned int currentSlot_);
-    void setClockFrequency(size_t freq_);
-    void openFile(const char *fileName);
-    void setErrorCallback(void (*func)(void *userData, const char *msg),
-                          void *userData_);
-    void setFileNameCallback(void (*func)(void *userData,
-                                          std::string& fileName),
-                             void *userData_);
+    VideoCapture_RLE8(void indexToRGBFunc(uint8_t color,
+                                          float& r, float& g, float& b) =
+                          (void (*)(uint8_t, float&, float&, float&)) 0,
+                      int frameRate_ = 50);
+    virtual ~VideoCapture_RLE8();
+    virtual void runOneCycle(const uint8_t *videoInput, uint32_t audioInput);
+    virtual void setClockFrequency(size_t freq_);
+  };
+
+  // --------------------------------------------------------------------------
+
+  class VideoCapture_YV12 : public VideoCapture {
+   public:
+    static const int  videoWidth = 384;
+    static const int  videoHeight = 288;
+   private:
+    uint8_t     *lineBuf;               // 1024 bytes
+    uint8_t     *frameBuf0Y;            // 384x288
+    uint8_t     *frameBuf0V;            // 192x144
+    uint8_t     *frameBuf0U;            // 192x144
+    uint8_t     *frameBuf1Y;            // 384x288
+    uint8_t     *frameBuf1V;            // 192x144
+    uint8_t     *frameBuf1U;            // 192x144
+    int32_t     *interpBufY;            // 384x288
+    int32_t     *interpBufV;            // 192x144
+    int32_t     *interpBufU;            // 192x144
+    uint8_t     *outBufY;               // 384x288
+    uint8_t     *outBufV;               // 192x144
+    uint8_t     *outBufU;               // 192x144
+    uint8_t     *duplicateFrameBitmap;
+    int64_t     timesliceLength;
+    int64_t     curTime;
+    int64_t     frame0Time;
+    int64_t     frame1Time;
+    int         cycleCnt;
+    int32_t     interpTime;
+    size_t      lineBufBytes;
+    uint32_t    *colormap;
+    // ----------------
+    void lineDone();
+    void decodeLine();
+    void frameDone();
+    void resampleFrame();
+    void writeFrame(bool frameChanged);
+    virtual void writeAVIHeader();
+    virtual void writeAVIIndex();
+   public:
+    VideoCapture_YV12(void indexToRGBFunc(uint8_t color,
+                                          float& r, float& g, float& b) =
+                          (void (*)(uint8_t, float&, float&, float&)) 0,
+                      int frameRate_ = 30);
+    virtual ~VideoCapture_YV12();
+    virtual void runOneCycle(const uint8_t *videoInput, uint32_t audioInput);
+    virtual void setClockFrequency(size_t freq_);
   };
 
 }       // namespace Ep128Emu

@@ -1568,13 +1568,20 @@ namespace Ep128 {
 
   void Ep128VM::openVideoCapture(
       int frameRate_,
+      bool yuvFormat_,
       void (*errorCallback_)(void *userData, const char *msg),
       void (*fileNameCallback_)(void *userData, std::string& fileName),
       void *userData_)
   {
     if (!videoCapture) {
-      videoCapture =
-          new Ep128Emu::VideoCapture(&Nick::convertPixelToRGB, frameRate_);
+      if (yuvFormat_) {
+        videoCapture = new Ep128Emu::VideoCapture_YV12(&Nick::convertPixelToRGB,
+                                                       frameRate_);
+      }
+      else {
+        videoCapture = new Ep128Emu::VideoCapture_RLE8(&Nick::convertPixelToRGB,
+                                                       frameRate_);
+      }
       videoCapture->setClockFrequency(nickFrequency);
       setCallback(&videoCaptureCallback, this, true);
     }

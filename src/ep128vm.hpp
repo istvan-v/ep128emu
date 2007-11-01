@@ -269,12 +269,13 @@ namespace Ep128 {
     virtual void getVMStatus(VirtualMachine::VMStatus& vmStatus_);
     /*!
      * Create video capture object with the specified frame rate (24 to 60)
-     * if it does not exist yet, and optionally set callbacks for printing
-     * error messages and asking for a new output file on reaching 2 GB file
-     * size.
+     * and format (768x576 RLE8 or 384x288 YV12) if it does not exist yet,
+     * and optionally set callbacks for printing error messages and asking
+     * for a new output file on reaching 2 GB file size.
      */
     virtual void openVideoCapture(
-        int frameRate_ = 30,
+        int frameRate_ = 50,
+        bool yuvFormat_ = false,
         void (*errorCallback_)(void *userData, const char *msg) =
             (void (*)(void *, const char *)) 0,
         void (*fileNameCallback_)(void *userData, std::string& fileName) =

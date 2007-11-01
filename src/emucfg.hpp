@@ -183,6 +183,7 @@ namespace Ep128Emu {
     // --------
     struct {
       int         frameRate;
+      bool        yuvFormat;
     } videoCapture;
     bool          videoCaptureSettingsChanged;
     // ----------------

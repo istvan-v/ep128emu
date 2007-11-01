@@ -61,7 +61,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
         } {
           Fl_Group {} {
             label {Clock frequency and timing settings} open
-            xywh {20 45 360 170} box ENGRAVED_FRAME color 38 labelcolor 52 align 21
+            xywh {20 45 360 168} box ENGRAVED_FRAME color 38 labelcolor 52 align 21
           } {
             Fl_Value_Input vmCPUFrequencyValuator {
               label {CPU frequency}
@@ -116,7 +116,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
           }
           Fl_Group {} {
             label {File I/O} open
-            xywh {20 225 360 65} box ENGRAVED_FRAME color 38 labelcolor 52 align 21
+            xywh {20 223 360 64} box ENGRAVED_FRAME color 38 labelcolor 52 align 21
           } {
             Fl_Light_Button vmEnableFileIOValuator {
               label {Enable virtual file I/O}
@@ -124,12 +124,12 @@ class Ep128EmuGUI_MachineConfigWindow {open
   gui.config.vm.enableFileIO = (o->value() != 0);
   gui.config.vmConfigurationChanged = true;
 }}
-              tooltip {If enabled, the emulated machine can directly access files in the working directory if the ROM module for this function is loaded (epfileio.rom to segment 10)} xywh {30 250 240 25} color 39 labelcolor 52
+              tooltip {If enabled, the emulated machine can directly access files in the working directory if the ROM module for this function is loaded (epfileio.rom to segment 10)} xywh {30 248 240 25} color 39 labelcolor 52
             }
           }
           Fl_Group {} {
             label {Video capture settings} open
-            xywh {20 300 360 65} box ENGRAVED_FRAME color 38 labelcolor 52 align 21
+            xywh {20 297 360 98} box ENGRAVED_FRAME color 38 labelcolor 52 align 21
           } {
             Fl_Value_Input videoCaptureFrameRateValuator {
               label {Frame rate}
@@ -137,8 +137,16 @@ class Ep128EmuGUI_MachineConfigWindow {open
   gui.config.videoCapture.frameRate = int(o->clamp(o->value()) + 0.5);
   gui.config.videoCaptureSettingsChanged = true;
 }}
-              tooltip {Number of frames per second for video recording; the allowed settings are 24, 25, 30, 32, 40, 48, 50, and 60} xywh {30 325 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 24 maximum 60 step 1 value 30 textcolor 52
+              tooltip {Number of frames per second for video recording; the allowed settings are 24, 25, 30, 32, 40, 48, 50, and 60} xywh {30 322 120 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 24 maximum 60 step 1 value 50 textcolor 52
               code0 {o->cursor_color(FL_YELLOW);}
+            }
+            Fl_Light_Button videoCaptureYUVFormatValuator {
+              label {Low resolution YUV format}
+              callback {{
+  gui.config.videoCapture.yuvFormat = (o->value() != 0);
+  gui.config.videoCaptureSettingsChanged = true;
+}}
+              tooltip {Write AVI video data in 384x288 YV12 format instead of 768x576 RLE8} xywh {30 357 240 25} color 39 labelcolor 52
             }
           }
         }
@@ -818,6 +826,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   enableMemoryTimingValuator->value(gui.config.vm.enableMemoryTimingEmulation ? 1 : 0);
   vmEnableFileIOValuator->value(gui.config.vm.enableFileIO ? 1 : 0);
   videoCaptureFrameRateValuator->value(double(gui.config.videoCapture.frameRate));
+  videoCaptureYUVFormatValuator->value(gui.config.videoCapture.yuvFormat ? 1 : 0);
   memoryRAMSizeValuator->value(double(gui.config.memory.ram.size));
   memoryROM00FileNameValuator->value(gui.config.memory.rom[0x00].file.c_str());
   memoryROM00OffsetValuator->value(double(gui.config.memory.rom[0x00].offset));

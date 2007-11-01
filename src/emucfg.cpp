@@ -344,6 +344,9 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "videoCapture.frameRate",
                                 videoCapture.frameRate, int(50),
                                 videoCaptureSettingsChanged, 24.0, 60.0);
+    defineConfigurationVariable(*this, "videoCapture.yuvFormat",
+                                videoCapture.yuvFormat, false,
+                                videoCaptureSettingsChanged);
   }
 
   EmulatorConfiguration::~EmulatorConfiguration()
