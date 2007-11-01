@@ -28,8 +28,8 @@ namespace Ep128Emu {
 
   class VideoCapture {
    public:
-    static const int  videoWidth = 384;
-    static const int  videoHeight = 288;
+    static const int  videoWidth = 768;
+    static const int  videoHeight = 576;
     static const int  sampleRate = 48000;
     static const int  audioBuffers = 8;
    private:
@@ -47,45 +47,31 @@ namespace Ep128Emu {
     };
     std::FILE   *aviFile;
     uint8_t     *lineBuf;               // 1024 bytes
-    uint8_t     *frameBuf0Y;            // 384x288
-    uint8_t     *frameBuf0V;            // 192x144
-    uint8_t     *frameBuf0U;            // 192x144
-    uint8_t     *frameBuf1Y;            // 384x288
-    uint8_t     *frameBuf1V;            // 192x144
-    uint8_t     *frameBuf1U;            // 192x144
-    int32_t     *interpBufY;            // 384x288
-    int32_t     *interpBufV;            // 192x144
-    int32_t     *interpBufU;            // 192x144
-    uint8_t     *outBufY;               // 384x288
-    uint8_t     *outBufV;               // 192x144
-    uint8_t     *outBufU;               // 192x144
+    uint8_t     *tmpFrameBuf;           // 768x576
+    uint8_t     *outputFrameBuf;        // 768x576
     int16_t     *audioBuf;              // 8 * (sampleRate / frameRate) frames
-    uint8_t     *duplicateFrameBitmap;
+    uint32_t    *frameSizes;
     int         frameRate;              // video frames per second
     int         audioBufSize;           // = (sampleRate / frameRate)
     int         audioBufReadPos;
     int         audioBufWritePos;
     int         audioBufSamples;        // write position - read position
     size_t      clockFrequency;
-    int64_t     timesliceLength;
-    int64_t     curTime;
-    int64_t     frame0Time;
-    int64_t     frame1Time;
     uint32_t    soundOutputAccumulatorL;
     uint32_t    soundOutputAccumulatorR;
     int         cycleCnt;
-    int32_t     interpTime;
     int         curLine;
     int         vsyncCnt;
     int         hsyncCnt;
     bool        vsyncState;
     bool        oddFrame;
+    bool        prvOddFrame;
     size_t      lineBufBytes;
     size_t      framesWritten;
     size_t      duplicateFrames;
     size_t      fileSize;
     AudioConverter  *audioConverter;
-    uint32_t    *colormap;
+    uint8_t     *colormap;
     void        (*errorCallback)(void *userData, const char *msg);
     void        *errorCallbackUserData;
     void        (*fileNameCallback)(void *userData, std::string& fileName);
@@ -94,7 +80,7 @@ namespace Ep128Emu {
     void lineDone();
     void decodeLine();
     void frameDone();
-    void resampleFrame();
+    size_t rleCompressLine(uint8_t *outBuf, const uint8_t *inBuf);
     void writeFrame(bool frameChanged);
     void writeAVIHeader();
     void writeAVIIndex();
