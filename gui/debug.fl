@@ -69,18 +69,22 @@ class Ep128EmuGUI_DebugWindow {open
           Fl_Output cpuRegisterDisplay {
             label {CPU registers}
             xywh {20 63 363 80} type Multiline align 5 textfont 5 textcolor 159
+            code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
           }
           Fl_Output memoryPagingDisplay {
             label {Memory paging}
             xywh {393 63 127 80} type Multiline align 5 textfont 5 textcolor 159
+            code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
           }
           Fl_Output codeMemoryDumpDisplay {
             label Code
             xywh {20 168 500 100} type Multiline align 5 textfont 5 textcolor 159
+            code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
           }
           Fl_Output stackMemoryDumpDisplay {
             label Stack
             xywh {20 293 500 100} type Multiline align 5 textfont 5 textcolor 159
+            code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
           }
         }
         Fl_Group {} {
@@ -90,6 +94,7 @@ class Ep128EmuGUI_DebugWindow {open
           Fl_Output ioRegisterDisplay {
             label {I/O registers}
             xywh {20 63 500 330} type Multiline align 5 textfont 5 textcolor 159
+            code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
           }
         }
         Fl_Group {} {
@@ -104,11 +109,12 @@ class Ep128EmuGUI_DebugWindow {open
   updateWindow();
 }}
             tooltip {Enter command followed by space separated list of hexadecimal arguments. The available commands are: >ADDRESS VALUE1 ... (modify memory), F START END VALUE1 ... (fill memory area with pattern), H START END VALUE1 ... (find pattern in memory area), and T START END DEST (copy memory). Leave blank to execute no command.} xywh {20 63 500 25} align 5 textfont 4
-            code0 {o->cursor_color(FL_YELLOW);}
+            code0 {o->cursor_color(Fl_Color(3));}
           }
           Fl_Output memoryDumpDisplay {
             label {Memory dump}
             xywh {20 113 375 280} type Multiline align 5 textfont 5 textcolor 159
+            code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
           }
           Fl_Light_Button {} {
             label {CPU address}
@@ -126,7 +132,7 @@ class Ep128EmuGUI_DebugWindow {open
   updateMemoryDumpDisplay();
 }}
             xywh {405 160 115 25} align 5 textfont 4
-            code0 {o->cursor_color(FL_YELLOW);}
+            code0 {o->cursor_color(Fl_Color(3));}
             code1 {o->value("0000");}
           }
           Fl_Input memoryDumpEndAddressValuator {
@@ -136,7 +142,7 @@ class Ep128EmuGUI_DebugWindow {open
   updateMemoryDumpDisplay();
 }}
             tooltip {End address of memory dump (for file I/O only); this address is still included} xywh {405 205 115 25} align 5 textfont 4
-            code0 {o->cursor_color(FL_YELLOW);}
+            code0 {o->cursor_color(Fl_Color(3));}
             code1 {o->value("007F");}
           }
           Fl_Button {} {
@@ -264,6 +270,7 @@ class Ep128EmuGUI_DebugWindow {open
         } {
           Fl_Output disassemblyDisplay {
             xywh {20 48 375 345} type Multiline align 5 textfont 5 textcolor 159
+            code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
           }
           Fl_Light_Button {} {
             label {CPU address}
@@ -281,7 +288,7 @@ class Ep128EmuGUI_DebugWindow {open
   updateDisassemblyDisplay();
 }}
             xywh {405 95 115 25} align 5 textfont 4
-            code0 {o->cursor_color(FL_YELLOW);}
+            code0 {o->cursor_color(Fl_Color(3));}
             code1 {o->value("0000");}
           }
           Fl_Input disassemblyRuntimeAddressValuator {
@@ -295,7 +302,7 @@ class Ep128EmuGUI_DebugWindow {open
   updateDisassemblyDisplay();
 }}
             tooltip {The address where the disassembled code will actually run} xywh {405 140 115 25} align 5 textfont 4
-            code0 {o->cursor_color(FL_YELLOW);}
+            code0 {o->cursor_color(Fl_Color(3));}
             code1 {o->value("0000");}
           }
           Fl_Input disassemblyEndAddressValuator {
@@ -305,7 +312,7 @@ class Ep128EmuGUI_DebugWindow {open
   updateDisassemblyDisplay();
 }}
             tooltip {End address of disassembly (for file I/O only); this address is still included} xywh {405 185 115 25} align 5 textfont 4
-            code0 {o->cursor_color(FL_YELLOW);}
+            code0 {o->cursor_color(Fl_Color(3));}
             code1 {o->value("003F");}
           }
           Fl_Button {} {
@@ -377,7 +384,7 @@ class Ep128EmuGUI_DebugWindow {open
   applyBreakPointList();
 }}
             tooltip {Enter watchpoint definitions, separated by spaces or newlines. Allowed formats include NN (I/O), NNNN (memory, CPU address), and NN:NNNN (memory, physical address as segment:offset); each N is a hexadecimal digit. Address ranges (separated by a - character) can also be specified. Use the following suffixes to check for read or write access only, set priority, or ignore watchpoints depending on the program counter: r, w, p0, p1, p2, p3, i.} xywh {20 48 345 345} box DOWN_BOX align 5 textfont 4
-            code0 {o->cursor_color(FL_YELLOW);}
+            code0 {o->cursor_color(Fl_Color(3));}
             code1 {o->buffer(bpEditBuffer);}
           }
           Fl_Light_Button noBreakOnDataReadValuator {
@@ -406,7 +413,7 @@ class Ep128EmuGUI_DebugWindow {open
     gui.errorMessage(e.what());
   }
 }}
-            xywh {375 95 145 25} type Horizontal color 47 selection_color 52 align 5 maximum 4 step 1
+            xywh {375 96 145 23} type Horizontal color 47 selection_color 52 align 5 maximum 4 step 1
           }
           Fl_Button {} {
             label {Load from file}

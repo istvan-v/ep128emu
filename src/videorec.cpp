@@ -664,9 +664,13 @@ namespace Ep128Emu {
         savedFilePos = savedFilePos - 4L;
         uint8_t lineBuf[1024];
         uint8_t rleBuf[1024];
+        size_t  n = 0;
         for (int i = (videoHeight - 1); i >= 0; i--) {
-          decodeLine(&(lineBuf[0]), outputFrameBuf[i]);
-          size_t  n = rleCompressLine(&(rleBuf[0]), &(lineBuf[0]));
+          if (i == (videoHeight - 1) ||
+              !outputFrameBuf.compareLine(i, outputFrameBuf, i + 1)) {
+            decodeLine(&(lineBuf[0]), outputFrameBuf[i]);
+            n = rleCompressLine(&(rleBuf[0]), &(lineBuf[0]));
+          }
           nBytes += n;
           fileSize += n;
           if (std::fwrite(&(rleBuf[0]), 1, n, aviFile) != n)

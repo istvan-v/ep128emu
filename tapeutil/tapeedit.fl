@@ -272,19 +272,19 @@ class TapeEditorGUI {open
         Fl_Counter {} {
           label {Channel number}
           callback {soundFileChannel = int(o->value() + 0.5);}
-          tooltip {Channel to read (counting from zero) from multichannel files} xywh {20 20 115 25} color 50 selection_color 52 labelsize 13 align 8 minimum 0 maximum 255 step 1 textsize 13
+          tooltip {Channel to read (counting from zero) from multichannel files} xywh {20 21 115 25} color 50 selection_color 52 labelsize 13 align 8 minimum 0 maximum 255 step 1 textsize 13
           code0 {o->value(double(soundFileChannel));}
         }
         Fl_Value_Slider {} {
           label {Minimum frequency}
           callback {soundFileMinFreq = float(o->value());}
-          tooltip {Cutoff frequency of FIR highpass filter, in Hz} xywh {20 55 115 25} type Horizontal color 47 selection_color 52 labelsize 13 align 8 minimum 50 maximum 1200 step 10 value 600
+          tooltip {Cutoff frequency of FIR highpass filter, in Hz} xywh {20 57 115 23} type Horizontal color 47 selection_color 52 labelsize 13 align 8 minimum 50 maximum 1200 step 10 value 600
           code0 {o->value(double(soundFileMinFreq));}
         }
         Fl_Value_Slider {} {
           label {Maximum frequency}
           callback {soundFileMaxFreq = float(o->value());}
-          tooltip {Cutoff frequency of FIR lowpass filter, in Hz} xywh {20 90 115 25} type Horizontal color 47 selection_color 52 labelsize 13 align 8 minimum 1500 maximum 12000 step 100 value 3000
+          tooltip {Cutoff frequency of FIR lowpass filter, in Hz} xywh {20 91 115 23} type Horizontal color 47 selection_color 52 labelsize 13 align 8 minimum 1500 maximum 12000 step 100 value 3000
           code0 {o->value(double(soundFileMaxFreq));}
         }
       }
@@ -343,7 +343,7 @@ class TapeEditorGUI {open
   updateFlag = true;
 }}
           xywh {80 300 260 25} box THIN_DOWN_BOX labelsize 13 labelcolor 53 textsize 13
-          code0 {o->cursor_color(FL_YELLOW);}
+          code0 {o->cursor_color(Fl_Color(3));}
           code1 {o->set_output();}
         }
         Fl_Check_Button hasErrorsCheckBox {
@@ -375,7 +375,7 @@ class TapeEditorGUI {open
         }
         Fl_Box {} {
           label bytes
-          xywh {140 335 60 25} labelsize 13 labelcolor 53 align 20 deactivate
+          xywh {140 335 60 25} labelsize 13 labelcolor 53 align 20
         }
       }
       Fl_Button {} {
