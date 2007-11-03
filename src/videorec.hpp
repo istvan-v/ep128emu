@@ -126,11 +126,11 @@ namespace Ep128Emu {
         return lineBytes_[n];
       }
       // returns true if the lines are identical
-      bool compareLine(long dstLine,
-                       const VideoCaptureFrameBuffer& src, long srcLine);
-      void copyLine(long dstLine, long srcLine);
-      void copyLine(long dstLine,
-                    const VideoCaptureFrameBuffer& src, long srcLine);
+      inline bool compareLine(long dstLine,
+                              const VideoCaptureFrameBuffer& src, long srcLine);
+      inline void copyLine(long dstLine, long srcLine);
+      inline void copyLine(long dstLine,
+                           const VideoCaptureFrameBuffer& src, long srcLine);
       void clearLine(long n);
     };
     // --------

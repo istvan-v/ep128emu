@@ -90,8 +90,8 @@ namespace Ep128Emu {
       Fl::wait(0.0);
     }
     if (f) {
-      totalSamples =
-          size_t(uint32_t(f->getLength() * double(f->getSampleRate()) + 0.5));
+      totalSamples = size_t(uint32_t(f->getLength() * double(f->getSampleRate())
+                                     + 4096.5));
       f->seek(0.0);
       f->play();
       f->setIsMotorOn(true);
@@ -106,27 +106,26 @@ namespace Ep128Emu {
 
   int TapeInput::getSample()
   {
-    long    percentsDone_ = 0L;
-    if (totalSamples > 0) {
-      percentsDone_ = long(100.0 * double(long(sampleCnt))
-                                 / double(long(totalSamples))
-                           + 0.5);
+    if (f == (Tape *) 0 || sampleCnt >= totalSamples)
+      return -1;
+    if (!(sampleCnt & 31)) {
+      totalSamples = size_t(uint32_t(f->getLength() * double(f->getSampleRate())
+                                     + 4096.5));
+      long    percentsDone_ = long(100.0 * double(long(sampleCnt))
+                                         / double(long(totalSamples))
+                                   + 0.5);
       percentsDone_ = (percentsDone_ > 0L ?
                        (percentsDone_ < 100L ? percentsDone_ : 100L) : 0L);
-    }
-    if (size_t(percentsDone_) != percentsDone) {
-      percentsDone = size_t(percentsDone_);
-      if (progressDisplay) {
-        progressDisplay->value(float(percentsDone_));
-        Fl::wait(0.0);
+      if (size_t(percentsDone_) != percentsDone) {
+        percentsDone = size_t(percentsDone_);
+        if (progressDisplay) {
+          progressDisplay->value(float(percentsDone_));
+          Fl::wait(0.0);
+        }
       }
     }
     sampleCnt++;
-    if (f->getIsEndOfTape())
-      return -1;
     f->runOneSample();
-    totalSamples =
-        size_t(uint32_t(f->getLength() * double(f->getSampleRate()) + 0.5));
     return f->getOutputSignal();
   }
 

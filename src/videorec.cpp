@@ -165,8 +165,8 @@ namespace Ep128Emu {
   void VideoCapture::vsyncStateChange(bool newState, unsigned int currentSlot_)
   {
     vsyncState = newState;
-    if (newState && vsyncCnt >= 262) {
-      vsyncCnt = (hsyncCnt < 51 ? -19 : -20);
+    if (newState && (vsyncCnt + int(hsyncCnt >= 51)) >= 261) {
+      vsyncCnt = -19 - int(hsyncCnt >= 51);
       oddFrame = (currentSlot_ >= 20U && currentSlot_ < 48U);
     }
   }
@@ -279,7 +279,7 @@ namespace Ep128Emu {
     delete[] lineBytes_;
   }
 
-  bool VideoCapture_RLE8::VideoCaptureFrameBuffer::compareLine(
+  inline bool VideoCapture_RLE8::VideoCaptureFrameBuffer::compareLine(
       long dstLine, const VideoCaptureFrameBuffer& src, long srcLine)
   {
     if (lineBytes_[dstLine] != src.lineBytes_[srcLine])
@@ -290,14 +290,14 @@ namespace Ep128Emu {
                         src.lineBytes_[srcLine]) == 0);
   }
 
-  void VideoCapture_RLE8::VideoCaptureFrameBuffer::copyLine(long dstLine,
-                                                            long srcLine)
+  inline void VideoCapture_RLE8::VideoCaptureFrameBuffer::copyLine(long dstLine,
+                                                                   long srcLine)
   {
     std::memcpy(linePtrs[dstLine], linePtrs[srcLine], lineBytes_[srcLine]);
     lineBytes_[dstLine] = lineBytes_[srcLine];
   }
 
-  void VideoCapture_RLE8::VideoCaptureFrameBuffer::copyLine(
+  inline void VideoCapture_RLE8::VideoCaptureFrameBuffer::copyLine(
       long dstLine, const VideoCaptureFrameBuffer& src, long srcLine)
   {
     std::memcpy(linePtrs[dstLine], src.linePtrs[srcLine],
@@ -412,7 +412,7 @@ namespace Ep128Emu {
       curLine += 2;
       if (curLine < videoHeight)
         tmpFrameBuf.lineBytes(curLine) = 0U;
-      if (vsyncCnt >= 262 && (vsyncState || vsyncCnt >= 336))
+      if (vsyncCnt >= 261 && (vsyncState || vsyncCnt >= 335))
         vsyncCnt = -19;
       vsyncCnt++;
     }
@@ -708,7 +708,7 @@ namespace Ep128Emu {
       return;
     }
     framesWritten++;
-    if (!(framesWritten & 15)) {
+    if (!(framesWritten & 31)) {
       try {
         writeAVIHeader();
       }
@@ -1125,7 +1125,7 @@ namespace Ep128Emu {
     lineBufBytes = 0;
     if (vsyncCnt != 0) {
       curLine += 2;
-      if (vsyncCnt >= 262 && (vsyncState || vsyncCnt >= 336))
+      if (vsyncCnt >= 261 && (vsyncState || vsyncCnt >= 335))
         vsyncCnt = -19;
       vsyncCnt++;
     }
@@ -1798,7 +1798,7 @@ namespace Ep128Emu {
       return;
     }
     framesWritten++;
-    if (!(framesWritten & 15)) {
+    if (!(framesWritten & 31)) {
       try {
         writeAVIHeader();
       }
