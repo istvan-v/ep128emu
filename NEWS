@@ -4,7 +4,17 @@ Changes in version 2.0.4
   * keyboard map can be configured with the GUI
   * external game devices like joysticks and gamepads are supported, and
     can be assigned in the keyboard map like normal keys
+  * video and audio output can be recorded to AVI files
+  * it is now possible to use audio files (WAV, AIFF, etc.) as tape
+    images, with support for all tape features except markers; a simple
+    linear phase FIR filter can also be applied to the input signal
   * improved television vertical sync emulation
+  * new command line option for loading a snapshot or demo file on
+    start-up
+  * added hue shift to the display options
+  * emulation speed percentage and floppy drive LEDs are now displayed
+    on the GUI; it is also possible to change the emulation speed
+  * various minor bug fixes and improvements
 
 Changes in version 2.0.3
 ------------------------

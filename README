@@ -3,7 +3,8 @@ ep128emu 2.0.4 beta
 
 ep128emu is an open source, portable emulator of the Enterprise 128
 computer, written in C++, and supporting Windows and POSIX platforms
-(32 bit Windows, and 32 and 64 bit Linux have been tested).
+(32 bit Windows, and 32 and 64 bit Linux have been tested; compiling and
+running on MacOS X may be possible, but was not tested yet).
 It implements accurate, high quality hardware emulation, however, the
 system requirements are higher than that of most other emulators.
 
@@ -26,7 +27,10 @@ General
     sample rate conversion with low aliasing; volume control, two first
     order highpass filters with configurable cutoff frequency, and an
     optional parametric equalizer can be applied to the audio signal
-  * recording sound output to a WAV format sound file
+  * recording audio output to a WAV format sound file
+  * recording video and sound output to an AVI format video file, with
+    768x576 RLE8 or 384x288 uncompressed YV12 video at 24 to 60 frames
+    per second, and 48000 Hz stereo 16-bit PCM audio
   * saving screenshots as 768x576 8-bit RLE compressed TGA files
   * saving and loading snapshots of the state of the emulated machine
   * demo recording (snapshot combined with stream of keyboard events
@@ -68,7 +72,9 @@ Enterprise emulation
     locations (useful for tapes with multiple files); uses custom file
     format which is PCM audio data with 1 to 8 bits of sample resolution
     and variable sample rate, and header including the table of markers;
-    there is also limited (read only) support for EPTE format tape files
+    there is also limited (read only) support for EPTE format tape
+    files, as well as read-write (although without markers) support for
+    sound files like WAV, AIFF, etc.
   * WD177x (floppy disk controller) emulation for EXDOS
   * optional extension ROM (epfileio.rom) that implements a FILE: device
     for direct access to files on the host system in a single user
@@ -96,32 +102,40 @@ GNU C/C++ compiler, binutils, etc.), you need the following packages:
   * SCons (http://www.scons.org/)
   * Python interpreter for running SCons
   * FLTK 1.1.x (http://www.fltk.org/software.php?VERSION=1.1.7)
-    NOTE: this library should be compiled with the --enable-threads
-    'configure' option - many Linux distributions include binaries of
-    the FLTK library built without --enable-threads, so you may need to
-    compile it from sources
+    NOTES:
+      * this library should be compiled with the --enable-threads
+        'configure' option - many Linux distributions include binaries
+        of the FLTK library built without --enable-threads, so you may
+        need to compile it from sources
+      * on MacOS X, FLTK 1.1.7 needs to be patched with the included
+        fltk-1.1.7-MacOSX.patch file
   * PortAudio (http://www.portaudio.com/download.html), version 18 and
     19 are supported, but v19 is recommended
   * libsndfile (http://www.mega-nerd.com/libsndfile/#Download)
-  * dotconf (http://www.azzit.de/dotconf/)
+  * dotconf (http://www.azzit.de/dotconf/) (optional, but recommended as
+    it is used for reading ASCII format configuration files)
+  * SDL (http://www.libsdl.org/) 1.2 for joystick input (optional);
+    NOTE: on Linux, version 1.2.10 and newer do not work, so using 1.2.9
+    is recommended
 
 Once these are installed, you can edit the file 'SConstruct' in the top
 level source directory for setting compiler flags etc., and run the
 command 'scons' for building the emulator. The resulting executable
 files (ep128emu and tapeedit) can be copied to any directory that is in
-the PATH, but when installing the first time, you also need to set up
-configuration files and ROM images:
+the PATH; on MacOS X, an .app package is created in 'ep128emu.app'.
+When installing the first time, you also need to set up configuration
+files and ROM images:
 
-  * create the directories ~/.ep128emu, ~/.ep128emu/config, and
-    ~/.ep128emu/roms, and optionally ~/.ep128emu/demo, ~/.ep128emu/disk,
-    ~/.ep128emu/progs, and ~/.ep128emu/tape
-  * copy the file 'roms/epfileio.rom' from the sources to
-    ~/.ep128emu/roms
   * download
     http://ep128emu.enterpriseforever.org/roms/ep128emu_roms.zip,
-    and extract it to ~/.ep128emu/roms
-  * run './makecfg ~/.ep128emu' to create the initial configuration
-    files
+    and extract it to ~/.ep128emu/roms (or, in the case of MacOS X,
+    ~/Library/Application Support/ep128emu/roms)
+  * after installing the ROM images, run 'ep128emu', and click OK to the
+    windows that pop up asking for the base directory of configuration
+    and data files, and if configuration files should be installed
+
+It is possible to reinstall configuration files later by running the
+'makecfg' utility.
 
 Windows
 -------
@@ -152,6 +166,8 @@ Command line options
   -cfg <FILENAME>
     load an ASCII format configuration file on startup, and apply
     settings
+  -snapshot <FILENAME>
+    load snapshot or demo file on startup
   -opengl
     use OpenGL video driver (this is the default, and is recommended
     when hardware accelerated OpenGL is available)
@@ -244,13 +260,28 @@ Load demo
   Load an ep128emu format binary file, which may be a previously saved
   snapshot, demo, or a binary format configuration file.
 
-Record sound file
+Record audio / Start...
 
   Write 16 bit signed PCM sound output to a WAV format sound file.
 
-Stop sound recording
+Record audio / Stop
 
   Close sound output file if it is currently being written.
+
+Record video / Start...
+
+  Open new AVI file for video recording. This increases the CPU usage
+  significantly, and since the data is written without compression, it
+  will take up a lot of disk space. If the size of the output file
+  reaches 2 GB, it is automatically closed, and the emulator asks for
+  a new file to continue the recording.
+  NOTE: the video and audio streams in the AVI file are not affected by
+  any of the display or sound configuration settings.
+
+Record video / Stop
+
+  Stop video capture, and close any AVI file that is currently being
+  written.
 
 Save screenshot
 
