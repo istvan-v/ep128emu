@@ -19,6 +19,7 @@
 
 #include "gui.hpp"
 #include "system.hpp"
+#include "guicolor.hpp"
 
 #include <iostream>
 #include <cstdio>
@@ -91,6 +92,7 @@ int main(int argc, char **argv)
     }
 
     Fl::lock();
+    Ep128Emu::setGUIColorScheme();
     audioOutput = new Ep128Emu::AudioOutput_PortAudio();
     if (glEnabled)
       w = new Ep128Emu::OpenGLDisplay(32, 32, 384, 288, "");

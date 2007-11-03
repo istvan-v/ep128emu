@@ -27,17 +27,20 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   else
     gui.emulatorWindow->cursor(FL_CURSOR_NONE);
 }} open
-      xywh {224 231 400 450} type Double color 37 visible
+      xywh {224 231 400 450} type Double color 48 visible
     } {
       Fl_Group {} {open
-        xywh {10 10 380 235} box THIN_UP_BOX color 38
+        xywh {10 10 380 235} box THIN_UP_BOX
       } {
         Fl_Box {} {
-          tooltip {Note: you can click on and drag the value displays for fine adjustment} xywh {10 10 90 50} box THIN_DOWN_BOX color 37 selection_color 37 labelcolor 52
+          xywh {10 10 90 50} box THIN_DOWN_BOX color 48 selection_color 48
+        }
+        Fl_Box {} {
+          tooltip {Note: you can click on and drag the value displays for fine adjustment} xywh {10 10 89 49} box FLAT_BOX color 48 selection_color 48
         }
         Fl_Box {} {
           label Brightness
-          xywh {20 75 75 20} color 38 labelcolor 52 align 20
+          xywh {20 75 75 20} align 20
         }
         Fl_Dial globalBrightnessValuator {
           label Global
@@ -46,7 +49,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   globalBrightnessValueDisplay->value(o->value());
 }}
-          xywh {115 35 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum -0.5 maximum 0.5
+          xywh {115 35 35 35} box ROUND_UP_BOX color 52 selection_color 3 align 1 minimum -0.5 maximum 0.5
         }
         Fl_Value_Output globalBrightnessValueDisplay {
           callback {{
@@ -54,7 +57,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   globalBrightnessValuator->value(o->value());
 }}
-          xywh {110 75 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum -0.5 maximum 0.5 textsize 13 textcolor 52
+          xywh {110 75 45 20} color 7 selection_color 15 labelsize 13 minimum -0.5 maximum 0.5 textsize 13
           code0 {o->precision(3);}
         }
         Fl_Dial redBrightnessValuator {
@@ -64,7 +67,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   redBrightnessValueDisplay->value(o->value());
 }}
-          xywh {190 35 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum -0.5 maximum 0.5
+          xywh {190 35 35 35} box ROUND_UP_BOX color 52 selection_color 3 align 1 minimum -0.5 maximum 0.5
         }
         Fl_Value_Output redBrightnessValueDisplay {
           callback {{
@@ -72,7 +75,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   redBrightnessValuator->value(o->value());
 }}
-          xywh {185 75 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum -0.5 maximum 0.5 textsize 13 textcolor 52
+          xywh {185 75 45 20} color 7 selection_color 15 labelsize 13 minimum -0.5 maximum 0.5 textsize 13
           code0 {o->precision(3);}
         }
         Fl_Dial greenBrightnessValuator {
@@ -82,7 +85,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   greenBrightnessValueDisplay->value(o->value());
 }}
-          xywh {265 35 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum -0.5 maximum 0.5
+          xywh {265 35 35 35} box ROUND_UP_BOX color 52 selection_color 3 align 1 minimum -0.5 maximum 0.5
         }
         Fl_Value_Output greenBrightnessValueDisplay {
           callback {{
@@ -90,7 +93,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   greenBrightnessValuator->value(o->value());
 }}
-          xywh {260 75 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum -0.5 maximum 0.5 textsize 13 textcolor 52
+          xywh {260 75 45 20} color 7 selection_color 15 labelsize 13 minimum -0.5 maximum 0.5 textsize 13
           code0 {o->precision(3);}
         }
         Fl_Dial blueBrightnessValuator {
@@ -100,7 +103,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   blueBrightnessValueDisplay->value(o->value());
 }}
-          xywh {340 35 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum -0.5 maximum 0.5
+          xywh {340 35 35 35} box ROUND_UP_BOX color 52 selection_color 3 align 1 minimum -0.5 maximum 0.5
         }
         Fl_Value_Output blueBrightnessValueDisplay {
           callback {{
@@ -108,12 +111,12 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   blueBrightnessValuator->value(o->value());
 }}
-          xywh {335 75 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum -0.5 maximum 0.5 textsize 13 textcolor 52
+          xywh {335 75 45 20} color 7 selection_color 15 labelsize 13 minimum -0.5 maximum 0.5 textsize 13
           code0 {o->precision(3);}
         }
         Fl_Box {} {
           label Contrast
-          xywh {20 145 75 20} color 38 labelcolor 52 align 20
+          xywh {20 145 75 20} align 20
         }
         Fl_Dial globalContrastValuator {
           callback {{
@@ -121,7 +124,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   globalContrastValueDisplay->value(o->value());
 }}
-          xywh {115 105 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum 0.5 maximum 2 value 1
+          xywh {115 105 35 35} box ROUND_UP_BOX color 52 selection_color 3 align 1 minimum 0.5 maximum 2 value 1
         }
         Fl_Value_Output globalContrastValueDisplay {
           callback {{
@@ -129,7 +132,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   globalContrastValuator->value(o->value());
 }}
-          xywh {110 145 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum 0.5 maximum 2 value 1 textsize 13 textcolor 52
+          xywh {110 145 45 20} color 7 selection_color 15 labelsize 13 minimum 0.5 maximum 2 value 1 textsize 13
           code0 {o->precision(3);}
         }
         Fl_Dial redContrastValuator {
@@ -138,7 +141,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   redContrastValueDisplay->value(o->value());
 }}
-          xywh {190 105 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum 0.5 maximum 2 value 1
+          xywh {190 105 35 35} box ROUND_UP_BOX color 52 selection_color 3 align 1 minimum 0.5 maximum 2 value 1
         }
         Fl_Value_Output redContrastValueDisplay {
           callback {{
@@ -146,7 +149,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   redContrastValuator->value(o->value());
 }}
-          xywh {185 145 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum 0.5 maximum 2 value 1 textsize 13 textcolor 52
+          xywh {185 145 45 20} color 7 selection_color 15 labelsize 13 minimum 0.5 maximum 2 value 1 textsize 13
           code0 {o->precision(3);}
         }
         Fl_Dial greenContrastValuator {
@@ -155,7 +158,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   greenContrastValueDisplay->value(o->value());
 }}
-          xywh {265 105 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum 0.5 maximum 2 value 1
+          xywh {265 105 35 35} box ROUND_UP_BOX color 52 selection_color 3 align 1 minimum 0.5 maximum 2 value 1
         }
         Fl_Value_Output greenContrastValueDisplay {
           callback {{
@@ -163,7 +166,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   greenContrastValuator->value(o->value());
 }}
-          xywh {260 145 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum 0.5 maximum 2 value 1 textsize 13 textcolor 52
+          xywh {260 145 45 20} color 7 selection_color 15 labelsize 13 minimum 0.5 maximum 2 value 1 textsize 13
           code0 {o->precision(3);}
         }
         Fl_Dial blueContrastValuator {
@@ -172,7 +175,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   blueContrastValueDisplay->value(o->value());
 }}
-          xywh {340 105 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum 0.5 maximum 2 value 1
+          xywh {340 105 35 35} box ROUND_UP_BOX color 52 selection_color 3 align 1 minimum 0.5 maximum 2 value 1
         }
         Fl_Value_Output blueContrastValueDisplay {
           callback {{
@@ -180,12 +183,12 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   blueContrastValuator->value(o->value());
 }}
-          xywh {335 145 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum 0.5 maximum 2 value 1 textsize 13 textcolor 52
+          xywh {335 145 45 20} color 7 selection_color 15 labelsize 13 minimum 0.5 maximum 2 value 1 textsize 13
           code0 {o->precision(3);}
         }
         Fl_Box {} {
           label Gamma
-          xywh {20 215 75 20} color 38 labelcolor 52 align 20
+          xywh {20 215 75 20} align 20
         }
         Fl_Dial globalGammaValuator {
           callback {{
@@ -193,7 +196,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   globalGammaValueDisplay->value(o->value());
 }}
-          xywh {115 175 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum 0.25 maximum 4 value 1
+          xywh {115 175 35 35} box ROUND_UP_BOX color 52 selection_color 3 align 1 minimum 0.25 maximum 4 value 1
         }
         Fl_Value_Output globalGammaValueDisplay {
           callback {{
@@ -201,7 +204,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   globalGammaValuator->value(o->value());
 }}
-          xywh {110 215 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum 0.25 maximum 4 value 1 textsize 13 textcolor 52
+          xywh {110 215 45 20} color 7 selection_color 15 labelsize 13 minimum 0.25 maximum 4 value 1 textsize 13
           code0 {o->precision(3);}
         }
         Fl_Dial redGammaValuator {
@@ -210,7 +213,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   redGammaValueDisplay->value(o->value());
 }}
-          xywh {190 175 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum 0.25 maximum 4 value 1
+          xywh {190 175 35 35} box ROUND_UP_BOX color 52 selection_color 3 align 1 minimum 0.25 maximum 4 value 1
         }
         Fl_Value_Output redGammaValueDisplay {
           callback {{
@@ -218,7 +221,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   redGammaValuator->value(o->value());
 }}
-          xywh {185 215 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum 0.25 maximum 4 value 1 textsize 13 textcolor 52
+          xywh {185 215 45 20} color 7 selection_color 15 labelsize 13 minimum 0.25 maximum 4 value 1 textsize 13
           code0 {o->precision(3);}
         }
         Fl_Dial greenGammaValuator {
@@ -227,7 +230,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   greenGammaValueDisplay->value(o->value());
 }}
-          xywh {265 175 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum 0.25 maximum 4 value 1
+          xywh {265 175 35 35} box ROUND_UP_BOX color 52 selection_color 3 align 1 minimum 0.25 maximum 4 value 1
         }
         Fl_Value_Output greenGammaValueDisplay {
           callback {{
@@ -235,7 +238,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   greenGammaValuator->value(o->value());
 }}
-          xywh {260 215 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum 0.25 maximum 4 value 1 textsize 13 textcolor 52
+          xywh {260 215 45 20} color 7 selection_color 15 labelsize 13 minimum 0.25 maximum 4 value 1 textsize 13
           code0 {o->precision(3);}
         }
         Fl_Dial blueGammaValuator {
@@ -244,7 +247,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   blueGammaValueDisplay->value(o->value());
 }}
-          xywh {340 175 35 35} box ROUND_UP_BOX color 46 selection_color 54 labelcolor 52 align 1 minimum 0.25 maximum 4 value 1
+          xywh {340 175 35 35} box ROUND_UP_BOX color 52 selection_color 3 align 1 minimum 0.25 maximum 4 value 1
         }
         Fl_Value_Output blueGammaValueDisplay {
           callback {{
@@ -252,12 +255,12 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.displaySettingsChanged = true;
   blueGammaValuator->value(o->value());
 }}
-          xywh {335 215 45 20} color 0 selection_color 238 labelsize 13 labelcolor 52 minimum 0.25 maximum 4 value 1 textsize 13 textcolor 52
+          xywh {335 215 45 20} color 7 selection_color 15 labelsize 13 minimum 0.25 maximum 4 value 1 textsize 13
           code0 {o->precision(3);}
         }
       }
       Fl_Group {} {open
-        xywh {10 255 380 150} box THIN_UP_BOX color 38
+        xywh {10 255 380 150} box THIN_UP_BOX
       } {
         Fl_Light_Button enableDisplayValuator {
           label {Enable display}
@@ -265,7 +268,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.display.enabled = (o->value() != 0);
   gui.config.displaySettingsChanged = true;
 }}
-          xywh {20 265 160 25} color 39 labelcolor 52
+          xywh {20 265 160 25} color 50 selection_color 3
         }
         Fl_Choice displayBufferingModeValuator {
           callback {{
@@ -274,7 +277,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
     gui.config.displaySettingsChanged = true;
   }
 }} open
-          xywh {20 300 160 25} down_box BORDER_BOX color 0 selection_color 238 labelcolor 3 textcolor 52
+          xywh {20 300 160 25} down_box BORDER_BOX labelcolor 3
           code0 {o->add("Single buffered mode|Double buffered mode|Resample to monitor refresh rate");}
         } {}
         Fl_Value_Slider displayQualityValuator {
@@ -283,7 +286,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.display.quality = int(o->value() + 0.5);
   gui.config.displaySettingsChanged = true;
 }}
-          tooltip {This parameter is used only in OpenGL mode. Larger values increase the texture size and enable more effects at the expense of higher CPU usage} xywh {20 335 110 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 8 maximum 3 step 1 value 1 textcolor 52
+          tooltip {This parameter is used only in OpenGL mode. Larger values increase the texture size and enable more effects at the expense of higher CPU usage} xywh {20 335 110 25} type Horizontal color 47 selection_color 52 align 8 maximum 3 step 1 value 1
         }
         Fl_Value_Input pixelAspectRatioValuator {
           label {Pixel aspect ratio}
@@ -292,7 +295,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   o->value(gui.config.display.pixelAspectRatio);
   gui.config.displaySettingsChanged = true;
 }}
-          tooltip {The assumed pixel aspect ratio of the screen; 1.0 means square pixels (the default), larger values make the display narrower, while smaller values result in a wider display. Type new value, or click and drag to change it.} xywh {20 370 50 25} color 0 selection_color 238 labelcolor 52 align 8 when 4 minimum 0.5 maximum 2 step 0.001 value 1 textcolor 52
+          tooltip {The assumed pixel aspect ratio of the screen; 1.0 means square pixels (the default), larger values make the display narrower, while smaller values result in a wider display. Type new value, or click and drag to change it.} xywh {20 370 50 25} align 8 when 4 minimum 0.5 maximum 2 step 0.001 value 1
           code0 {o->cursor_color(FL_YELLOW);}
         }
         Fl_Value_Slider displayHueShiftValuator {
@@ -301,7 +304,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.display.hueShift = o->value();
   gui.config.displaySettingsChanged = true;
 }}
-          xywh {195 266 120 21} type {Horz Knob} color 36 selection_color 45 labelsize 12 labelcolor 52 align 8 minimum -180 maximum 180 step 1 textcolor 52
+          xywh {195 266 120 21} type Horizontal color 47 selection_color 52 labelsize 12 align 8 minimum -180 maximum 180 step 1
         }
         Fl_Value_Slider displaySaturationValuator {
           label Saturation
@@ -309,7 +312,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.display.saturation = o->value();
   gui.config.displaySettingsChanged = true;
 }}
-          xywh {195 293 120 21} type {Horz Knob} color 36 selection_color 45 labelsize 12 labelcolor 52 align 8 maximum 2 value 1 textcolor 52
+          xywh {195 293 120 21} type Horizontal color 47 selection_color 52 labelsize 12 align 8 maximum 2 value 1
         }
         Fl_Value_Slider displayFXParam1Valuator {
           label {Line shade}
@@ -317,7 +320,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.display.lineShade = o->value();
   gui.config.displaySettingsChanged = true;
 }}
-          tooltip {Controls vertical filtering of scanlines when display quality is set to 3} xywh {195 320 120 21} type {Horz Knob} color 36 selection_color 45 labelsize 12 labelcolor 52 align 8 value 0.75 textcolor 52
+          tooltip {Controls vertical filtering of scanlines when display quality is set to 3} xywh {195 320 120 21} type Horizontal color 47 selection_color 52 labelsize 12 align 8 value 0.75
         }
         Fl_Value_Slider displayFXParam2Valuator {
           label {Blend scale}
@@ -325,7 +328,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.display.blendScale = o->value();
   gui.config.displaySettingsChanged = true;
 }}
-          tooltip {Scale factor applied to the RGB values displayed (OpenGL / single buffered mode only)} xywh {195 347 120 21} type {Horz Knob} color 36 selection_color 45 labelsize 12 labelcolor 52 align 8 minimum 0.5 maximum 2 step 0.02 value 1 textcolor 52
+          tooltip {Scale factor applied to the RGB values displayed (OpenGL / single buffered mode only)} xywh {195 347 120 21} type Horizontal color 47 selection_color 52 labelsize 12 align 8 minimum 0.5 maximum 2 step 0.02 value 1
         }
         Fl_Value_Slider displayFXParam3Valuator {
           label {Motion blur}
@@ -333,7 +336,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.display.motionBlur = o->value();
   gui.config.displaySettingsChanged = true;
 }}
-          tooltip {Amount of temporal filtering in OpenGL / single buffered mode} xywh {195 374 120 21} type {Horz Knob} color 36 selection_color 45 labelsize 12 labelcolor 52 align 8 maximum 0.95 value 0.25 textcolor 52
+          tooltip {Amount of temporal filtering in OpenGL / single buffered mode} xywh {195 374 120 21} type Horizontal color 47 selection_color 52 labelsize 12 align 8 maximum 0.95 value 0.25
         }
       }
       Fl_Button {} {
@@ -351,7 +354,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   else
     gui.emulatorWindow->cursor(FL_CURSOR_NONE);
 }}
-        xywh {255 415 60 25} color 38 selection_color 39 labelcolor 52
+        xywh {255 415 60 25} selection_color 50
       }
       Fl_Button {} {
         label OK
@@ -369,7 +372,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   else
     gui.emulatorWindow->cursor(FL_CURSOR_NONE);
 }}
-        xywh {325 415 60 25} color 38 selection_color 39 labelcolor 52
+        xywh {325 415 60 25} selection_color 50
       }
     }
   }

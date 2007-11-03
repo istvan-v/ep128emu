@@ -20,12 +20,12 @@ if sys.platform[:6] == 'darwin':
     ep128emuLibEnvironment.Append(CPPPATH = ['/usr/X11R6/include'])
 ep128emuLibEnvironment.Append(LINKFLAGS = ['-L.'])
 if win32CrossCompile:
-    ep128emuLibEnvironment['AR'] = 'wine D:/MinGW/bin/ar.exe'
-    ep128emuLibEnvironment['CC'] = 'wine D:/MinGW/bin/gcc.exe'
-    ep128emuLibEnvironment['CPP'] = 'wine D:/MinGW/bin/cpp.exe'
-    ep128emuLibEnvironment['CXX'] = 'wine D:/MinGW/bin/g++.exe'
-    ep128emuLibEnvironment['LINK'] = 'wine D:/MinGW/bin/g++.exe'
-    ep128emuLibEnvironment['RANLIB'] = 'wine D:/MinGW/bin/ranlib.exe'
+    ep128emuLibEnvironment['AR'] = 'wine C:/MinGW/bin/ar.exe'
+    ep128emuLibEnvironment['CC'] = 'wine C:/MinGW/bin/gcc-sjlj.exe'
+    ep128emuLibEnvironment['CPP'] = 'wine C:/MinGW/bin/cpp-sjlj.exe'
+    ep128emuLibEnvironment['CXX'] = 'wine C:/MinGW/bin/g++-sjlj.exe'
+    ep128emuLibEnvironment['LINK'] = 'wine C:/MinGW/bin/g++-sjlj.exe'
+    ep128emuLibEnvironment['RANLIB'] = 'wine C:/MinGW/bin/ranlib.exe'
     ep128emuLibEnvironment.Append(LIBS = ['ole32', 'uuid', 'ws2_32',
                                           'gdi32', 'user32', 'kernel32'])
     ep128emuLibEnvironment.Prepend(CCFLAGS = ['-mthreads'])
@@ -111,6 +111,7 @@ ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
     src/fileio.cpp
     src/fldisp.cpp
     src/gldisp.cpp
+    src/guicolor.cpp
     src/joystick.cpp
     src/snd_conv.cpp
     src/soundio.cpp

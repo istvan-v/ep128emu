@@ -189,69 +189,69 @@ class Ep128EmuGUI {open
 }} {}
     Fl_Window mainWindow {
       label ep128emu open
-      xywh {248 54 400 360} type Single color 37 selection_color 0 resizable
+      xywh {248 54 400 360} type Single color 48 selection_color 0 resizable
       code0 {o->add(emulatorWindow);} size_range {384 348 1536 1182} visible
     } {
       Fl_Menu_Bar mainMenuBar {open
-        xywh {0 0 300 30} box FLAT_BOX color 37 selection_color 236 labelcolor 52 textcolor 52
+        xywh {0 0 300 30} box FLAT_BOX color 48 selection_color 53
       } {}
       Fl_Group diskStatusDisplayGroup {
         label {Disk: } open
-        xywh {345 0 30 30} box PLASTIC_THIN_UP_BOX color 0 labelsize 12 labelcolor 52 align 4
+        xywh {345 0 30 30} box PLASTIC_THIN_UP_BOX color 255 labelsize 12 align 4
       } {
         Fl_Box driveALEDDisplay {
-          xywh {351 2 18 5} box THIN_DOWN_BOX color 0
+          xywh {351 2 18 5} box THIN_DOWN_BOX color 56
         }
         Fl_Box driveBLEDDisplay {
-          xywh {351 9 18 5} box THIN_DOWN_BOX color 0
+          xywh {351 9 18 5} box THIN_DOWN_BOX color 56
         }
         Fl_Box driveCLEDDisplay {
-          xywh {351 16 18 5} box THIN_DOWN_BOX color 0
+          xywh {351 16 18 5} box THIN_DOWN_BOX color 56
         }
         Fl_Box driveDLEDDisplay {
-          xywh {351 23 18 5} box THIN_DOWN_BOX color 0
+          xywh {351 23 18 5} box THIN_DOWN_BOX color 56
         }
       }
       Fl_Group statusDisplayGroup {open
-        xywh {40 330 360 30} color 37
+        xywh {40 330 360 30} color 48
       } {
         Fl_Box demoStatusDisplay1 {
           label {Demo:}
-          xywh {50 335 50 20} color 37 selection_color 236 labelsize 12 labelcolor 52 align 20
+          xywh {50 335 50 20} color 48 selection_color 15 labelsize 12 align 20
         }
         Fl_Box demoStatusDisplay2 {
-          xywh {97 335 20 20} box THIN_DOWN_BOX color 0 selection_color 236 labelfont 5 labelsize 12 labelcolor 247 align 16
+          xywh {97 335 20 20} box THIN_DOWN_BOX color 7 selection_color 236 labelfont 5 labelsize 12 labelcolor 247 align 16
         }
         Fl_Box tapeInfoDisplay {
-          xywh {130 335 150 20} color 37 selection_color 236 labelsize 12 labelcolor 52 align 16
+          xywh {130 335 150 20} color 48 selection_color 15 labelsize 12 align 16
           code0 {o->label("Tape: none");}
         }
         Fl_Group tapeStatusDisplayGroup {open
-          xywh {290 335 100 20} box THIN_DOWN_BOX color 0 labelsize 12 align 4
+          xywh {290 335 100 20} box THIN_DOWN_BOX color 7 labelsize 12 align 4
         } {
           Fl_Box tapeStatusDisplay {
-            xywh {290 335 20 20} color 0 selection_color 236 labelfont 5 labelsize 12 labelcolor 247 align 24
+            xywh {290 335 20 20} color 7 selection_color 236 labelfont 5 labelsize 12 labelcolor 247 align 24
           }
           Fl_Box tapePositionDisplay {
-            xywh {310 335 73 20} color 0 selection_color 236 labelfont 4 labelsize 12 labelcolor 247 align 24
+            xywh {310 335 73 20} color 7 selection_color 236 labelfont 4 labelsize 12 labelcolor 247 align 24
           }
         }
       }
     }
     Fl_Window errorMessageWindow {
       label {ep128emu error} open
-      xywh {249 553 280 150} type Double color 37 selection_color 236 modal visible
+      xywh {249 553 280 150} type Double color 48 selection_color 15 modal visible
     } {
       Fl_Box {} {
-        xywh {10 10 260 95} box THIN_UP_BOX color 39 selection_color 236 labelcolor 54
+        xywh {10 10 260 95} box THIN_UP_BOX selection_color 15
       }
       Fl_Box errorMessageText {
-        xywh {20 15 240 85} box FLAT_BOX color 39 selection_color 236 labelcolor 54 align 144
+        xywh {20 15 240 85} box FLAT_BOX selection_color 15 align 144
       }
       Fl_Button {} {
         label OK
         callback {errorMessageWindow->hide();}
-        xywh {105 115 70 25} color 38 selection_color 39 labelcolor 52
+        xywh {105 115 70 25} selection_color 50
       }
     }
     code {{

@@ -18,6 +18,8 @@ decl {\#include <FL/Fl_Text_Buffer.H>} {}
 
 decl {\#include "tapeedit_fl.hpp"} {} 
 
+decl {\#include "guicolor.hpp"} {} 
+
 class TapeEditorGUI {open
 } {
   decl {int fileSelected;} {public
@@ -51,40 +53,40 @@ class TapeEditorGUI {open
     fileSelected = int(fileList.getFileCnt()) - 1;
   if (fileSelected >= 0) {
     fileNameInput->clear_output();
-    fileNameInput->labelcolor(Fl_Color(52));
+    fileNameInput->labelcolor(Fl_Color(54));
     copyProtectCheckBox->clear_output();
-    copyProtectCheckBox->labelcolor(Fl_Color(52));
+    copyProtectCheckBox->labelcolor(Fl_Color(54));
     duplicateButton->clear_output();
-    duplicateButton->labelcolor(Fl_Color(52));
+    duplicateButton->labelcolor(Fl_Color(54));
     removeButton->clear_output();
-    removeButton->labelcolor(Fl_Color(52));
+    removeButton->labelcolor(Fl_Color(54));
     moveUpButton->clear_output();
-    moveUpButton->labelcolor(Fl_Color(52));
+    moveUpButton->labelcolor(Fl_Color(54));
     moveDownButton->clear_output();
-    moveDownButton->labelcolor(Fl_Color(52));
+    moveDownButton->labelcolor(Fl_Color(54));
     exportButton->clear_output();
-    exportButton->labelcolor(Fl_Color(52));
+    exportButton->labelcolor(Fl_Color(54));
   }
   else {
     fileNameInput->set_output();
-    fileNameInput->labelcolor(Fl_Color(48));
+    fileNameInput->labelcolor(Fl_Color(53));
     fileNameInput->value("");
     copyProtectCheckBox->set_output();
-    copyProtectCheckBox->labelcolor(Fl_Color(48));
+    copyProtectCheckBox->labelcolor(Fl_Color(53));
     copyProtectCheckBox->value(0);
     hasErrorsCheckBox->value(0);
     isCompleteCheckBox->value(0);
     fileLengthDisplay->value(0.0);
     duplicateButton->set_output();
-    duplicateButton->labelcolor(Fl_Color(46));
+    duplicateButton->labelcolor(Fl_Color(52));
     removeButton->set_output();
-    removeButton->labelcolor(Fl_Color(46));
+    removeButton->labelcolor(Fl_Color(52));
     moveUpButton->set_output();
-    moveUpButton->labelcolor(Fl_Color(46));
+    moveUpButton->labelcolor(Fl_Color(52));
     moveDownButton->set_output();
-    moveDownButton->labelcolor(Fl_Color(46));
+    moveDownButton->labelcolor(Fl_Color(52));
     exportButton->set_output();
-    exportButton->labelcolor(Fl_Color(46));
+    exportButton->labelcolor(Fl_Color(52));
   }
   int   n = int(fileList.getFileCnt()) - fileListBrowser->size();
   if (n > 0) {
@@ -100,7 +102,7 @@ class TapeEditorGUI {open
   for (int i = 0; i < int(fileList.getFileCnt()); i++) {
     std::string fileName("");
     if (fileList[i]->hasErrors || !fileList[i]->isComplete)
-      fileName = "@C88@.";
+      fileName = "@C171@.";
     std::string tmp(fileList[i]->getFileName());
     if (i == fileSelected) {
       fileNameInput->value(tmp.c_str());
@@ -181,13 +183,13 @@ class TapeEditorGUI {open
 }} {}
     Fl_Window overwriteWindow {
       label {Confirm file overwrite} open
-      xywh {402 416 200 90} type Double color 37
+      xywh {402 416 200 90} type Double color 48
       code0 {o->hide();}
       code1 {o->set_modal();} visible
     } {
       Fl_Box {} {
         label {Overwrite file ?}
-        xywh {10 15 180 25} labelsize 13 labelcolor 52
+        xywh {10 15 180 25} labelsize 13
       }
       Fl_Button {} {
         label OK
@@ -195,7 +197,7 @@ class TapeEditorGUI {open
   overwriteFlag = true;
   overwriteWindow->hide();
 }}
-        xywh {30 55 60 25} color 38 selection_color 39 labelsize 13 labelcolor 52
+        xywh {30 55 60 25} selection_color 50 labelsize 13
       }
       Fl_Button {} {
         label Cancel
@@ -203,18 +205,18 @@ class TapeEditorGUI {open
   overwriteFlag = false;
   overwriteWindow->hide();
 }}
-        xywh {110 55 60 25} color 38 selection_color 39 labelsize 13 labelcolor 52
+        xywh {110 55 60 25} selection_color 50 labelsize 13
       }
     }
     Fl_Window quitWindow {
       label {Confirm quit} open
-      xywh {488 554 200 90} type Double color 37
+      xywh {488 554 200 90} type Double color 48
       code0 {o->hide();}
       code1 {o->set_modal();} visible
     } {
       Fl_Box {} {
         label {Quit without saving tape ?}
-        xywh {10 15 180 25} labelsize 13 labelcolor 52
+        xywh {10 15 180 25} labelsize 13
       }
       Fl_Button {} {
         label OK
@@ -222,7 +224,7 @@ class TapeEditorGUI {open
   exitFlag = true;
   quitWindow->hide();
 }}
-        xywh {30 55 60 25} color 38 selection_color 39 labelsize 13 labelcolor 52
+        xywh {30 55 60 25} selection_color 50 labelsize 13
       }
       Fl_Button {} {
         label Cancel
@@ -230,80 +232,80 @@ class TapeEditorGUI {open
   exitFlag = false;
   quitWindow->hide();
 }}
-        xywh {110 55 60 25} color 38 selection_color 39 labelsize 13 labelcolor 52
+        xywh {110 55 60 25} selection_color 50 labelsize 13
       }
     }
     Fl_Window errorWindow {
       label Error open
-      xywh {437 510 240 90} type Double color 37
+      xywh {437 510 240 90} type Double color 48
       code0 {o->hide();}
       code1 {o->set_modal();} visible
     } {
       Fl_Box errorMessage {
         label Error
-        xywh {5 15 230 25} labelsize 13 labelcolor 52
+        xywh {5 15 230 25} labelsize 13
       }
       Fl_Button {} {
         label OK
         callback {errorWindow->hide();}
-        xywh {85 55 70 25} color 38 selection_color 39 labelsize 13 labelcolor 52
+        xywh {85 55 70 25} selection_color 50 labelsize 13
       }
     }
     Fl_Window progressWindow {
       label {Loading tape image} open
-      xywh {281 431 220 55} type Double color 37
+      xywh {281 431 220 55} type Double color 48
       code0 {o->hide();}
       code1 {o->set_modal();} visible
     } {
       Fl_Progress progressDisplay {
-        xywh {10 15 200 25} box THIN_DOWN_BOX color 0 selection_color 238 labelcolor 52
+        xywh {10 15 200 25} box THIN_DOWN_BOX selection_color 15
       }
     }
     Fl_Window soundFileOptionsWindow {
       label {Sound file read options} open
-      xywh {439 402 270 170} type Double color 37
+      xywh {439 402 270 170} type Double color 48
       code0 {o->hide();} visible
     } {
       Fl_Group {} {open
-        xywh {10 10 250 115} box THIN_UP_BOX color 38 labelcolor 52
+        xywh {10 10 250 115} box THIN_UP_BOX
       } {
         Fl_Counter {} {
           label {Channel number}
           callback {soundFileChannel = int(o->value() + 0.5);}
-          tooltip {Channel to read (counting from zero) from multichannel files} xywh {20 20 115 25} color 39 selection_color 35 labelsize 13 labelcolor 52 align 8 minimum 0 maximum 255 step 1 textsize 13
+          tooltip {Channel to read (counting from zero) from multichannel files} xywh {20 20 115 25} color 50 selection_color 52 labelsize 13 align 8 minimum 0 maximum 255 step 1 textsize 13
           code0 {o->value(double(soundFileChannel));}
         }
         Fl_Value_Slider {} {
           label {Minimum frequency}
           callback {soundFileMinFreq = float(o->value());}
-          tooltip {Cutoff frequency of FIR highpass filter, in Hz} xywh {20 55 115 25} type {Horz Knob} color 36 selection_color 45 labelsize 13 labelcolor 52 align 8 minimum 50 maximum 1200 step 10 value 600 textcolor 52
+          tooltip {Cutoff frequency of FIR highpass filter, in Hz} xywh {20 55 115 25} type Horizontal color 47 selection_color 52 labelsize 13 align 8 minimum 50 maximum 1200 step 10 value 600
           code0 {o->value(double(soundFileMinFreq));}
         }
         Fl_Value_Slider {} {
           label {Maximum frequency}
           callback {soundFileMaxFreq = float(o->value());}
-          tooltip {Cutoff frequency of FIR lowpass filter, in Hz} xywh {20 90 115 25} type {Horz Knob} color 36 selection_color 45 labelsize 13 labelcolor 52 align 8 minimum 1500 maximum 12000 step 100 value 3000 textcolor 52
+          tooltip {Cutoff frequency of FIR lowpass filter, in Hz} xywh {20 90 115 25} type Horizontal color 47 selection_color 52 labelsize 13 align 8 minimum 1500 maximum 12000 step 100 value 3000
           code0 {o->value(double(soundFileMaxFreq));}
         }
       }
       Fl_Button {} {
         label OK
         callback {soundFileOptionsWindow->hide();}
-        xywh {200 135 60 25} color 38 selection_color 39 labelsize 13 labelcolor 52
+        xywh {200 135 60 25} selection_color 50 labelsize 13
       }
     }
     Fl_Window aboutWindow {
       label {Copyright information} open
-      xywh {333 349 520 360} type Double color 37 visible
+      xywh {333 349 520 360} type Double color 48 visible
     } {
       Fl_Text_Display {} {
-        xywh {10 10 500 305} box DOWN_BOX color 0 selection_color 238 labelsize 13 labelcolor 52 textfont 4 textsize 13 textcolor 52
+        xywh {10 10 500 305} box DOWN_BOX labelsize 13 textfont 4 textsize 13
         code0 {o->buffer(copyrightText);}
       }
       Fl_Button {} {
         label OK
         callback {aboutWindow->hide();}
-        xywh {450 325 60 25} color 38 selection_color 39 labelsize 13 labelcolor 52
+        xywh {450 325 60 25} selection_color 50 labelsize 13
       }
     }
     Fl_Window mainWindow {
@@ -318,18 +320,18 @@ class TapeEditorGUI {open
   if (exitFlag)
     o->hide();
 }} open
-      xywh {432 204 360 415} type Double color 37 align 80 visible
+      xywh {432 204 360 415} type Double color 48 align 80 visible
     } {
       Fl_Browser fileListBrowser {
         callback {{
   fileSelected = o->value() - 1;
   updateFlag = true;
 }}
-        xywh {10 10 260 270} color 0 selection_color 226 labelsize 13 labelcolor 52 textfont 13 textsize 13 textcolor 52
+        xywh {10 10 260 270} selection_color 216 labelsize 13 textfont 13 textsize 13 textcolor 207
         class Fl_Hold_Browser
       }
       Fl_Group {} {open
-        xywh {10 290 340 115} box THIN_UP_BOX color 38
+        xywh {10 290 340 115} box THIN_UP_BOX
       } {
         Fl_Input fileNameInput {
           label {File name}
@@ -340,18 +342,18 @@ class TapeEditorGUI {open
   }
   updateFlag = true;
 }}
-          xywh {80 300 260 25} box THIN_DOWN_BOX color 0 selection_color 238 labelsize 13 labelcolor 48 textsize 13 textcolor 52
+          xywh {80 300 260 25} box THIN_DOWN_BOX labelsize 13 labelcolor 53 textsize 13
           code0 {o->cursor_color(FL_YELLOW);}
           code1 {o->set_output();}
         }
         Fl_Check_Button hasErrorsCheckBox {
           label {Has errors}
-          xywh {80 370 25 25} down_box DOWN_BOX labelsize 13 labelcolor 48 align 4
+          xywh {80 370 25 25} down_box DOWN_BOX labelsize 13 labelcolor 53 align 4
           code0 {o->set_output();}
         }
         Fl_Check_Button isCompleteCheckBox {
           label {Is complete}
-          xywh {180 370 25 25} down_box DOWN_BOX labelsize 13 labelcolor 48 align 4
+          xywh {180 370 25 25} down_box DOWN_BOX labelsize 13 labelcolor 53 align 4
           code0 {o->set_output();}
         }
         Fl_Check_Button copyProtectCheckBox {
@@ -363,17 +365,17 @@ class TapeEditorGUI {open
   }
   updateFlag = true;
 }}
-          xywh {315 370 25 25} down_box DOWN_BOX labelsize 13 labelcolor 48 align 4
+          xywh {315 370 25 25} down_box DOWN_BOX labelsize 13 labelcolor 53 align 4
           code0 {o->set_output();}
         }
         Fl_Value_Output fileLengthDisplay {
           label {File length}
-          xywh {80 335 60 25} box THIN_DOWN_BOX color 0 selection_color 238 labelsize 13 labelcolor 48 maximum 1e+07 step 1 textsize 13 textcolor 52
+          xywh {80 335 60 25} box THIN_DOWN_BOX color 7 selection_color 15 labelsize 13 labelcolor 53 maximum 1e+07 step 1 textsize 13
           code0 {o->set_output();}
         }
         Fl_Box {} {
           label bytes
-          xywh {140 335 60 25} labelsize 13 labelcolor 48 align 20 deactivate
+          xywh {140 335 60 25} labelsize 13 labelcolor 53 align 20 deactivate
         }
       }
       Fl_Button {} {
@@ -406,7 +408,7 @@ class TapeEditorGUI {open
   }
   busyFlag = false;
 }}
-        tooltip {Load files from tape image (ep128emu tape file, sound file, or EPTE/TAPir tape file)} xywh {280 10 70 20} color 38 selection_color 39 labelsize 13 labelcolor 52
+        tooltip {Load files from tape image (ep128emu tape file, sound file, or EPTE/TAPir tape file)} xywh {280 10 70 20} selection_color 50 labelsize 13
       }
       Fl_Button {} {
         label {Import...}
@@ -432,7 +434,7 @@ class TapeEditorGUI {open
   }
   busyFlag = false;
 }}
-        tooltip {Add a file to the tape from disk} xywh {280 35 70 20} color 38 selection_color 39 labelsize 13 labelcolor 52
+        tooltip {Add a file to the tape from disk} xywh {280 35 70 20} selection_color 50 labelsize 13
       }
       Fl_Button duplicateButton {
         label Duplicate
@@ -454,7 +456,7 @@ class TapeEditorGUI {open
   updateDisplay();
   busyFlag = false;
 }}
-        tooltip {Make a copy of the currently selected file at the end of the tape} xywh {280 60 70 20} color 38 selection_color 39 labelsize 13 labelcolor 46
+        tooltip {Make a copy of the currently selected file at the end of the tape} xywh {280 60 70 20} selection_color 50 labelsize 13 labelcolor 52
         code0 {o->set_output();}
       }
       Fl_Button removeButton {
@@ -476,7 +478,7 @@ class TapeEditorGUI {open
   updateDisplay();
   busyFlag = false;
 }}
-        tooltip {Delete currently selected file from tape} xywh {280 85 70 20} color 38 selection_color 39 labelsize 13 labelcolor 46
+        tooltip {Delete currently selected file from tape} xywh {280 85 70 20} selection_color 50 labelsize 13 labelcolor 52
         code0 {o->set_output();}
       }
       Fl_Button moveUpButton {
@@ -500,7 +502,7 @@ class TapeEditorGUI {open
   updateDisplay();
   busyFlag = false;
 }}
-        tooltip {Move currently selected file towards the beginning of the tape} xywh {280 110 70 20} color 38 selection_color 39 labelsize 13 labelcolor 46
+        tooltip {Move currently selected file towards the beginning of the tape} xywh {280 110 70 20} selection_color 50 labelsize 13 labelcolor 52
         code0 {o->set_output();}
       }
       Fl_Button moveDownButton {
@@ -524,7 +526,7 @@ class TapeEditorGUI {open
   updateDisplay();
   busyFlag = false;
 }}
-        tooltip {Move currently selected file towards the end of the tape} xywh {280 135 70 20} color 38 selection_color 39 labelsize 13 labelcolor 46
+        tooltip {Move currently selected file towards the end of the tape} xywh {280 135 70 20} selection_color 50 labelsize 13 labelcolor 52
         code0 {o->set_output();}
       }
       Fl_Button exportButton {
@@ -559,7 +561,7 @@ class TapeEditorGUI {open
   }
   busyFlag = false;
 }}
-        tooltip {Save currently selected file to disk} xywh {280 160 70 20} color 38 selection_color 39 labelsize 13 labelcolor 46
+        tooltip {Save currently selected file to disk} xywh {280 160 70 20} selection_color 50 labelsize 13 labelcolor 52
         code0 {o->set_output();}
       }
       Fl_Button {} {
@@ -596,17 +598,17 @@ class TapeEditorGUI {open
   }
   busyFlag = false;
 }}
-        tooltip {Save all files to tape image} xywh {280 185 70 20} color 38 selection_color 39 labelsize 13 labelcolor 52
+        tooltip {Save all files to tape image} xywh {280 185 70 20} selection_color 50 labelsize 13
       }
       Fl_Button {} {
         label {Options...}
         callback {soundFileOptionsWindow->show();}
-        tooltip {Set options} xywh {280 210 70 20} color 38 selection_color 39 labelsize 13 labelcolor 52
+        tooltip {Set options} xywh {280 210 70 20} selection_color 50 labelsize 13
       }
       Fl_Button {} {
         label {About...}
         callback {aboutWindow->show();}
-        tooltip {Display copyright information} xywh {280 235 70 20} color 38 selection_color 39 labelsize 13 labelcolor 52
+        tooltip {Display copyright information} xywh {280 235 70 20} selection_color 50 labelsize 13
       }
       Fl_Button {} {
         label Quit
@@ -620,7 +622,7 @@ class TapeEditorGUI {open
   if (exitFlag)
     mainWindow->hide();
 }}
-        tooltip {Exit tape editor} xywh {280 260 70 20} color 38 selection_color 39 labelsize 13 labelcolor 52
+        tooltip {Exit tape editor} xywh {280 260 70 20} selection_color 50 labelsize 13
       }
     }
   }
@@ -652,6 +654,7 @@ Function {main(int argc, char **argv)} {open return_type int
 } {
   code {{
   Fl::lock();
+  Ep128Emu::setGUIColorScheme();
   TapeEditorGUI *w = new TapeEditorGUI;
   try {
     w->mainWindow->show();

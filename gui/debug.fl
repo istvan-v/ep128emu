@@ -57,44 +57,44 @@ class Ep128EmuGUI_DebugWindow {open
   gui.vm.setSingleStepMode(false);
   this->hide();
 }} open
-      xywh {308 146 540 450} type Double color 37 visible
+      xywh {308 146 540 450} type Double color 48 visible
     } {
       Fl_Tabs debugTabs {open
-        xywh {10 10 520 395} color 38 selection_color 38 labelcolor 52
+        xywh {10 10 520 395}
       } {
         Fl_Group mainTab {
           label General open
-          xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52
+          xywh {10 35 520 370} box THIN_UP_BOX
         } {
           Fl_Output cpuRegisterDisplay {
             label {CPU registers}
-            xywh {20 63 363 80} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 5 textcolor 159
+            xywh {20 63 363 80} type Multiline align 5 textfont 5 textcolor 159
           }
           Fl_Output memoryPagingDisplay {
             label {Memory paging}
-            xywh {393 63 127 80} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 5 textcolor 159
+            xywh {393 63 127 80} type Multiline align 5 textfont 5 textcolor 159
           }
           Fl_Output codeMemoryDumpDisplay {
             label Code
-            xywh {20 168 500 100} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 5 textcolor 159
+            xywh {20 168 500 100} type Multiline align 5 textfont 5 textcolor 159
           }
           Fl_Output stackMemoryDumpDisplay {
             label Stack
-            xywh {20 293 500 100} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 5 textcolor 159
+            xywh {20 293 500 100} type Multiline align 5 textfont 5 textcolor 159
           }
         }
         Fl_Group {} {
           label {I/O} open
-          xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52 hide
+          xywh {10 35 520 370} box THIN_UP_BOX hide
         } {
           Fl_Output ioRegisterDisplay {
             label {I/O registers}
-            xywh {20 63 500 330} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 5 textcolor 159
+            xywh {20 63 500 330} type Multiline align 5 textfont 5 textcolor 159
           }
         }
         Fl_Group {} {
           label Memory open
-          xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52 hide
+          xywh {10 35 520 370} box THIN_UP_BOX hide
         } {
           Fl_Input {} {
             label Command
@@ -103,12 +103,12 @@ class Ep128EmuGUI_DebugWindow {open
   o->value("");
   updateWindow();
 }}
-            tooltip {Enter command followed by space separated list of hexadecimal arguments. The available commands are: >ADDRESS VALUE1 ... (modify memory), F START END VALUE1 ... (fill memory area with pattern), H START END VALUE1 ... (find pattern in memory area), and T START END DEST (copy memory). Leave blank to execute no command.} xywh {20 63 500 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            tooltip {Enter command followed by space separated list of hexadecimal arguments. The available commands are: >ADDRESS VALUE1 ... (modify memory), F START END VALUE1 ... (fill memory area with pattern), H START END VALUE1 ... (find pattern in memory area), and T START END DEST (copy memory). Leave blank to execute no command.} xywh {20 63 500 25} align 5 textfont 4
             code0 {o->cursor_color(FL_YELLOW);}
           }
           Fl_Output memoryDumpDisplay {
             label {Memory dump}
-            xywh {20 113 375 280} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 5 textcolor 159
+            xywh {20 113 375 280} type Multiline align 5 textfont 5 textcolor 159
           }
           Fl_Light_Button {} {
             label {CPU address}
@@ -116,7 +116,7 @@ class Ep128EmuGUI_DebugWindow {open
   memoryDumpCPUAddressMode = (o->value() != 0);
   updateMemoryDumpDisplay();
 }}
-            tooltip {Select if 16 bit CPU, or 22 bit physical addresses are to be used} xywh {405 115 115 25} value 1 color 39 labelcolor 52
+            tooltip {Select if 16 bit CPU, or 22 bit physical addresses are to be used} xywh {405 115 115 25} value 1 color 50 selection_color 3
           }
           Fl_Input memoryDumpStartAddressValuator {
             label {Start address}
@@ -125,7 +125,7 @@ class Ep128EmuGUI_DebugWindow {open
     memoryDumpViewAddress = memoryDumpStartAddress;
   updateMemoryDumpDisplay();
 }}
-            xywh {405 160 115 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            xywh {405 160 115 25} align 5 textfont 4
             code0 {o->cursor_color(FL_YELLOW);}
             code1 {o->value("0000");}
           }
@@ -135,7 +135,7 @@ class Ep128EmuGUI_DebugWindow {open
   parseHexNumber(memoryDumpEndAddress, o->value());
   updateMemoryDumpDisplay();
 }}
-            tooltip {End address of memory dump (for file I/O only); this address is still included} xywh {405 205 115 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            tooltip {End address of memory dump (for file I/O only); this address is still included} xywh {405 205 115 25} align 5 textfont 4
             code0 {o->cursor_color(FL_YELLOW);}
             code1 {o->value("007F");}
           }
@@ -145,7 +145,7 @@ class Ep128EmuGUI_DebugWindow {open
   memoryDumpViewAddress = (memoryDumpViewAddress + 0x003FFF80U) & 0x003FFFFFU;
   updateMemoryDumpDisplay();
 }}
-            tooltip {View previous page} xywh {405 250 55 25} color 39 selection_color 40 labelcolor 52
+            tooltip {View previous page} xywh {405 250 55 25} color 50 selection_color 51
           }
           Fl_Button {} {
             label {@>}
@@ -153,14 +153,14 @@ class Ep128EmuGUI_DebugWindow {open
   memoryDumpViewAddress = (memoryDumpViewAddress + 0x80U) & 0x003FFFFFU;
   updateMemoryDumpDisplay();
 }}
-            tooltip {View next page} xywh {465 250 55 25} color 39 selection_color 40 labelcolor 52
+            tooltip {View next page} xywh {465 250 55 25} color 50 selection_color 51
           }
           Fl_Light_Button {} {
             label {ASCII format}
             callback {{
   memoryDumpASCIIFileFormat = (o->value() != 0);
 }}
-            tooltip {Select if memory dump file format should be ASCII or binary} xywh {405 295 115 25} color 39 labelcolor 52
+            tooltip {Select if memory dump file format should be ASCII or binary} xywh {405 295 115 25} color 50 selection_color 3
           }
           Fl_Button {} {
             label {Load from file}
@@ -208,7 +208,7 @@ class Ep128EmuGUI_DebugWindow {open
   }
   updateWindow();
 }}
-            xywh {405 330 115 25} color 39 selection_color 40 labelcolor 52
+            xywh {405 330 115 25} color 50 selection_color 51
           }
           Fl_Button {} {
             label {Save to file}
@@ -255,15 +255,15 @@ class Ep128EmuGUI_DebugWindow {open
     gui.errorMessage(e.what());
   }
 }}
-            xywh {405 365 115 25} color 39 selection_color 40 labelcolor 52
+            xywh {405 365 115 25} color 50 selection_color 51
           }
         }
         Fl_Group {} {
           label Disassemble open
-          xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52 hide
+          xywh {10 35 520 370} box THIN_UP_BOX hide
         } {
           Fl_Output disassemblyDisplay {
-            xywh {20 48 375 345} type Multiline color 0 selection_color 238 labelcolor 52 align 5 textfont 5 textcolor 159
+            xywh {20 48 375 345} type Multiline align 5 textfont 5 textcolor 159
           }
           Fl_Light_Button {} {
             label {CPU address}
@@ -271,7 +271,7 @@ class Ep128EmuGUI_DebugWindow {open
   disassemblyCPUAddressMode = (o->value() != 0);
   updateDisassemblyDisplay();
 }}
-            tooltip {Select if 16 bit CPU, or 22 bit physical addresses are to be used} xywh {405 50 115 25} value 1 color 39 labelcolor 52
+            tooltip {Select if 16 bit CPU, or 22 bit physical addresses are to be used} xywh {405 50 115 25} value 1 color 50 selection_color 3
           }
           Fl_Input disassemblyStartAddressValuator {
             label {Start address}
@@ -280,7 +280,7 @@ class Ep128EmuGUI_DebugWindow {open
     disassemblyViewAddress = disassemblyStartAddress;
   updateDisassemblyDisplay();
 }}
-            xywh {405 95 115 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            xywh {405 95 115 25} align 5 textfont 4
             code0 {o->cursor_color(FL_YELLOW);}
             code1 {o->value("0000");}
           }
@@ -294,7 +294,7 @@ class Ep128EmuGUI_DebugWindow {open
   }
   updateDisassemblyDisplay();
 }}
-            tooltip {The address where the disassembled code will actually run} xywh {405 140 115 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            tooltip {The address where the disassembled code will actually run} xywh {405 140 115 25} align 5 textfont 4
             code0 {o->cursor_color(FL_YELLOW);}
             code1 {o->value("0000");}
           }
@@ -304,7 +304,7 @@ class Ep128EmuGUI_DebugWindow {open
   parseHexNumber(disassemblyEndAddress, o->value());
   updateDisassemblyDisplay();
 }}
-            tooltip {End address of disassembly (for file I/O only); this address is still included} xywh {405 185 115 25} color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            tooltip {End address of disassembly (for file I/O only); this address is still included} xywh {405 185 115 25} align 5 textfont 4
             code0 {o->cursor_color(FL_YELLOW);}
             code1 {o->value("003F");}
           }
@@ -316,7 +316,7 @@ class Ep128EmuGUI_DebugWindow {open
     updateDisassemblyDisplay();
   }
 }}
-            tooltip {Return to start address} xywh {405 230 55 25} color 39 selection_color 40 labelcolor 52
+            tooltip {Return to start address} xywh {405 230 55 25} color 50 selection_color 51
           }
           Fl_Button {} {
             label {@>}
@@ -324,7 +324,7 @@ class Ep128EmuGUI_DebugWindow {open
   disassemblyViewAddress = disassemblyNextAddress;
   updateDisassemblyDisplay();
 }}
-            tooltip {View next page} xywh {465 230 55 25} color 39 selection_color 40 labelcolor 52
+            tooltip {View next page} xywh {465 230 55 25} color 50 selection_color 51
           }
           Fl_Button {} {
             label {Save to file}
@@ -365,18 +365,18 @@ class Ep128EmuGUI_DebugWindow {open
     gui.errorMessage(e.what());
   }
 }}
-            xywh {405 275 115 25} color 39 selection_color 40 labelcolor 52
+            xywh {405 275 115 25} color 50 selection_color 51
           }
         }
         Fl_Group breakPointsTab {
           label Watchpoints open
-          xywh {10 35 520 370} box THIN_UP_BOX color 38 selection_color 38 labelcolor 52 hide
+          xywh {10 35 520 370} box THIN_UP_BOX hide
         } {
           Fl_Text_Editor breakPointEditor {
             callback {{
   applyBreakPointList();
 }}
-            tooltip {Enter watchpoint definitions, separated by spaces or newlines. Allowed formats include NN (I/O), NNNN (memory, CPU address), and NN:NNNN (memory, physical address as segment:offset); each N is a hexadecimal digit. Address ranges (separated by a - character) can also be specified. Use the following suffixes to check for read or write access only, set priority, or ignore watchpoints depending on the program counter: r, w, p0, p1, p2, p3, i.} xywh {20 48 345 345} box DOWN_BOX color 0 selection_color 238 labelcolor 52 align 5 textfont 4 textcolor 52
+            tooltip {Enter watchpoint definitions, separated by spaces or newlines. Allowed formats include NN (I/O), NNNN (memory, CPU address), and NN:NNNN (memory, physical address as segment:offset); each N is a hexadecimal digit. Address ranges (separated by a - character) can also be specified. Use the following suffixes to check for read or write access only, set priority, or ignore watchpoints depending on the program counter: r, w, p0, p1, p2, p3, i.} xywh {20 48 345 345} box DOWN_BOX align 5 textfont 4
             code0 {o->cursor_color(FL_YELLOW);}
             code1 {o->buffer(bpEditBuffer);}
           }
@@ -392,7 +392,7 @@ class Ep128EmuGUI_DebugWindow {open
     gui.errorMessage(e.what());
   }
 }}
-            xywh {375 50 145 25} color 39 labelcolor 52
+            xywh {375 50 145 25} color 50 selection_color 3
           }
           Fl_Value_Slider bpPriorityThresholdValuator {
             label {Priority threshold}
@@ -406,7 +406,7 @@ class Ep128EmuGUI_DebugWindow {open
     gui.errorMessage(e.what());
   }
 }}
-            xywh {375 95 145 25} type {Horz Knob} color 36 selection_color 45 labelcolor 52 align 5 maximum 4 step 1 textcolor 52
+            xywh {375 95 145 25} type Horizontal color 47 selection_color 52 align 5 maximum 4 step 1
           }
           Fl_Button {} {
             label {Load from file}
@@ -455,7 +455,7 @@ class Ep128EmuGUI_DebugWindow {open
     gui.errorMessage(e.what());
   }
 }}
-            xywh {375 140 145 25} color 39 selection_color 40 labelcolor 52
+            xywh {375 140 145 25} color 50 selection_color 51
           }
           Fl_Button {} {
             label {Save to file}
@@ -497,14 +497,14 @@ class Ep128EmuGUI_DebugWindow {open
     gui.errorMessage(e.what());
   }
 }}
-            xywh {375 185 145 25} color 39 selection_color 40 labelcolor 52
+            xywh {375 185 145 25} color 50 selection_color 51
           }
           Fl_Button {} {
             label Apply
             callback {{
   applyBreakPointList();
 }}
-            tooltip {Reset watchpoints from text format definition} xywh {375 365 145 25} color 39 selection_color 40 labelcolor 52
+            tooltip {Reset watchpoints from text format definition} xywh {375 365 145 25} color 50 selection_color 51
           }
         }
       }
@@ -515,7 +515,7 @@ class Ep128EmuGUI_DebugWindow {open
   gui.vm.setSingleStepMode(true);
   this->hide();
 }}
-        xywh {265 415 80 25} color 38 selection_color 39 labelcolor 52
+        xywh {265 415 80 25} selection_color 50
       }
       Fl_Button stepOverButton {
         label {Step over}
@@ -524,7 +524,7 @@ class Ep128EmuGUI_DebugWindow {open
   gui.vm.setSingleStepMode(true, true);
   this->hide();
 }}
-        xywh {355 415 80 25} color 38 selection_color 39 labelcolor 52
+        xywh {355 415 80 25} selection_color 50
       }
       Fl_Button continueButton {
         label Continue
@@ -533,7 +533,7 @@ class Ep128EmuGUI_DebugWindow {open
   gui.vm.setSingleStepMode(false);
   this->hide();
 }}
-        xywh {445 415 80 25} color 38 selection_color 39 labelcolor 52
+        xywh {445 415 80 25} selection_color 50
       }
     }
     code {{

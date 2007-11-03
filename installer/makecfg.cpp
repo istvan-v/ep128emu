@@ -22,6 +22,7 @@
 #include "system.hpp"
 #include "cfg_db.hpp"
 #include "mkcfg_fl.hpp"
+#include "guicolor.hpp"
 
 #include <FL/Fl_File_Chooser.H>
 
@@ -521,6 +522,7 @@ class Ep128EmuGUIConfiguration {
 int main(int argc, char **argv)
 {
   Fl::lock();
+  Ep128Emu::setGUIColorScheme();
   bool    forceInstallFlag = false;
   std::string installDirectory = "";
   {

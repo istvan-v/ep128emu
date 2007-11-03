@@ -19,10 +19,10 @@ class Ep128EmuGUI_AboutWindow {open
 }} {}
     Fl_Window window {
       label {Copyright information} open
-      xywh {224 231 590 370} type Double color 37 visible
+      xywh {224 231 590 370} type Double color 48 visible
     } {
       Fl_Text_Display {} {
-        xywh {10 10 570 315} box DOWN_BOX color 0 selection_color 238 labelcolor 52 textfont 4 textsize 13 textcolor 52
+        xywh {10 10 570 315} box DOWN_BOX textfont 4 textsize 13
         code0 {o->buffer(buf);}
       }
       Fl_Button {} {
@@ -30,7 +30,7 @@ class Ep128EmuGUI_AboutWindow {open
         callback {{
   window->hide();
 }}
-        xywh {260 335 70 25} color 38 selection_color 39 labelcolor 52
+        xywh {260 335 70 25} selection_color 50
       }
     }
     code {{
