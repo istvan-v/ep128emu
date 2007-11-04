@@ -155,6 +155,10 @@ Section "Source code" SecSrc
 
   SetOutPath "$INSTDIR\src\msvc"
 
+  File "..\msvc\*.rules"
+  File "..\msvc\*.sln"
+  File "..\msvc\*.vcproj"
+
   SetOutPath "$INSTDIR\src\msvc\include"
 
   File "..\msvc\include\*.h"

@@ -138,7 +138,7 @@ void Ep128EmuGUI::updateDisplay_windowMode()
       statusDisplayGroup->resize(newWindowWidth - 360, newWindowHeight - 30,
                                  360, 30);
     statusDisplayGroup->show();
-    mainMenuBar->resize(0, 0, 300, 30);
+    mainMenuBar->resize(0, 2, 300, 26);
     mainMenuBar->show();
     diskStatusDisplayGroup->resize(345, 0, 30, 30);
     diskStatusDisplayGroup->show();
@@ -177,7 +177,7 @@ void Ep128EmuGUI::updateDisplay_windowSize()
     else
       statusDisplayGroup->resize(newWindowWidth - 360, newWindowHeight - 30,
                                  360, 30);
-    mainMenuBar->resize(0, 0, 300, 30);
+    mainMenuBar->resize(0, 2, 300, 26);
     diskStatusDisplayGroup->resize(345, 0, 30, 30);
   }
   else {
@@ -321,7 +321,7 @@ void Ep128EmuGUI::updateDisplay(double t)
     }
     else
       tapePositionDisplay->label("-:--:--.-");
-    tapeStatusDisplayGroup->redraw();
+    tapePositionDisplay->redraw();
   }
   floppyDriveLEDStateFilter =
       uint32_t(((floppyDriveLEDStateFilter & 0x7F7F7F7FU) << 1)

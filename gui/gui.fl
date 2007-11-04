@@ -193,7 +193,7 @@ class Ep128EmuGUI {open
       code0 {o->add(emulatorWindow);} size_range {384 348 1536 1182} visible
     } {
       Fl_Menu_Bar mainMenuBar {open
-        xywh {0 0 300 30} box FLAT_BOX color 48 selection_color 53
+        xywh {0 2 300 26} box FLAT_BOX color 48
       } {}
       Fl_Group diskStatusDisplayGroup {
         label {Disk: } open
@@ -233,7 +233,7 @@ class Ep128EmuGUI {open
             xywh {290 335 20 20} color 7 selection_color 236 labelfont 5 labelsize 12 labelcolor 247 align 24
           }
           Fl_Box tapePositionDisplay {
-            xywh {310 335 73 20} color 7 selection_color 236 labelfont 4 labelsize 12 labelcolor 247 align 24
+            xywh {310 336 73 18} box FLAT_BOX color 7 selection_color 236 labelfont 4 labelsize 12 labelcolor 247 align 24
           }
         }
       }

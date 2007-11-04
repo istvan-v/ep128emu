@@ -66,10 +66,10 @@ static int keyboardMap_EP[256] = {
       -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
       -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
       -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
-  0xFFB9,     -1, 0xFFB7,     -1, 0xFFB5,     -1, 0xFFAF,     -1,
-  0xFFAB,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
-  0xFFB6,     -1, 0xFFB4,     -1, 0xFFB2,     -1, 0xFFB8,     -1,
-  0xFF8D, 0xFFB0,     -1,     -1,     -1,     -1,     -1,     -1
+  0xFFB9, 0xC001, 0xFFB7, 0xC000, 0xFFB5, 0xC003, 0xFFAF, 0xC002,
+  0xFFAB, 0xC010,     -1,     -1,     -1,     -1,     -1,     -1,
+  0xFFB6, 0xC005, 0xFFB4, 0xC004, 0xFFB2, 0xC007, 0xFFB8, 0xC006,
+  0xFFB0, 0xC011,     -1,     -1,     -1,     -1,     -1,     -1
 };
 
 #ifndef WIN32
@@ -103,10 +103,10 @@ static int keyboardMap_EP_HU[256] = {
       -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
       -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
       -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
-  0xFFB9,     -1, 0xFFB7,     -1, 0xFFB5,     -1, 0xFFAF,     -1,
-  0xFFAB,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
-  0xFFB6,     -1, 0xFFB4,     -1, 0xFFB2,     -1, 0xFFB8,     -1,
-  0xFF8D, 0xFFB0,     -1,     -1,     -1,     -1,     -1,     -1
+  0xFFB9, 0xC001, 0xFFB7, 0xC000, 0xFFB5, 0xC003, 0xFFAF, 0xC002,
+  0xFFAB, 0xC010,     -1,     -1,     -1,     -1,     -1,     -1,
+  0xFFB6, 0xC005, 0xFFB4, 0xC004, 0xFFB2, 0xC007, 0xFFB8, 0xC006,
+  0xFFB0, 0xC011,     -1,     -1,     -1,     -1,     -1,     -1
 };
 
 #else   // WIN32
@@ -140,10 +140,10 @@ static int keyboardMap_EP_HU[256] = {
       -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
       -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
       -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
-  0xFFB9,     -1, 0xFFB7,     -1, 0xFFB5,     -1, 0xFFAF,     -1,
-  0xFFAB,     -1,     -1,     -1,     -1,     -1,     -1,     -1,
-  0xFFB6,     -1, 0xFFB4,     -1, 0xFFB2,     -1, 0xFFB8,     -1,
-  0xFF8D, 0xFFB0,     -1,     -1,     -1,     -1,     -1,     -1
+  0xFFB9, 0xC001, 0xFFB7, 0xC000, 0xFFB5, 0xC003, 0xFFAF, 0xC002,
+  0xFFAB, 0xC010,     -1,     -1,     -1,     -1,     -1,     -1,
+  0xFFB6, 0xC005, 0xFFB4, 0xC004, 0xFFB2, 0xC007, 0xFFB8, 0xC006,
+  0xFFB0, 0xC011,     -1,     -1,     -1,     -1,     -1,     -1
 };
 
 #endif  // WIN32
