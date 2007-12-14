@@ -170,22 +170,22 @@ class Ep128EmuGUI_MachineConfigWindow {open
           }
           Fl_Scroll {} {
             label {ROM images} open
-            xywh {20 95 360 300} box DOWN_BOX color 47 selection_color 51 align 5
+            xywh {20 95 360 300} box DOWN_BOX color 48 align 5
           } {
             Fl_Group {} {open
-              xywh {25 100 325 635} box FLAT_BOX color 47
+              xywh {25 100 325 635} box FLAT_BOX color 48
             } {
               Fl_Box {} {
                 label Segment
-                xywh {30 105 80 20} color 47 align 20
+                xywh {30 105 75 20} color 48 align 20
               }
               Fl_Box {} {
                 label {File name}
-                xywh {110 105 80 20} color 47 align 20
+                xywh {110 105 80 20} color 48 align 20
               }
               Fl_Box {} {
                 label {File offset}
-                xywh {270 105 75 20} color 47 align 20
+                xywh {270 105 75 20} color 48 align 20
               }
               Fl_Box {} {
                 label 00

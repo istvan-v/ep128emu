@@ -148,84 +148,84 @@ class Ep128EmuGUI_KbdConfigWindow {open
           callback {{
   defineKey(0x19, "1");
 }}
-          xywh {60 50 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {60 50 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label 2
           callback {{
   defineKey(0x1E, "2");
 }}
-          xywh {90 50 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {90 50 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label 3
           callback {{
   defineKey(0x1D, "3");
 }}
-          xywh {120 50 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {120 50 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label 4
           callback {{
   defineKey(0x1B, "4");
 }}
-          xywh {150 50 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {150 50 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label 5
           callback {{
   defineKey(0x1C, "5");
 }}
-          xywh {180 50 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {180 50 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label 6
           callback {{
   defineKey(0x1A, "6");
 }}
-          xywh {210 50 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {210 50 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label 7
           callback {{
   defineKey(0x18, "7");
 }}
-          xywh {240 50 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {240 50 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label 8
           callback {{
   defineKey(0x28, "8");
 }}
-          xywh {270 50 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {270 50 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label 9
           callback {{
   defineKey(0x2A, "9");
 }}
-          xywh {300 50 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {300 50 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label 0
           callback {{
   defineKey(0x2C, "0");
 }}
-          xywh {330 50 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {330 50 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label {-}
           callback {{
   defineKey(0x2B, "-");
 }}
-          xywh {360 50 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {360 50 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label {^}
           callback {{
   defineKey(0x2D, "^");
 }}
-          xywh {390 50 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {390 50 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label Erase
@@ -260,84 +260,84 @@ class Ep128EmuGUI_KbdConfigWindow {open
           callback {{
   defineKey(0x11, "Q");
 }}
-          xywh {75 80 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {75 80 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label W
           callback {{
   defineKey(0x16, "W");
 }}
-          xywh {105 80 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {105 80 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label E
           callback {{
   defineKey(0x15, "E");
 }}
-          xywh {135 80 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {135 80 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label R
           callback {{
   defineKey(0x13, "R");
 }}
-          xywh {165 80 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {165 80 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label T
           callback {{
   defineKey(0x14, "T");
 }}
-          xywh {195 80 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {195 80 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label Y
           callback {{
   defineKey(0x12, "Y");
 }}
-          xywh {225 80 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {225 80 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label U
           callback {{
   defineKey(0x10, "U");
 }}
-          xywh {255 80 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {255 80 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label I
           callback {{
   defineKey(0x48, "I");
 }}
-          xywh {285 80 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {285 80 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label O
           callback {{
   defineKey(0x4A, "O");
 }}
-          xywh {315 80 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {315 80 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label P
           callback {{
   defineKey(0x4C, "P");
 }}
-          xywh {345 80 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {345 80 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label {@@}
           callback {{
   defineKey(0x4B, "@@");
 }}
-          xywh {375 80 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {375 80 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label {[}
           callback {{
   defineKey(0x4D, "[");
 }}
-          xywh {405 80 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {405 80 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label Ent
@@ -365,84 +365,84 @@ class Ep128EmuGUI_KbdConfigWindow {open
           callback {{
   defineKey(0x0E, "A");
 }}
-          xywh {80 110 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {80 110 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label S
           callback {{
   defineKey(0x0D, "S");
 }}
-          xywh {110 110 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {110 110 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label D
           callback {{
   defineKey(0x0B, "D");
 }}
-          xywh {140 110 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {140 110 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label F
           callback {{
   defineKey(0x0C, "F");
 }}
-          xywh {170 110 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {170 110 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label G
           callback {{
   defineKey(0x0A, "G");
 }}
-          xywh {200 110 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {200 110 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label H
           callback {{
   defineKey(0x08, "H");
 }}
-          xywh {230 110 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {230 110 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label J
           callback {{
   defineKey(0x30, "J");
 }}
-          xywh {260 110 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {260 110 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label K
           callback {{
   defineKey(0x32, "K");
 }}
-          xywh {290 110 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {290 110 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label L
           callback {{
   defineKey(0x34, "L");
 }}
-          xywh {320 110 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {320 110 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label {;}
           callback {{
   defineKey(0x33, ";");
 }}
-          xywh {350 110 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {350 110 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label {:}
           callback {{
   defineKey(0x35, ":");
 }}
-          xywh {380 110 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {380 110 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label {]}
           callback {{
   defineKey(0x36, "]");
 }}
-          xywh {410 110 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {410 110 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label Shift
@@ -456,77 +456,77 @@ class Ep128EmuGUI_KbdConfigWindow {open
           callback {{
   defineKey(0x01, "\\\\");
 }}
-          xywh {65 140 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {65 140 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label Z
           callback {{
   defineKey(0x06, "Z");
 }}
-          xywh {95 140 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {95 140 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label X
           callback {{
   defineKey(0x05, "X");
 }}
-          xywh {125 140 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {125 140 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label C
           callback {{
   defineKey(0x03, "C");
 }}
-          xywh {155 140 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {155 140 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label V
           callback {{
   defineKey(0x04, "V");
 }}
-          xywh {185 140 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {185 140 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label B
           callback {{
   defineKey(0x02, "B");
 }}
-          xywh {215 140 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {215 140 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label N
           callback {{
   defineKey(0x00, "N");
 }}
-          xywh {245 140 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {245 140 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label M
           callback {{
   defineKey(0x40, "M");
 }}
-          xywh {275 140 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {275 140 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label {,}
           callback {{
   defineKey(0x42, ",");
 }}
-          xywh {305 140 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {305 140 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label {.}
           callback {{
   defineKey(0x44, ".");
 }}
-          xywh {335 140 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {335 140 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label {/}
           callback {{
   defineKey(0x43, "/");
 }}
-          xywh {365 140 25 25} selection_color 48 labelfont 4 labelcolor 55 align 20
+          xywh {365 140 25 25} selection_color 48 labelfont 4 align 20
         }
         Fl_Button {} {
           label Shift
@@ -547,7 +547,7 @@ class Ep128EmuGUI_KbdConfigWindow {open
           callback {{
   defineKey(0x46, "Space");
 }}
-          xywh {135 170 235 25} selection_color 48 labelfont 4 labelcolor 55 align 16
+          xywh {135 170 235 25} selection_color 48 labelfont 4 align 16
         }
         Fl_Group {} {open
           xywh {480 100 70 70} box OVAL_FRAME color 56

@@ -522,7 +522,11 @@ class Ep128EmuGUIConfiguration {
 int main(int argc, char **argv)
 {
   Fl::lock();
-  Ep128Emu::setGUIColorScheme();
+#ifndef WIN32
+  Ep128Emu::setGUIColorScheme(0);
+#else
+  Ep128Emu::setGUIColorScheme(1);
+#endif
   bool    forceInstallFlag = false;
   std::string installDirectory = "";
   {

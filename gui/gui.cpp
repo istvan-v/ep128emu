@@ -258,11 +258,11 @@ void Ep128EmuGUI::updateDisplay(double t)
       demoStatusDisplay1->show();
       demoStatusDisplay2->show();
       if (newDemoStatus == 1) {
-        demoStatusDisplay2->labelcolor(247);
+        demoStatusDisplay2->labelcolor(Fl_Color(6));
         demoStatusDisplay2->label("P");
       }
       else {
-        demoStatusDisplay2->labelcolor(FL_RED);
+        demoStatusDisplay2->labelcolor(Fl_Color(1));
         demoStatusDisplay2->label("R");
       }
       const_cast<Fl_Menu_Item *>(m)->activate();
@@ -291,19 +291,20 @@ void Ep128EmuGUI::updateDisplay(double t)
     oldTapeButtonState = tapeButtonState;
     switch (tapeButtonState) {
     case 1:
-      tapeStatusDisplay->labelcolor(247);
+      tapeStatusDisplay->labelcolor(Fl_Color(6));
       tapeStatusDisplay->label("P");
       break;
     case 2:
-      tapeStatusDisplay->labelcolor(FL_RED);
+      tapeStatusDisplay->labelcolor(Fl_Color(1));
       tapeStatusDisplay->label("R");
       break;
     default:
-      tapeStatusDisplay->labelcolor(247);
+      tapeStatusDisplay->labelcolor(Fl_Color(6));
       tapeStatusDisplay->label("");
       break;
     }
-    tapeStatusDisplayGroup->redraw();
+    tapePositionDisplay->redraw();
+    tapeStatusDisplay->redraw();
   }
   long  newTapePosition = long(vmThreadStatus.tapePosition * 10.0 + 0.25);
   newTapePosition = (newTapePosition >= 0L ? newTapePosition : -1L);
@@ -316,12 +317,13 @@ void Ep128EmuGUI::updateDisplay(double t)
       s = int((newTapePosition / 10L) % 60L);
       m = int((newTapePosition / 600L) % 60L);
       h = int((newTapePosition / 36000L) % 100L);
-      std::sprintf(&(tmpBuf[0]), "%2d:%02d:%02d.%d", h, m, s, ds);
+      std::sprintf(&(tmpBuf[0]), "%2d:%02d:%02d.%d ", h, m, s, ds);
       tapePositionDisplay->copy_label(&(tmpBuf[0]));
     }
     else
-      tapePositionDisplay->label("-:--:--.-");
+      tapePositionDisplay->label("-:--:--.- ");
     tapePositionDisplay->redraw();
+    tapeStatusDisplay->redraw();
   }
   floppyDriveLEDStateFilter =
       uint32_t(((floppyDriveLEDStateFilter & 0x7F7F7F7FU) << 1)
@@ -391,7 +393,7 @@ void Ep128EmuGUI::run()
   // set initial window size from saved configuration
   flDisplay->setFLTKEventCallback(&handleFLTKEvent, (void *) this);
   mainWindow->resizable((Fl_Widget *) 0);
-  emulatorWindow->color(36, 36);
+  emulatorWindow->color(47, 47);
   resizeWindow(config.display.width, config.display.height);
   updateDisplay_windowTitle();
   // create menu bar
@@ -569,7 +571,8 @@ void Ep128EmuGUI::run()
   vmThread.setErrorCallback(&errorMessageCallback);
   vmThread.setProcessCallback(&pollJoystickInput);
   vm.setFileNameCallback(&fileNameCallback, (void *) this);
-  vm.setBreakPointCallback(&breakPointCallback, (void *) this);
+  vm.setBreakPointCallback(&Ep128EmuGUI_DebugWindow::breakPointCallback,
+                           (void *) debugWindow);
   applyEmulatorConfiguration();
   vmThread.unlock();
   // run emulation
@@ -999,36 +1002,6 @@ void Ep128EmuGUI::fltkCheckCallback(void *userData)
       gui_.emulatorWindow->redraw();
   }
   catch (...) {
-  }
-}
-
-void Ep128EmuGUI::breakPointCallback(void *userData,
-                                     bool isIO, bool isWrite,
-                                     uint16_t addr, uint8_t value)
-{
-  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(userData));
-  Fl::lock();
-  if (gui_.exitFlag || !gui_.mainWindow->shown()) {
-    Fl::unlock();
-    return;
-  }
-  gui_.debugWindow->breakPoint(isIO, isWrite, addr, value);
-  if (!gui_.debugWindow->shown()) {
-    gui_.debugWindowShowFlag = true;
-    Fl::awake();
-  }
-  while (gui_.debugWindowShowFlag) {
-    Fl::unlock();
-    gui_.updateDisplay();
-    Fl::lock();
-  }
-  while (true) {
-    bool  tmp = gui_.debugWindow->shown();
-    Fl::unlock();
-    if (!tmp)
-      break;
-    gui_.updateDisplay();
-    Fl::lock();
   }
 }
 

@@ -22,7 +22,7 @@
 
 namespace Ep128Emu {
 
-  void setGUIColorScheme();
+  void setGUIColorScheme(int colorScheme = 0);
 
 }       // namespace Ep128Emu
 

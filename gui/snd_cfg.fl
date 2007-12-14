@@ -37,7 +37,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
     gui.config.soundSettingsChanged = true;
   }
 }} open
-          xywh {20 20 235 25} down_box BORDER_BOX labelcolor 3 align 8
+          xywh {20 20 235 25} down_box BORDER_BOX align 8
         } {}
         Fl_Box {} {
           label {Audio device}
@@ -143,7 +143,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
   gui.config.soundSettingsChanged = true;
   soundVolumeValueDisplay->value(o->value());
 }}
-          xywh {25 215 35 35} box ROUND_UP_BOX color 52 selection_color 3 align 8 minimum 0.01 step 0.001 value 0.707
+          xywh {25 215 35 35} box ROUND_UP_BOX color 52 selection_color 55 align 8 minimum 0.01 step 0.001 value 0.707
         }
         Fl_Value_Output soundVolumeValueDisplay {
           callback {{
@@ -160,7 +160,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
   gui.config.soundSettingsChanged = true;
   soundDCFilter1ValueDisplay->value(o->value());
 }}
-          xywh {30 285 25 25} box ROUND_UP_BOX color 52 selection_color 3 align 8 minimum 1 maximum 1000 step 1 value 10
+          xywh {30 285 25 25} box ROUND_UP_BOX color 52 selection_color 55 align 8 minimum 1 maximum 1000 step 1 value 10
         }
         Fl_Value_Output soundDCFilter1ValueDisplay {
           callback {{
@@ -177,7 +177,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
   gui.config.soundSettingsChanged = true;
   soundDCFilter2ValueDisplay->value(o->value());
 }}
-          xywh {30 345 25 25} box ROUND_UP_BOX color 52 selection_color 3 align 8 minimum 1 maximum 1000 step 1 value 10
+          xywh {30 345 25 25} box ROUND_UP_BOX color 52 selection_color 55 align 8 minimum 1 maximum 1000 step 1 value 10
         }
         Fl_Value_Output soundDCFilter2ValueDisplay {
           callback {{
@@ -198,7 +198,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
     gui.config.soundSettingsChanged = true;
   }
 }} open
-            xywh {160 245 210 25} down_box BORDER_BOX labelcolor 3 align 8
+            xywh {160 245 210 25} down_box BORDER_BOX align 8
             code0 {o->add("Disabled|Peaking EQ|Low shelf|High shelf");}
           } {}
           Fl_Slider soundEQFrequencyValuator {
