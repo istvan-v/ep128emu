@@ -65,6 +65,7 @@ Section "ep128emu2" SecMain
 
   File "..\COPYING"
   File /nonfatal "..\LICENSE.FLTK"
+  File /nonfatal "..\LICENSE.Lua"
   File /nonfatal "..\LICENSE.PortAudio"
   File /nonfatal "..\LICENSE.SDL"
   File /nonfatal "..\LICENSE.dotconf"
@@ -73,6 +74,7 @@ Section "ep128emu2" SecMain
   File "/oname=readme.txt" "..\README"
   File "..\ep128emu.exe"
   File "C:\MinGW\bin\libsndfile-1.dll"
+  File "C:\MinGW\bin\lua51.dll"
   File "..\makecfg.exe"
   File "C:\MinGW\bin\mingwm10.dll"
   File "C:\MinGW\bin\portaudio.dll.0.0.19"
@@ -107,6 +109,8 @@ Section "ep128emu2" SecMain
     CreateDirectory "$SMPROGRAMS\$STARTMENU_FOLDER"
     SetOutPath "$INSTDIR"
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\ep128emu - OpenGL mode.lnk" "$INSTDIR\ep128emu.exe" '-opengl'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\ep128emu - GL - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-opengl -colorscheme 1'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\ep128emu - GL - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-opengl -colorscheme 2'
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\ep128emu - software mode.lnk" "$INSTDIR\ep128emu.exe" '-no-opengl'
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\README.lnk" "$INSTDIR\readme.txt"
     SetOutPath "$INSTDIR\tape"
@@ -143,8 +147,12 @@ Section "Source code" SecSrc
   SetOutPath "$INSTDIR\src\gui"
 
   File "..\gui\*.fl"
+  File "..\gui\debugger.cpp"
+  File "..\gui\debugger.hpp"
   File "..\gui\gui.cpp"
   File "..\gui\gui.hpp"
+  File "..\gui\monitor.cpp"
+  File "..\gui\monitor.hpp"
   File "..\gui\main.cpp"
 
   SetOutPath "$INSTDIR\src\installer"
@@ -287,6 +295,7 @@ Section "Uninstall"
 
   Delete "$INSTDIR\COPYING"
   Delete "$INSTDIR\LICENSE.FLTK"
+  Delete "$INSTDIR\LICENSE.Lua"
   Delete "$INSTDIR\LICENSE.PortAudio"
   Delete "$INSTDIR\LICENSE.SDL"
   Delete "$INSTDIR\LICENSE.dotconf"
@@ -295,6 +304,7 @@ Section "Uninstall"
   Delete "$INSTDIR\readme.txt"
   Delete "$INSTDIR\ep128emu.exe"
   Delete "$INSTDIR\libsndfile-1.dll"
+  Delete "$INSTDIR\lua51.dll"
   Delete "$INSTDIR\makecfg.exe"
   Delete "$INSTDIR\mingwm10.dll"
   Delete "$INSTDIR\portaudio.dll.0.0.19"
@@ -371,6 +381,8 @@ Section "Uninstall"
   !insertmacro MUI_STARTMENU_GETFOLDER Application $MUI_TEMP
 
   Delete "$SMPROGRAMS\$MUI_TEMP\ep128emu - OpenGL mode.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\ep128emu - GL - Win2000 theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\ep128emu - GL - plastic theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\ep128emu - software mode.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\README.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\Tape editor.lnk"

@@ -3,22 +3,42 @@
 import sys
 
 win32CrossCompile = 0
+linux32CrossCompile = 0
 disableSDL = 0          # set this to 1 on Linux with SDL version >= 1.2.10
+disableLua = 0
+enableDebug = 1
+buildRelease = 0
 
-compilerFlags = Split('''
-    -Wall -W -ansi -pedantic -Wno-long-long -Wshadow -g -O2
-''')
+compilerFlags = ''
+if buildRelease:
+    if linux32CrossCompile:
+        compilerFlags = ' -march=pentium2 -mtune=generic '
+    elif win32CrossCompile:
+        compilerFlags = ' -march=pentium2 -mtune=athlon-xp '
+if enableDebug and not buildRelease:
+    compilerFlags = ' -Wno-long-long -Wshadow -g -O2 ' + compilerFlags
+    compilerFlags = ' -Wall -W -ansi -pedantic ' + compilerFlags
+else:
+    compilerFlags = ' -Wall -O3 ' + compilerFlags
+    compilerFlags = compilerFlags + ' -fno-inline-functions '
+    compilerFlags = compilerFlags + ' -fomit-frame-pointer -ffast-math '
 
 fltkConfig = 'fltk-config'
 
 # -----------------------------------------------------------------------------
 
 ep128emuLibEnvironment = Environment()
-ep128emuLibEnvironment.Append(CCFLAGS = compilerFlags)
+if linux32CrossCompile:
+    compilerFlags = ' -m32 ' + compilerFlags
+ep128emuLibEnvironment.Append(CCFLAGS = Split(compilerFlags))
 ep128emuLibEnvironment.Append(CPPPATH = ['.', './src', '/usr/local/include'])
 if sys.platform[:6] == 'darwin':
     ep128emuLibEnvironment.Append(CPPPATH = ['/usr/X11R6/include'])
-ep128emuLibEnvironment.Append(LINKFLAGS = ['-L.'])
+if not linux32CrossCompile:
+    linkFlags = ' -L. '
+else:
+    linkFlags = ' -m32 -L. -L/usr/X11R6/lib '
+ep128emuLibEnvironment.Append(LINKFLAGS = Split(linkFlags))
 if win32CrossCompile:
     ep128emuLibEnvironment['AR'] = 'wine C:/MinGW/bin/ar.exe'
     ep128emuLibEnvironment['CC'] = 'wine C:/MinGW/bin/gcc-sjlj.exe'
@@ -78,6 +98,12 @@ if not disableSDL:
     haveSDL = configure.CheckCHeader('SDL/SDL.h')
 else:
     haveSDL = 0
+if not disableLua:
+    haveLua = configure.CheckCHeader('lua.h')
+    haveLua = haveLua and configure.CheckCHeader('lauxlib.h')
+    haveLua = haveLua and configure.CheckCHeader('lualib.h')
+else:
+    haveLua = 0
 configure.Finish()
 
 if not havePortAudioV19:
@@ -86,6 +112,8 @@ if haveDotconf:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_DOTCONF_H'])
 if haveSDL:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_SDL_H'])
+if haveLua:
+    ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_LUA_H'])
 
 ep128emuGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
 ep128emuGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
@@ -113,6 +141,7 @@ ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
     src/gldisp.cpp
     src/guicolor.cpp
     src/joystick.cpp
+    src/script.cpp
     src/snd_conv.cpp
     src/soundio.cpp
     src/system.cpp
@@ -152,12 +181,16 @@ ep128emuEnvironment.Append(CPPPATH = ['./z80', './gui'])
 ep128emuEnvironment.Prepend(LIBS = ['ep128', 'z80', 'ep128emu'])
 if haveDotconf:
     ep128emuEnvironment.Append(LIBS = ['dotconf'])
+if haveLua:
+    ep128emuEnvironment.Append(LIBS = ['lua'])
 if haveSDL:
     ep128emuEnvironment.Append(LIBS = ['SDL'])
 ep128emuEnvironment.Append(LIBS = ['portaudio', 'sndfile'])
 if not win32CrossCompile:
     if sys.platform[:5] == 'linux':
-        ep128emuEnvironment.Append(LIBS = ['jack', 'asound', 'pthread', 'rt'])
+        if not buildRelease:
+            ep128emuEnvironment.Append(LIBS = ['jack'])
+        ep128emuEnvironment.Append(LIBS = ['asound', 'pthread', 'rt'])
     else:
         ep128emuEnvironment.Append(LIBS = ['pthread'])
 else:
@@ -168,7 +201,7 @@ ep128emu = ep128emuEnvironment.Program('ep128emu',
     + fluidCompile(['gui/gui.fl', 'gui/disk_cfg.fl', 'gui/disp_cfg.fl',
                     'gui/kbd_cfg.fl', 'gui/snd_cfg.fl', 'gui/vm_cfg.fl',
                     'gui/debug.fl', 'gui/about.fl'])
-    + ['gui/main.cpp'])
+    + ['gui/debugger.cpp', 'gui/main.cpp', 'gui/monitor.cpp'])
 Depends(ep128emu, ep128Lib)
 Depends(ep128emu, z80Lib)
 Depends(ep128emu, ep128emuLib)
