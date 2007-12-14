@@ -40,12 +40,10 @@
 #endif
 
 static void defaultBreakPointCallback(void *userData,
-                                      bool isIO, bool isWrite,
-                                      uint16_t addr, uint8_t value)
+                                      int type, uint16_t addr, uint8_t value)
 {
   (void) userData;
-  (void) isIO;
-  (void) isWrite;
+  (void) type;
   (void) addr;
   (void) value;
 }
@@ -571,15 +569,13 @@ namespace Ep128Emu {
     noBreakOnDataRead = n;
   }
 
-  void VirtualMachine::setSingleStepMode(bool isEnabled, bool stepOverFlag)
+  void VirtualMachine::setSingleStepMode(int mode_)
   {
-    (void) isEnabled;
-    (void) stepOverFlag;
+    (void) mode_;
   }
 
   void VirtualMachine::setBreakPointCallback(void (*breakPointCallback_)(
-                                                 void *userData,
-                                                 bool isIO, bool isWrite,
+                                                 void *userData, int type,
                                                  uint16_t addr, uint8_t value),
                                              void *userData_)
   {

@@ -44,6 +44,7 @@ int main(int argc, char **argv)
   bool      glEnabled = true;
   const char  *cfgFileName = "ep128cfg.dat";
   int       snapshotNameIndex = 0;
+  int       colorScheme = 0;
   int       retval = 0;
   bool      configLoaded = false;
 
@@ -65,6 +66,11 @@ int main(int argc, char **argv)
       else if (std::strcmp(argv[i], "-no-opengl") == 0) {
         glEnabled = false;
       }
+      else if (std::strcmp(argv[i], "-colorscheme") == 0 && i < (argc - 1)) {
+        i++;
+        colorScheme = int(std::atoi(argv[i]));
+        colorScheme = (colorScheme >= 0 && colorScheme <= 2 ? colorScheme : 0);
+      }
       else if (std::strcmp(argv[i], "-h") == 0 ||
                std::strcmp(argv[i], "-help") == 0 ||
                std::strcmp(argv[i], "--help") == 0) {
@@ -81,6 +87,8 @@ int main(int argc, char **argv)
                   << std::endl;
         std::cerr << "    -no-opengl          "
                      "use software video driver" << std::endl;
+        std::cerr << "    -colorscheme <N>    "
+                     "use GUI color scheme N (0, 1, or 2)" << std::endl;
         std::cerr << "    OPTION=VALUE        "
                      "set configuration variable 'OPTION' to 'VALUE'"
                   << std::endl;
@@ -92,7 +100,7 @@ int main(int argc, char **argv)
     }
 
     Fl::lock();
-    Ep128Emu::setGUIColorScheme();
+    Ep128Emu::setGUIColorScheme(colorScheme);
     audioOutput = new Ep128Emu::AudioOutput_PortAudio();
     if (glEnabled)
       w = new Ep128Emu::OpenGLDisplay(32, 32, 384, 288, "");
@@ -155,6 +163,10 @@ int main(int argc, char **argv)
         if (++i >= argc)
           throw Ep128Emu::Exception("missing snapshot file name");
         snapshotNameIndex = i;
+      }
+      else if (std::strcmp(argv[i], "-colorscheme") == 0) {
+        if (++i >= argc)
+          throw Ep128Emu::Exception("missing color scheme number");
       }
       else {
         const char  *s = argv[i];

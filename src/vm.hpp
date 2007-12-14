@@ -60,8 +60,7 @@ namespace Ep128Emu {
     float           tapeSoundFileFilterMinFreq;
     float           tapeSoundFileFilterMaxFreq;
    protected:
-    void            (*breakPointCallback)(void *userData,
-                                          bool isIO, bool isWrite,
+    void            (*breakPointCallback)(void *userData, int type,
                                           uint16_t addr, uint8_t value);
     void            *breakPointCallbackUserData;
     bool            noBreakOnDataRead;
@@ -350,16 +349,26 @@ namespace Ep128Emu {
     virtual void setNoBreakOnDataRead(bool n);
     /*!
      * Set if the breakpoint callback should be called whenever the first byte
-     * of a CPU instruction is read from memory. Breakpoints are ignored in
-     * this mode.
+     * of a CPU instruction is read from memory. 'mode_' should be one of the
+     * following values:
+     *   0: normal mode
+     *   1: single step mode (break on every instruction, ignore breakpoints)
+     *   2: step over mode
+     *   3: trace (similar to mode 1, but does not ignore breakpoints)
      */
-    virtual void setSingleStepMode(bool isEnabled, bool stepOverFlag = false);
+    virtual void setSingleStepMode(int mode_);
     /*!
      * Set function to be called when a breakpoint is triggered.
+     * 'type' can be one of the following values:
+     *   0: breakpoint at opcode read
+     *   1: memory read
+     *   2: memory write
+     *   3: opcode read in single step mode
+     *   5: I/O port read
+     *   6: I/O port write
      */
     virtual void setBreakPointCallback(void (*breakPointCallback_)(
-                                           void *userData,
-                                           bool isIO, bool isWrite,
+                                           void *userData, int type,
                                            uint16_t addr, uint8_t value),
                                        void *userData_);
     /*!

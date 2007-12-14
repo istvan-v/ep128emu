@@ -6,171 +6,241 @@ code_name {.cpp}
 decl {\#include "gui.hpp"} {selected
 } 
 
+decl {\#include "script.hpp"} {} 
+
+decl {\#include "debugger.hpp"} {} 
+
 decl {\#include <vector>} {} 
 
 decl {\#include <FL/Fl_Text_Buffer.H>} {} 
 
 class Ep128EmuGUI_DebugWindow {open
 } {
+  decl {friend class Ep128EmuGUIMonitor;} {public
+  }
+  decl {friend class Ep128EmuGUI_LuaScript;} {public
+  }
   decl {Ep128EmuGUI& gui;} {}
   decl {char windowTitle[64];} {}
   decl {int savedWindowPositionX;} {}
   decl {int savedWindowPositionY;} {}
   decl {Fl_Widget *focusWidget;} {}
+  decl {Fl_Widget *prvTab;} {}
   decl {uint32_t memoryDumpStartAddress;} {}
   decl {uint32_t memoryDumpEndAddress;} {}
   decl {uint32_t memoryDumpViewAddress;} {}
+  decl {uint32_t memoryDumpAddrDec;} {}
+  decl {uint32_t memoryDumpAddrInc;} {}
   decl {bool memoryDumpCPUAddressMode;} {}
   decl {bool memoryDumpASCIIFileFormat;} {}
-  decl {bool disassemblyCPUAddressMode;} {}
   decl {uint32_t disassemblyStartAddress;} {}
-  decl {int32_t disassemblyAddressOffset;} {}
-  decl {uint32_t disassemblyEndAddress;} {}
   decl {uint32_t disassemblyViewAddress;} {}
   decl {uint32_t disassemblyNextAddress;} {}
   decl {Fl_Text_Buffer *bpEditBuffer;} {}
-  Function {Ep128EmuGUI_DebugWindow(Ep128EmuGUI& gui_) : gui(gui_)} {open
+  decl {Fl_Text_Buffer *scriptEditBuffer;} {}
+  decl {std::string breakPointLists[6];} {}
+  decl {Ep128EmuGUI_LuaScript luaScript;} {}
+  decl {Ep128EmuGUI_DebugWindow(Ep128EmuGUI& gui_);} {public
+  }
+  decl {~Ep128EmuGUI_DebugWindow();} {public
+  }
+  decl {void show();} {public
+  }
+  decl {bool shown();} {public
+  }
+  decl {void hide();} {public
+  }
+  decl {bool breakPoint(int type, uint16_t addr, uint8_t value);} {public
+  }
+  decl {void updateWindow();} {public
+  }
+  decl {void dumpMemory(std::string& buf, uint32_t startAddr, uint32_t endAddr, uint32_t cursorAddr, bool showCursor, bool isCPUAddress);} {}
+  decl {void updateMemoryDumpDisplay();} {}
+  decl {long parseHexNumber(uint32_t& value, const char *s);} {}
+  decl {void parseMemoryDump(const char *s);} {}
+  decl {void updateDisassemblyDisplay();} {}
+  decl {uint32_t disassemblySearchBack(int insnCnt);} {}
+  decl {void applyBreakPointList();} {}
+  decl {static void breakPointCallback(void *userData, int type, uint16_t addr, uint8_t value);} {public
+  }
+  Function {createDebugWindow()} {open private return_type void
   } {
-    code {{
-  for (size_t i = 0; i < sizeof(windowTitle); i++)
-    windowTitle[i] = '\\0';
-  std::strcpy(&(windowTitle[0]), "ep128emu debugger");
-  savedWindowPositionX = 32;
-  savedWindowPositionY = 32;
-  focusWidget = (Fl_Widget *) 0;
-  memoryDumpStartAddress = 0x00000000U;
-  memoryDumpEndAddress = 0x0000007FU;
-  memoryDumpViewAddress = 0x00000000U;
-  memoryDumpCPUAddressMode = true;
-  memoryDumpASCIIFileFormat = false;
-  disassemblyCPUAddressMode = true;
-  disassemblyStartAddress = 0x00000000U;
-  disassemblyAddressOffset = 0;
-  disassemblyEndAddress = 0x0000003FU;
-  disassemblyViewAddress = 0x00000000U;
-  disassemblyNextAddress = 0x00000000U;
-  bpEditBuffer = new Fl_Text_Buffer();
-}} {}
     Fl_Window window {
       callback {{
   focusWidget = (Fl_Widget *) 0;
-  gui.vm.setSingleStepMode(false);
+  gui.vm.setSingleStepMode(0);
   this->hide();
 }} open
-      xywh {308 146 540 450} type Double color 48 visible
+      xywh {146 98 960 720} type Double color 48 visible
     } {
-      Fl_Tabs debugTabs {open
-        xywh {10 10 520 395}
+      Fl_Tabs debugTabs {
+        callback {{
+  if (prvTab == monitorTab)
+    updateWindow();
+  prvTab = o->value();
+}} open
+        xywh {10 10 940 665}
       } {
         Fl_Group mainTab {
-          label General open
-          xywh {10 35 520 370} box THIN_UP_BOX
+          label {Page 1} open
+          xywh {10 35 940 640} box THIN_UP_BOX
         } {
-          Fl_Output cpuRegisterDisplay {
-            label {CPU registers}
-            xywh {20 63 363 80} type Multiline align 5 textfont 5 textcolor 159
-            code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
+          Fl_Group {} {open
+            xywh {20 45 515 245} box THIN_UP_BOX align 21
+          } {
+            Fl_Output cpuRegisterDisplay {
+              label {CPU registers}
+              xywh {30 70 360 80} type Multiline align 5 textfont 5 textcolor 2
+              code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
+            }
+            Fl_Output memoryPagingDisplay {
+              label {Memory paging}
+              xywh {400 70 125 80} type Multiline align 5 textfont 5 textcolor 2
+              code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
+            }
+            Fl_Output stackMemoryDumpDisplay {
+              label Stack
+              xywh {30 175 495 105} type Multiline align 5 textfont 5 textcolor 2
+              code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
+            }
           }
-          Fl_Output memoryPagingDisplay {
-            label {Memory paging}
-            xywh {393 63 127 80} type Multiline align 5 textfont 5 textcolor 159
-            code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
+          Fl_Group {} {open
+            xywh {545 45 395 165} box THIN_UP_BOX align 21
+          } {
+            Fl_Output codeMemoryDumpDisplay {
+              label Code
+              xywh {555 70 375 130} type Multiline align 5 textfont 5 textcolor 2
+              code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
+            }
           }
-          Fl_Output codeMemoryDumpDisplay {
-            label Code
-            xywh {20 168 500 100} type Multiline align 5 textfont 5 textcolor 159
-            code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
-          }
-          Fl_Output stackMemoryDumpDisplay {
-            label Stack
-            xywh {20 293 500 100} type Multiline align 5 textfont 5 textcolor 159
-            code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
-          }
-        }
-        Fl_Group {} {
-          label {I/O} open
-          xywh {10 35 520 370} box THIN_UP_BOX hide
-        } {
-          Fl_Output ioRegisterDisplay {
-            label {I/O registers}
-            xywh {20 63 500 330} type Multiline align 5 textfont 5 textcolor 159
-            code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
-          }
-        }
-        Fl_Group {} {
-          label Memory open
-          xywh {10 35 520 370} box THIN_UP_BOX hide
-        } {
-          Fl_Input {} {
-            label Command
-            callback {{
-  parseCommand(o->value());
-  o->value("");
-  updateWindow();
+          Fl_Group {} {open
+            xywh {20 300 515 365} box THIN_UP_BOX align 21
+          } {
+            Fl_Input searchStringValuator {
+              label Search
+              callback {{
+  if (o->value()) {
+    try {
+      std::vector<std::string>  args;
+      {
+        std::string tmp("H ");
+        tmp += o->value();
+        Ep128EmuGUIMonitor::tokenizeString(args, tmp.c_str());
+      }
+      int32_t addr = monitor_->searchPattern(
+          args, 1, args.size() - 1,
+          memoryDumpViewAddress + 1U, memoryDumpViewAddress,
+          memoryDumpCPUAddressMode);
+      if (addr >= 0) {
+        memoryDumpViewAddress = uint32_t(addr);
+        updateMemoryDumpDisplay();
+      }
+      else
+        throw Ep128Emu::Exception("Search string not found");
+    }
+    catch (std::exception& e) {
+      gui.errorMessage(e.what());
+    }
+  }
 }}
-            tooltip {Enter command followed by space separated list of hexadecimal arguments. The available commands are: >ADDRESS VALUE1 ... (modify memory), F START END VALUE1 ... (fill memory area with pattern), H START END VALUE1 ... (find pattern in memory area), and T START END DEST (copy memory). Leave blank to execute no command.} xywh {20 63 500 25} align 5 textfont 4
-            code0 {o->cursor_color(Fl_Color(3));}
-          }
-          Fl_Output memoryDumpDisplay {
-            label {Memory dump}
-            xywh {20 113 375 280} type Multiline align 5 textfont 5 textcolor 159
-            code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
-          }
-          Fl_Light_Button {} {
-            label {CPU address}
-            callback {{
+              tooltip {The search string can be specified with the syntax used by the H and SR monitor commands} xywh {30 325 375 25} align 5 when 10 textfont 4
+              code0 {o->cursor_color(Fl_Color(3));}
+            }
+            Fl_Button {} {
+              label {Find next}
+              callback {{
+  searchStringValuator->do_callback();
+}}
+              xywh {415 325 110 25} color 50 selection_color 51
+            }
+            Fl_Output memoryDumpDisplay {
+              label {Memory dump}
+              xywh {30 375 375 280} type Multiline align 5 textfont 5 textcolor 2
+              code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
+              class Ep128EmuGUI_ScrollableOutput
+            }
+            Fl_Light_Button {} {
+              label {CPU address}
+              callback {{
   memoryDumpCPUAddressMode = (o->value() != 0);
   updateMemoryDumpDisplay();
 }}
-            tooltip {Select if 16 bit CPU, or 22 bit physical addresses are to be used} xywh {405 115 115 25} value 1 color 50 selection_color 3
-          }
-          Fl_Input memoryDumpStartAddressValuator {
-            label {Start address}
-            callback {{
-  if (parseHexNumber(memoryDumpStartAddress, o->value()) > 0L)
-    memoryDumpViewAddress = memoryDumpStartAddress;
-  updateMemoryDumpDisplay();
+              tooltip {Select if 16 bit CPU, or 22 bit physical addresses are to be used} xywh {415 375 110 25} value 1 color 50 selection_color 3
+            }
+            Fl_Input memoryDumpStartAddressValuator {
+              label {Start address}
+              callback {{
+  if (parseHexNumber(memoryDumpStartAddress, o->value()) > 0L) {
+    if (memoryDumpStartAddress != memoryDumpViewAddress) {
+      memoryDumpViewAddress = memoryDumpStartAddress;
+      updateMemoryDumpDisplay();
+    }
+  }
 }}
-            xywh {405 160 115 25} align 5 textfont 4
-            code0 {o->cursor_color(Fl_Color(3));}
-            code1 {o->value("0000");}
-          }
-          Fl_Input memoryDumpEndAddressValuator {
-            label {End address}
-            callback {{
+              xywh {415 420 110 25} align 5 textfont 4
+              code0 {o->cursor_color(Fl_Color(3));}
+              code1 {o->value("0000");}
+            }
+            Fl_Input memoryDumpEndAddressValuator {
+              label {End address}
+              callback {{
   parseHexNumber(memoryDumpEndAddress, o->value());
   updateMemoryDumpDisplay();
 }}
-            tooltip {End address of memory dump (for file I/O only); this address is still included} xywh {405 205 115 25} align 5 textfont 4
-            code0 {o->cursor_color(Fl_Color(3));}
-            code1 {o->value("007F");}
-          }
-          Fl_Button {} {
-            label {@<}
-            callback {{
-  memoryDumpViewAddress = (memoryDumpViewAddress + 0x003FFF80U) & 0x003FFFFFU;
-  updateMemoryDumpDisplay();
+              tooltip {End address of memory dump (for file I/O only); this address is still included} xywh {415 465 110 25} align 5 textfont 4
+              code0 {o->cursor_color(Fl_Color(3));}
+              code1 {o->value("007F");}
+            }
+            Fl_Button memoryDumpPrvPageButton {
+              label {@<}
+              callback {{
+  if (o->value() != 0) {
+    memoryDumpAddrDec = 0x003FFF80U;
+  }
+  else {
+    memoryDumpViewAddress =
+        (memoryDumpViewAddress + memoryDumpAddrDec) & 0x003FFFFFU;
+    memoryDumpAddrDec = 0x003FFFC0U;
+    updateMemoryDumpDisplay();
+  }
 }}
-            tooltip {View previous page} xywh {405 250 55 25} color 50 selection_color 51
-          }
-          Fl_Button {} {
-            label {@>}
-            callback {{
-  memoryDumpViewAddress = (memoryDumpViewAddress + 0x80U) & 0x003FFFFFU;
-  updateMemoryDumpDisplay();
+              tooltip {View previous page} xywh {415 510 35 25} color 50 selection_color 51 when 1
+            }
+            Fl_Button {} {
+              label {@|<}
+              callback {{
+  if (memoryDumpStartAddress != memoryDumpViewAddress) {
+    memoryDumpViewAddress = memoryDumpStartAddress;
+    updateMemoryDumpDisplay();
+  }
 }}
-            tooltip {View next page} xywh {465 250 55 25} color 50 selection_color 51
-          }
-          Fl_Light_Button {} {
-            label {ASCII format}
-            callback {{
+              tooltip {Return to start address} xywh {455 510 30 25} color 50 selection_color 51
+            }
+            Fl_Button memoryDumpNxtPageButton {
+              label {@>}
+              callback {{
+  if (o->value() != 0) {
+    memoryDumpAddrInc = 0x00000080U;
+  }
+  else {
+    memoryDumpViewAddress =
+        (memoryDumpViewAddress + memoryDumpAddrInc) & 0x003FFFFFU;
+    memoryDumpAddrInc = 0x00000040U;
+    updateMemoryDumpDisplay();
+  }
+}}
+              tooltip {View next page} xywh {490 510 35 25} color 50 selection_color 51 when 1
+            }
+            Fl_Light_Button {} {
+              label {ASCII format}
+              callback {{
   memoryDumpASCIIFileFormat = (o->value() != 0);
 }}
-            tooltip {Select if memory dump file format should be ASCII or binary} xywh {405 295 115 25} color 50 selection_color 3
-          }
-          Fl_Button {} {
-            label {Load from file}
-            callback {{
+              tooltip {Select if memory dump file format should be ASCII or binary} xywh {415 555 110 25} color 50 selection_color 3
+            }
+            Fl_Button {} {
+              label {Load from file}
+              callback {{
   std::FILE *f = (std::FILE *) 0;
   try {
     std::string tmp;
@@ -214,11 +284,11 @@ class Ep128EmuGUI_DebugWindow {open
   }
   updateWindow();
 }}
-            xywh {405 330 115 25} color 50 selection_color 51
-          }
-          Fl_Button {} {
-            label {Save to file}
-            callback {{
+              xywh {415 590 110 25} color 50 selection_color 51
+            }
+            Fl_Button {} {
+              label {Save to file}
+              callback {{
   std::FILE *f = (std::FILE *) 0;
   try {
     std::string tmp;
@@ -261,135 +331,86 @@ class Ep128EmuGUI_DebugWindow {open
     gui.errorMessage(e.what());
   }
 }}
-            xywh {405 365 115 25} color 50 selection_color 51
+              xywh {415 625 110 25} color 50 selection_color 51
+            }
           }
-        }
-        Fl_Group {} {
-          label Disassemble open
-          xywh {10 35 520 370} box THIN_UP_BOX hide
-        } {
-          Fl_Output disassemblyDisplay {
-            xywh {20 48 375 345} type Multiline align 5 textfont 5 textcolor 159
-            code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
-          }
-          Fl_Light_Button {} {
-            label {CPU address}
-            callback {{
-  disassemblyCPUAddressMode = (o->value() != 0);
-  updateDisassemblyDisplay();
-}}
-            tooltip {Select if 16 bit CPU, or 22 bit physical addresses are to be used} xywh {405 50 115 25} value 1 color 50 selection_color 3
-          }
-          Fl_Input disassemblyStartAddressValuator {
-            label {Start address}
-            callback {{
+          Fl_Group {} {open
+            xywh {545 220 395 445} box THIN_UP_BOX align 21
+          } {
+            Fl_Output disassemblyDisplay {
+              xywh {555 230 375 380} type Multiline align 5 textfont 5 textcolor 2
+              code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
+              class Ep128EmuGUI_ScrollableOutput
+            }
+            Fl_Input disassemblyStartAddressValuator {
+              label {Start address}
+              callback {{
   if (parseHexNumber(disassemblyStartAddress, o->value()) > 0L)
     disassemblyViewAddress = disassemblyStartAddress;
   updateDisassemblyDisplay();
 }}
-            xywh {405 95 115 25} align 5 textfont 4
-            code0 {o->cursor_color(Fl_Color(3));}
-            code1 {o->value("0000");}
-          }
-          Fl_Input disassemblyRuntimeAddressValuator {
-            label {Runtime address}
-            callback {{
-  uint32_t  tmp = 0U;
-  if (parseHexNumber(tmp, o->value()) > 0L) {
-    disassemblyAddressOffset =
-        int32_t(tmp & 0x3FFFFFU) - int32_t(disassemblyStartAddress & 0x3FFFFFU);
-  }
+              xywh {560 630 115 25} align 5 textfont 4
+              code0 {o->cursor_color(Fl_Color(3));}
+              code1 {o->value("0000");}
+            }
+            Fl_Button disassemblyPrvPageButton {
+              label {@<}
+              callback {{
+  disassemblyViewAddress = disassemblySearchBack(20);
   updateDisassemblyDisplay();
 }}
-            tooltip {The address where the disassembled code will actually run} xywh {405 140 115 25} align 5 textfont 4
-            code0 {o->cursor_color(Fl_Color(3));}
-            code1 {o->value("0000");}
-          }
-          Fl_Input disassemblyEndAddressValuator {
-            label {End address}
-            callback {{
-  parseHexNumber(disassemblyEndAddress, o->value());
-  updateDisassemblyDisplay();
-}}
-            tooltip {End address of disassembly (for file I/O only); this address is still included} xywh {405 185 115 25} align 5 textfont 4
-            code0 {o->cursor_color(Fl_Color(3));}
-            code1 {o->value("003F");}
-          }
-          Fl_Button {} {
-            label {@|<}
-            callback {{
+              tooltip {View previous page} xywh {750 630 55 25} color 50 selection_color 51
+            }
+            Fl_Button {} {
+              label {@|<}
+              callback {{
   if (disassemblyViewAddress != disassemblyStartAddress) {
     disassemblyViewAddress = disassemblyStartAddress;
     updateDisassemblyDisplay();
   }
 }}
-            tooltip {Return to start address} xywh {405 230 55 25} color 50 selection_color 51
-          }
-          Fl_Button {} {
-            label {@>}
-            callback {{
+              tooltip {Return to start address} xywh {810 630 55 25} color 50 selection_color 51
+            }
+            Fl_Button disassemblyNxtPageButton {
+              label {@>}
+              callback {{
   disassemblyViewAddress = disassemblyNextAddress;
   updateDisassemblyDisplay();
 }}
-            tooltip {View next page} xywh {465 230 55 25} color 50 selection_color 51
-          }
-          Fl_Button {} {
-            label {Save to file}
-            callback {{
-  std::FILE *f = (std::FILE *) 0;
-  try {
-    std::string tmp;
-    if (gui.browseFile(tmp, gui.debuggerDirectory,
-                       "All files (*)", Fl_File_Chooser::CREATE,
-                       "Disassemble to file")) {
-      f = std::fopen(tmp.c_str(), "w");
-      if (!f)
-        throw Ep128Emu::Exception("cannot open file");
-      uint32_t  addr = disassemblyStartAddress;
-      uint32_t  addrMask = uint32_t(disassemblyCPUAddressMode ? 0x00FFFFU : 0x3FFFFFU);
-      uint32_t  nextAddr = addr;
-      bool      endFlag = false;
-      do {
-        nextAddr = gui.vm.disassembleInstruction(tmp, addr, disassemblyCPUAddressMode,
-                                                 disassemblyAddressOffset);
-        tmp += '\\n';
-        for (size_t i = 0; i < tmp.length(); i++) {
-          if (std::fputc(tmp[i], f) == EOF)
-            throw Ep128Emu::Exception("error writing file - is the disk full ?");
-        }
-        while (addr != nextAddr) {
-          if (((addr ^ disassemblyEndAddress) & addrMask) == 0U)
-            endFlag = true;
-          addr = (addr + 1U) & addrMask;
-        }
-      } while (!endFlag);
-      std::fclose(f);
-    }
-  }
-  catch (std::exception& e) {
-    if (f)
-      std::fclose(f);
-    gui.errorMessage(e.what());
-  }
-}}
-            xywh {405 275 115 25} color 50 selection_color 51
+              tooltip {View next page} xywh {870 630 55 25} color 50 selection_color 51
+            }
           }
         }
-        Fl_Group breakPointsTab {
-          label Watchpoints open
-          xywh {10 35 520 370} box THIN_UP_BOX hide
+        Fl_Group monitorTab {
+          label {Page 2} open
+          xywh {10 35 940 640} box THIN_UP_BOX hide
         } {
-          Fl_Text_Editor breakPointEditor {
-            callback {{
+          Fl_Group {} {open
+            xywh {20 45 530 365} box THIN_UP_BOX align 21
+          } {
+            Fl_Text_Editor monitor_ {
+              tooltip {Type ? for a list of available monitor commands, or ? CMD for help on command CMD} xywh {30 55 510 345} when 0 textfont 5 textcolor 2
+              code0 {o->setDebugger(*this);}
+              code1 {o->cursor_style(Fl_Text_Display::BLOCK_CURSOR);}
+              code2 {o->cursor_color(Fl_Color(3));}
+              class Ep128EmuGUIMonitor
+            }
+          }
+          Fl_Group {} {open
+            xywh {560 45 380 365} box THIN_UP_BOX align 21
+          } {
+            Fl_Text_Editor breakPointEditor {
+              callback {{
   applyBreakPointList();
 }}
-            tooltip {Enter watchpoint definitions, separated by spaces or newlines. Allowed formats include NN (I/O), NNNN (memory, CPU address), and NN:NNNN (memory, physical address as segment:offset); each N is a hexadecimal digit. Address ranges (separated by a - character) can also be specified. Use the following suffixes to check for read or write access only, set priority, or ignore watchpoints depending on the program counter: r, w, p0, p1, p2, p3, i.} xywh {20 48 345 345} box DOWN_BOX align 5 textfont 4
-            code0 {o->cursor_color(Fl_Color(3));}
-            code1 {o->buffer(bpEditBuffer);}
-          }
-          Fl_Light_Button noBreakOnDataReadValuator {
-            label {Ignore data reads}
-            callback {{
+              tooltip {Enter watchpoint definitions, separated by spaces or newlines. Allowed formats include NNNN (memory, CPU address), and NNNN:NN (TED video position as Y:X); each N is a hexadecimal digit. Address ranges (separated by a - character) can also be specified. Use the following suffixes to check for read or write access only, set priority, or ignore watchpoints depending on the program counter: r, w, p0, p1, p2, p3, i.} xywh {570 55 360 230} box DOWN_BOX align 5 textfont 4
+              code0 {o->cursor_color(Fl_Color(3));}
+              code1 {o->buffer(bpEditBuffer);}
+              code2 {o->scrollbar_align(FL_ALIGN_RIGHT);}
+            }
+            Fl_Light_Button noBreakOnDataReadValuator {
+              label {Ignore data reads}
+              callback {{
   gui.config.debug.noBreakOnDataRead = (o->value() != 0);
   gui.config.debugSettingsChanged = true;
   try {
@@ -399,11 +420,25 @@ class Ep128EmuGUI_DebugWindow {open
     gui.errorMessage(e.what());
   }
 }}
-            xywh {375 50 145 25} color 50 selection_color 3
-          }
-          Fl_Value_Slider bpPriorityThresholdValuator {
-            label {Priority threshold}
-            callback {{
+              xywh {575 295 145 25} color 50 selection_color 3
+            }
+            Fl_Light_Button breakOnInvalidOpcodeValuator {
+              label {Break on CPU jam}
+              callback {{
+/*gui.config.debug.breakOnInvalidOpcode = (o->value() != 0);
+  gui.config.debugSettingsChanged = true;
+  try {
+    gui.config.applySettings();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }*/
+}}
+              xywh {575 330 145 25} color 50 selection_color 3
+            }
+            Fl_Value_Slider bpPriorityThresholdValuator {
+              label {Priority threshold}
+              callback {{
   gui.config.debug.bpPriorityThreshold = int(o->value() + 0.5);
   gui.config.debugSettingsChanged = true;
   try {
@@ -413,11 +448,11 @@ class Ep128EmuGUI_DebugWindow {open
     gui.errorMessage(e.what());
   }
 }}
-            xywh {375 96 145 23} type Horizontal color 47 selection_color 52 align 5 maximum 4 step 1
-          }
-          Fl_Button {} {
-            label {Load from file}
-            callback {{
+              xywh {575 376 145 23} type Horizontal color 47 selection_color 52 align 5 maximum 4 step 1
+            }
+            Fl_Button {} {
+              label {Load from file}
+              callback {{
   std::FILE *f = (std::FILE *) 0;
   try {
     std::string tmp;
@@ -462,11 +497,11 @@ class Ep128EmuGUI_DebugWindow {open
     gui.errorMessage(e.what());
   }
 }}
-            xywh {375 140 145 25} color 50 selection_color 51
-          }
-          Fl_Button {} {
-            label {Save to file}
-            callback {{
+              xywh {780 295 145 25} color 50 selection_color 51
+            }
+            Fl_Button {} {
+              label {Save to file}
+              callback {{
   std::FILE   *f = (std::FILE *) 0;
   const char  *buf = (char *) 0;
   try {
@@ -504,14 +539,141 @@ class Ep128EmuGUI_DebugWindow {open
     gui.errorMessage(e.what());
   }
 }}
-            xywh {375 185 145 25} color 50 selection_color 51
-          }
-          Fl_Button {} {
-            label Apply
-            callback {{
+              xywh {780 330 145 25} color 50 selection_color 51
+            }
+            Fl_Button {} {
+              label Apply
+              callback {{
   applyBreakPointList();
 }}
-            tooltip {Reset watchpoints from text format definition} xywh {375 365 145 25} color 50 selection_color 51
+              tooltip {Reset watchpoints from text format definition} xywh {780 375 145 25} color 50 selection_color 51
+            }
+          }
+          Fl_Group {} {open
+            xywh {20 420 920 245} box THIN_UP_BOX align 21
+          } {
+            Fl_Text_Editor luaScriptEditor {
+              tooltip {Lua script editor (for documentation, see the README file)} xywh {30 430 740 225} box DOWN_BOX align 5 textfont 4
+              code0 {o->cursor_color(Fl_Color(3));}
+              code1 {o->buffer(scriptEditBuffer);}
+              code2 {o->scrollbar_align(FL_ALIGN_RIGHT);}
+            }
+            Fl_Button {} {
+              label {Load from file}
+              callback {{
+  std::FILE *f = (std::FILE *) 0;
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.debuggerDirectory,
+                       "Lua scripts (*.lua)",
+                       Fl_File_Chooser::SINGLE,
+                       "Load Lua script from file")) {
+      f = std::fopen(tmp.c_str(), "rb");
+      if (!f)
+        throw Ep128Emu::Exception("cannot open file");
+      tmp = "";
+      bool  crFlag = false;
+      while (true) {
+        int   c = std::fgetc(f);
+        if (crFlag) {
+          crFlag = false;
+          if (c == '\\n')
+            continue;
+        }
+        if (c == EOF)
+          break;
+        if (char(c) == '\\0')
+          continue;
+        if (c == '\\r') {
+          tmp += '\\n';
+          crFlag = true;
+        }
+        else
+          tmp += char(c);
+      }
+      std::fclose(f);
+      f = (std::FILE *) 0;
+      scriptEditBuffer->text(tmp.c_str());
+    }
+  }
+  catch (std::exception& e) {
+    if (f)
+      std::fclose(f);
+    gui.errorMessage(e.what());
+  }
+}}
+              xywh {780 435 145 25} color 50 selection_color 51
+            }
+            Fl_Button {} {
+              label {Save to file}
+              callback {{
+  std::FILE   *f = (std::FILE *) 0;
+  const char  *buf = (char *) 0;
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.debuggerDirectory,
+                       "Lua scripts (*.lua)",
+                       Fl_File_Chooser::CREATE,
+                       "Save Lua script to file")) {
+      f = std::fopen(tmp.c_str(), "w");
+      if (!f)
+        throw Ep128Emu::Exception("cannot open file");
+      buf = scriptEditBuffer->text();
+      if (!buf)
+        throw std::bad_alloc();
+      const char  *bufp = buf;
+      char        c = '\\0';
+      while ((*bufp) != '\\0') {
+        c = *(bufp++);
+        if (std::fputc(c, f) == EOF)
+          throw Ep128Emu::Exception("error writing file - is the disk full ?");
+      }
+      if (c != '\\n') {
+        if (std::fputc('\\n', f) == EOF)
+          throw Ep128Emu::Exception("error writing file - is the disk full ?");
+      }
+      std::free(const_cast<char *>(buf));
+      std::fclose(f);
+    }
+  }
+  catch (std::exception& e) {
+    if (buf)
+      std::free(const_cast<char *>(buf));
+    if (f)
+      std::fclose(f);
+    gui.errorMessage(e.what());
+  }
+}}
+              xywh {780 470 145 25} color 50 selection_color 51
+            }
+            Fl_Button {} {
+              label Run
+              callback {{
+  const char  *buf = (char *) 0;
+  try {
+    buf = scriptEditBuffer->text();
+    if (!buf)
+      throw std::bad_alloc();
+    luaScript.loadScript(buf);
+    std::free(const_cast<char *>(buf));
+    buf = (char *) 0;
+    updateWindow();
+  }
+  catch (std::exception& e) {
+    if (buf)
+      std::free(const_cast<char *>(buf));
+    gui.errorMessage(e.what());
+  }
+}}
+              tooltip {Run or restart the Lua script, and enable the breakpoint callback if it is defined} xywh {780 590 145 25} color 50 selection_color 51
+            }
+            Fl_Button {} {
+              label Stop
+              callback {{
+  luaScript.closeScript();
+}}
+              tooltip {Disable the Lua breakpoint callback} xywh {780 625 145 25} color 50 selection_color 51
+            }
           }
         }
       }
@@ -519,492 +681,29 @@ class Ep128EmuGUI_DebugWindow {open
         label Step
         callback {{
   focusWidget = stepButton;
-  gui.vm.setSingleStepMode(true);
+  gui.vm.setSingleStepMode(1);
   this->hide();
 }}
-        xywh {265 415 80 25} selection_color 50
+        xywh {685 685 80 25} selection_color 50
       }
       Fl_Button stepOverButton {
         label {Step over}
         callback {{
   focusWidget = stepButton;
-  gui.vm.setSingleStepMode(true, true);
+  gui.vm.setSingleStepMode(2);
   this->hide();
 }}
-        xywh {355 415 80 25} selection_color 50
+        xywh {775 685 80 25} selection_color 50
       }
       Fl_Button continueButton {
         label Continue
         callback {{
   focusWidget = continueButton;
-  gui.vm.setSingleStepMode(false);
+  gui.vm.setSingleStepMode(0);
   this->hide();
 }}
-        xywh {445 415 80 25} selection_color 50
+        xywh {865 685 80 25} selection_color 50
       }
     }
-    code {{
-  window->label(&(windowTitle[0]));
-}} {}
-  }
-  Function {~Ep128EmuGUI_DebugWindow()} {open
-  } {
-    code {{
-  delete window;
-  delete bpEditBuffer;
-}} {}
-  }
-  Function {show()} {open return_type void
-  } {
-    code {{
-  updateWindow();
-  if (!window->shown()) {
-    window->resize(savedWindowPositionX, savedWindowPositionY, 540, 450);
-    if (focusWidget)
-      focusWidget->take_focus();
-    else
-      stepButton->take_focus();
-  }
-  window->show();
-}} {}
-  }
-  Function {shown()} {open return_type bool
-  } {
-    code {{
-  return !!(window->shown());
-}} {}
-  }
-  Function {hide()} {open return_type void
-  } {
-    code {{
-  if (window->shown()) {
-    savedWindowPositionX = window->x();
-    savedWindowPositionY = window->y();
-  }
-  window->hide();
-  if (gui.debugWindowOpenFlag) {
-    gui.debugWindowOpenFlag = false;
-    gui.unlockVMThread();
-  }
-  std::strcpy(&(windowTitle[0]), "ep128emu debugger");
-  window->label(&(windowTitle[0]));
-}} {}
-  }
-  Function {breakPoint(bool isIO, bool isWrite, uint16_t addr, uint8_t value)} {open return_type void
-  } {
-    code {{
-  if (isIO) {
-    if (isWrite)
-      std::sprintf(&(windowTitle[0]), "Break on writing %02X to I/O address %02X",
-                   (unsigned int) (value & 0xFF), (unsigned int) (addr & 0xFF));
-    else
-      std::sprintf(&(windowTitle[0]), "Break on reading %02X from I/O address %02X",
-                   (unsigned int) (value & 0xFF), (unsigned int) (addr & 0xFF));
-  }
-  else {
-    if (isWrite)
-      std::sprintf(&(windowTitle[0]), "Break on writing %02X to memory address %04X",
-                   (unsigned int) (value & 0xFF), (unsigned int) (addr & 0xFFFF));
-    else
-      std::sprintf(&(windowTitle[0]), "Break on reading %02X from memory address %04X",
-                   (unsigned int) (value & 0xFF), (unsigned int) (addr & 0xFFFF));
-  }
-  window->label(&(windowTitle[0]));
-  if (debugTabs->value() == breakPointsTab)
-    debugTabs->value(mainTab);
-  disassemblyViewAddress = uint32_t(gui.vm.getProgramCounter() & 0xFFFF);
-  if (!disassemblyCPUAddressMode) {
-    uint32_t  cpuAddr_ = disassemblyViewAddress;
-    uint8_t   segment_ = gui.vm.getMemoryPage(uint8_t(cpuAddr_ >> 14));
-    disassemblyViewAddress = (uint32_t(segment_) << 14) | (cpuAddr_ & 0x00003FFFU);
-    disassemblyAddressOffset = int32_t(cpuAddr_) - int32_t(disassemblyViewAddress);
-  }
-  else
-    disassemblyAddressOffset = 0;
-}} {}
-  }
-  Function {updateWindow()} {open return_type void
-  } {
-    code {{
-  try {
-    std::string buf;
-    gui.vm.listCPURegisters(buf);
-    cpuRegisterDisplay->value(buf.c_str());
-    {
-      char  tmpBuf[64];
-      std::sprintf(&(tmpBuf[0]), "0000-3FFF: %02X\\n4000-7FFF: %02X\\n"
-                                 "8000-BFFF: %02X\\nC000-FFFF: %02X",
-                   (unsigned int) gui.vm.getMemoryPage(0),
-                   (unsigned int) gui.vm.getMemoryPage(1),
-                   (unsigned int) gui.vm.getMemoryPage(2),
-                   (unsigned int) gui.vm.getMemoryPage(3));
-      memoryPagingDisplay->value(&(tmpBuf[0]));
-    }
-    uint32_t  tmp = gui.vm.getProgramCounter();
-    uint32_t  startAddr = (tmp + 0xFFECU) & 0xFFF8U;
-    uint32_t  endAddr = (startAddr + 0x002FU) & 0xFFFFU;
-    dumpMemory(buf, startAddr, endAddr, tmp, true, true);
-    codeMemoryDumpDisplay->value(buf.c_str());
-    tmp = gui.vm.getStackPointer();
-    startAddr = (tmp + 0xFFF4U) & 0xFFF8U;
-    endAddr = (startAddr + 0x002FU) & 0xFFFFU;
-    dumpMemory(buf, startAddr, endAddr, tmp, true, true);
-    stackMemoryDumpDisplay->value(buf.c_str());
-    gui.vm.listIORegisters(buf);
-    ioRegisterDisplay->value(buf.c_str());
-    updateMemoryDumpDisplay();
-    updateDisassemblyDisplay();
-    noBreakOnDataReadValuator->value(gui.config.debug.noBreakOnDataRead ? 1 : 0);
-    bpPriorityThresholdValuator->value(double(gui.config.debug.bpPriorityThreshold));
-  }
-  catch (std::exception& e) {
-    gui.errorMessage(e.what());
-  }
-}} {}
-  }
-  Function {dumpMemory(std::string& buf, uint32_t startAddr, uint32_t endAddr, uint32_t cursorAddr, bool showCursor, bool isCPUAddress)} {open private return_type void
-  } {
-    code {{
-  try {
-    char      tmpBuf[8];
-    buf = "";
-    int       cnt = 0;
-    uint32_t  addrMask = uint32_t(isCPUAddress ? 0x0000FFFFU : 0x003FFFFFU);
-    endAddr &= addrMask;
-    cursorAddr &= addrMask;
-    while (true) {
-      startAddr &= addrMask;
-      if (cnt == 8) {
-        cnt = 0;
-        buf += '\\n';
-      }
-      if (!cnt) {
-        if (isCPUAddress)
-          std::sprintf(&(tmpBuf[0]), "  %04X", (unsigned int) startAddr);
-        else
-          std::sprintf(&(tmpBuf[0]), "%06X", (unsigned int) startAddr);
-        buf += &(tmpBuf[0]);
-      }
-      if (!(cnt & 3)) {
-        if (showCursor && startAddr == cursorAddr)
-          std::sprintf(&(tmpBuf[0]), "  *%02X", (unsigned int) gui.vm.readMemory(startAddr, isCPUAddress));
-        else
-          std::sprintf(&(tmpBuf[0]), "   %02X", (unsigned int) gui.vm.readMemory(startAddr, isCPUAddress));
-      }
-      else {
-        if (showCursor && startAddr == cursorAddr)
-          std::sprintf(&(tmpBuf[0]), " *%02X", (unsigned int) gui.vm.readMemory(startAddr, isCPUAddress));
-        else
-          std::sprintf(&(tmpBuf[0]), "  %02X", (unsigned int) gui.vm.readMemory(startAddr, isCPUAddress));
-      }
-      buf += &(tmpBuf[0]);
-      if (startAddr == endAddr)
-        break;
-      startAddr++;
-      cnt++;
-    }
-  }
-  catch (std::exception& e) {
-    buf.clear();
-    gui.errorMessage(e.what());
-  }
-}} {}
-  }
-  Function {updateMemoryDumpDisplay()} {open private return_type void
-  } {
-    code {{
-  try {
-    uint32_t  addrMask = uint32_t(memoryDumpCPUAddressMode ? 0x00FFFFU : 0x3FFFFFU);
-    memoryDumpStartAddress &= addrMask;
-    memoryDumpEndAddress &= addrMask;
-    memoryDumpViewAddress &= addrMask;
-    const char  *fmt = (memoryDumpCPUAddressMode ? "%04X" : "%06X");
-    char  tmpBuf[8];
-    std::sprintf(&(tmpBuf[0]), fmt, (unsigned int) memoryDumpStartAddress);
-    memoryDumpStartAddressValuator->value(&(tmpBuf[0]));
-    std::sprintf(&(tmpBuf[0]), fmt, (unsigned int) memoryDumpEndAddress);
-    memoryDumpEndAddressValuator->value(&(tmpBuf[0]));
-    std::string buf;
-    dumpMemory(buf, memoryDumpViewAddress, memoryDumpViewAddress + 0x87U,
-               0U, false, memoryDumpCPUAddressMode);
-    memoryDumpDisplay->value(buf.c_str());
-  }
-  catch (std::exception& e) {
-    gui.errorMessage(e.what());
-  }
-}} {}
-  }
-  Function {parseHexNumber(uint32_t& value, const char *s)} {open private return_type long
-  } {
-    code {{
-  long  cnt = 0L;
-  if (!s)
-    return 0L;
-  while (*s == ' ' || *s == '\\t') {
-    s++;
-    cnt++;
-  }
-  if (*s == '\\0')
-    return 0L;
-  if (*s == '\\r' || *s == '\\n')
-    return (-(cnt + 1L));
-  uint32_t  tmpVal = 0U;
-  while (true) {
-    char  c = *s;
-    if (c == ' ' || c == '\\t' || c == '\\r' || c == '\\n' || c == '\\0') {
-      value = tmpVal;
-      return cnt;
-    }
-    tmpVal = (tmpVal << 4) & 0xFFFFFFFFU;
-    if (c >= '0' && c <= '9')
-      tmpVal += uint32_t(c - '0');
-    else if (c >= 'A' && c <= 'F')
-      tmpVal += uint32_t((c - 'A') + 10);
-    else if (c >= 'a' && c <= 'f')
-      tmpVal += uint32_t((c - 'a') + 10);
-    else {
-      gui.errorMessage("invalid hexadecimal number format");
-      return 0L;
-    }
-    s++;
-    cnt++;
-  }
-  return 0L;
-}} {}
-  }
-  Function {parseMemoryDump(const char *s)} {open private return_type void
-  } {
-    code {{
-  uint32_t  addr = 0U;
-  bool      haveAddress = false;
-  try {
-    while (true) {
-      uint32_t  tmp = 0U;
-      long      n = parseHexNumber(tmp, s);
-      if (!n)           // end of string or error
-        break;
-      if (n < 0L) {     // end of line
-        n = (-n);
-        haveAddress = false;
-        s = s + n;
-      }
-      else {
-        s = s + n;
-        if (!haveAddress) {
-          addr = tmp & 0x3FFFFFU;
-          haveAddress = true;
-        }
-        else {
-          gui.vm.writeMemory(addr, uint8_t(tmp & 0xFFU), memoryDumpCPUAddressMode);
-          addr++;
-        }
-      }
-    }
-  }
-  catch (std::exception& e) {
-    gui.errorMessage(e.what());
-  }
-}} {}
-  }
-  Function {updateDisassemblyDisplay()} {open private return_type void
-  } {
-    code {{
-  try {
-    uint32_t  addrMask = uint32_t(disassemblyCPUAddressMode ? 0x00FFFFU : 0x3FFFFFU);
-    disassemblyStartAddress &= addrMask;
-    if (disassemblyAddressOffset >= 0)
-      disassemblyAddressOffset &= int32_t(addrMask);
-    else {
-      disassemblyAddressOffset = (-disassemblyAddressOffset) - 1;
-      disassemblyAddressOffset &= int32_t(addrMask);
-      disassemblyAddressOffset = (-disassemblyAddressOffset) - 1;
-    }
-    disassemblyEndAddress &= addrMask;
-    disassemblyViewAddress &= addrMask;
-    disassemblyNextAddress &= addrMask;
-    const char  *fmt = (disassemblyCPUAddressMode ? "%04X" : "%06X");
-    char  tmpBuf[8];
-    std::sprintf(&(tmpBuf[0]), fmt, (unsigned int) disassemblyStartAddress);
-    disassemblyStartAddressValuator->value(&(tmpBuf[0]));
-    std::sprintf(&(tmpBuf[0]), fmt,
-                 (unsigned int) ((int32_t(disassemblyStartAddress)
-                                  + disassemblyAddressOffset) & int32_t(addrMask)));
-    disassemblyRuntimeAddressValuator->value(&(tmpBuf[0]));
-    std::sprintf(&(tmpBuf[0]), fmt, (unsigned int) disassemblyEndAddress);
-    disassemblyEndAddressValuator->value(&(tmpBuf[0]));
-    std::string tmp1;
-    std::string tmp2;
-    tmp2.reserve(864);
-    uint32_t  addr = disassemblyViewAddress;
-    for (int i = 0; i < 20; i++) {
-      addr = gui.vm.disassembleInstruction(tmp1, addr, disassemblyCPUAddressMode,
-                                           disassemblyAddressOffset);
-      tmp2 += tmp1;
-      tmp2 += '\\n';
-    }
-    disassemblyNextAddress = addr;
-    gui.vm.disassembleInstruction(tmp1, addr, disassemblyCPUAddressMode,
-                                  disassemblyAddressOffset);
-    tmp2 += tmp1;
-    disassemblyDisplay->value(tmp2.c_str());
-  }
-  catch (std::exception& e) {
-    gui.errorMessage(e.what());
-  }
-}} {}
-  }
-  Function {applyBreakPointList()} {open private return_type void
-  } {
-    code {{
-  const char  *buf = (char *) 0;
-  try {
-    buf = bpEditBuffer->text();
-    if (!buf)
-      throw std::bad_alloc();
-    std::string bpListText(buf);
-    std::free(const_cast<char *>(buf));
-    buf = (char *) 0;
-    Ep128Emu::BreakPointList  bpList(bpListText);
-    gui.vm.clearBreakPoints();
-    gui.vm.setBreakPoints(bpList);
-  }
-  catch (std::exception& e) {
-    if (buf)
-      std::free(const_cast<char *>(buf));
-    gui.errorMessage(e.what());
-  }
-}} {}
-  }
-  Function {parseCommand(const char *s)} {open private return_type void
-  } {
-    code {{
-  try {
-    if (!s)
-      return;
-    while (*s == ' ' || *s == '\\t' || *s == '\\r' || *s == '\\n')
-      s++;
-    if (*s == '\\0')
-      return;
-    char    c = *(s++);
-    std::vector<uint32_t> args;
-    while (true) {
-      uint32_t  tmp = 0U;
-      long      n = parseHexNumber(tmp, s);
-      if (!n)           // end of string or error
-        break;
-      if (n < 0L)       // end of line
-        n = (-n);
-      else
-        args.push_back(tmp);
-      s = s + n;
-    }
-    uint32_t  addrMask = uint32_t(memoryDumpCPUAddressMode ? 0x00FFFFU : 0x3FFFFFU);
-    switch (c) {
-    case '>':
-      if (args.size() < 2)
-        throw Ep128Emu::Exception("too few arguments");
-      else {
-        uint32_t  addr = args[0] & addrMask;
-        size_t    byteCnt = 0;
-        do {
-          gui.vm.writeMemory(addr, uint8_t(args[byteCnt + 1] & 0xFFU),
-                             memoryDumpCPUAddressMode);
-          addr++;
-          addr &= addrMask;
-          byteCnt++;
-        } while ((byteCnt + 1) < args.size());
-      }
-      break;
-    case 'F':
-    case 'f':
-      if (args.size() < 3)
-        throw Ep128Emu::Exception("too few arguments");
-      else {
-        uint32_t  addr = args[0] & addrMask;
-        uint32_t  endAddr = args[1] & addrMask;
-        size_t    byteCnt = 0;
-        while (true) {
-          gui.vm.writeMemory(addr, uint8_t(args[byteCnt + 2] & 0xFFU),
-                             memoryDumpCPUAddressMode);
-          if (addr == endAddr)
-            break;
-          addr++;
-          addr &= addrMask;
-          byteCnt++;
-          if ((byteCnt + 2) >= args.size())
-            byteCnt = 0;
-        }
-      }
-      break;
-    case 'H':
-    case 'h':
-      if (args.size() < 3)
-        throw Ep128Emu::Exception("too few arguments");
-      else {
-        uint32_t  addr = args[0] & addrMask;
-        uint32_t  addrFound = addr;
-        uint32_t  endAddr = args[1] & addrMask;
-        size_t    byteCnt = 0;
-        while (true) {
-          if (gui.vm.readMemory(addr, memoryDumpCPUAddressMode)
-              != uint8_t(args[byteCnt + 2] & 0xFFU))
-            byteCnt = 0;
-          else {
-            if (!byteCnt)
-              addrFound = addr;
-            byteCnt++;
-            if ((byteCnt + 2) >= args.size()) {
-              memoryDumpViewAddress = addrFound;
-              break;
-            }
-          }
-          if (addr == endAddr)
-            throw Ep128Emu::Exception("search string not found");
-          addr++;
-          addr &= addrMask;
-        }
-      }
-      break;
-    case 'T':
-    case 't':
-      if (args.size() != 3)
-        throw Ep128Emu::Exception("invalid number of arguments");
-      else {
-        uint32_t  srcAddr = args[0] & addrMask;
-        uint32_t  endAddr = args[1] & addrMask;
-        uint32_t  dstAddr = args[2] & addrMask;
-        bool      reverseFlag = false;
-        if (dstAddr > srcAddr) {
-          reverseFlag = true;
-          dstAddr = (dstAddr + (endAddr - srcAddr)) & addrMask;
-          uint32_t  tmp = srcAddr;
-          srcAddr = endAddr;
-          endAddr = tmp;
-        }
-        while (true) {
-          gui.vm.writeMemory(dstAddr,
-                             gui.vm.readMemory(srcAddr, memoryDumpCPUAddressMode),
-                             memoryDumpCPUAddressMode);
-          if (srcAddr == endAddr)
-            break;
-          if (!reverseFlag) {
-            srcAddr = (srcAddr + 1U) & addrMask;
-            dstAddr = (dstAddr + 1U) & addrMask;
-          }
-          else {
-            srcAddr = (srcAddr - 1U) & addrMask;
-            dstAddr = (dstAddr - 1U) & addrMask;
-          }
-        }
-      }
-      break;
-    default:
-      throw Ep128Emu::Exception("unknown command");
-    }
-  }
-  catch (std::exception& e) {
-    gui.errorMessage(e.what());
-  }
-}} {}
   }
 } 

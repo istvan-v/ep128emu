@@ -32,11 +32,12 @@
 #include "vmthread.hpp"
 #include "cfg_db.hpp"
 #include "emucfg.hpp"
-
+#include "script.hpp"
 #include "ep128vm.hpp"
 
 #include <FL/Fl_File_Chooser.H>
 
+class Ep128EmuGUI;
 class Ep128EmuGUI_DiskConfigWindow;
 class Ep128EmuGUI_DisplayConfigWindow;
 class Ep128EmuGUI_KbdConfigWindow;
@@ -44,7 +45,11 @@ class Ep128EmuGUI_SoundConfigWindow;
 class Ep128EmuGUI_MachineConfigWindow;
 class Ep128EmuGUI_DebugWindow;
 class Ep128EmuGUI_AboutWindow;
+class Ep128EmuGUIMonitor;
+class Ep128EmuGUI_LuaScript;
+class Ep128EmuGUI_ScrollableOutput;
 
+#include "debugger.hpp"
 #include "gui_fl.hpp"
 #include "disk_cfg_fl.hpp"
 #include "disp_cfg_fl.hpp"
@@ -53,6 +58,7 @@ class Ep128EmuGUI_AboutWindow;
 #include "vm_cfg_fl.hpp"
 #include "debug_fl.hpp"
 #include "about_fl.hpp"
+#include "monitor.hpp"
 
 #endif  // EP128EMU_GUI_HPP
 

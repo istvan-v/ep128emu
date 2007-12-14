@@ -22,6 +22,8 @@ class Ep128EmuGUI {open
   }
   decl {friend class Ep128EmuGUI_DebugWindow;} {public
   }
+  decl {friend class Ep128EmuGUIMonitor;} {public
+  }
   decl {friend class Ep128EmuGUI_AboutWindow;} {public
   }
   decl {Ep128Emu::VideoDisplay& display;} {}
@@ -105,7 +107,6 @@ class Ep128EmuGUI {open
   decl {static void errorMessageCallback(void *userData, const char *msg);} {}
   decl {static void fileNameCallback(void *userData, std::string& fileName);} {}
   decl {static void fltkCheckCallback(void *userData);} {}
-  decl {static void breakPointCallback(void *userData, bool isIO, bool isWrite, uint16_t addr, uint8_t value);} {}
   decl {static void screenshotCallback(void *userData, const unsigned char *buf, int w_, int h_);} {}
   decl {static void pollJoystickInput(void *userData);} {}
   decl {bool closeDemoFile(bool stopDemo_);} {}
@@ -220,20 +221,17 @@ class Ep128EmuGUI {open
           xywh {50 335 50 20} color 48 selection_color 15 labelsize 12 align 20
         }
         Fl_Box demoStatusDisplay2 {
-          xywh {97 335 20 20} box THIN_DOWN_BOX color 7 selection_color 236 labelfont 5 labelsize 12 labelcolor 247 align 16
+          xywh {97 335 20 20} box THIN_DOWN_BOX color 56 labelfont 5 labelsize 12 labelcolor 6 align 16
         }
         Fl_Box tapeInfoDisplay {
           xywh {130 335 150 20} color 48 selection_color 15 labelsize 12 align 16
           code0 {o->label("Tape: none");}
         }
-        Fl_Group tapeStatusDisplayGroup {open
-          xywh {290 335 100 20} box THIN_DOWN_BOX color 7 labelsize 12 align 4
+        Fl_Group tapePositionDisplay {open
+          xywh {290 335 100 20} box THIN_DOWN_BOX color 56 labelfont 4 labelsize 12 labelcolor 6 align 24
         } {
           Fl_Box tapeStatusDisplay {
-            xywh {290 335 20 20} color 7 selection_color 236 labelfont 5 labelsize 12 labelcolor 247 align 24
-          }
-          Fl_Box tapePositionDisplay {
-            xywh {310 336 73 18} box FLAT_BOX color 7 selection_color 236 labelfont 4 labelsize 12 labelcolor 247 align 24
+            xywh {290 335 20 20} color 56 labelfont 5 labelsize 12 labelcolor 6 align 24
           }
         }
       }

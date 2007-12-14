@@ -1087,5 +1087,69 @@ namespace Ep128 {
     return addr;
   }
 
+  uint32_t Z80Disassembler::getNextInstructionAddr(
+      const Ep128Emu::VirtualMachine& vm, uint32_t addr, bool isCPUAddress)
+  {
+    uint32_t  addrMask = (isCPUAddress ? 0x0000FFFFU : 0x003FFFFFU);
+    addr &= addrMask;
+    bool      useIX = false;
+    bool      useIY = false;
+    bool      useIndexOffset = false;
+    bool      haveIndexOffset = false;
+    bool      invalidOpcode = false;
+    const unsigned char *opcodeTablePtr = &(opcodeTable[0]);
+    uint8_t   opNum = vm.readMemory(addr, isCPUAddress) & 0xFF;
+    addr = (addr + 1U) & addrMask;
+    if (opNum == 0xDD)
+      useIX = true;
+    else if (opNum == 0xFD)
+      useIY = true;
+    if (useIX || useIY) {
+      opNum = vm.readMemory(addr, isCPUAddress) & 0xFF;
+      addr = (addr + 1U) & addrMask;
+    }
+    if (opNum == 0xCB) {
+      opcodeTablePtr = &(opcodeTableCB[0]);
+      useIndexOffset = (useIX || useIY);
+      if (useIndexOffset) {
+        addr = (addr + 1U) & addrMask;
+        haveIndexOffset = true;
+      }
+      opNum = vm.readMemory(addr, isCPUAddress) & 0xFF;
+      addr = (addr + 1U) & addrMask;
+    }
+    else if (opNum == 0xED) {
+      opcodeTablePtr = &(opcodeTableED[0]);
+      invalidOpcode = (useIX || useIY);
+      opNum = vm.readMemory(addr, isCPUAddress) & 0xFF;
+      addr = (addr + 1U) & addrMask;
+    }
+    opcodeTablePtr = (opcodeTablePtr + (size_t(opNum) * 3));
+    if (opcodeTablePtr[0] > 68)
+      invalidOpcode = true;
+    unsigned char operand1Type = opcodeTablePtr[1];
+    unsigned char operand2Type = opcodeTablePtr[2];
+    if (useIndexOffset && !(operand1Type == 28 || operand2Type == 28))
+      invalidOpcode = true;
+    if ((useIX || useIY) && !invalidOpcode) {
+      if (operand1Type == 28 || operand2Type == 28)
+        useIndexOffset = true;
+    }
+    if (useIndexOffset && !haveIndexOffset) {
+      addr = (addr + 1U) & addrMask;
+    }
+    if (operand1Type >= 17 && operand1Type < 22) {
+      addr = (addr + 1U) & addrMask;
+      if (operand1Type >= 20)
+        addr = (addr + 1U) & addrMask;
+    }
+    if (operand2Type >= 17 && operand2Type < 22) {
+      addr = (addr + 1U) & addrMask;
+      if (operand2Type >= 20)
+        addr = (addr + 1U) & addrMask;
+    }
+    return addr;
+  }
+
 }       // namespace Ep128
 

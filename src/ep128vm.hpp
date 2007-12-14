@@ -134,8 +134,8 @@ namespace Ep128 {
     int64_t   daveCyclesRemaining;      // in 2^-32 DAVE cycle units
     uint8_t   memoryWaitMode;           // set on write to port 0xBF
     bool      memoryTimingEnabled;
-    bool      singleStepModeEnabled;
-    bool      singleStepModeStepOverFlag;
+    // 0: normal mode, 1: single step, 2: step over, 3: trace
+    uint8_t   singleStepMode;
     int32_t   singleStepModeNextAddr;
     int64_t   tapeSamplesPerNickCycle;
     int64_t   tapeSamplesRemaining;
@@ -348,10 +348,14 @@ namespace Ep128 {
     virtual void setBreakPointPriorityThreshold(int n);
     /*!
      * Set if the breakpoint callback should be called whenever the first byte
-     * of a CPU instruction is read from memory. Breakpoints are ignored in
-     * this mode.
+     * of a CPU instruction is read from memory. 'mode_' should be one of the
+     * following values:
+     *   0: normal mode
+     *   1: single step mode (break on every instruction, ignore breakpoints)
+     *   2: step over mode
+     *   3: trace (similar to mode 1, but does not ignore breakpoints)
      */
-    virtual void setSingleStepMode(bool isEnabled, bool stepOverFlag = false);
+    virtual void setSingleStepMode(int mode_);
     /*!
      * Returns the segment at page 'n' (0 to 3).
      */
