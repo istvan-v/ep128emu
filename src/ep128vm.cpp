@@ -1738,9 +1738,34 @@ namespace Ep128 {
     memory.writeRaw(addr, value);
   }
 
+  uint8_t Ep128VM::readIOPort(uint16_t addr) const
+  {
+    return ioPorts.readDebug(addr);
+  }
+
+  void Ep128VM::writeIOPort(uint16_t addr, uint8_t value)
+  {
+    if (isRecordingDemo | isPlayingDemo) {
+      stopDemoPlayback();
+      stopDemoRecording(false);
+    }
+    ioPorts.writeDebug(addr, value);
+  }
+
   uint16_t Ep128VM::getProgramCounter() const
   {
-    return uint16_t(z80.getReg().PC.W.l);
+    return z80.getProgramCounter();
+  }
+
+  void Ep128VM::setProgramCounter(uint16_t addr)
+  {
+    if (addr != z80.getProgramCounter()) {
+      if (isRecordingDemo | isPlayingDemo) {
+        stopDemoPlayback();
+        stopDemoRecording(false);
+      }
+      z80.setProgramCounter(addr);
+    }
   }
 
   uint16_t Ep128VM::getStackPointer() const
@@ -1769,36 +1794,27 @@ namespace Ep128 {
 
   void Ep128VM::listIORegisters(std::string& buf) const
   {
-    char    tmpBuf[192];
+    char    tmpBuf[256];
     char    *bufp = &(tmpBuf[0]);
-    int     n = std::sprintf(bufp, "DAVE (A0)\n\n");
-    bufp = bufp + n;
-    for (uint16_t i = 0x00A0; i <= 0x00BF; i++) {
-      if (!(i & 3)) {
-        n = std::sprintf(bufp, "  %02X", (unsigned int) ioPorts.readDebug(i));
-        bufp = bufp + n;
-      }
-      else {
-        n = std::sprintf(bufp, " %02X", (unsigned int) ioPorts.readDebug(i));
-        bufp = bufp + n;
-      }
-      if ((i & 15) == 15)
-        *(bufp++) = '\n';
-    }
-    n = std::sprintf(bufp, "\nNICK (80)\n\n ");
-    bufp = bufp + n;
-    for (uint16_t i = 0x0080; i <= 0x0083; i++) {
-      n = std::sprintf(bufp, " %02X", (unsigned int) ioPorts.readDebug(i));
+    for (int i = 0; i < 6; i++) {
+      uint16_t  startAddr = 0x0014;             // WD177x / EXDOS
+      if (i >= 2)
+        startAddr = uint16_t(0x0090 + (i * 8)); // DAVE
+      else if (i == 1)
+        startAddr = 0x0080;                     // NICK
+      int     n = std::sprintf(bufp, "  %04X ", (unsigned int) startAddr);
       bufp = bufp + n;
+      for (int j = 0; j < 8; j++) {
+        uint16_t  tmp = startAddr + uint16_t(j);
+        n = std::sprintf(bufp, "  %02X",
+                         (unsigned int) ioPorts.readDebug(tmp) & 0xFFU);
+        bufp = bufp + n;
+        if (j == 3)
+          *(bufp++) = ' ';
+        else if (j == 7)
+          *(bufp++) = (i != 5 ? '\n' : '\0');
+      }
     }
-    n = std::sprintf(bufp, "\n\nWD177x (10)\n\n ");
-    bufp = bufp + n;
-    for (uint16_t i = 0x0010; i <= 0x0013; i++) {
-      n = std::sprintf(bufp, " %02X", (unsigned int) ioPorts.readDebug(i));
-      bufp = bufp + n;
-    }
-    std::sprintf(bufp, "\n\nEXDOS (18)\n\n  %02X",
-                 (unsigned int) ioPorts.readDebug(0x0018));
     buf = &(tmpBuf[0]);
   }
 
@@ -1808,6 +1824,15 @@ namespace Ep128 {
   {
     return Z80Disassembler::disassembleInstruction(buf, (*this),
                                                    addr, isCPUAddress, offs);
+  }
+
+  Z80_REGISTERS& Ep128VM::getZ80Registers()
+  {
+    if (isRecordingDemo | isPlayingDemo) {
+      stopDemoPlayback();
+      stopDemoRecording(false);
+    }
+    return z80.getReg();
   }
 
   const Z80_REGISTERS& Ep128VM::getZ80Registers() const

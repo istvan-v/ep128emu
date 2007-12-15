@@ -54,6 +54,7 @@ namespace Ep128 {
     inline uint8_t read(uint16_t addr);
     inline void write(uint16_t addr, uint8_t value);
     uint8_t readDebug(uint16_t addr) const;
+    void writeDebug(uint16_t addr, uint8_t value);
     void setReadCallback(uint16_t firstAddr, uint16_t lastAddr,
                          uint8_t (*func)(void *p, uint16_t addr),
                          void *userData, uint16_t baseAddr);

@@ -175,6 +175,14 @@ namespace Ep128 {
     return (portValues[offs]);
   }
 
+  void IOPorts::writeDebug(uint16_t addr, uint8_t value)
+  {
+    uint8_t         offs = uint8_t(addr & 0xFF);
+    WriteCallback&  cb = writeCallbacks[offs];
+    portValues[offs] = value;
+    cb.func(cb.userData_, cb.addr_, value);
+  }
+
   void IOPorts::setReadCallback(uint16_t firstAddr, uint16_t lastAddr,
                                 uint8_t (*func)(void *p, uint16_t addr),
                                 void *userData, uint16_t baseAddr)

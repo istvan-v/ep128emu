@@ -377,9 +377,24 @@ namespace Ep128 {
     virtual void writeMemory(uint32_t addr, uint8_t value,
                              bool isCPUAddress = false);
     /*!
+     * Read a byte from I/O port 'addr'.
+     */
+    virtual uint8_t readIOPort(uint16_t addr) const;
+    /*!
+     * Write a byte to I/O port 'addr'.
+     * NOTE: calling this function will stop any demo recording or playback.
+     */
+    virtual void writeIOPort(uint16_t addr, uint8_t value);
+    /*!
      * Returns the current value of the Z80 program counter (PC).
      */
     virtual uint16_t getProgramCounter() const;
+    /*!
+     * Set the CPU program counter (PC) to a new address. The change will only
+     * take effect after the completion of one instruction.
+     * NOTE: calling this function may stop any demo recording or playback.
+     */
+    virtual void setProgramCounter(uint16_t addr);
     /*!
      * Returns the CPU address of the last byte pushed to the stack.
      */
@@ -395,7 +410,7 @@ namespace Ep128 {
      * Dumps the current values of all I/O registers to 'buf' in ASCII format.
      * The register list may be written as multiple lines separated by '\n'
      * characters, however, there is no newline character at the end of the
-     * buffer. The maximum line width is 52 characters.
+     * buffer. The maximum line width is 40 characters.
      */
     virtual void listIORegisters(std::string& buf) const;
     /*!
@@ -412,9 +427,12 @@ namespace Ep128 {
                                             bool isCPUAddress = false,
                                             int32_t offs = 0) const;
     /*!
-     * Returns read-only reference to a structure containing all Z80
-     * registers; see z80/z80.hpp for more information.
+     * Returns a reference to a structure containing all Z80 registers;
+     * see z80/z80.hpp for more information.
+     * NOTE: getting a non-const reference will stop any demo recording or
+     * playback.
      */
+    virtual Z80_REGISTERS& getZ80Registers();
     virtual const Z80_REGISTERS& getZ80Registers() const;
     // ------------------------------- FILE I/O -------------------------------
     /*!

@@ -607,9 +607,26 @@ namespace Ep128Emu {
     (void) isCPUAddress;
   }
 
+  uint8_t VirtualMachine::readIOPort(uint16_t addr) const
+  {
+    (void) addr;
+    return 0xFF;
+  }
+
+  void VirtualMachine::writeIOPort(uint16_t addr, uint8_t value)
+  {
+    (void) addr;
+    (void) value;
+  }
+
   uint16_t VirtualMachine::getProgramCounter() const
   {
     return uint16_t(0x0000);
+  }
+
+  void VirtualMachine::setProgramCounter(uint16_t addr)
+  {
+    (void) addr;
   }
 
   uint16_t VirtualMachine::getStackPointer() const

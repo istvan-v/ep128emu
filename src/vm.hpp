@@ -392,9 +392,24 @@ namespace Ep128Emu {
     virtual void writeMemory(uint32_t addr, uint8_t value,
                              bool isCPUAddress = false);
     /*!
+     * Read a byte from I/O port 'addr'.
+     */
+    virtual uint8_t readIOPort(uint16_t addr) const;
+    /*!
+     * Write a byte to I/O port 'addr'.
+     * NOTE: calling this function will stop any demo recording or playback.
+     */
+    virtual void writeIOPort(uint16_t addr, uint8_t value);
+    /*!
      * Returns the current value of the CPU program counter (PC).
      */
     virtual uint16_t getProgramCounter() const;
+    /*!
+     * Set the CPU program counter (PC) to a new address. The change may only
+     * take effect after the completion of one instruction.
+     * NOTE: calling this function may stop any demo recording or playback.
+     */
+    virtual void setProgramCounter(uint16_t addr);
     /*!
      * Returns the CPU address of the last byte pushed to the stack.
      */
@@ -410,7 +425,7 @@ namespace Ep128Emu {
      * Dumps the current values of all I/O registers to 'buf' in ASCII format.
      * The register list may be written as multiple lines separated by '\n'
      * characters, however, there is no newline character at the end of the
-     * buffer. The maximum line width is 52 characters.
+     * buffer. The maximum line width is 40 characters.
      */
     virtual void listIORegisters(std::string& buf) const;
     /*!

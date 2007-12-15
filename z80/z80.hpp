@@ -179,7 +179,6 @@ namespace Ep128 {
     unsigned char zeroSignTable2[256];
     unsigned char zeroSignParityTable[256];
     unsigned char parityTable[256];
- // unsigned char incTable[256];
     uint16_t      daaTable[2048];
     Z80Tables();
   };
@@ -188,6 +187,8 @@ namespace Ep128 {
    protected:
     static Z80Tables  t;
     Z80_REGISTERS   R;
+    int32_t newPCAddress;
+    bool    savedNMIFlag;
    private:
     inline void FD_CB_ExecuteInstruction();
     inline void FD_ExecuteInstruction();
@@ -243,6 +244,13 @@ namespace Ep128 {
     Z80_REGISTERS& getReg()
     {
       return this->R;
+    }
+    void setProgramCounter(uint16_t addr);
+    uint16_t getProgramCounter() const
+    {
+      if (newPCAddress >= 0)
+        return uint16_t(newPCAddress);
+      return uint16_t(this->R.PC.W.l);
     }
     /*!
      * Execute non-maskable interrupt immediately.

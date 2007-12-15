@@ -177,7 +177,7 @@ namespace Ep128 {
   Z80::Z80()
   {
     std::memset(&R, 0, sizeof(Z80_REGISTERS));
-    reset();
+    this->reset();
   }
 
   void Z80::reset()
@@ -197,10 +197,38 @@ namespace Ep128 {
          Z80_CHECK_INTERRUPT_FLAG |
          Z80_EXECUTE_INTERRUPT_HANDLER_FLAG | Z80_INTERRUPT_FLAG |
          Z80_NMI_FLAG);
+    newPCAddress = -1;
+    savedNMIFlag = false;
+  }
+
+  void Z80::setProgramCounter(uint16_t addr)
+  {
+    if (addr == uint16_t(R.PC.W.l)) {
+      if (newPCAddress >= 0 && !savedNMIFlag)
+        R.Flags = R.Flags & (~Z80_NMI_FLAG);
+      newPCAddress = -1;
+      savedNMIFlag = false;
+      return;
+    }
+    if (newPCAddress < 0)
+      savedNMIFlag = bool(R.Flags & Z80_NMI_FLAG);
+    newPCAddress = int32_t(addr);
+    R.Flags = R.Flags | Z80_NMI_FLAG;
   }
 
   void Z80::NMI()
   {
+    if (newPCAddress >= 0) {
+      R.PC.W.l = Z80_WORD(newPCAddress);
+      newPCAddress = -1;
+      if (!savedNMIFlag) {
+        R.Flags = R.Flags & (~(Z80_NMI_FLAG | Z80_EXECUTING_HALT_FLAG));
+        return;
+      }
+      // if an NMI is pending at the same time as setting the program counter,
+      // then set the PC first, and then immediately execute the NMI as well
+      savedNMIFlag = false;
+    }
     R.Flags = R.Flags & (~Z80_NMI_FLAG);
     if (R.Flags & Z80_EXECUTING_HALT_FLAG) {
       ADD_PC(1);
@@ -217,6 +245,7 @@ namespace Ep128 {
   void Z80::NMI_()
   {
     R.Flags |= Z80_NMI_FLAG;
+    savedNMIFlag = (newPCAddress >= 0);
   }
 
   void Z80::triggerInterrupt()
@@ -444,7 +473,7 @@ namespace Ep128 {
   void Z80::saveState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
-    buf.writeUInt32(0x01000000);        // version number
+    buf.writeUInt32(0x01000001);        // version number
     buf.writeByte(R.PC.B.h);            // PC high
     buf.writeByte(R.PC.B.l);            // PC low
     buf.writeByte(R.AF.B.h);            // A
@@ -479,6 +508,8 @@ namespace Ep128 {
     buf.writeByte(R.TempByte);
     buf.writeByte(R.InterruptVectorBase);
     buf.writeUInt32(uint32_t(R.Flags));
+    buf.writeInt32(newPCAddress);
+    buf.writeBoolean(savedNMIFlag);
   }
 
   void Z80::saveState(Ep128Emu::File& f)
@@ -493,12 +524,13 @@ namespace Ep128 {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
-    if (version != 0x01000000) {
+    if (!(version >= 0x01000000 && version <= 0x01000001)) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible Z80 snapshot format");
     }
     try {
       std::memset(&R, 0, sizeof(Z80_REGISTERS));
+      this->reset();
       // load saved state
       R.PC.B.h = buf.readByte();        // PC high
       R.PC.B.l = buf.readByte();        // PC low
@@ -534,6 +566,13 @@ namespace Ep128 {
       R.TempByte = buf.readByte();
       R.InterruptVectorBase = buf.readByte();
       R.Flags = buf.readUInt32() & Z80_FLAGS_MASK;
+      if (version >= 0x01000001) {
+        newPCAddress = buf.readInt32();
+        newPCAddress = (newPCAddress >= 0 ? (newPCAddress & 0xFFFF) : -1);
+        savedNMIFlag = buf.readBoolean();
+        if (newPCAddress < 0)
+          savedNMIFlag = false;
+      }
       if (buf.getPosition() != buf.getDataSize())
         throw Ep128Emu::Exception("trailing garbage at end of "
                                   "Z80 snapshot data");

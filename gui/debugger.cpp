@@ -75,23 +75,26 @@ Ep128EmuGUI_DebugWindow::Ep128EmuGUI_DebugWindow(Ep128EmuGUI& gui_)
   focusWidget = (Fl_Widget *) 0;
   prvTab = (Fl_Widget *) 0;
   memoryDumpStartAddress = 0x00000000U;
-  memoryDumpEndAddress = 0x0000007FU;
   memoryDumpViewAddress = 0x00000000U;
-  memoryDumpAddrDec = 0x003FFFC0U;
-  memoryDumpAddrInc = 0x00000040U;
   memoryDumpCPUAddressMode = true;
-  memoryDumpASCIIFileFormat = false;
+  ixViewOffset = 0;
+  iyViewOffset = 0;
   disassemblyStartAddress = 0x00000000U;
   disassemblyViewAddress = 0x00000000U;
   disassemblyNextAddress = 0x00000000U;
   for (int i = 0; i < 6; i++)
     breakPointLists[i] = "";
+  tmpBuffer.reserve(960);
   bpEditBuffer = new Fl_Text_Buffer();
   scriptEditBuffer = new Fl_Text_Buffer();
   createDebugWindow();
   window->label(&(windowTitle[0]));
   memoryDumpDisplay->upWidget = memoryDumpPrvPageButton;
   memoryDumpDisplay->downWidget = memoryDumpNxtPageButton;
+  memoryDisplay_IX->upWidget = ixPrvPageButton;
+  memoryDisplay_IX->downWidget = ixNxtPageButton;
+  memoryDisplay_IY->upWidget = iyPrvPageButton;
+  memoryDisplay_IY->downWidget = iyNxtPageButton;
   disassemblyDisplay->upWidget = disassemblyPrvPageButton;
   disassemblyDisplay->downWidget = disassemblyNxtPageButton;
 }
@@ -148,17 +151,17 @@ bool Ep128EmuGUI_DebugWindow::breakPoint(int type, uint16_t addr, uint8_t value)
   case 0:
   case 3:
     try {
-      std::string tmpBuf;
-      tmpBuf.reserve(48);
-      gui.vm.disassembleInstruction(tmpBuf, addr, true);
-      if (tmpBuf.length() > 21 && tmpBuf.length() <= 40) {
+      gui.vm.disassembleInstruction(tmpBuffer, addr, true);
+      if (tmpBuffer.length() > 21 && tmpBuffer.length() <= 40) {
         std::sprintf(&(windowTitle[0]), "Break at PC=%04X: %s",
-                     (unsigned int) (addr & 0xFFFF), (tmpBuf.c_str() + 21));
+                     (unsigned int) (addr & 0xFFFF), (tmpBuffer.c_str() + 21));
+        tmpBuffer = "";
         break;
       }
     }
     catch (...) {
     }
+    tmpBuffer = "";
   case 1:
     std::sprintf(&(windowTitle[0]),
                  "Break on reading %02X from memory address %04X",
@@ -192,10 +195,8 @@ bool Ep128EmuGUI_DebugWindow::breakPoint(int type, uint16_t addr, uint8_t value)
 void Ep128EmuGUI_DebugWindow::updateWindow()
 {
   try {
-    std::string buf;
-    buf.reserve(320);
-    gui.vm.listCPURegisters(buf);
-    cpuRegisterDisplay->value(buf.c_str());
+    gui.vm.listCPURegisters(tmpBuffer);
+    cpuRegisterDisplay->value(tmpBuffer.c_str());
     {
       char  tmpBuf[64];
       std::sprintf(&(tmpBuf[0]), "0000-3FFF: %02X\n4000-7FFF: %02X\n"
@@ -206,27 +207,19 @@ void Ep128EmuGUI_DebugWindow::updateWindow()
                    (unsigned int) gui.vm.getMemoryPage(3));
       memoryPagingDisplay->value(&(tmpBuf[0]));
     }
-    uint32_t  tmp = gui.vm.getProgramCounter();
-    uint32_t  startAddr = (tmp + 0xFFE8U) & 0xFFF8U;
-    uint32_t  endAddr = (startAddr + 0x0037U) & 0xFFFFU;
-    dumpMemory(buf, startAddr, endAddr, tmp, true, true);
-    codeMemoryDumpDisplay->value(buf.c_str());
-    tmp = gui.vm.getStackPointer();
-    startAddr = (tmp + 0xFFF4U) & 0xFFF8U;
-    endAddr = (startAddr + 0x002FU) & 0xFFFFU;
-    dumpMemory(buf, startAddr, endAddr, tmp, true, true);
-    stackMemoryDumpDisplay->value(buf.c_str());
+    uint32_t  tmp = gui.vm.getStackPointer();
+    uint32_t  startAddr = (tmp + 0xFFF4U) & 0xFFF8U;
+    uint32_t  endAddr = (startAddr + 0x002FU) & 0xFFFFU;
+    dumpMemory(tmpBuffer, startAddr, endAddr, tmp, true, true);
+    stackMemoryDumpDisplay->value(tmpBuffer.c_str());
+    tmpBuffer = "";
     updateMemoryDumpDisplay();
+    updateIOPortDisplay();
     updateDisassemblyDisplay();
     noBreakOnDataReadValuator->value(
         gui.config.debug.noBreakOnDataRead ? 1 : 0);
     bpPriorityThresholdValuator->value(
         double(gui.config.debug.bpPriorityThreshold));
-    // TODO: this is unimplemented
-#if 0
-    breakOnInvalidOpcodeValuator->value(
-        gui.config.debug.breakOnInvalidOpcode ? 1 : 0);
-#endif
   }
   catch (std::exception& e) {
     gui.errorMessage(e.what());
@@ -301,19 +294,129 @@ void Ep128EmuGUI_DebugWindow::updateMemoryDumpDisplay()
     uint32_t  addrMask =
         uint32_t(memoryDumpCPUAddressMode ? 0x00FFFFU : 0x3FFFFFU);
     memoryDumpStartAddress &= addrMask;
-    memoryDumpEndAddress &= addrMask;
     memoryDumpViewAddress &= addrMask;
     const char  *fmt = (memoryDumpCPUAddressMode ? "%04X" : "%06X");
-    char  tmpBuf[8];
+    char  tmpBuf[64];
     std::sprintf(&(tmpBuf[0]), fmt, (unsigned int) memoryDumpStartAddress);
     memoryDumpStartAddressValuator->value(&(tmpBuf[0]));
-    std::sprintf(&(tmpBuf[0]), fmt, (unsigned int) memoryDumpEndAddress);
-    memoryDumpEndAddressValuator->value(&(tmpBuf[0]));
-    std::string buf;
-    buf.reserve(720);
-    dumpMemory(buf, memoryDumpViewAddress, memoryDumpViewAddress + 0x87U,
+    dumpMemory(tmpBuffer, memoryDumpViewAddress, memoryDumpViewAddress + 0x2FU,
                0U, false, memoryDumpCPUAddressMode);
-    memoryDumpDisplay->value(buf.c_str());
+    memoryDumpDisplay->value(tmpBuffer.c_str());
+    for (int i = 0; i < 3; i++) {
+      char      *bufp = &(tmpBuf[0]);
+      int       n = 0;
+      uint16_t  addr = 0x0000;
+      const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
+                                          &(gui.vm))->getZ80Registers();
+      switch (i) {
+      case 0:
+        addr = uint16_t(r.BC.W);
+        n = std::sprintf(bufp, "(BC-04)");
+        break;
+      case 1:
+        addr = uint16_t(r.DE.W);
+        n = std::sprintf(bufp, "(DE-04)");
+        break;
+      case 2:
+        addr = uint16_t(r.HL.W);
+        n = std::sprintf(bufp, "(HL-04)");
+        break;
+      }
+      bufp = bufp + n;
+      for (int j = -4; j < 7; j++) {
+        uint8_t tmp =
+            gui.vm.readMemory(uint16_t((int(addr) + j) & 0xFFFF), true);
+        if (j == 0)
+          fmt = "  *%02X";
+        else if (j == 4)
+          fmt = "   %02X";
+        else
+          fmt = "  %02X";
+        n = std::sprintf(bufp, fmt, (unsigned int) tmp & 0xFFU);
+        bufp = bufp + n;
+      }
+      if (i != 2)
+        *(bufp++) = '\n';
+      *(bufp++) = '\0';
+      if (i == 0)
+        tmpBuffer = &(tmpBuf[0]);
+      else
+        tmpBuffer += &(tmpBuf[0]);
+    }
+    memoryDisplay_BC_DE_HL->value(tmpBuffer.c_str());
+    for (int i = 0; i < 3; i++) {
+      char      *bufp = &(tmpBuf[0]);
+      int       n = 0;
+      const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
+                                          &(gui.vm))->getZ80Registers();
+      uint16_t  addr = uint16_t(r.IX.W);
+      int32_t   offs = ixViewOffset + int32_t((i - 1) * 8);
+      if (offs >= 0)
+        n = std::sprintf(bufp, "(IX+%02X)", (unsigned int) offs & 0xFFU);
+      else
+        n = std::sprintf(bufp, "(IX-%02X)", (unsigned int) (-offs) & 0xFFU);
+      bufp = bufp + n;
+      addr = uint16_t((int32_t(addr) + offs) & 0xFFFF);
+      for (int j = 0; j < 8; j++) {
+        uint8_t tmp =
+            gui.vm.readMemory(uint16_t((int(addr) + j) & 0xFFFF), true);
+        if (j == 4)
+          *(bufp++) = ' ';
+        n = std::sprintf(bufp, "  %02X", (unsigned int) tmp & 0xFFU);
+        bufp = bufp + n;
+      }
+      if (i != 2)
+        *(bufp++) = '\n';
+      *(bufp++) = '\0';
+      if (i == 0)
+        tmpBuffer = &(tmpBuf[0]);
+      else
+        tmpBuffer += &(tmpBuf[0]);
+    }
+    memoryDisplay_IX->value(tmpBuffer.c_str());
+    for (int i = 0; i < 3; i++) {
+      char      *bufp = &(tmpBuf[0]);
+      int       n = 0;
+      const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
+                                          &(gui.vm))->getZ80Registers();
+      uint16_t  addr = uint16_t(r.IY.W);
+      int32_t   offs = iyViewOffset + int32_t((i - 1) * 8);
+      if (offs >= 0)
+        n = std::sprintf(bufp, "(IY+%02X)", (unsigned int) offs & 0xFFU);
+      else
+        n = std::sprintf(bufp, "(IY-%02X)", (unsigned int) (-offs) & 0xFFU);
+      bufp = bufp + n;
+      addr = uint16_t((int32_t(addr) + offs) & 0xFFFF);
+      for (int j = 0; j < 8; j++) {
+        uint8_t tmp =
+            gui.vm.readMemory(uint16_t((int(addr) + j) & 0xFFFF), true);
+        if (j == 4)
+          *(bufp++) = ' ';
+        n = std::sprintf(bufp, "  %02X", (unsigned int) tmp & 0xFFU);
+        bufp = bufp + n;
+      }
+      if (i != 2)
+        *(bufp++) = '\n';
+      *(bufp++) = '\0';
+      if (i == 0)
+        tmpBuffer = &(tmpBuf[0]);
+      else
+        tmpBuffer += &(tmpBuf[0]);
+    }
+    memoryDisplay_IY->value(tmpBuffer.c_str());
+    tmpBuffer = "";
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}
+
+void Ep128EmuGUI_DebugWindow::updateIOPortDisplay()
+{
+  try {
+    gui.vm.listIORegisters(tmpBuffer);
+    ioPortDisplay->value(tmpBuffer.c_str());
+    tmpBuffer = "";
   }
   catch (std::exception& e) {
     gui.errorMessage(e.what());
@@ -400,26 +503,26 @@ void Ep128EmuGUI_DebugWindow::updateDisassemblyDisplay()
     char  tmpBuf[8];
     std::sprintf(&(tmpBuf[0]), "%04X", (unsigned int) disassemblyStartAddress);
     disassemblyStartAddressValuator->value(&(tmpBuf[0]));
-    std::string tmp1;
-    std::string tmp2;
-    tmp1.reserve(48);
-    tmp2.reserve(960);
+    std::string tmp;
+    tmp.reserve(48);
+    tmpBuffer = "";
     uint32_t  addr = disassemblySearchBack(2);
     uint32_t  pcAddr = uint32_t(gui.vm.getProgramCounter()) & 0xFFFFU;
     for (int i = 0; i < 23; i++) {
       if (i == 22)
         disassemblyNextAddress = addr;
-      uint32_t  nxtAddr = gui.vm.disassembleInstruction(tmp1, addr, true, 0);
+      uint32_t  nxtAddr = gui.vm.disassembleInstruction(tmp, addr, true, 0);
       while (addr != nxtAddr) {
         if (addr == pcAddr)
-          tmp1[1] = '*';
+          tmp[1] = '*';
         addr = (addr + 1U) & 0xFFFFU;
       }
-      tmp2 += tmp1;
+      tmpBuffer += tmp;
       if (i != 22)
-        tmp2 += '\n';
+        tmpBuffer += '\n';
     }
-    disassemblyDisplay->value(tmp2.c_str());
+    disassemblyDisplay->value(tmpBuffer.c_str());
+    tmpBuffer = "";
   }
   catch (std::exception& e) {
     gui.errorMessage(e.what());
