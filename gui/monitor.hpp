@@ -47,6 +47,8 @@ class Ep128EmuGUIMonitor : public Fl_Text_Editor {
   void command_disassemble(const std::vector<std::string>& args);
   void command_memoryDump(const std::vector<std::string>& args);
   void command_memoryModify(const std::vector<std::string>& args);
+  void command_ioDump(const std::vector<std::string>& args);
+  void command_ioModify(const std::vector<std::string>& args);
   void command_printRegisters(const std::vector<std::string>& args);
   void command_setRegisters(const std::vector<std::string>& args);
   void command_go(const std::vector<std::string>& args);
@@ -71,7 +73,8 @@ class Ep128EmuGUIMonitor : public Fl_Text_Editor {
   void parseCommand(const char *s);
   void disassembleInstruction(bool assembleMode = false);
   void memoryDump();
-  void printCPURegisters();
+  void printCPURegisters1();
+  void printCPURegisters2();
   void parseSearchPattern(std::vector<uint8_t>& searchString_,
                           std::vector<uint8_t>& searchMask_,
                           const std::vector<std::string>& args,
@@ -80,7 +83,6 @@ class Ep128EmuGUIMonitor : public Fl_Text_Editor {
                         const std::vector<uint8_t>& searchMask_,
                         uint32_t startAddr, uint32_t endAddr,
                         bool cpuAddressMode_);
-  uint8_t readMemoryForFileIO(uint32_t addr, bool cpuAddressMode_) const;
  public:
   Ep128EmuGUIMonitor(int xx, int yy, int ww, int hh, const char *ll = 0);
   virtual ~Ep128EmuGUIMonitor();
@@ -91,7 +93,6 @@ class Ep128EmuGUIMonitor : public Fl_Text_Editor {
   }
   void printMessage(const char *s);
   void breakMessage(const char *s = 0);
-  static void tokenizeString(std::vector<std::string>& args, const char *s);
   int32_t searchPattern(const std::vector<std::string>& args,
                         size_t argOffs, size_t argCnt,
                         uint32_t startAddr, uint32_t endAddr,

@@ -18,6 +18,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include "gui.hpp"
+#include "debuglib.hpp"
 #include "monitor.hpp"
 
 #include <cstdio>
@@ -25,120 +26,7 @@
 
 #define MONITOR_MAX_LINES   (120)
 
-static const char *fileOpenErrorMessages[6] = {
-  "Error opening file",
-  "Invalid file name",
-  "File not found",
-  "File is not a regular file",
-  "Permission denied",
-  "File already exists"
-};
-
-// ----------------------------------------------------------------------------
-
-void Ep128EmuGUIMonitor::tokenizeString(std::vector<std::string>& args,
-                                        const char *s)
-{
-  args.resize(0);
-  if (!s)
-    return;
-  std::string curToken = "";
-  int         mode = 0;         // 0: skipping space, 1: token, 2: string
-  while (*s != '\0') {
-    if (mode == 0) {
-      if (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n') {
-        s++;
-        continue;
-      }
-      mode = (*s != '"' ? 1 : 2);
-    }
-    if (mode == 1) {
-      if (args.size() == 0 && curToken.length() > 0) {
-        // allow no space between command and first hexadecimal argument
-        if ((*s >= '0' && *s <= '9') ||
-            (*s >= 'A' && *s <= 'F') || (*s >= 'a' && *s <= 'f')) {
-          args.push_back(curToken);
-          curToken = "";
-          continue;
-        }
-      }
-      if ((*s >= 'A' && *s <= 'Z') || (*s >= '0' && *s <= '9') ||
-          *s == '_' || *s == '?') {
-        curToken += (*s);
-        s++;
-        continue;
-      }
-      else if (*s >= 'a' && *s <= 'z') {
-        // convert to upper case
-        curToken += ((*s - 'a') + 'A');
-        s++;
-        continue;
-      }
-      else {
-        if (curToken.length() > 0) {
-          args.push_back(curToken);
-          curToken = "";
-        }
-        if (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n') {
-          mode = 0;
-          s++;
-          continue;
-        }
-        if (*s != '"') {
-          curToken = (*s);
-          args.push_back(curToken);
-          curToken = "";
-          mode = 0;
-          s++;
-          continue;
-        }
-        mode = 2;
-      }
-    }
-    if (*s == '"' && curToken.length() > 0) {
-      // closing quote character is not stored
-      args.push_back(curToken);
-      curToken = "";
-      mode = 0;
-    }
-    else {
-      curToken += (*s);
-    }
-    s++;
-  }
-  if (curToken.length() > 0)
-    args.push_back(curToken);
-}
-
-static bool parseHexNumber(uint32_t& n, const char *s)
-{
-  if (*s == '\0')
-    return false;
-  n = 0U;
-  do {
-    n = n << 4;
-    if (*s >= '0' && *s <= '9')
-      n = n | uint32_t(*s - '0');
-    else if (*s >= 'A' && *s <= 'F')
-      n = n | uint32_t((*s - 'A') + 10);
-    else if (*s >= 'a' && *s <= 'f')
-      n = n | uint32_t((*s - 'a') + 10);
-    else
-      return false;
-    s++;
-  } while (*s != '\0');
-  return true;
-}
-
-static uint32_t parseHexNumberEx(const char *s, uint32_t mask_ = 0xFFFFFFFFU)
-{
-  uint32_t  n = 0U;
-  if (!parseHexNumber(n, s))
-    throw Ep128Emu::Exception("invalid hexadecimal number format");
-  return (n & mask_);
-}
-
-// ----------------------------------------------------------------------------
+using Ep128Emu::parseHexNumberEx;
 
 Ep128EmuGUIMonitor::Ep128EmuGUIMonitor(int xx, int yy, int ww, int hh,
                                        const char *ll)
@@ -171,28 +59,18 @@ Ep128EmuGUIMonitor::~Ep128EmuGUIMonitor()
 
 void Ep128EmuGUIMonitor::command_assemble(const std::vector<std::string>& args)
 {
-  // TODO: implement this
-#if 0
   if (args.size() == 2) {
     (void) parseHexNumberEx(args[1].c_str());
     return;
   }
-  uint8_t   opcodeBuf[4];
-  uint32_t  addr = 0U;
-  int       nBytes = assembleInstruction(&(opcodeBuf[0]), addr, args);
-  if (nBytes < 1)
-    throw Ep128Emu::Exception("assembler syntax error");
-  uint32_t  writeAddr =
-      (uint32_t(int32_t(addr) + assembleOffset)) & addressMask;
-  for (int i = 0; i < nBytes; i++) {
-    gui->vm.writeMemory((writeAddr + uint32_t(i)) & addressMask, opcodeBuf[i],
-                        cpuAddressMode);
-  }
+  uint32_t  addr = Ep128::Z80Disassembler::assembleInstruction(
+                       args, gui->vm, cpuAddressMode, assembleOffset);
   this->move_up();
   disassembleOffset = -assembleOffset;
-  disassembleAddress = writeAddr;
+  disassembleAddress = addr;
   disassembleInstruction(true);
-  addr = (addr + uint32_t(nBytes)) & addressMask;
+  addr = uint32_t((int32_t(disassembleAddress) + disassembleOffset)
+                  & int32_t(addressMask));
   char    tmpBuf[16];
   if (cpuAddressMode)
     std::sprintf(&(tmpBuf[0]), "A   %04X  ", (unsigned int) addr);
@@ -200,10 +78,6 @@ void Ep128EmuGUIMonitor::command_assemble(const std::vector<std::string>& args)
     std::sprintf(&(tmpBuf[0]), "A %06X  ", (unsigned int) addr);
   this->overstrike(&(tmpBuf[0]));
   show_insert_position();
-#else
-  (void) args;
-  throw Ep128Emu::Exception("assembler is not implemented yet");
-#endif
 }
 
 void Ep128EmuGUIMonitor::command_disassemble(const std::vector<std::string>&
@@ -216,12 +90,9 @@ void Ep128EmuGUIMonitor::command_disassemble(const std::vector<std::string>&
       if (args[1][0] == '"') {
         argOffs++;
         std::string fileName(args[1].c_str() + 1);
-        int   err = gui->vm.openFileInWorkingDirectory(f, fileName, "w", false);
+        int     err = gui->vm.openFileInWorkingDirectory(f, fileName, "w");
         if (err != 0) {
-          if (err >= -6 && err <= -2)
-            printMessage(fileOpenErrorMessages[(-err) - 1]);
-          else
-            printMessage(fileOpenErrorMessages[0]);
+          printMessage(gui->vm.getFileOpenErrorMessage(err));
           return;
         }
       }
@@ -350,86 +221,161 @@ void Ep128EmuGUIMonitor::command_memoryModify(const std::vector<std::string>&
   memoryDump();
 }
 
+void Ep128EmuGUIMonitor::command_ioDump(const std::vector<std::string>& args)
+{
+  if (args.size() < 2 || args.size() > 3)
+    throw Ep128Emu::Exception("invalid number of I/O dump arguments");
+  uint32_t  startAddr = parseHexNumberEx(args[1].c_str(), 0xFFFFU);
+  uint32_t  endAddr = (startAddr + 95U) & 0xFFFFU;
+  if (args.size() > 2)
+    endAddr = parseHexNumberEx(args[2].c_str(), 0xFFFFU);
+  while (((endAddr - startAddr) & 0xFFFFU) > (MONITOR_MAX_LINES * 8U))
+    startAddr = (startAddr + 8U) & 0xFFFFU;
+  bool    doneFlag = false;
+  do {
+    uint32_t  addr = startAddr;
+    char      tmpBuf[64];
+    uint8_t   dataBuf[8];
+    for (int i = 0; i < 8; i++) {
+      dataBuf[i] = gui->vm.readIOPort(uint16_t(addr)) & 0xFF;
+      if (addr == endAddr)
+        doneFlag = true;
+      addr = (addr + 1U) & 0xFFFFU;
+    }
+    std::sprintf(&(tmpBuf[0]),
+                 "O %04X  %02X %02X %02X %02X %02X %02X %02X %02X",
+                 (unsigned int) startAddr,
+                 (unsigned int) dataBuf[0], (unsigned int) dataBuf[1],
+                 (unsigned int) dataBuf[2], (unsigned int) dataBuf[3],
+                 (unsigned int) dataBuf[4], (unsigned int) dataBuf[5],
+                 (unsigned int) dataBuf[6], (unsigned int) dataBuf[7]);
+    printMessage(&(tmpBuf[0]));
+    startAddr = addr;
+  } while (!doneFlag);
+}
+
+void Ep128EmuGUIMonitor::command_ioModify(const std::vector<std::string>& args)
+{
+  if (args.size() < 2)
+    throw Ep128Emu::Exception("insufficient arguments for I/O modify");
+  size_t  addr = size_t(parseHexNumberEx(args[1].c_str(), 0xFFFFU));
+  for (size_t i = 2; i < args.size(); i++) {
+    if (args[i] == ":")
+      break;
+    uint32_t  value = parseHexNumberEx(args[i].c_str());
+    if (value >= 0x0100U)
+      throw Ep128Emu::Exception("byte value is out of range");
+    gui->vm.writeIOPort(uint16_t((addr + (i - 2)) & 0xFFFF), uint8_t(value));
+  }
+  this->move_up();
+  char    tmpBuf[64];
+  uint8_t dataBuf[8];
+  for (int i = 0; i < 8; i++)
+    dataBuf[i] = gui->vm.readIOPort(uint16_t((addr + i) & 0xFFFF)) & 0xFF;
+  std::sprintf(&(tmpBuf[0]), "O %04X  %02X %02X %02X %02X %02X %02X %02X %02X",
+               (unsigned int) addr,
+               (unsigned int) dataBuf[0], (unsigned int) dataBuf[1],
+               (unsigned int) dataBuf[2], (unsigned int) dataBuf[3],
+               (unsigned int) dataBuf[4], (unsigned int) dataBuf[5],
+               (unsigned int) dataBuf[6], (unsigned int) dataBuf[7]);
+  printMessage(&(tmpBuf[0]));
+}
+
 void Ep128EmuGUIMonitor::command_printRegisters(const std::vector<std::string>&
                                                     args)
 {
   if (args.size() != 1)
     throw Ep128Emu::Exception("too many arguments");
-  printCPURegisters();
+  printMessage("  PC   AF   BC   DE   HL   SP   IX   IY");
+  printCPURegisters1();
+  printMessage("       AF'  BC'  DE'  HL'  IM   I    R");
+  printCPURegisters2();
 }
 
 void Ep128EmuGUIMonitor::command_setRegisters(const std::vector<std::string>&
                                                   args)
 {
-  if (args.size() < 2 || args.size() > 7)
+  if ((args.size() < 2 || args.size() > 9) ||
+      (args[1] == ";" && args.size() == 2)) {
     throw Ep128Emu::Exception("invalid number of arguments");
-  // TODO: implement this
-#if 0
-  Ep128::M7501Registers r;
-  reinterpret_cast<Ep128::Ep128VM *>(&(gui->vm))->getCPURegisters(r);
-  uint32_t  tmp = parseHexNumberEx(args[1].c_str());
-  if (tmp > 0xFFFFU)
-    throw Ep128Emu::Exception("address is out of range");
-  r.reg_PC = uint16_t(tmp);
-  if (args.size() >= 3) {
-    tmp = parseHexNumberEx(args[2].c_str());
-    if (tmp > 0xFFU)
-      throw Ep128Emu::Exception("byte value is out of range");
-    r.reg_SR = uint8_t(tmp);
   }
-  if (args.size() >= 4) {
-    tmp = parseHexNumberEx(args[3].c_str());
-    if (tmp > 0xFFU)
-      throw Ep128Emu::Exception("byte value is out of range");
-    r.reg_AC = uint8_t(tmp);
+  uint32_t  regValues[8];
+  size_t    offs = 1;
+  if (args[1] == ";")
+    offs++;
+  size_t    nValues = args.size() - offs;
+  for (size_t i = 0; i < nValues; i++) {
+    regValues[i] = parseHexNumberEx(args[i + offs].c_str());
+    if (offs == 1 && i == 0) {
+      if (regValues[i] > 0xFFFFU)
+        throw Ep128Emu::Exception("address is out of range");
+    }
+    else if (offs == 2 && i >= 5) {
+      if (regValues[i] > 0xFFU)
+        throw Ep128Emu::Exception("byte value is out of range");
+    }
+    else if (offs == 2 && i == 4) {
+      if (regValues[i] > 0x02U)
+        throw Ep128Emu::Exception("interrupt mode is out of range");
+    }
+    else {
+      if (regValues[i] > 0xFFFFU)
+        throw Ep128Emu::Exception("16 bit register value is out of range");
+    }
   }
-  if (args.size() >= 5) {
-    tmp = parseHexNumberEx(args[4].c_str());
-    if (tmp > 0xFFU)
-      throw Ep128Emu::Exception("byte value is out of range");
-    r.reg_XR = uint8_t(tmp);
+  Ep128::Z80_REGISTERS& r =
+      reinterpret_cast<Ep128::Ep128VM *>(&(gui->vm))->getZ80Registers();
+  if (offs == 1) {
+    gui->vm.setProgramCounter(uint16_t(regValues[0]));
+    if (nValues > 1)
+      r.AF.W = Ep128::Z80_WORD(regValues[1]);
+    if (nValues > 2)
+      r.BC.W = Ep128::Z80_WORD(regValues[2]);
+    if (nValues > 3)
+      r.DE.W = Ep128::Z80_WORD(regValues[3]);
+    if (nValues > 4)
+      r.HL.W = Ep128::Z80_WORD(regValues[4]);
+    if (nValues > 5)
+      r.SP.W = Ep128::Z80_WORD(regValues[5]);
+    if (nValues > 6)
+      r.IX.W = Ep128::Z80_WORD(regValues[6]);
+    if (nValues > 7)
+      r.IY.W = Ep128::Z80_WORD(regValues[7]);
+    this->move_up();
+    printCPURegisters1();
   }
-  if (args.size() >= 6) {
-    tmp = parseHexNumberEx(args[5].c_str());
-    if (tmp > 0xFFU)
-      throw Ep128Emu::Exception("byte value is out of range");
-    r.reg_YR = uint8_t(tmp);
+  else {
+    r.altAF.W = Ep128::Z80_WORD(regValues[0]);
+    if (nValues > 1)
+      r.altBC.W = Ep128::Z80_WORD(regValues[1]);
+    if (nValues > 2)
+      r.altDE.W = Ep128::Z80_WORD(regValues[2]);
+    if (nValues > 3)
+      r.altHL.W = Ep128::Z80_WORD(regValues[3]);
+    if (nValues > 4)
+      r.IM = Ep128::Z80_BYTE(regValues[4]);
+    if (nValues > 5)
+      r.I = Ep128::Z80_BYTE(regValues[5]);
+    if (nValues > 6)
+      r.R = Ep128::Z80_BYTE(regValues[6]);
+    this->move_up();
+    printCPURegisters2();
   }
-  if (args.size() >= 7) {
-    tmp = parseHexNumberEx(args[6].c_str());
-    if (tmp > 0xFFU)
-      throw Ep128Emu::Exception("byte value is out of range");
-    r.reg_SP = uint8_t(tmp);
-  }
-  reinterpret_cast<Ep128::Ep128VM *>(&(gui->vm))->setCPURegisters(r);
-  this->move_up();
-  printCPURegisters();
-#else
-  throw Ep128Emu::Exception("setting CPU registers is not implemented yet");
-#endif
 }
 
 void Ep128EmuGUIMonitor::command_go(const std::vector<std::string>& args)
 {
   if (args.size() > 2)
     throw Ep128Emu::Exception("too many arguments");
-  // TODO: implement this
-#if 0
   if (args.size() > 1) {
-    Ep128::M7501Registers r;
-    reinterpret_cast<Ep128::Ep128VM *>(&(gui->vm))->getCPURegisters(r);
     uint32_t  tmp = parseHexNumberEx(args[1].c_str());
     if (tmp > 0xFFFFU)
       throw Ep128Emu::Exception("address is out of range");
-    r.reg_PC = uint16_t(tmp);
-    reinterpret_cast<Ep128::Ep128VM *>(&(gui->vm))->setCPURegisters(r);
+    gui->vm.setProgramCounter(uint16_t(tmp));
   }
   debugWindow->focusWidget = this;
   gui->vm.setSingleStepMode(0);
   debugWindow->hide();
-#else
-  throw Ep128Emu::Exception("setting program counter is not implemented yet");
-#endif
 }
 
 void Ep128EmuGUIMonitor::command_searchPattern(const std::vector<std::string>&
@@ -706,7 +652,7 @@ void Ep128EmuGUIMonitor::command_printInfo(
     printMessage("Address mode:        CPU (16 bit)");
   else
     printMessage("Address mode:        physical (22 bit)");
-  char    tmpBuf[64];
+  char    tmpBuf[128];
   int     n = (cpuAddressMode ? 4 : 6);
   std::sprintf(&(tmpBuf[0]), "Assemble offset:    %c%0*X",
                int(assembleOffset == 0 ?
@@ -721,6 +667,12 @@ void Ep128EmuGUIMonitor::command_printInfo(
                n,
                (unsigned int) (disassembleOffset >= 0 ?
                                disassembleOffset : (-disassembleOffset)));
+  printMessage(&(tmpBuf[0]));
+  std::sprintf(&(tmpBuf[0]), "Memory paging:       %02X %02X %02X %02X",
+               (unsigned int) gui->vm.getMemoryPage(0),
+               (unsigned int) gui->vm.getMemoryPage(1),
+               (unsigned int) gui->vm.getMemoryPage(2),
+               (unsigned int) gui->vm.getMemoryPage(3));
   printMessage(&(tmpBuf[0]));
 }
 
@@ -753,8 +705,6 @@ void Ep128EmuGUIMonitor::command_stepOver(const std::vector<std::string>& args)
 
 void Ep128EmuGUIMonitor::command_trace(const std::vector<std::string>& args)
 {
-  // TODO: implement this
-#if 0
   closeTraceFile();
   if (args.size() < 2 || args.size() > 4)
     throw Ep128Emu::Exception("invalid number of arguments");
@@ -777,178 +727,86 @@ void Ep128EmuGUIMonitor::command_trace(const std::vector<std::string>& args)
   }
   std::string fileName(args[1].c_str() + 1);
   std::FILE *f = (std::FILE *) 0;
-  int       err = gui->vm.openFileInWorkingDirectory(f, fileName, "w", false);
+  int       err = gui->vm.openFileInWorkingDirectory(f, fileName, "w");
   if (err != 0) {
-    if (err >= -6 && err <= -2)
-      printMessage(fileOpenErrorMessages[(-err) - 1]);
-    else
-      printMessage(fileOpenErrorMessages[0]);
+    printMessage(gui->vm.getFileOpenErrorMessage(err));
     return;
   }
   traceFile = f;
   traceInstructionsRemaining = size_t(maxInsns);
-  if (startAddr >= 0) {
-    Ep128::M7501Registers r;
-    reinterpret_cast<Ep128::Ep128VM *>(&(gui->vm))->getCPURegisters(r);
-    r.reg_PC = uint16_t(startAddr);
-    reinterpret_cast<Ep128::Ep128VM *>(&(gui->vm))->setCPURegisters(r);
-  }
+  if (startAddr >= 0)
+    gui->vm.setProgramCounter(uint16_t(startAddr));
   debugWindow->focusWidget = this;
   gui->vm.setSingleStepMode(3);
   debugWindow->hide();
-#else
-  (void) args;
-  throw Ep128Emu::Exception("tracing is not implemented yet");
-#endif
 }
 
 void Ep128EmuGUIMonitor::command_load(const std::vector<std::string>& args,
                                       bool verifyMode)
 {
-  // TODO: implement this
-#if 0
-  if (args.size() < 2 || args.size() > 4)
+  if (args.size() < 4 || args.size() > 5)
     throw Ep128Emu::Exception("invalid number of arguments");
   if (args[1].length() < 1 || args[1][0] != '"')
     throw Ep128Emu::Exception("file name is not a string");
-  std::string fileName(args[1].c_str() + 1);
-  bool      haveStartAddr = false;
-  bool      haveEndAddr = false;
-  bool      cpuAddressMode_ = true;
-  uint32_t  startAddr = 0U;
+  uint32_t  asciiMode = parseHexNumberEx(args[2].c_str());
+  uint32_t  startAddr = parseHexNumberEx(args[3].c_str());
   uint32_t  endAddr = 0U;
-  uint32_t  addressMask_ = 0xFFFFU;
-  if (args.size() > 2) {
-    startAddr = parseHexNumberEx(args[2].c_str());
-    haveStartAddr = true;
-    cpuAddressMode_ = cpuAddressMode;
-    addressMask_ = addressMask;
-  }
-  if (args.size() > 3) {
-    endAddr = parseHexNumberEx(args[3].c_str());
-    haveEndAddr = true;
-  }
-  if ((startAddr | endAddr) > addressMask_)
+  bool      haveEndAddr = (args.size() > 4);
+  if (haveEndAddr)
+    endAddr = parseHexNumberEx(args[4].c_str());
+  if (asciiMode > 1U)
+    throw Ep128Emu::Exception("ASCII mode flag must be 0 or 1");
+  if ((startAddr | endAddr) > addressMask)
     throw Ep128Emu::Exception("address is out of range");
-  std::FILE *f = (std::FILE *) 0;
-  int       err = gui->vm.openFileInWorkingDirectory(f, fileName, "rb");
-  if (err == 0) {
-    try {
-      uint16_t  tmpAddr =
-          Ep128::TED7360::readPRGFileHeader(f, fileName.c_str());
-      if (!haveStartAddr)
-        startAddr = tmpAddr;
-    }
-    catch (...) {
-      err = -1;
-    }
-  }
-  if (err != 0) {
-    if (err >= -6 && err <= -2)
-      printMessage(fileOpenErrorMessages[(-err) - 1]);
-    else
-      printMessage(fileOpenErrorMessages[0]);
-    return;
-  }
+  if (!haveEndAddr)
+    endAddr = 0xFFFFFFFFU;
   try {
-    if (!haveEndAddr)
-      endAddr = (startAddr - 1U) & addressMask_;
-    char      tmpBuf[64];
-    uint32_t  addr = startAddr;
-    int       c = 0;
+    size_t  nBytes =
+        gui->vm.loadMemory(args[1].c_str() + 1,
+                           verifyMode, bool(asciiMode), cpuAddressMode,
+                           startAddr, endAddr);
+    char    tmpBuf[64];
     if (!verifyMode) {
-      // load
-      while (addr != endAddr) {
-        c = std::fgetc(f);
-        if (c == EOF)
-          break;
-        gui->vm.writeMemory(addr, uint8_t(c & 0xFF), cpuAddressMode_);
-        addr = (addr + 1U) & addressMask_;
-      }
-      if (addr != startAddr) {
-        int     n = (cpuAddressMode_ ? 4 : 6);
-        std::sprintf(&(tmpBuf[0]), "Loaded PRG file to %0*X-%0*X",
-                     n, (unsigned int) startAddr, n, (unsigned int) addr);
+      if (nBytes > 0) {
+        endAddr = (startAddr + uint32_t(nBytes) - 1U) & addressMask;
+        int     n = (cpuAddressMode ? 4 : 6);
+        std::sprintf(&(tmpBuf[0]), "Loaded file to %0*X-%0*X",
+                     n, (unsigned int) startAddr, n, (unsigned int) endAddr);
         printMessage(&(tmpBuf[0]));
       }
     }
     else {
-      // verify
-      size_t    diffCnt = 0;
-      while (addr != endAddr) {
-        c = std::fgetc(f);
-        if (c == EOF)
-          break;
-        if (readMemoryForFileIO(addr, cpuAddressMode_) != uint8_t(c & 0xFF))
-          diffCnt++;
-        addr = (addr + 1U) & addressMask_;
-      }
-      std::sprintf(&(tmpBuf[0]), "%lu differences", (unsigned long) diffCnt);
+      std::sprintf(&(tmpBuf[0]), "%lu difference(s)", (unsigned long) nBytes);
       printMessage(&(tmpBuf[0]));
     }
   }
   catch (std::exception& e) {
-    std::fclose(f);
     printMessage(e.what());
     return;
   }
-  std::fclose(f);
-#else
-  (void) args;
-  (void) verifyMode;
-  throw Ep128Emu::Exception("loading memory is not implemented yet");
-#endif
 }
 
 void Ep128EmuGUIMonitor::command_save(const std::vector<std::string>& args)
 {
-  // TODO: implement this
-#if 0
-  if (args.size() != 5 && (args.size() != 4 || !cpuAddressMode))
+  if (args.size() != 5)
     throw Ep128Emu::Exception("invalid number of arguments");
   if (args[1].length() < 1 || args[1][0] != '"')
     throw Ep128Emu::Exception("file name is not a string");
-  std::string fileName(args[1].c_str() + 1);
-  uint32_t  startAddr = parseHexNumberEx(args[2].c_str());
-  uint32_t  endAddr = parseHexNumberEx(args[3].c_str());
-  uint32_t  loadAddr = startAddr;
-  if (args.size() > 4)
-    loadAddr = parseHexNumberEx(args[4].c_str());
-  if ((startAddr | endAddr) > addressMask || loadAddr > 0xFFFFU)
+  uint32_t  asciiMode = parseHexNumberEx(args[2].c_str());
+  uint32_t  startAddr = parseHexNumberEx(args[3].c_str());
+  uint32_t  endAddr = parseHexNumberEx(args[4].c_str());
+  if (asciiMode > 1U)
+    throw Ep128Emu::Exception("ASCII mode flag must be 0 or 1");
+  if ((startAddr | endAddr) > addressMask)
     throw Ep128Emu::Exception("address is out of range");
-  std::FILE *f = (std::FILE *) 0;
-  int       err = gui->vm.openFileInWorkingDirectory(f, fileName, "wb", false);
-  if (err != 0) {
-    if (err >= -6 && err <= -2)
-      printMessage(fileOpenErrorMessages[(-err) - 1]);
-    else
-      printMessage(fileOpenErrorMessages[0]);
-    return;
-  }
   try {
-    if (std::fputc(int(loadAddr & 0xFFU), f) == EOF)
-      throw Ep128Emu::Exception("Error writing file");
-    if (std::fputc(int(loadAddr >> 8), f) == EOF)
-      throw Ep128Emu::Exception("Error writing file");
-    while (startAddr != endAddr) {
-      uint8_t c = readMemoryForFileIO(startAddr, cpuAddressMode);
-      if (std::fputc(int(c), f) == EOF)
-        throw Ep128Emu::Exception("Error writing file");
-      startAddr = (startAddr + 1U) & addressMask;
-    }
-    if (std::fflush(f) != 0)
-      throw Ep128Emu::Exception("Error writing file");
+    gui->vm.saveMemory(args[1].c_str() + 1, bool(asciiMode), cpuAddressMode,
+                       startAddr, endAddr);
   }
   catch (std::exception& e) {
-    std::fclose(f);
     printMessage(e.what());
     return;
   }
-  std::fclose(f);
-#else
-  (void) args;
-  throw Ep128Emu::Exception("saving memory is not implemented yet");
-#endif
 }
 
 void Ep128EmuGUIMonitor::command_toggleCPUAddressMode(
@@ -976,9 +834,11 @@ void Ep128EmuGUIMonitor::command_toggleCPUAddressMode(
 
 void Ep128EmuGUIMonitor::command_help(const std::vector<std::string>& args)
 {
-  if (args.size() != 2) {
+  if (!(args.size() == 2 ||
+        (args.size() == 3 && args[1] == ";" && args[2] == ";"))) {
     printMessage(".       assemble");
-    printMessage(";       set CPU registers");
+    printMessage(";       set PC, AF, BC, DE, HL, SP, IX, IY");
+    printMessage(";;      set AF', BC', DE', HL', IM, I, R");
     printMessage(">       modify memory");
     printMessage("?       print help");
     printMessage("A       assemble");
@@ -990,15 +850,16 @@ void Ep128EmuGUIMonitor::command_help(const std::vector<std::string>& args)
     printMessage("G       continue or go to address");
     printMessage("H       search for pattern in memory");
     printMessage("I       print current settings");
-    printMessage("L       load PRG file to memory");
+    printMessage("IO      dump I/O registers");
+    printMessage("L       load binary or ASCII file to memory");
     printMessage("M       dump memory");
+    printMessage("O       modify I/O registers");
     printMessage("R       print CPU registers");
-    printMessage("S       save memory to PRG file");
+    printMessage("S       save memory to binary or ASCII file");
     printMessage("SR      search and replace pattern in memory");
     printMessage("T       copy memory");
     printMessage("TR      trace (log instructions to file)");
-    printMessage("V       verify (compare memory and PRG file)");
-    printMessage("W       set debug context");
+    printMessage("V       verify (compare memory and file)");
     printMessage("X       continue");
     printMessage("Y       step over");
     printMessage("Z       step");
@@ -1007,7 +868,10 @@ void Ep128EmuGUIMonitor::command_help(const std::vector<std::string>& args)
     printMessage("A <address> ...");
   }
   else if (args[1] == ";") {
-    printMessage(";<pc> [sr [ac [xr [yr [sp]]]]]");
+    if (args.size() == 2)
+      printMessage(";<pc> [af [bc [de [hl [sp [ix [iy]]]]]]]");
+    else
+      printMessage(";;<af'> [bc' [de' [hl' [im [i [r]]]]]]");
   }
   else if (args[1] == ">") {
     printMessage("><address> [value1 [value2 [...]]]");
@@ -1054,20 +918,25 @@ void Ep128EmuGUIMonitor::command_help(const std::vector<std::string>& args)
   else if (args[1] == "I") {
     printMessage("I       print current monitor settings");
   }
+  else if (args[1] == "IO") {
+    printMessage("IO <start> [end]");
+  }
   else if (args[1] == "L") {
-    printMessage("L <\"filename\"> [start [end+1]]");
-    printMessage("Zeropage variables are not updated");
+    printMessage("L <\"filename\"> <asciiMode> <start> [end]");
+    printMessage("'asciiMode' is 0 for binary, and 1 for text");
   }
   else if (args[1] == "M") {
     printMessage("M [start [end]]");
+  }
+  else if (args[1] == "O") {
+    printMessage("O<address> [value1 [value2 [...]]]");
   }
   else if (args[1] == "R") {
     printMessage("R       print CPU registers");
   }
   else if (args[1] == "S") {
-    printMessage("S <\"filename\"> <start> <end+1> <loadAddr>");
-    printMessage("Zeropage variables are not updated");
-    printMessage("Load address is optional in CPU address mode");
+    printMessage("S <\"filename\"> <asciiMode> <start> <end>");
+    printMessage("'asciiMode' is 0 for binary, and 1 for text");
   }
   else if (args[1] == "SR") {
     printMessage("SR <start> <end> <searchPat>, <replacePat>");
@@ -1085,17 +954,8 @@ void Ep128EmuGUIMonitor::command_help(const std::vector<std::string>& args)
     printMessage("maxInsns=0 (default) is interpreted as 65536");
   }
   else if (args[1] == "V") {
-    printMessage("V <\"filename\"> [start [end+1]]");
-    printMessage("Zeropage variables are not updated");
-  }
-  else if (args[1] == "W") {
-    printMessage("W       cycle debug context");
-    printMessage("W0      set debug context to main CPU");
-    printMessage("W4      set debug context to printer");
-    printMessage("W8      set debug context to floppy unit 8");
-    printMessage("W9      set debug context to floppy unit 9");
-    printMessage("W10     set debug context to floppy unit 10");
-    printMessage("W11     set debug context to floppy unit 11");
+    printMessage("V <\"filename\"> <asciiMode> <start> [end]");
+    printMessage("'asciiMode' is 0 for binary, and 1 for text");
   }
   else if (args[1] == "X") {
     printMessage("X       continue emulation");
@@ -1160,7 +1020,7 @@ void Ep128EmuGUIMonitor::moveDown()
 void Ep128EmuGUIMonitor::parseCommand(const char *s)
 {
   std::vector<std::string>  args;
-  tokenizeString(args, s);
+  Ep128Emu::tokenizeString(args, s);
   if (args.size() == 0)
     return;
   if (args[0] == ";")
@@ -1187,10 +1047,14 @@ void Ep128EmuGUIMonitor::parseCommand(const char *s)
     command_searchPattern(args);
   else if (args[0] == "I")
     command_printInfo(args);
+  else if (args[0] == "IO")
+    command_ioDump(args);
   else if (args[0] == "L")
     command_load(args, false);
   else if (args[0] == "M")
     command_memoryDump(args);
+  else if (args[0] == "O")
+    command_ioModify(args);
   else if (args[0] == "R")
     command_printRegisters(args);
   else if (args[0] == "S")
@@ -1288,21 +1152,30 @@ void Ep128EmuGUIMonitor::memoryDump()
   printMessage(&(tmpBuf[0]));
 }
 
-void Ep128EmuGUIMonitor::printCPURegisters()
+void Ep128EmuGUIMonitor::printCPURegisters1()
 {
-  // TODO: implement this
-#if 0
-  Ep128::M7501Registers r;
-  reinterpret_cast<Ep128::Ep128VM *>(&(gui->vm))->getCPURegisters(r);
-  char    tmpBuf[32];
-  std::sprintf(&(tmpBuf[0]), ";%04X %02X %02X %02X %02X %02X",
-               (unsigned int) r.reg_PC, (unsigned int) r.reg_SR,
-               (unsigned int) r.reg_AC, (unsigned int) r.reg_XR,
-               (unsigned int) r.reg_YR, (unsigned int) r.reg_SP);
+  const Ep128::Z80_REGISTERS& r =
+      reinterpret_cast<const Ep128::Ep128VM *>(&(gui->vm))->getZ80Registers();
+  char    tmpBuf[128];
+  std::sprintf(&(tmpBuf[0]), ";%04X %04X %04X %04X %04X %04X %04X %04X",
+               (unsigned int) gui->vm.getProgramCounter(),
+               (unsigned int) r.AF.W, (unsigned int) r.BC.W,
+               (unsigned int) r.DE.W, (unsigned int) r.HL.W,
+               (unsigned int) r.SP.W,
+               (unsigned int) r.IX.W, (unsigned int) r.IY.W);
   printMessage(&(tmpBuf[0]));
-#else
-  printMessage("(printing CPU registers is not implemented yet)");
-#endif
+}
+
+void Ep128EmuGUIMonitor::printCPURegisters2()
+{
+  const Ep128::Z80_REGISTERS& r =
+      reinterpret_cast<const Ep128::Ep128VM *>(&(gui->vm))->getZ80Registers();
+  char    tmpBuf[128];
+  std::sprintf(&(tmpBuf[0]), ";;    %04X %04X %04X %04X  %02X   %02X   %02X",
+               (unsigned int) r.altAF.W, (unsigned int) r.altBC.W,
+               (unsigned int) r.altDE.W, (unsigned int) r.altHL.W,
+               (unsigned int) r.IM, (unsigned int) r.I, (unsigned int) r.R);
+  printMessage(&(tmpBuf[0]));
 }
 
 void Ep128EmuGUIMonitor::breakMessage(const char *s)
@@ -1311,7 +1184,10 @@ void Ep128EmuGUIMonitor::breakMessage(const char *s)
     if (s == (char *) 0 || s[0] == '\0')
       s = "BREAK";
     printMessage(s);
-    printCPURegisters();
+    printMessage("  PC   AF   BC   DE   HL   SP   IX   IY");
+    printCPURegisters1();
+    printMessage("       AF'  BC'  DE'  HL'  IM   I    R");
+    printCPURegisters2();
   }
   catch (...) {
   }
@@ -1420,11 +1296,14 @@ void Ep128EmuGUIMonitor::writeTraceFile(uint16_t addr)
   traceInstructionsRemaining--;
   char    tmpBuf[64];
   char    *bufp = &(tmpBuf[0]);
-  int     n = std::sprintf(bufp, "%04X ", (unsigned int) (addr & 0xFFFF));
+  int     n =
+      std::sprintf(bufp, "%02X:%04X  ",
+                   (unsigned int) (gui->vm.getMemoryPage(addr >> 14) & 0xFF),
+                   (unsigned int) (addr & 0xFFFF));
   bufp = bufp + n;
   try {
     std::string tmpBuf2;
-    tmpBuf2.reserve(40);
+    tmpBuf2.reserve(48);
     gui->vm.disassembleInstruction(tmpBuf2, addr, true);
     if (tmpBuf2.length() > 21 && tmpBuf2.length() <= 40) {
       n = std::sprintf(bufp, "%s", tmpBuf2.c_str() + 21);
@@ -1449,11 +1328,5 @@ void Ep128EmuGUIMonitor::closeTraceFile()
     traceFile = (std::FILE *) 0;
     std::fclose(f);
   }
-}
-
-uint8_t Ep128EmuGUIMonitor::readMemoryForFileIO(uint32_t addr,
-                                                bool cpuAddressMode_) const
-{
-  return gui->vm.readMemory(addr, cpuAddressMode_);
 }
 
