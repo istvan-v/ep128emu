@@ -1,5 +1,5 @@
-ep128emu 2.0.5 beta
-===================
+ep128emu 2.0.5
+==============
 
 ep128emu is an open source, portable emulator of the Enterprise 128
 computer, written in C++, and supporting Windows and POSIX platforms
@@ -37,18 +37,21 @@ General
     which can be played back with accurate timing)
   * GUI tape editor utility for copying Enterprise files from/to
     ep128emu tape images
-  * simple GUI debugger with support for breakpoints/watchpoints,
-    viewing the current state of CPU registers and memory paging,
-    displaying memory dump or loading from or saving to a file in ASCII
-    or binary format, modifying memory or searching for a pattern of
-    bytes, disassembler with support for all documented and some
-    undocumented Z80 opcodes, address offset for code that runs at a
-    different location than where it is at the time of disassembling,
-    and saving disassembly to a file. For memory operations and the
-    disassembler, addresses can be 16 bit CPU (affected by current
-    paging) or 22 bit physical (all ROM and RAM data can be accessed,
-    regardless of memory paging) addresses. Watchpoints can also be set
-    on I/O ports and physical addresses.
+  * GUI debugger with support for breakpoints/watchpoints, viewing the
+    current state of CPU registers and memory paging, displaying memory
+    dump and searching for a pattern of bytes, and disassembler with
+    support for all documented and some undocumented Z80 opcodes.
+    A simple monitor is also included, with commands like assemble,
+    disassemble (also to file), trace, memory and I/O port dump and
+    modify, printing and changing CPU registers, memory compare, copy,
+    fill, search, load and save, and more.
+    For most operations, addresses can be 16 bit CPU (affected by
+    current paging) or 22 bit physical (all ROM and RAM data can be
+    accessed, regardless of memory paging) addresses. Watchpoints can
+    also be set on I/O ports and physical addresses.
+    The debugger supports scripting in the Lua language, to allow for
+    advanced uses like breakpoints with custom defined, complex set of
+    conditions.
   * configurable keyboard map for the emulated machine; it is also
     possible to use external game controller devices like joysticks and
     gamepads
@@ -117,6 +120,7 @@ GNU C/C++ compiler, binutils, etc.), you need the following packages:
   * SDL (http://www.libsdl.org/) 1.2 for joystick input (optional);
     NOTE: on Linux, version 1.2.10 and newer do not work, so using 1.2.9
     is recommended
+  * Lua (http://www.lua.org/) for scripting in the debugger (optional)
 
 Once these are installed, you can edit the file 'SConstruct' in the top
 level source directory for setting compiler flags etc., and run the
@@ -177,6 +181,8 @@ Command line options
     work on all machines; however, it will use a color depth of 24 bits,
     while in OpenGL mode the textures are 16 bit (R5G6B5) only, to
     improve performance
+  -colorscheme <N>
+    select GUI color scheme N (0, 1, or 2)
   OPTION=VALUE
     set configuration variable 'OPTION' to 'VALUE'; the available
     variable names are the same as those used in ASCII format
@@ -408,6 +414,227 @@ Set working directory
 
   Set the directory to be accessed by the optional file I/O ROM
   extension modules.
+
+Lua scripting
+-------------
+
+Starting from version 2.0.5, it is possible to run scripts written in
+Lua from the debugger. This document only describes the use of scripts
+in the emulator, and the new API functions added; for general
+information about programming in Lua, see http://www.lua.org/docs.html
+
+Clicking the 'Run' button will run the script, and also enable the
+breakpoint callback function (see below) if it is defined. If there are
+any syntax or runtime errors, the script is terminated, and the
+breakpoint callback is disabled. After making any changes to the script,
+you need to click 'Run' and restart the script for the changes to take
+effect.
+
+It is possible to define a breakpoint callback function in the script,
+which will be automatically called whenever a breakpoint is triggered,
+and the debugger window would be shown. This function has the following
+syntax:
+
+  function breakPointCallback(bpType, addr, value)
+    ...
+    return showWindow
+  end
+
+where 'showWindow' is a boolean value, which, if true, will allow the
+debugger window to be shown like normal, or have the emulated program
+continue without any break if it is false. The four parameters passed to
+the function are as follows:
+
+  bpType
+
+    The type of break, one of the following:
+      0: breakpoint at opcode read by the CPU
+      1: data read from memory
+      2: data written to memory
+      3: opcode read in single step mode; this happens when 'Step' or
+         'Step over' are being used, and if the breakpoint callback
+         function returns false, breaks will continue to occur until
+         true is returned
+      5: I/O port read
+      6: I/O port write
+
+  addr
+
+    This is the 16 bit address where the break occured.
+
+  value
+
+    The value or CPU opcode read from or written to memory or I/O port.
+
+The breakpoint callback function will remain active until either a new
+script is run which does not define one, or the 'Stop' button is
+clicked.
+
+NOTE: an infinite loop in the script will hang the emulator, and a very
+frequently called and/or complex breakpoint callback may slow down the
+emulation.
+
+The following new functions are defined by the emulator for use in the
+scripts:
+
+  AND(...)    OR(...)    XOR(...)    SHL(a, b)    SHR(a, b)
+
+    These simple helper functions implement bitwise operations that are
+    not available in the Lua language by default.
+    AND, OR, and XOR can take any number of integer arguments, and
+    return the bitwise AND, OR, and XOR of the values, respectively. In
+    the case of zero arguments, OR and XOR return zero, while AND
+    returns -1.
+    SHL returns 'a' shifted to the left by 'b' bits, and SHR returns 'a'
+    shifted to the right by 'b' bits. If 'b' is zero, the value is not
+    changed, while a negative 'b' will reverse the direction of
+    shifting. The result of shifting negative values to the right is
+    unspecified.
+
+  setBreakPoint(bptype, addr, priority)
+
+    Set a breakpoint or watchpoint at address 'addr' (0-0xFFFF), with
+    priority 'priority' (0 to 3). 'bptype' can be one of the following
+    values:
+
+      0: memory read or write
+      1: memory read
+      2: memory write
+      3: memory read or write (same as bptype == 0)
+      5: I/O port read
+      6: I/O port write
+      7: I/O port read or write
+
+    For memory breakpoints, it is possible to add 8 to 'bpType' to
+    interpret the address as a 22 bit value in the range 0 to 0x3FFFFF,
+    with the segment number determined by the most significant 8 bits.
+    If the address is greater than 0xFFFF, it is also automatically
+    assumed to be in 22 bit format.
+    An "ignore" breakpoint can be defined by adding 16 to 'bpType', this
+    will disable other breakpoints when the program counter is at the
+    address to be ignored; in this case, the priority parameter is not
+    used.
+
+    NOTE: the changes made to the breakpoint list by the script are not
+    reflected in the breakpoint editor. To restore the previously
+    defined breakpoints, click the 'Apply' button.
+
+  clearBreakPoints()
+
+    Deletes all previously defined breakpoints.
+
+  getMemoryPage(n)
+
+    Returns the segment selected for page 'n' (0 to 3).
+
+  readMemory(addr)
+
+    Read a byte from 'addr' (0 to 0xFFFF) in the address space of the
+    CPU.
+
+  writeMemory(addr, value)
+
+    Write 'value' to 'addr' (0 to 0xFFFF) in the address space of the
+    CPU.
+
+  readMemoryRaw(addr)
+
+    Read a byte from 'addr' (0 to 0x3FFFFF) in the "physical" address
+    space; the most significant 8 bits of 'addr' select the segment
+    number.
+
+  writeMemoryRaw(addr, value)
+
+    Write 'value' to 'addr' (0 to 0x3FFFFF) in the "physical" address
+    space; the most significant 8 bits of 'addr' select the segment
+    number.
+
+  readIOPort(addr)
+
+    Read a byte from I/O port 'addr' (0 to 0xFF).
+
+  writeIOPort(addr, value)
+
+    Write 'value' to I/O port 'addr' (0 to 0xFF).
+
+  getPC()    getA()     getF()     getAF()    getB()     getC()
+  getBC()    getD()     getE()     getDE()    getH()     getL()
+  getHL()    getSP()    getIX()    getIY()    getAF_()   getBC_()
+  getDE_()   getHL_()   getIM()    getI()     getR()
+
+    These functions return the registers of the CPU.
+
+  setPC(n)   setA(n)    setF(n)    setAF(n)   setB(n)    setC(n)
+  setBC(n)   setD(n)    setE(n)    setDE(n)   setH(n)    setL(n)
+  setHL(n)   setSP(n)   setIX(n)   setIY(n)   setAF_(n)  setBC_(n)
+  setDE_(n)  setHL_(n)  setIM(n)   setI(n)    setR(n)
+
+    Set CPU registers. Note that changing the program counter only takes
+    effect after the execution of one instruction is completed.
+
+  getNextOpcodeAddr(addr[, cpuAddressMode])
+
+    Returns the address of the next Z80 instruction after the
+    instruction at 'addr'. 'cpuAddressMode' selects the use of 16 bit
+    CPU (if true or not specified) or 22 bit physical (if false)
+    addresses.
+
+  loadMemory(fname, asciiMode, cpuAddressMode, startAddr[, endAddr])
+
+    Loads a file to the memory area at 'startAddr' to 'endAddr' (the
+    byte at 'endAddr' is still loaded). If no end address is specified,
+    all data is read into memory. The file is searched in the working
+    directory set for file I/O, and if the name is an empty string, a
+    file selection dialog is shown. The expected file format is binary
+    if 'asciiMode' is false, and hexadecimal dump (as written by
+    saveMemory() or the 'S' monitor command) if 'asciiMode' is true.
+    'cpuAddressMode' selects the use of 16 bit CPU (if true) or 22 bit
+    physical (if false) addresses.
+    The return value is the number of bytes actually read.
+
+  saveMemory(fname, asciiMode, cpuAddressMode, startAddr, endAddr)
+
+    Save the memory area at 'startAddr' to 'endAddr' (the byte at
+    'endAddr' is still written) to a file, in binary (if 'asciiMode' is
+    false) or hexadecimal dump (if 'asciiMode' is true) format.
+    'cpuAddressMode' selects the use of 16 bit CPU (if true) or 22 bit
+    physical (if false) addresses.
+
+  mprint(...)
+
+    Prints any number of strings or numbers to the monitor.
+    No separator characters are inserted between the arguments being
+    printed, and a newline character is automatically added at the end
+    of the message.
+
+Example:
+
+  mprint("Running Lua script example...")
+  clearBreakPoints()
+  setBreakPoint(1, 0x0040, 2)   -- break on reading memory at 0x0040
+  function breakPointCallback(t, a, v)
+    if t == 3 then              -- allow stepping
+      return true
+    end
+    -- check for EXOS 1 call with A=102
+    if getPC() ~= 0x0040 or getA() ~= 1 or readMemory(0x005A) ~= 102 then
+      return false
+    end
+    -- read name parameter from memory
+    s = ""
+    n = readMemory(getDE())
+    for i = 1, n do
+      s = s..string.char(readMemory(getDE() + i))
+    end
+    mprint("Channel #102 is opened with name '", s, "'")
+    return true
+  end
+  mprint("done.")
+
+This will break when channel 102 is opened, and print the name parameter
+passed to the EXOS call.
+
+------------------------------------------------------------------------
 
 Copyright
 =========

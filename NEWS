@@ -1,6 +1,23 @@
 Changes in version 2.0.5
 ------------------------
 
+  * changed the debugger window layout so that there is a larger window
+    with only two tabs; also more information is displayed, and the
+    mouse wheel can be used for scrolling the disassembly and memory
+    dump views
+  * implemented Lua scripting in the debugger; this makes it possible to
+    write complex rules for breakpoints, but can have other uses as
+    well, since the script can read and write memory, I/O ports, and CPU
+    registers, in addition to having access to the standard Lua library
+    functions
+  * added a simple monitor to the debugger; the supported commands
+    include assemble, disassemble, trace, memory and I/O port dump and
+    modify, printing and changing CPU registers, memory compare, copy,
+    fill, search, load and save, and more (use ? to print the list of
+    available commands, or ? N for help on command N)
+  * added new command line option for selecting the GUI style and colors
+  * a few minor bug fixes and improvements
+
 Changes in version 2.0.4
 ------------------------
 
