@@ -58,6 +58,8 @@ namespace Ep128Emu {
     static int luaFunc_writeMemory(lua_State *lst);
     static int luaFunc_readMemoryRaw(lua_State *lst);
     static int luaFunc_writeMemoryRaw(lua_State *lst);
+    static int luaFunc_readIOPort(lua_State *lst);
+    static int luaFunc_writeIOPort(lua_State *lst);
     static int luaFunc_getPC(lua_State *lst);
     static int luaFunc_getA(lua_State *lst);
     static int luaFunc_getF(lua_State *lst);
@@ -78,6 +80,7 @@ namespace Ep128Emu {
     static int luaFunc_getSP(lua_State *lst);
     static int luaFunc_getIX(lua_State *lst);
     static int luaFunc_getIY(lua_State *lst);
+    static int luaFunc_getIM(lua_State *lst);
     static int luaFunc_getI(lua_State *lst);
     static int luaFunc_getR(lua_State *lst);
     static int luaFunc_setPC(lua_State *lst);
@@ -100,8 +103,10 @@ namespace Ep128Emu {
     static int luaFunc_setSP(lua_State *lst);
     static int luaFunc_setIX(lua_State *lst);
     static int luaFunc_setIY(lua_State *lst);
+    static int luaFunc_setIM(lua_State *lst);
     static int luaFunc_setI(lua_State *lst);
     static int luaFunc_setR(lua_State *lst);
+    static int luaFunc_getNextOpcodeAddr(lua_State *lst);
     static int luaFunc_loadMemory(lua_State *lst);
     static int luaFunc_saveMemory(lua_State *lst);
     static int luaFunc_mprint(lua_State *lst);
