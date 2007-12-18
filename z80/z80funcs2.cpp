@@ -196,40 +196,34 @@ namespace Ep128 {
         (Z80_EXECUTING_HALT_FLAG |
          Z80_CHECK_INTERRUPT_FLAG |
          Z80_EXECUTE_INTERRUPT_HANDLER_FLAG | Z80_INTERRUPT_FLAG |
-         Z80_NMI_FLAG);
+         Z80_NMI_FLAG | Z80_SET_PC_FLAG);
     newPCAddress = -1;
-    savedNMIFlag = false;
   }
 
   void Z80::setProgramCounter(uint16_t addr)
   {
     if (addr == uint16_t(R.PC.W.l)) {
-      if (newPCAddress >= 0 && !savedNMIFlag)
-        R.Flags = R.Flags & (~Z80_NMI_FLAG);
+      R.Flags = R.Flags & (~Z80_SET_PC_FLAG);
       newPCAddress = -1;
-      savedNMIFlag = false;
       return;
     }
-    if (newPCAddress < 0)
-      savedNMIFlag = bool(R.Flags & Z80_NMI_FLAG);
     newPCAddress = int32_t(addr);
-    R.Flags = R.Flags | Z80_NMI_FLAG;
+    R.Flags = R.Flags | Z80_SET_PC_FLAG;
   }
 
   void Z80::NMI()
   {
-    if (newPCAddress >= 0) {
+    if (R.Flags & Z80_SET_PC_FLAG) {
       R.PC.W.l = Z80_WORD(newPCAddress);
       newPCAddress = -1;
-      if (!savedNMIFlag) {
-        R.Flags = R.Flags & (~(Z80_NMI_FLAG | Z80_EXECUTING_HALT_FLAG));
+      if (!(R.Flags & Z80_NMI_FLAG)) {
+        R.Flags = R.Flags & (~(Z80_SET_PC_FLAG | Z80_EXECUTING_HALT_FLAG));
         return;
       }
       // if an NMI is pending at the same time as setting the program counter,
       // then set the PC first, and then immediately execute the NMI as well
-      savedNMIFlag = false;
     }
-    R.Flags = R.Flags & (~Z80_NMI_FLAG);
+    R.Flags = R.Flags & (~(Z80_NMI_FLAG | Z80_SET_PC_FLAG));
     if (R.Flags & Z80_EXECUTING_HALT_FLAG) {
       ADD_PC(1);
       R.Flags &= ~Z80_EXECUTING_HALT_FLAG;
@@ -245,7 +239,6 @@ namespace Ep128 {
   void Z80::NMI_()
   {
     R.Flags |= Z80_NMI_FLAG;
-    savedNMIFlag = (newPCAddress >= 0);
   }
 
   void Z80::triggerInterrupt()
@@ -509,7 +502,6 @@ namespace Ep128 {
     buf.writeByte(R.InterruptVectorBase);
     buf.writeUInt32(uint32_t(R.Flags));
     buf.writeInt32(newPCAddress);
-    buf.writeBoolean(savedNMIFlag);
   }
 
   void Z80::saveState(Ep128Emu::File& f)
@@ -568,11 +560,13 @@ namespace Ep128 {
       R.Flags = buf.readUInt32() & Z80_FLAGS_MASK;
       if (version >= 0x01000001) {
         newPCAddress = buf.readInt32();
-        newPCAddress = (newPCAddress >= 0 ? (newPCAddress & 0xFFFF) : -1);
-        savedNMIFlag = buf.readBoolean();
-        if (newPCAddress < 0)
-          savedNMIFlag = false;
+        if (newPCAddress < 0 || !(R.Flags & Z80_SET_PC_FLAG))
+          newPCAddress = -1;
+        else
+          newPCAddress = newPCAddress & 0xFFFF;
       }
+      else
+        R.Flags = R.Flags & (~Z80_SET_PC_FLAG);
       if (buf.getPosition() != buf.getDataSize())
         throw Ep128Emu::Exception("trailing garbage at end of "
                                   "Z80 snapshot data");

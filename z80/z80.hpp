@@ -46,7 +46,8 @@
 #define Z80_EXECUTING_HALT_FLAG                 0x0004
 #define Z80_INTERRUPT_FLAG                      0x0008
 #define Z80_NMI_FLAG                            0x0010
-#define Z80_FLAGS_MASK                          0x001F
+#define Z80_SET_PC_FLAG                         0x0020
+#define Z80_FLAGS_MASK                          0x003F
 
 #ifndef CPC_LSB_FIRST
 #  if defined(__i386__) || defined(__x86_64__) || defined(_WIN32)
@@ -188,7 +189,6 @@ namespace Ep128 {
     static Z80Tables  t;
     Z80_REGISTERS   R;
     int32_t newPCAddress;
-    bool    savedNMIFlag;
    private:
     inline void FD_CB_ExecuteInstruction();
     inline void FD_ExecuteInstruction();
