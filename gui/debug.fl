@@ -8,6 +8,8 @@ decl {\#include "gui.hpp"} {selected
 
 decl {\#include "script.hpp"} {} 
 
+decl {\#include "debuglib.hpp"} {} 
+
 decl {\#include "debugger.hpp"} {} 
 
 decl {\#include <vector>} {} 
@@ -125,7 +127,7 @@ class Ep128EmuGUI_DebugWindow {open
       {
         std::string tmp("H ");
         tmp += o->value();
-        Ep128EmuGUIMonitor::tokenizeString(args, tmp.c_str());
+        Ep128Emu::tokenizeString(args, tmp.c_str());
       }
       int32_t addr = monitor_->searchPattern(
           args, 1, args.size() - 1,

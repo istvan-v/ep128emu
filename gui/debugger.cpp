@@ -19,7 +19,7 @@
 
 #include "ep128emu.hpp"
 #include "gui.hpp"
-#include "disasm.hpp"
+#include "debuglib.hpp"
 #include "debugger.hpp"
 
 Ep128EmuGUI_LuaScript::~Ep128EmuGUI_LuaScript()
