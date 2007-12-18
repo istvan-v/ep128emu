@@ -78,6 +78,7 @@ void Ep128EmuGUI::init_()
   machineConfigWindow = (Ep128EmuGUI_MachineConfigWindow *) 0;
   debugWindow = (Ep128EmuGUI_DebugWindow *) 0;
   aboutWindow = (Ep128EmuGUI_AboutWindow *) 0;
+  savedSpeedPercentage = 100U;
   std::string defaultDir_(".");
   snapshotDirectory = defaultDir_;
   demoDirectory = defaultDir_;
@@ -108,10 +109,10 @@ void Ep128EmuGUI::init_()
 void Ep128EmuGUI::updateDisplay_windowTitle()
 {
   if (oldPauseFlag) {
-    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.5 beta (paused)");
+    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.5 (paused)");
   }
   else {
-    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.5 beta (%d%%)",
+    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.5 (%d%%)",
                  int(oldSpeedPercentage));
   }
   mainWindow->label(&(windowTitleBuf[0]));
@@ -1183,6 +1184,7 @@ void Ep128EmuGUI::saveQuickConfig(int n)
     tmpCfg.createKey("vm.cpuClockFrequency", config.vm.cpuClockFrequency);
     tmpCfg.createKey("vm.videoClockFrequency", config.vm.videoClockFrequency);
     tmpCfg.createKey("vm.soundClockFrequency", config.vm.soundClockFrequency);
+    tmpCfg.createKey("vm.speedPercentage", config.vm.speedPercentage);
     tmpCfg.createKey("vm.enableMemoryTimingEmulation",
                      config.vm.enableMemoryTimingEmulation);
     tmpCfg.saveState(fName, true);
@@ -1566,7 +1568,12 @@ void Ep128EmuGUI::menuCallback_Machine_FullSpeed(Fl_Widget *o, void *v)
   try {
     Ep128Emu::ConfigurationDB::ConfigurationVariable& cv =
         gui_.config["vm.speedPercentage"];
-    cv = ((unsigned int) cv == 0U ? 100U : 0U);
+    if ((unsigned int) cv != 0U) {
+      gui_.savedSpeedPercentage = (unsigned int) cv;
+      cv = 0U;
+    }
+    else
+      cv = gui_.savedSpeedPercentage;
     gui_.applyEmulatorConfiguration();
   }
   catch (std::exception& e) {

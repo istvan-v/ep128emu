@@ -83,6 +83,7 @@ class Ep128EmuGUI {open
   decl {Ep128Emu::JoystickInput joystickInput;} {}
   decl {Ep128Emu::Timer statsTimer;} {}
   decl {char windowTitleBuf[48];} {}
+  decl {unsigned int savedSpeedPercentage;} {}
   decl {void init_();} {}
   decl {void updateDisplay_windowTitle();} {}
   decl {void updateDisplay_windowMode();} {}
