@@ -11,10 +11,8 @@ buildRelease = 0
 
 compilerFlags = ''
 if buildRelease:
-    if linux32CrossCompile:
+    if linux32CrossCompile or win32CrossCompile:
         compilerFlags = ' -march=pentium2 -mtune=generic '
-    elif win32CrossCompile:
-        compilerFlags = ' -march=pentium2 -mtune=athlon-xp '
 if enableDebug and not buildRelease:
     compilerFlags = ' -Wno-long-long -Wshadow -g -O2 ' + compilerFlags
     compilerFlags = ' -Wall -W -ansi -pedantic ' + compilerFlags

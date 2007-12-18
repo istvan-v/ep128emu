@@ -107,11 +107,11 @@ class Ep128EmuGUI_DebugWindow {open
             }
           }
           Fl_Group {} {open
-            xywh {545 45 395 150} box THIN_UP_BOX align 21
+            xywh {545 45 395 152} box THIN_UP_BOX align 21
           } {
             Fl_Output ioPortDisplay {
               label {I/O registers}
-              xywh {555 70 375 115} type Multiline align 5 textfont 5 textcolor 2
+              xywh {555 70 375 117} type Multiline align 5 textfont 5 textcolor 2
               code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
             }
           }
@@ -210,11 +210,11 @@ class Ep128EmuGUI_DebugWindow {open
               tooltip {View next page} xywh {490 455 35 25} color 50 selection_color 51
             }
             Fl_Output memoryDisplay_BC_DE_HL {
-              xywh {30 490 495 50} type Multiline align 5 textfont 5 textcolor 2
+              xywh {30 490 495 51} type Multiline align 5 textfont 5 textcolor 2
               code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
             }
             Fl_Output memoryDisplay_IX {
-              xywh {30 550 375 50} type Multiline align 5 textfont 5 textcolor 2
+              xywh {30 547 375 51} type Multiline align 5 textfont 5 textcolor 2
               code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
               class Ep128EmuGUI_ScrollableOutput
             }
@@ -224,7 +224,7 @@ class Ep128EmuGUI_DebugWindow {open
   ixViewOffset = ((ixViewOffset + 0x0170) & 0xF0) - 0x80;
   updateMemoryDumpDisplay();
 }}
-              tooltip {View previous page} xywh {415 563 35 25} color 50 selection_color 51
+              tooltip {View previous page} xywh {415 560 35 25} color 50 selection_color 51
             }
             Fl_Button {} {
               label {@|<}
@@ -234,7 +234,7 @@ class Ep128EmuGUI_DebugWindow {open
     updateMemoryDumpDisplay();
   }
 }}
-              tooltip {Reset IX view offset to zero} xywh {455 563 30 25} color 50 selection_color 51
+              tooltip {Reset IX view offset to zero} xywh {455 560 30 25} color 50 selection_color 51
             }
             Fl_Button ixNxtPageButton {
               label {@>}
@@ -242,10 +242,10 @@ class Ep128EmuGUI_DebugWindow {open
   ixViewOffset = ((ixViewOffset + 0x0190) & 0xF0) - 0x80;
   updateMemoryDumpDisplay();
 }}
-              tooltip {View next page} xywh {490 563 35 25} color 50 selection_color 51
+              tooltip {View next page} xywh {490 560 35 25} color 50 selection_color 51
             }
             Fl_Output memoryDisplay_IY {
-              xywh {30 605 375 50} type Multiline align 5 textfont 5 textcolor 2
+              xywh {30 604 375 51} type Multiline align 5 textfont 5 textcolor 2
               code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
               class Ep128EmuGUI_ScrollableOutput
             }
@@ -277,11 +277,11 @@ class Ep128EmuGUI_DebugWindow {open
             }
           }
           Fl_Group {} {open
-            xywh {545 205 395 460} box THIN_UP_BOX align 21
+            xywh {545 207 395 458} box THIN_UP_BOX align 21
           } {
             Fl_Output disassemblyDisplay {
               label Disassembler
-              xywh {555 230 375 380} type Multiline align 5 textfont 5 textcolor 2
+              xywh {555 232 375 378} type Multiline align 5 textfont 5 textcolor 2
               code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
               class Ep128EmuGUI_ScrollableOutput
             }

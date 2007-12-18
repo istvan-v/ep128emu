@@ -1801,13 +1801,15 @@ namespace Ep128 {
 
   void Ep128VM::listIORegisters(std::string& buf) const
   {
-    char    tmpBuf[256];
+    char    tmpBuf[320];
     char    *bufp = &(tmpBuf[0]);
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 7; i++) {
       uint16_t  startAddr = 0x0014;             // WD177x / EXDOS
-      if (i >= 2)
-        startAddr = uint16_t(0x0090 + (i * 8)); // DAVE
+      if (i >= 3)
+        startAddr = uint16_t(0x0088 + (i * 8)); // DAVE
       else if (i == 1)
+        startAddr = 0x0040;                     // Spectrum emulator
+      else if (i == 2)
         startAddr = 0x0080;                     // NICK
       int     n = std::sprintf(bufp, "  %04X ", (unsigned int) startAddr);
       bufp = bufp + n;
@@ -1819,7 +1821,7 @@ namespace Ep128 {
         if (j == 3)
           *(bufp++) = ' ';
         else if (j == 7)
-          *(bufp++) = (i != 5 ? '\n' : '\0');
+          *(bufp++) = (i != 6 ? '\n' : '\0');
       }
     }
     buf = &(tmpBuf[0]);
