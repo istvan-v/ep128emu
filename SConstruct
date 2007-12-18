@@ -6,7 +6,7 @@ win32CrossCompile = 0
 linux32CrossCompile = 0
 disableSDL = 0          # set this to 1 on Linux with SDL version >= 1.2.10
 disableLua = 0
-enableDebug = 1
+enableDebug = 0
 buildRelease = 0
 
 compilerFlags = ''
@@ -134,6 +134,7 @@ def fluidCompile(flNames):
 ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
     src/bplist.cpp
     src/cfg_db.cpp
+    src/debuglib.cpp
     src/display.cpp
     src/emucfg.cpp
     src/fileio.cpp
@@ -169,7 +170,6 @@ z80LibEnvironment = ep128emuLibEnvironment.Copy()
 z80LibEnvironment.Append(CPPPATH = ['./z80'])
 
 z80Lib = z80LibEnvironment.StaticLibrary('z80', Split('''
-    z80/disasm.cpp
     z80/z80.cpp
     z80/z80funcs2.cpp
 '''))
