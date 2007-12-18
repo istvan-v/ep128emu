@@ -441,6 +441,33 @@ namespace Ep128Emu {
     virtual uint32_t disassembleInstruction(std::string& buf, uint32_t addr,
                                             bool isCPUAddress = false,
                                             int32_t offs = 0) const;
+    /*!
+     * Open 'fileName' with openFileInWorkingDirectory(), and load it to the
+     * memory area defined by 'startAddr' and 'endAddr', which may be 16-bit
+     * CPU or 22-bit physical addresses, depending on 'cpuAddressMode'.
+     * 'endAddr' is still loaded, and may be 0xFFFFFFFF to read all data from
+     * the file.
+     * The return value is the number of bytes read, which may be less than
+     * 'endAddr' + 1 - 'startAddr' if the file is too short. On error, an
+     * exception is thrown.
+     * If 'verifyMode' is true, then memory is not written, and the number
+     * of bytes that differ from the file data is returned.
+     */
+    virtual size_t loadMemory(const char *fileName, bool verifyMode,
+                              bool asciiMode, bool cpuAddressMode,
+                              uint32_t startAddr,
+                              uint32_t endAddr = 0xFFFFFFFFU);
+    /*!
+     * Save the memory area defined by 'startAddr' and 'endAddr', which may be
+     * 16-bit CPU or 22-bit physical addresses depending on 'cpuAddressMode',
+     * to 'fileName'. The byte at 'endAddr' is still written to the file.
+     * If 'asciiMode' is true, then the data is saved in a hexadecimal memory
+     * dump format, which can be read by loadMemory().
+     * On error, an exception is thrown.
+     */
+    virtual void saveMemory(const char *fileName,
+                            bool asciiMode, bool cpuAddressMode,
+                            uint32_t startAddr, uint32_t endAddr);
     // ------------------------------- FILE I/O -------------------------------
     /*!
      * Save snapshot of virtual machine state, including all ROM and RAM
@@ -580,6 +607,11 @@ namespace Ep128Emu {
      */
     int openFileInWorkingDirectory(std::FILE*& f, std::string& fileName_,
                                    const char *mode, bool createOnly_ = false);
+    /*!
+     * Returns the error message for error code 'n' returned by
+     * openFileInWorkingDirectory().
+     */
+    static const char * getFileOpenErrorMessage(int n);
   };
 
 }       // namespace Ep128Emu

@@ -24,6 +24,7 @@
 #include "soundio.hpp"
 #include "tape.hpp"
 #include "vm.hpp"
+#include "debuglib.hpp"
 
 #ifdef WIN32
 #  undef WIN32
@@ -39,6 +40,16 @@
 #  include <dirent.h>
 #endif
 
+static const char *fileOpenErrorMessages[7] = {
+  "No error",
+  "Error opening file",
+  "Invalid file name",
+  "File not found",
+  "File is not a regular file",
+  "Permission denied",
+  "File already exists"
+};
+
 static void defaultBreakPointCallback(void *userData,
                                       int type, uint16_t addr, uint8_t value)
 {
@@ -52,6 +63,22 @@ static void defaultFileNameCallback(void *userData, std::string& fileName)
 {
   (void) userData;
   fileName.clear();
+}
+
+static void writeHexValueToFile(std::FILE *f, uint32_t n, int nDigits,
+                                int prefixChar = -1)
+{
+  if (prefixChar >= 0) {
+    if (std::fputc(prefixChar, f) == EOF)
+      throw Ep128Emu::Exception("error writing file - is the disk full ?");
+  }
+  while (--nDigits >= 0) {
+    char    c = char((n >> (nDigits << 2)) & 0x0FU) + '0';
+    if (c > '9')
+      c = c + ('A' - ('0' + char(10)));
+    if (std::fputc(c, f) == EOF)
+      throw Ep128Emu::Exception("error writing file - is the disk full ?");
+  }
 }
 
 namespace Ep128Emu {
@@ -892,6 +919,178 @@ namespace Ep128Emu {
       return -1;
     }
     return 0;
+  }
+
+  const char * VirtualMachine::getFileOpenErrorMessage(int n)
+  {
+    if (n >= -6 && n <= 0)
+      return fileOpenErrorMessages[-n];
+    return fileOpenErrorMessages[1];
+  }
+
+  size_t VirtualMachine::loadMemory(const char *fileName, bool verifyMode,
+                                    bool asciiMode, bool cpuAddressMode,
+                                    uint32_t startAddr, uint32_t endAddr)
+  {
+    std::FILE *f = (std::FILE *) 0;
+    size_t    byteCnt = 0;
+    try {
+      if (!fileName)
+        fileName = "";
+      std::string fileName_(fileName);
+      int       err = openFileInWorkingDirectory(f, fileName_, "rb");
+      if (err)
+        throw Exception(getFileOpenErrorMessage(err));
+      uint32_t  addrMask = (cpuAddressMode ? 0x0000FFFFU : 0x003FFFFFU);
+      uint32_t  addr = startAddr & addrMask;
+      uint32_t  nBytes = 0U;
+      // if the end address is 0xFFFFFFFF, then read all data
+      if (endAddr != 0xFFFFFFFFU)
+        nBytes = ((endAddr + 1U) - addr) & addrMask;
+      if (!nBytes)
+        nBytes = addrMask + 1U;
+      if (!asciiMode) {
+        while (nBytes) {
+          int     c = std::fgetc(f);
+          if (c == EOF)
+            break;
+          if (!verifyMode) {
+            writeMemory(addr, uint8_t(c & 0xFF), cpuAddressMode);
+            byteCnt++;
+          }
+          else if (readMemory(addr, cpuAddressMode) != uint8_t(c & 0xFF))
+            byteCnt++;
+          addr = (addr + 1U) & addrMask;
+          nBytes--;
+        }
+      }
+      else {
+        std::string tmpBuf;
+        std::string s;
+        bool        eofFlag = false;
+        while (nBytes > 0 && !eofFlag) {
+          {
+            int     c = std::fgetc(f);
+            if (c == EOF) {
+              eofFlag = true;
+              c = '\n';
+            }
+            if (c != '\n' && c != '\r') {
+              tmpBuf += char(c & 0xFF);
+              continue;
+            }
+          }
+          bool    firstArg = true;
+          bool    haveAddr = false;
+          bool    skippingSpace = true;
+          for (size_t i = 0; i < tmpBuf.length(); i++) {
+            char    c = tmpBuf[i];
+            if (skippingSpace) {
+              if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+                continue;
+              s = "";
+              skippingSpace = false;
+            }
+            if (!(c == ' ' || c == '\t' || c == '\r' || c == '\n')) {
+              s += c;
+              if (!((i + 1) >= tmpBuf.length() || c == '>' || c == ':'))
+                continue;
+            }
+            skippingSpace = true;
+            if (firstArg && s == ">") {
+              firstArg = false;
+              continue;
+            }
+            firstArg = false;
+            if (haveAddr && s == ":")
+              continue;
+            uint32_t  n = parseHexNumberEx(s.c_str());
+            if (!haveAddr) {
+              haveAddr = true;
+              continue;
+            }
+            if (n > 0xFFU)
+              throw Exception("invalid byte value");
+            if (!verifyMode) {
+              writeMemory(addr, uint8_t(n), cpuAddressMode);
+              byteCnt++;
+            }
+            else if (readMemory(addr, cpuAddressMode) != uint8_t(n))
+              byteCnt++;
+            addr = (addr + 1U) & addrMask;
+            if (--nBytes == 0)
+              break;
+          }
+          tmpBuf = "";
+        }
+      }
+      std::fclose(f);
+      f = (std::FILE *) 0;
+    }
+    catch (...) {
+      if (f)
+        std::fclose(f);
+      throw;
+    }
+    // return the number of bytes read in load mode,
+    // and the number of bytes that differ in verify mode
+    return byteCnt;
+  }
+
+  void VirtualMachine::saveMemory(const char *fileName,
+                                  bool asciiMode, bool cpuAddressMode,
+                                  uint32_t startAddr, uint32_t endAddr)
+  {
+    std::FILE *f = (std::FILE *) 0;
+    try {
+      if (!fileName)
+        fileName = "";
+      std::string fileName_(fileName);
+      int       err =
+          openFileInWorkingDirectory(f, fileName_, (asciiMode ? "w" : "wb"));
+      if (err)
+        throw Exception(getFileOpenErrorMessage(err));
+      uint32_t  addrMask = (cpuAddressMode ? 0x0000FFFFU : 0x003FFFFFU);
+      uint32_t  addr = startAddr & addrMask;
+      endAddr = (endAddr + 1U) & addrMask;
+      bool      errorFlag = false;
+      do {
+        uint8_t c = readMemory(addr, cpuAddressMode);
+        if (!asciiMode) {
+          if (std::fputc(c, f) == EOF) {
+            errorFlag = true;
+            break;
+          }
+          addr = (addr + 1U) & addrMask;
+        }
+        else {
+          if (((addr - startAddr) & 7U) == 0U) {
+            writeHexValueToFile(f, addr, (cpuAddressMode ? 4 : 6), '>');
+            if (std::fputc(' ', f) == EOF) {
+              errorFlag = true;
+              break;
+            }
+          }
+          writeHexValueToFile(f, uint32_t(c), 2, ' ');
+          addr = (addr + 1U) & addrMask;
+          if (((addr - startAddr) & 7U) == 0U || addr == endAddr) {
+            if (std::fputc('\n', f) == EOF) {
+              errorFlag = true;
+              break;
+            }
+          }
+        }
+      } while (addr != endAddr);
+      if (errorFlag || std::fflush(f) != 0)
+        throw Exception("error writing file - is the disk full ?");
+      std::fclose(f);
+      f = (std::FILE *) 0;
+    }
+    catch (...) {
+      if (f)
+        std::fclose(f);
+      throw;
+    }
   }
 
 }       // namespace Ep128Emu
