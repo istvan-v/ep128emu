@@ -27,7 +27,7 @@
 #include "display.hpp"
 #include "vm.hpp"
 #include "ep128vm.hpp"
-#include "z80/disasm.hpp"
+#include "debuglib.hpp"
 #include "videorec.hpp"
 
 #include <cstdio>
@@ -1018,7 +1018,14 @@ namespace Ep128 {
   uint8_t Ep128VM::checkSingleStepModeBreak()
   {
     uint16_t  addr = z80.getReg().PC.W.l;
-    uint8_t   b0 = memory.readNoDebug(addr);
+    uint8_t   b0 = 0x00;
+    if (singleStepMode == 3) {
+      b0 = memory.read(addr);
+      if (!singleStepMode)
+        return b0;
+    }
+    else
+      b0 = memory.readNoDebug(addr);
     if (singleStepMode == 2) {
       if (singleStepModeNextAddr >= 0 &&
           int32_t(addr) != singleStepModeNextAddr)
@@ -1782,7 +1789,7 @@ namespace Ep128 {
                  "%04X %04X %04X %04X %04X %04X %04X %04X\n"
                  "      AF'  BC'  DE'  HL'  IM   I    R\n"
                  "     %04X %04X %04X %04X  %02X   %02X   %02X",
-                 (unsigned int) r.PC.W.l, (unsigned int) r.AF.W,
+                 (unsigned int) z80.getProgramCounter(), (unsigned int) r.AF.W,
                  (unsigned int) r.BC.W, (unsigned int) r.DE.W,
                  (unsigned int) r.HL.W, (unsigned int) r.SP.W,
                  (unsigned int) r.IX.W, (unsigned int) r.IY.W,
