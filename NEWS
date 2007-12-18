@@ -15,6 +15,8 @@ Changes in version 2.0.5
     modify, printing and changing CPU registers, memory compare, copy,
     fill, search, load and save, and more (use ? to print the list of
     available commands, or ? N for help on command N)
+  * improved the audio quality of AVI recording, at the expense of
+    making it somewhat slower
   * added new command line option for selecting the GUI style and colors
   * a few minor bug fixes and improvements
 

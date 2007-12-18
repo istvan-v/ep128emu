@@ -324,7 +324,7 @@ namespace Ep128Emu {
       tmpFrameBuf(videoWidth, videoHeight),
       outputFrameBuf(videoWidth, videoHeight),
       frameSizes((uint32_t *) 0),
-      cycleCnt(0),
+      cycleCnt(2),
       prvOddFrame(false),
       colormap((uint8_t *) 0)
   {
@@ -372,10 +372,10 @@ namespace Ep128Emu {
   {
     soundOutputAccumulatorL += uint32_t(audioInput & 0xFFFFU);
     soundOutputAccumulatorR += uint32_t(audioInput >> 16);
-    if (++cycleCnt >= 4) {
-      cycleCnt = 0;
-      uint32_t  tmpL = (soundOutputAccumulatorL + 2U) >> 2;
-      uint32_t  tmpR = (soundOutputAccumulatorR + 2U) >> 2;
+    if (--cycleCnt == 0) {
+      cycleCnt = 2;
+      uint32_t  tmpL = (soundOutputAccumulatorL + 1U) >> 1;
+      uint32_t  tmpR = (soundOutputAccumulatorR + 1U) >> 1;
       soundOutputAccumulatorL = 0U;
       soundOutputAccumulatorR = 0U;
       audioConverter->sendInputSignal(tmpL | (tmpR << 16));
@@ -397,7 +397,7 @@ namespace Ep128Emu {
     if (freq_ == clockFrequency)
       return;
     clockFrequency = freq_;
-    audioConverter->setInputSampleRate(float(long(freq_)) * 0.25f);
+    audioConverter->setInputSampleRate(float(long(freq_)) * 0.5f);
   }
 
   void VideoCapture_RLE8::lineDone()
@@ -986,7 +986,7 @@ namespace Ep128Emu {
       curTime(0L),
       frame0Time(-1L),
       frame1Time(0L),
-      cycleCnt(0),
+      cycleCnt(2),
       interpTime(0),
       lineBufBytes(0),
       colormap((uint32_t *) 0)
@@ -1095,10 +1095,10 @@ namespace Ep128Emu {
   {
     soundOutputAccumulatorL += uint32_t(audioInput & 0xFFFFU);
     soundOutputAccumulatorR += uint32_t(audioInput >> 16);
-    if (++cycleCnt >= 4) {
-      cycleCnt = 0;
-      uint32_t  tmpL = (soundOutputAccumulatorL + 2U) >> 2;
-      uint32_t  tmpR = (soundOutputAccumulatorR + 2U) >> 2;
+    if (--cycleCnt == 0) {
+      cycleCnt = 2;
+      uint32_t  tmpL = (soundOutputAccumulatorL + 1U) >> 1;
+      uint32_t  tmpR = (soundOutputAccumulatorR + 1U) >> 1;
       soundOutputAccumulatorL = 0U;
       soundOutputAccumulatorR = 0U;
       audioConverter->sendInputSignal(tmpL | (tmpR << 16));
@@ -1118,7 +1118,7 @@ namespace Ep128Emu {
       return;
     clockFrequency = freq_;
     timesliceLength = (int64_t(1000000) << 32) / int64_t(freq_);
-    audioConverter->setInputSampleRate(float(long(freq_)) * 0.25f);
+    audioConverter->setInputSampleRate(float(long(freq_)) * 0.5f);
   }
 
   void VideoCapture_YV12::lineDone()
