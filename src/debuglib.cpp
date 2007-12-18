@@ -19,10 +19,11 @@
 
 #include "ep128emu.hpp"
 #include "vm.hpp"
-#include "disasm.hpp"
+#include "debuglib.hpp"
 
 #include <cstdio>
 #include <string>
+#include <vector>
 
 namespace Ep128 {
 
@@ -894,6 +895,28 @@ namespace Ep128 {
     255,   0,   0       // FF: ???
   };
 
+  const unsigned char Z80Disassembler::alternateOperandTypeTable[75] = {
+     0,  9, 17, 17, 17, 17, 17, 17, 17, 17,
+    17, 17, 17, 17, 17, 17, 17, 20, 21,  0,
+    19,  0, 17, 67, 17, 17,  0,  0, 40, 17,
+     0,  0,  0, 17,  0,  0,  0, 17, 18, 18,
+     0,  0, 18, 18, 32,  0, 18, 18, 36,  0,
+    17, 17,  0,  0, 17, 17,  0,  0, 17, 17,
+     0,  0, 18,  0,  0,  0, 17, 17,  0,  0,
+     0,  0,  0,  0,  0
+  };
+
+  const unsigned char Z80Disassembler::noPrefixOperandTypeTable[75] = {
+     0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
+    10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+    20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+    26, 27, 28, 29, 26, 27, 28, 29, 38, 39,
+    40, 41, 38, 39, 40, 41, 38, 39, 40, 41,
+    50, 51, 52, 53, 50, 51, 52, 53, 50, 51,
+    52, 53, 62, 63, 64, 65, 66, 67, 68, 69,
+    70, 71, 72, 73, 74
+  };
+
   uint32_t Z80Disassembler::disassembleInstruction(
       std::string& buf, const Ep128Emu::VirtualMachine& vm,
       uint32_t addr, bool isCPUAddress, int32_t offs)
@@ -1151,5 +1174,461 @@ namespace Ep128 {
     return addr;
   }
 
+  void Z80Disassembler::parseOperand(const std::vector< std::string >& args,
+                                     size_t argOffs, size_t argCnt, int& opType,
+                                     bool& haveOpValue, uint32_t& opValue)
+  {
+    opType = 0;
+    haveOpValue = false;
+    opValue = 0U;
+    if (argCnt < 1)
+      return;
+    opType = -1;
+    for (size_t i = argOffs; i < (argOffs + argCnt); i++) {
+      uint32_t  tmp = 0U;
+      if (Ep128Emu::parseHexNumber(tmp, args[i].c_str())) {
+        opValue = tmp;
+        haveOpValue = true;
+        break;
+      }
+    }
+    if (argCnt == 1) {
+      for (int i = 1; i < 75; i++) {
+        if (i == 17)
+          i = 22;
+        else if (i == 38)
+          i = 50;
+        else if (i == 28 || i == 32 || i == 36 || i == 62 || i == 65)
+          i++;
+        if (args[argOffs] == operandTypes[i]) {
+          opType = i;
+          break;
+        }
+        if (opType < 0 && haveOpValue) {
+          if (opValue <= 7U)
+            opType = int(opValue + 1U);
+          else if (!(opValue & (~(uint32_t(0x38)))))
+            opType = int((opValue >> 3) + 9U);
+          else
+            opType = (args[argOffs].length() <= 2 ? 17 : 20);
+        }
+      }
+    }
+    else if (argCnt == 2) {
+      // AF'
+      if (args[argOffs] == "AF" && args[argOffs + 1] == "'")
+        opType = 65;
+    }
+    else if (argCnt == 3) {
+      // (nn), (nnnn), (C), (BC), (DE), (HL), (SP), (IX), (IY)
+      if (args[argOffs] == "(" && args[argOffs + 2] == ")") {
+        if (args[argOffs + 1] == "C")
+          opType = 62;
+        else if (args[argOffs + 1] == "BC")
+          opType = 38;
+        else if (args[argOffs + 1] == "DE")
+          opType = 39;
+        else if (args[argOffs + 1] == "HL")
+          opType = 28;
+        else if (args[argOffs + 1] == "SP")
+          opType = 41;
+        else if (args[argOffs + 1] == "IX")
+          opType = 44;
+        else if (args[argOffs + 1] == "IY")
+          opType = 48;
+        else if (haveOpValue)
+          opType = (args[argOffs + 1].length() <= 2 ? 18 : 21);
+      }
+    }
+    else if (argCnt == 5) {
+      // (IX+nn), (IX-nn), (IY+nn), (IY-nn)
+      if (args[argOffs] == "(" &&
+          (args[argOffs + 2] == "+" || args[argOffs + 2] == "-") &&
+          haveOpValue && args[argOffs + 4] == ")") {
+        if (args[argOffs + 1] == "IX")
+          opType = 32;
+        else if (args[argOffs + 1] == "IY")
+          opType = 36;
+      }
+      if (opType >= 0) {
+        if ((args[argOffs + 2] == "+" && opValue > 0x7FU) ||
+            (args[argOffs + 2] == "-" && opValue > 0x80U)) {
+          throw Ep128Emu::Exception("index offset is out of range");
+        }
+        if (opValue == 0U)
+          opType += 12;         // allow code like 'JP (IX+0)'
+      }
+    }
+    if (opType < 0)
+      throw Ep128Emu::Exception("assembler syntax error");
+  }
+
+  uint32_t Z80Disassembler::assembleInstruction(
+      const std::vector< std::string >& args, Ep128Emu::VirtualMachine& vm,
+      bool isCPUAddress, int32_t offs)
+  {
+    uint32_t  addrMask = (isCPUAddress ? 0x0000FFFFU : 0x003FFFFFU);
+    int32_t   startAddr = -1;
+    int       opcodeNum = -1;
+    size_t    op1Offs = 0;
+    size_t    op1Cnt = 0;
+    size_t    op2Offs = 0;
+    size_t    op2Cnt = 0;
+    // find start address, opcode name, and operand groups
+    for (size_t i = 0; i < args.size(); i++) {
+      const std::string&  s = args[i];
+      if (i == 0 && (s == "A" || s == "."))
+        continue;
+      if (startAddr < 0) {
+        uint32_t  tmp = Ep128Emu::parseHexNumberEx(s.c_str());
+        if (tmp > addrMask)
+          throw Ep128Emu::Exception("assemble address is out of range");
+        startAddr = int32_t(tmp);
+        continue;
+      }
+      if (opcodeNum < 0) {
+        if (s.length() >= 2 && s.length() <= 4) {
+          char    tmpBuf[4];
+          for (size_t j = 0; j < 4; j++) {
+            if (j < s.length())
+              tmpBuf[j] = s[j];
+            else
+              tmpBuf[j] = ' ';
+          }
+          for (int j = 0; j < 69 && opcodeNum < 0; j++) {
+            for (int k = 0; k < 4; k++) {
+              if (tmpBuf[k] != opcodeNames[(j * 5) + k + 1])
+                break;
+              if (k == 3)
+                opcodeNum = j;
+            }
+          }
+        }
+        if (opcodeNum < 0) {
+          if (Ep128Emu::parseHexNumberEx(s.c_str()) > 0xFFU)
+            throw Ep128Emu::Exception("byte value is out of range");
+        }
+        continue;
+      }
+      if (!op1Offs)
+        op1Offs = i;
+      if (s == ",") {
+        if (op2Offs != 0 || op1Offs == i)
+          throw Ep128Emu::Exception("assembler syntax error");
+        op1Cnt = i - op1Offs;
+        op2Offs = i + 1;
+      }
+    }
+    if (op2Offs) {
+      if (op2Offs < args.size())
+        op2Cnt = args.size() - op2Offs;
+      else
+        throw Ep128Emu::Exception("assembler syntax error");
+    }
+    if (op1Offs) {
+      if (!op2Offs)
+        op1Cnt = args.size() - op1Offs;
+    }
+    if (opcodeNum < 0)                  // no valid opcode name was found
+      throw Ep128Emu::Exception("assembler syntax error");
+    // parse operands
+    int       op1Type = 0;
+    uint32_t  op1Value = 0U;
+    bool      haveOp1Value = false;
+    int       op2Type = 0;
+    uint32_t  op2Value = 0U;
+    bool      haveOp2Value = false;
+    parseOperand(args, op1Offs, op1Cnt, op1Type, haveOp1Value, op1Value);
+    parseOperand(args, op2Offs, op2Cnt, op2Type, haveOp2Value, op2Value);
+    // look up this combination of opcode and operand types in the
+    // disassembler tables, and if not found, try again if there are
+    // similar operand types
+    int       savedOp1Type = op1Type;
+    int       savedOp2Type = op2Type;
+    int       op1TypeN = int(noPrefixOperandTypeTable[op1Type]);
+    int       op2TypeN = int(noPrefixOperandTypeTable[op2Type]);
+    bool      op1RetryFlag = false;
+    bool      op2RetryFlag = false;
+    int       opcodeByte = -1;
+    bool      cbFlag = false;
+    bool      ddFlag = false;
+    bool      edFlag = false;
+    bool      fdFlag = false;
+    while (true) {
+      for (int i = 0; i < 256; i++) {
+        int     tmp = i * 3;
+        if (int(opcodeTable[tmp]) == opcodeNum &&
+            int(opcodeTable[tmp + 1]) == op1TypeN &&
+            int(opcodeTable[tmp + 2]) == op2TypeN) {
+          opcodeByte = i;
+          break;
+        }
+        if (int(opcodeTableCB[tmp]) == opcodeNum &&
+            int(opcodeTableCB[tmp + 1]) == op1TypeN &&
+            int(opcodeTableCB[tmp + 2]) == op2TypeN) {
+          opcodeByte = i;
+          cbFlag = true;
+          break;
+        }
+        if (int(opcodeTableED[tmp]) == opcodeNum &&
+            int(opcodeTableED[tmp + 1]) == op1TypeN &&
+            int(opcodeTableED[tmp + 2]) == op2TypeN) {
+          opcodeByte = i;
+          edFlag = true;
+          break;
+        }
+      }
+      if (opcodeByte >= 0)
+        break;
+      if (alternateOperandTypeTable[op1Type] != 0) {
+        op1Type = int(alternateOperandTypeTable[op1Type]);
+      }
+      else if (alternateOperandTypeTable[op2Type] != 0) {
+        op1Type = savedOp1Type;
+        op2Type = int(alternateOperandTypeTable[op2Type]);
+      }
+      else if (op1Type == 19 && op1Value <= 0xFFU && !op1RetryFlag) {
+        op1RetryFlag = true;
+        op1Type = 17;
+        op2Type = savedOp2Type;
+      }
+      else if (op1Type == 21 && op1Value <= 0xFFU && !op1RetryFlag) {
+        op1RetryFlag = true;
+        op1Type = 18;
+        op2Type = savedOp2Type;
+      }
+      else if (op2Type == 19 && op2Value <= 0xFFU && !op2RetryFlag) {
+        op2RetryFlag = true;
+        op1Type = savedOp1Type;
+        op2Type = 17;
+      }
+      else if (op2Type == 21 && op2Value <= 0xFFU && !op2RetryFlag) {
+        op2RetryFlag = true;
+        op1Type = savedOp1Type;
+        op2Type = 18;
+      }
+      else
+        throw Ep128Emu::Exception("invalid operands");
+      op1TypeN = int(noPrefixOperandTypeTable[op1Type]);
+      op2TypeN = int(noPrefixOperandTypeTable[op2Type]);
+    }
+    // check operands for any numeric values, and calculate relative offsets
+    int       indexOffset = -1;
+    int       operandBytes = 0;
+    uint32_t  opValue = 0U;
+    if (op1TypeN != op1Type) {
+      if ((op1Type - op1TypeN) == 4)
+        ddFlag = true;
+      else
+        fdFlag = true;
+      if (op1Type == 32 || op1Type == 36) {
+        if (opcodeNum == 27) {
+          // index + non-zero offset is not allowed for JP
+          throw Ep128Emu::Exception("invalid operand type");
+        }
+        indexOffset = 0;
+        if (haveOp1Value) {
+          indexOffset = int(op1Value);
+          if (args[op1Offs + 2] == "-")
+            indexOffset = (256 - indexOffset) & 0xFF;
+        }
+      }
+    }
+    if (op2TypeN != op2Type) {
+      if ((op2Type - op2TypeN) == 4)
+        ddFlag = true;
+      else
+        fdFlag = true;
+      if (op2Type == 32 || op2Type == 36) {
+        indexOffset = 0;
+        if (haveOp2Value) {
+          indexOffset = int(op2Value);
+          if (args[op2Offs + 2] == "-")
+            indexOffset = (256 - indexOffset) & 0xFF;
+        }
+      }
+    }
+    if (ddFlag && fdFlag)
+      throw Ep128Emu::Exception("invalid operand types");
+    if (op1Type == 17 || op2Type == 17) {
+      opValue = (op1Type == 17 ? op1Value : op2Value);
+      if (opValue > 0xFFU)
+        throw Ep128Emu::Exception("byte value is out of range");
+      operandBytes = 1;
+    }
+    else if (op1Type == 18 || op2Type == 18) {
+      opValue = (op1Type == 18 ? op1Value : op2Value);
+      if (opValue > 0xFFU)
+        throw Ep128Emu::Exception("port address is out of range");
+      operandBytes = 1;
+    }
+    else if (op1Type == 19 || op2Type == 19) {
+      uint32_t  addr = (op1Type == 19 ? op1Value : op2Value);
+      if (addr > addrMask)
+        throw Ep128Emu::Exception("address is out of range");
+      int     jumpOffset = int(int32_t(addr) - (startAddr + 2));
+      jumpOffset = ((jumpOffset + int((addrMask >> 1) + 1U)) & int(addrMask))
+                   - int((addrMask >> 1) + 1U);
+      if (jumpOffset < -128 || jumpOffset > 127)
+        throw Ep128Emu::Exception("relative jump address is out of range");
+      if (jumpOffset < 0)
+        jumpOffset += 256;
+      opValue = uint32_t(jumpOffset);
+      operandBytes = 1;
+    }
+    else if (op1Type == 20 || op2Type == 20) {
+      opValue = (op1Type == 20 ? op1Value : op2Value);
+      if (opValue > 0xFFFFU)
+        throw Ep128Emu::Exception("16 bit value is out of range");
+      operandBytes = 2;
+    }
+    else if (op1Type == 21 || op2Type == 21) {
+      opValue = (op1Type == 21 ? op1Value : op2Value);
+      if (opValue > 0xFFFFU)
+        throw Ep128Emu::Exception("address is out of range");
+      operandBytes = 2;
+    }
+    // write the assembled instruction to memory
+    startAddr = (startAddr + offs) & int32_t(addrMask);
+    uint32_t  addr = uint32_t(startAddr);
+    if (ddFlag) {
+      vm.writeMemory(addr, 0xDD, isCPUAddress);
+      addr = (addr + 1U) & addrMask;
+    }
+    if (fdFlag) {
+      vm.writeMemory(addr, 0xFD, isCPUAddress);
+      addr = (addr + 1U) & addrMask;
+    }
+    if (cbFlag) {
+      vm.writeMemory(addr, 0xCB, isCPUAddress);
+      addr = (addr + 1U) & addrMask;
+      if (indexOffset >= 0) {
+        vm.writeMemory(addr, uint8_t(indexOffset), isCPUAddress);
+        addr = (addr + 1U) & addrMask;
+      }
+    }
+    if (edFlag) {
+      vm.writeMemory(addr, 0xED, isCPUAddress);
+      addr = (addr + 1U) & addrMask;
+    }
+    vm.writeMemory(addr, uint8_t(opcodeByte), isCPUAddress);
+    addr = (addr + 1U) & addrMask;
+    if (indexOffset >= 0 && !cbFlag) {
+      vm.writeMemory(addr, uint8_t(indexOffset), isCPUAddress);
+      addr = (addr + 1U) & addrMask;
+    }
+    if (operandBytes > 0) {
+      vm.writeMemory(addr, uint8_t(opValue & 0xFFU), isCPUAddress);
+      addr = (addr + 1U) & addrMask;
+      if (operandBytes > 1) {
+        vm.writeMemory(addr, uint8_t((opValue >> 8) & 0xFFU), isCPUAddress);
+        addr = (addr + 1U) & addrMask;
+      }
+    }
+    return uint32_t(startAddr);
+  }
+
 }       // namespace Ep128
+
+namespace Ep128Emu {
+
+  void tokenizeString(std::vector<std::string>& args, const char *s)
+  {
+    args.resize(0);
+    if (!s)
+      return;
+    std::string curToken = "";
+    int         mode = 0;         // 0: skipping space, 1: token, 2: string
+    while (*s != '\0') {
+      if (mode == 0) {
+        if (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n') {
+          s++;
+          continue;
+        }
+        mode = (*s != '"' ? 1 : 2);
+      }
+      if (mode == 1) {
+        if (args.size() == 0 && curToken.length() > 0) {
+          // allow no space between command and first hexadecimal argument
+          if ((*s >= '0' && *s <= '9') ||
+              (*s >= 'A' && *s <= 'F') || (*s >= 'a' && *s <= 'f')) {
+            args.push_back(curToken);
+            curToken = "";
+            continue;
+          }
+        }
+        if ((*s >= 'A' && *s <= 'Z') || (*s >= '0' && *s <= '9') ||
+            *s == '_' || *s == '?') {
+          curToken += (*s);
+          s++;
+          continue;
+        }
+        else if (*s >= 'a' && *s <= 'z') {
+          // convert to upper case
+          curToken += ((*s - 'a') + 'A');
+          s++;
+          continue;
+        }
+        else {
+          if (curToken.length() > 0) {
+            args.push_back(curToken);
+            curToken = "";
+          }
+          if (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n') {
+            mode = 0;
+            s++;
+            continue;
+          }
+          if (*s != '"') {
+            curToken = (*s);
+            args.push_back(curToken);
+            curToken = "";
+            mode = 0;
+            s++;
+            continue;
+          }
+          mode = 2;
+        }
+      }
+      if (*s == '"' && curToken.length() > 0) {
+        // closing quote character is not stored
+        args.push_back(curToken);
+        curToken = "";
+        mode = 0;
+      }
+      else {
+        curToken += (*s);
+      }
+      s++;
+    }
+    if (curToken.length() > 0)
+      args.push_back(curToken);
+  }
+
+  bool parseHexNumber(uint32_t& n, const char *s)
+  {
+    n = 0U;
+    size_t  i;
+    for (i = 0; s[i] != '\0'; i++) {
+      if (s[i] >= '0' && s[i] <= '9')
+        n = (n << 4) | uint32_t(s[i] - '0');
+      else if (s[i] >= 'A' && s[i] <= 'F')
+        n = (n << 4) | uint32_t((s[i] - 'A') + 10);
+      else if (s[i] >= 'a' && s[i] <= 'f')
+        n = (n << 4) | uint32_t((s[i] - 'a') + 10);
+      else
+        return ((s[i] == 'H' || s[i] == 'h') && s[i + 1] == '\0' && i != 0);
+    }
+    return (i != 0);
+  }
+
+  uint32_t parseHexNumberEx(const char *s, uint32_t mask_)
+  {
+    uint32_t  n = 0U;
+    if (!parseHexNumber(n, s))
+      throw Ep128Emu::Exception("invalid hexadecimal number format");
+    return (n & mask_);
+  }
+
+}       // namespace Ep128Emu
 
