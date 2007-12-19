@@ -51,6 +51,7 @@ namespace Ep128 {
     void clearBreakPoints();
     void setBreakPointPriorityThreshold(int n);
     int getBreakPointPriorityThreshold();
+    Ep128Emu::BreakPointList getBreakPointList();
     inline uint8_t read(uint16_t addr);
     inline void write(uint16_t addr, uint8_t value);
     uint8_t readDebug(uint16_t addr) const;
@@ -64,7 +65,7 @@ namespace Ep128 {
     void setWriteCallback(uint16_t firstAddr, uint16_t lastAddr,
                           void (*func)(void *p, uint16_t addr, uint8_t value),
                           void *userData, uint16_t baseAddr);
-    Ep128Emu::BreakPointList getBreakPointList();
+    void reset();
     void saveState(Ep128Emu::File::Buffer&);
     void saveState(Ep128Emu::File&);
     void loadState(Ep128Emu::File::Buffer&);

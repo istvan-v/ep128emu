@@ -189,9 +189,10 @@ namespace Ep128 {
     R.IFF2 = 0;
     R.RBit7 = 0;
     R.R = 0;
-    R.IX.W = 0x0ffff;
-    R.IY.W = 0x0ffff;
-    R.AF.B.l = Z80_ZERO_FLAG;
+    R.AF.W = 0xFFFF;
+    R.SP.W = 0xFFFF;
+    R.IX.W = 0xFFFF;
+    R.IY.W = 0xFFFF;
     R.Flags &= ~
         (Z80_EXECUTING_HALT_FLAG |
          Z80_CHECK_INTERRUPT_FLAG |
@@ -230,6 +231,9 @@ namespace Ep128 {
     }
     // disable maskable ints
     R.IFF1 = 0;
+    // NMI takes a total of 11 cycles to execute
+    // (5 + 6 for pushing the return address)
+    updateCycles(5);
     // push return address on stack
     PUSH(R.PC.W.l);
     // set program counter address

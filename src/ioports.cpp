@@ -44,8 +44,7 @@ namespace Ep128 {
     breakPointPriorityThreshold = 0;
     try {
       portValues = new uint8_t[256];
-      for (int i = 0; i < 256; i++)
-        portValues[i] = 0;
+      this->reset();
       readCallbacks = new ReadCallback[256];
       for (int i = 0; i < 256; i++) {
         readCallbacks[i].func = dummyReadCallback;
@@ -166,6 +165,19 @@ namespace Ep128 {
     return ((int) breakPointPriorityThreshold >> 2);
   }
 
+  Ep128Emu::BreakPointList IOPorts::getBreakPointList()
+  {
+    Ep128Emu::BreakPointList  bplst;
+    if (breakPointTable) {
+      for (size_t i = 0; i < 256; i++) {
+        uint8_t bp = breakPointTable[i];
+        if (bp)
+          bplst.addIOBreakPoint(uint16_t(i), !!(bp & 1), !!(bp & 2), bp >> 2);
+      }
+    }
+    return bplst;
+  }
+
   uint8_t IOPorts::readDebug(uint16_t addr) const
   {
     uint8_t       offs = uint8_t(addr & 0xFF);
@@ -235,17 +247,10 @@ namespace Ep128 {
     } while (i != j);
   }
 
-  Ep128Emu::BreakPointList IOPorts::getBreakPointList()
+  void IOPorts::reset()
   {
-    Ep128Emu::BreakPointList  bplst;
-    if (breakPointTable) {
-      for (size_t i = 0; i < 256; i++) {
-        uint8_t bp = breakPointTable[i];
-        if (bp)
-          bplst.addIOBreakPoint(uint16_t(i), !!(bp & 1), !!(bp & 2), bp >> 2);
-      }
-    }
-    return bplst;
+    for (int i = 0; i < 256; i++)
+      portValues[i] = 0xFF;
   }
 
   // --------------------------------------------------------------------------
@@ -303,15 +308,8 @@ namespace Ep128 {
     if (buf.getPosition() != buf.getDataSize())
       throw Ep128Emu::Exception("trailing garbage at end of "
                                 "I/O port snapshot data");
-    for (size_t i = 0; i < 256; i++) {
+    for (size_t i = 0; i < 256; i++)
       portValues[i] = tmp[i];
-      // this is probably not needed, since the devices should save
-      // and restore all internal data
-#if 0
-      WriteCallback&  cb = writeCallbacks[i];
-      cb.func(cb.userData_, cb.addr_, tmp[i]);
-#endif
-    }
   }
 
   void IOPorts::registerChunkType(Ep128Emu::File& f)

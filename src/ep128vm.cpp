@@ -771,14 +771,14 @@ namespace Ep128 {
           return floppyDrive.readSectorRegister();
         case 0x03:
           return floppyDrive.readDataRegister();
-        case 0x08:
-          return uint8_t(  (floppyDrive.getInterruptRequestFlag() ? 0x02 : 0x00)
-                         | (floppyDrive.getDiskChangeFlag() ? 0x40 : 0x00)
+        default:
+          return uint8_t(  (floppyDrive.getInterruptRequestFlag() ? 0x3E : 0x3C)
+                         | (floppyDrive.getDiskChangeFlag() ? 0x00 : 0x40)
                          | (floppyDrive.getDataRequestFlag() ? 0x80 : 0x00));
         }
       }
     }
-    return 0x00;
+    return uint8_t((addr & 0x0008) ? 0x7D : 0x00);
   }
 
   void Ep128VM::exdosPortWriteCallback(void *userData,
@@ -804,7 +804,7 @@ namespace Ep128 {
           break;
         }
       }
-      if (addr == 0x08) {
+      if (addr & 0x0008) {
         vm.currentFloppyDrive = 0xFF;
         if ((value & 0x01) != 0)
           vm.currentFloppyDrive = 0;
@@ -837,13 +837,13 @@ namespace Ep128 {
         return floppyDrive.readSectorRegister();
       case 0x03:
         return floppyDrive.readDataRegisterDebug();
-      case 0x08:
-        return uint8_t(  (floppyDrive.getInterruptRequestFlag() ? 0x02 : 0x00)
-                       | (floppyDrive.getDiskChangeFlag() ? 0x40 : 0x00)
+      default:
+        return uint8_t(  (floppyDrive.getInterruptRequestFlag() ? 0x3E : 0x3C)
+                       | (floppyDrive.getDiskChangeFlag() ? 0x00 : 0x40)
                        | (floppyDrive.getDataRequestFlag() ? 0x80 : 0x00));
       }
     }
-    return 0x00;
+    return uint8_t((addr & 0x0008) ? 0x7D : 0x00);
   }
 
   uint8_t Ep128VM::spectrumEmulatorIOReadCallback(void *userData, uint16_t addr)
@@ -1279,11 +1279,6 @@ namespace Ep128 {
     memory.loadSegment(0xFF, false, (uint8_t *) 0, 0);
     // hack to get some programs using interrupt mode 2 working
     z80.setVectorBase(0xFF);
-    // reset
-    z80.reset();
-    nick.randomizeRegisters();
-    dave.reset(true);
-    resetCMOSMemory();
     // use NICK colormap
     Ep128Emu::VideoDisplay::DisplayParameters
         dp(display.getDisplayParameters());
@@ -1291,29 +1286,15 @@ namespace Ep128 {
     display.setDisplayParameters(dp);
     setAudioConverterSampleRate(float(long(daveFrequency)));
     floppyDrives[0].setIsWD1773(false);
-    floppyDrives[0].reset();
     floppyDrives[1].setIsWD1773(false);
-    floppyDrives[1].reset();
     floppyDrives[2].setIsWD1773(false);
-    floppyDrives[2].reset();
     floppyDrives[3].setIsWD1773(false);
-    floppyDrives[3].reset();
-    ioPorts.setReadCallback(0x10, 0x13, &exdosPortReadCallback, this, 0x10);
-    ioPorts.setReadCallback(0x14, 0x17, &exdosPortReadCallback, this, 0x14);
-    ioPorts.setReadCallback(0x18, 0x18, &exdosPortReadCallback, this, 0x10);
-    ioPorts.setReadCallback(0x1C, 0x1C, &exdosPortReadCallback, this, 0x14);
-    ioPorts.setWriteCallback(0x10, 0x13, &exdosPortWriteCallback, this, 0x10);
-    ioPorts.setWriteCallback(0x14, 0x17, &exdosPortWriteCallback, this, 0x14);
-    ioPorts.setWriteCallback(0x18, 0x18, &exdosPortWriteCallback, this, 0x10);
-    ioPorts.setWriteCallback(0x1C, 0x1C, &exdosPortWriteCallback, this, 0x14);
-    ioPorts.setDebugReadCallback(0x10, 0x13,
-                                 &exdosPortDebugReadCallback, this, 0x10);
-    ioPorts.setDebugReadCallback(0x14, 0x17,
-                                 &exdosPortDebugReadCallback, this, 0x14);
-    ioPorts.setDebugReadCallback(0x18, 0x18,
-                                 &exdosPortDebugReadCallback, this, 0x10);
-    ioPorts.setDebugReadCallback(0x1C, 0x1C,
-                                 &exdosPortDebugReadCallback, this, 0x14);
+    for (uint16_t i = 0x0010; i <= 0x001F; i++) {
+      ioPorts.setReadCallback(i, i, &exdosPortReadCallback, this, i & 0x14);
+      ioPorts.setWriteCallback(i, i, &exdosPortWriteCallback, this, i & 0x14);
+      ioPorts.setDebugReadCallback(i, i,
+                                   &exdosPortDebugReadCallback, this, i & 0x14);
+    }
     ioPorts.setReadCallback(0x40, 0x43,
                             &spectrumEmulatorIOReadCallback, this, 0x00);
     ioPorts.setDebugReadCallback(0x40, 0x43,
@@ -1329,6 +1310,8 @@ namespace Ep128 {
                                  &cmosMemoryIOReadCallback, this, 0x7E);
     ioPorts.setWriteCallback(0x7E, 0x7F,
                              &cmosMemoryIOWriteCallback, this, 0x7E);
+    // reset
+    this->reset(true);
   }
 
   Ep128VM::~Ep128VM()
@@ -1368,7 +1351,11 @@ namespace Ep128 {
     nickCyclesRemaining +=
         ((int64_t(microseconds) << 26) * int64_t(nickFrequency)
          / int64_t(15625));     // 10^6 / 2^6
-    while (nickCyclesRemaining > 0) {
+    if (nickCyclesRemaining < (int64_t(1) << 32))
+      return;
+    int     cycleCnt = int(nickCyclesRemaining >> 32);
+    nickCyclesRemaining -= (int64_t(cycleCnt) << 32);
+    do {
       Ep128VMCallback   *p = firstCallback;
       while (p) {
         Ep128VMCallback *nxt = p->nxt;
@@ -1376,7 +1363,7 @@ namespace Ep128 {
         p = nxt;
       }
       daveCyclesRemaining += daveCyclesPerNickCycle;
-      while (daveCyclesRemaining > 0) {
+      while (daveCyclesRemaining >= 0) {
         daveCyclesRemaining -= (int64_t(1) << 32);
         soundOutputSignal = dave.runOneCycle();
         sendAudioOutput(soundOutputSignal);
@@ -1386,8 +1373,7 @@ namespace Ep128 {
       while (cpuCyclesRemaining > 0)
         z80.executeInstruction();
       nick.runOneSlot();
-      nickCyclesRemaining -= (int64_t(1) << 32);
-    }
+    } while (--cycleCnt);
   }
 
   void Ep128VM::reset(bool isColdReset)
@@ -1395,6 +1381,9 @@ namespace Ep128 {
     stopDemoPlayback();         // TODO: should be recorded as an event ?
     stopDemoRecording(false);
     z80.reset();
+    ioPorts.reset();
+    for (uint16_t i = 0x00A0; i <= 0x00BF; i++)
+      ioPorts.writeDebug(i, 0x00);
     dave.reset(isColdReset);
     isRemote1On = false;
     isRemote2On = false;
@@ -1404,7 +1393,7 @@ namespace Ep128 {
     floppyDrives[1].reset();
     floppyDrives[2].reset();
     floppyDrives[3].reset();
-    spectrumEmulatorEnabled = false;
+    ioPorts.writeDebug(0x44, 0x00);     // disable Spectrum emulator
     for (int i = 0; i < 4; i++)
       spectrumEmulatorIOPorts[i] = 0xFF;
     cmosMemoryRegisterSelect = 0xFF;
@@ -1872,7 +1861,7 @@ namespace Ep128 {
       buf.writeBoolean(memoryTimingEnabled);
       buf.writeInt64(cpuCyclesRemaining);
       buf.writeInt64(cpuSyncToNickCnt);
-      buf.writeInt64(daveCyclesRemaining);
+      buf.writeInt64(daveCyclesRemaining + int64_t(1)); // +1 for compatibility
       buf.writeBoolean(spectrumEmulatorEnabled);
       for (int i = 0; i < 4; i++)
         buf.writeByte(spectrumEmulatorIOPorts[i]);
@@ -1998,7 +1987,7 @@ namespace Ep128 {
           tmpMemoryTimingEnabled == memoryTimingEnabled) {
         cpuCyclesRemaining = tmp[0];
         cpuSyncToNickCnt = tmp[1];
-        daveCyclesRemaining = tmp[2];
+        daveCyclesRemaining = tmp[2] - int64_t(1);      // -1 for compatibility
       }
       else {
         cpuCyclesRemaining = 0;
@@ -2006,7 +1995,7 @@ namespace Ep128 {
         daveCyclesRemaining = 0;
       }
       if (version == 0x01000001) {
-        spectrumEmulatorEnabled = buf.readBoolean();
+        ioPorts.writeDebug(0x44, uint8_t(buf.readBoolean()) << 7);
         for (int i = 0; i < 4; i++)
           spectrumEmulatorIOPorts[i] = buf.readByte();
         cmosMemoryRegisterSelect = buf.readByte();
@@ -2017,7 +2006,7 @@ namespace Ep128 {
       else {
         // loading snapshot saved by old version without Spectrum emulator
         // and real time clock support
-        spectrumEmulatorEnabled = false;
+        ioPorts.writeDebug(0x44, 0x00);
         for (int i = 0; i < 4; i++)
           spectrumEmulatorIOPorts[i] = 0xFF;
         resetCMOSMemory();
