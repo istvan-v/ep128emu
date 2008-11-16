@@ -27,6 +27,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include <typeinfo>
 
 #ifdef HAVE_DOTCONF_H
 #  include <stdio.h>

@@ -20,6 +20,8 @@
 #include "ep128emu.hpp"
 #include "system.hpp"
 
+#include <cstdlib>
+
 #ifdef WIN32
 #  undef WIN32
 #endif

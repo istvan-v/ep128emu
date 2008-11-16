@@ -28,6 +28,7 @@
 #include <vector>
 #include <cmath>
 #include <cstdio>
+#include <typeinfo>
 
 #include <FL/Fl.H>
 

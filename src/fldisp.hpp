@@ -20,6 +20,8 @@
 #ifndef EP128EMU_FLDISP_HPP
 #define EP128EMU_FLDISP_HPP
 
+#include <cstdlib>
+
 #include "ep128emu.hpp"
 #include "system.hpp"
 #include "display.hpp"

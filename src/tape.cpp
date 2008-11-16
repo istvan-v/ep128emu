@@ -19,9 +19,11 @@
 
 #include "ep128emu.hpp"
 #include "tape.hpp"
+
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
+#include <cstring>
 #include <sndfile.h>
 
 static const char *epteFileMagic = "ENTERPRISE 128K TAPE FILE       ";

@@ -26,6 +26,8 @@
 #include "vm.hpp"
 #include "debuglib.hpp"
 
+#include <typeinfo>
+
 #ifdef WIN32
 #  undef WIN32
 #endif

@@ -23,6 +23,7 @@
 #include "vmthread.hpp"
 
 #include <iostream>
+#include <cstdlib>
 
 static void defaultErrorCallback(void *userData_, const char *msg)
 {
