@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -20,10 +20,7 @@
 #include "ep128emu.hpp"
 #include "tape.hpp"
 
-#include <cstdio>
-#include <cstdlib>
 #include <cmath>
-#include <cstring>
 #include <sndfile.h>
 
 static const char *epteFileMagic = "ENTERPRISE 128K TAPE FILE       ";
@@ -516,7 +513,7 @@ namespace Ep128Emu {
     if (isForward)
       this->seek(getPosition() + (t > 0.0 ? t : 0.0));
     else
-      this->seek(getPosition() - (t < 0.0 ? t : 0.0));
+      this->seek(getPosition() - (t > 0.0 ? t : 0.0));
   }
 
   void Tape_Ep128Emu::addCuePoint()
@@ -1181,7 +1178,7 @@ namespace Ep128Emu {
     if (isForward)
       this->seek(getPosition() + (t > 0.0 ? t : 0.0));
     else
-      this->seek(getPosition() - (t < 0.0 ? t : 0.0));
+      this->seek(getPosition() - (t > 0.0 ? t : 0.0));
   }
 
   void Tape_SoundFile::addCuePoint()
