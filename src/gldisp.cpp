@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -20,7 +20,6 @@
 #include "ep128emu.hpp"
 #include "system.hpp"
 
-#include <cstring>
 #include <typeinfo>
 
 #define GL_GLEXT_PROTOTYPES 1
@@ -296,6 +295,14 @@ namespace Ep128Emu {
                                          double x1, double y1)
   {
     unsigned char lineBuf1[768];
+    GLfloat txtycf0 = GLfloat(1.0 / 16.0);
+    GLfloat txtycf1 = GLfloat(15.0 / 16.0);
+    if (lineBuffers_[100] == (Message_LineData *) 0 &&
+        lineBuffers_[101] != (Message_LineData *) 0) {
+      // interlace
+      txtycf0 -= GLfloat(0.5 / 16.0);
+      txtycf1 -= GLfloat(0.5 / 16.0);
+    }
     unsigned char *curLine_ = &(lineBuf1[0]);
     // half horizontal resolution, no interlace (384x288)
     for (size_t yc = 0; yc < 588; yc += 28) {
@@ -328,23 +335,20 @@ namespace Ep128Emu {
                       GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
                       (GLvoid *) textureBuffer);
       // update display
-      double  ycf0 = y0 + ((double(int(yc)) * (1.0 / 576.0))
-                           * (y1 - y0));
-      double  ycf1 = y0 + ((double(int(yc + 28)) * (1.0 / 576.0))
-                           * (y1 - y0));
-      double  txtycf1 = 15.0 / 16.0;
+      double  ycf0 = y0 + ((double(int(yc)) * (1.0 / 576.0)) * (y1 - y0));
+      double  ycf1 = y0 + ((double(int(yc + 28)) * (1.0 / 576.0)) * (y1 - y0));
       if (yc == 560) {
         ycf1 -= ((y1 - y0) * (12.0 / 576.0));
-        txtycf1 -= (6.0 / 16.0);
+        txtycf1 -= GLfloat(6.0 / 16.0);
       }
       glBegin(GL_QUADS);
-      glTexCoord2f(GLfloat(0.0), GLfloat(1.0 / 16.0));
+      glTexCoord2f(GLfloat(0.0), txtycf0);
       glVertex2f(GLfloat(x0), GLfloat(ycf0));
-      glTexCoord2f(GLfloat(384.0 / 512.0), GLfloat(1.0 / 16.0));
+      glTexCoord2f(GLfloat(384.0 / 512.0), txtycf0);
       glVertex2f(GLfloat(x1), GLfloat(ycf0));
-      glTexCoord2f(GLfloat(384.0 / 512.0), GLfloat(txtycf1));
+      glTexCoord2f(GLfloat(384.0 / 512.0), txtycf1);
       glVertex2f(GLfloat(x1), GLfloat(ycf1));
-      glTexCoord2f(GLfloat(0.0), GLfloat(txtycf1));
+      glTexCoord2f(GLfloat(0.0), txtycf1);
       glVertex2f(GLfloat(x0), GLfloat(ycf1));
       glEnd();
     }
@@ -355,6 +359,14 @@ namespace Ep128Emu {
                                          double x1, double y1)
   {
     unsigned char lineBuf1[768];
+    GLfloat txtycf0 = GLfloat(1.0 / 16.0);
+    GLfloat txtycf1 = GLfloat(15.0 / 16.0);
+    if (lineBuffers_[100] == (Message_LineData *) 0 &&
+        lineBuffers_[101] != (Message_LineData *) 0) {
+      // interlace
+      txtycf0 -= GLfloat(0.5 / 16.0);
+      txtycf1 -= GLfloat(0.5 / 16.0);
+    }
     unsigned char *curLine_ = &(lineBuf1[0]);
     // full horizontal resolution, no interlace (768x288)
     for (size_t yc = 0; yc < 588; yc += 28) {
@@ -387,23 +399,20 @@ namespace Ep128Emu {
                       GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
                       (GLvoid *) textureBuffer);
       // update display
-      double  ycf0 = y0 + ((double(int(yc)) * (1.0 / 576.0))
-                           * (y1 - y0));
-      double  ycf1 = y0 + ((double(int(yc + 28)) * (1.0 / 576.0))
-                           * (y1 - y0));
-      double  txtycf1 = 15.0 / 16.0;
+      double  ycf0 = y0 + ((double(int(yc)) * (1.0 / 576.0)) * (y1 - y0));
+      double  ycf1 = y0 + ((double(int(yc + 28)) * (1.0 / 576.0)) * (y1 - y0));
       if (yc == 560) {
         ycf1 -= ((y1 - y0) * (12.0 / 576.0));
-        txtycf1 -= (6.0 / 16.0);
+        txtycf1 -= GLfloat(6.0 / 16.0);
       }
       glBegin(GL_QUADS);
-      glTexCoord2f(GLfloat(0.0), GLfloat(1.0 / 16.0));
+      glTexCoord2f(GLfloat(0.0), txtycf0);
       glVertex2f(GLfloat(x0), GLfloat(ycf0));
-      glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(1.0 / 16.0));
+      glTexCoord2f(GLfloat(768.0 / 1024.0), txtycf0);
       glVertex2f(GLfloat(x1), GLfloat(ycf0));
-      glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(txtycf1));
+      glTexCoord2f(GLfloat(768.0 / 1024.0), txtycf1);
       glVertex2f(GLfloat(x1), GLfloat(ycf1));
-      glTexCoord2f(GLfloat(0.0), GLfloat(txtycf1));
+      glTexCoord2f(GLfloat(0.0), txtycf1);
       glVertex2f(GLfloat(x0), GLfloat(ycf1));
       glEnd();
     }
@@ -413,7 +422,7 @@ namespace Ep128Emu {
                                          double x0, double y0,
                                          double x1, double y1)
   {
-    if (displayParameters.lineShade >= 0.995f) {
+    if (displayParameters.lineShade >= 0.9925f) {
       drawFrame_quality2(lineBuffers_, x0, y0, x1, y1);
       return;
     }
@@ -428,11 +437,11 @@ namespace Ep128Emu {
       bool    haveLineDataInCurLine = false;
       bool    haveLineDataInNxtLine = false;
       if (yc > 0 && yc < 579)
-        haveLineDataInPrvLine = !!(lineBuffers_[yc - 1]);
+        haveLineDataInPrvLine = bool(lineBuffers_[yc - 1]);
       if (yc < 578)
-        haveLineDataInCurLine = !!(lineBuffers_[yc]);
+        haveLineDataInCurLine = bool(lineBuffers_[yc]);
       if (yc < 577)
-        haveLineDataInNxtLine = !!(lineBuffers_[yc + 1]);
+        haveLineDataInNxtLine = bool(lineBuffers_[yc + 1]);
       if (haveLineDataInCurLine | haveLineDataInNxtLine) {
         unsigned char *tmp = curLine_;
         curLine_ = prvLine_;
@@ -789,35 +798,47 @@ namespace Ep128Emu {
     messageQueueMutex.unlock();
   }
 
+  void OpenGLDisplay::initializeGLDisplay()
+  {
+    glViewport(0, 0, GLsizei(this->w()), GLsizei(this->h()));
+    glPushMatrix();
+    glOrtho(0.0, 1.0, 1.0, 0.0, 0.0, 1.0);
+    // on first call: initialize texture
+    glEnable(GL_TEXTURE_2D);
+    GLuint  tmp = 0;
+    glGenTextures(1, &tmp);
+    textureID = (unsigned long) tmp;
+    GLint   savedTextureID;
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &savedTextureID);
+    glBindTexture(GL_TEXTURE_2D, tmp);
+    setTextureParameters(displayParameters.displayQuality);
+    initializeTexture(displayParameters, textureBuffer);
+    glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
+    // clear display
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_BLEND);
+    glColor4f(GLfloat(0), GLfloat(0), GLfloat(0), GLfloat(1));
+    glBegin(GL_QUADS);
+    glVertex2f(GLfloat(0.0), GLfloat(0.0));
+    glVertex2f(GLfloat(1.0), GLfloat(0.0));
+    glVertex2f(GLfloat(1.0), GLfloat(1.0));
+    glVertex2f(GLfloat(0.0), GLfloat(1.0));
+    glEnd();
+    glPopMatrix();
+  }
+
   void OpenGLDisplay::draw()
   {
-    if (!textureID) {
-      glViewport(0, 0, GLsizei(this->w()), GLsizei(this->h()));
-      glPushMatrix();
-      glOrtho(0.0, 1.0, 1.0, 0.0, 0.0, 1.0);
-      // on first call: initialize texture
-      glEnable(GL_TEXTURE_2D);
-      GLuint  tmp = 0;
-      glGenTextures(1, &tmp);
-      textureID = (unsigned long) tmp;
-      GLint   savedTextureID;
-      glGetIntegerv(GL_TEXTURE_BINDING_2D, &savedTextureID);
-      glBindTexture(GL_TEXTURE_2D, tmp);
-      setTextureParameters(displayParameters.displayQuality);
-      initializeTexture(displayParameters, textureBuffer);
-      glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
-      // clear display
-      glDisable(GL_TEXTURE_2D);
-      glDisable(GL_BLEND);
-      glColor4f(GLfloat(0), GLfloat(0), GLfloat(0), GLfloat(1));
-      glBegin(GL_QUADS);
-      glVertex2f(GLfloat(0.0), GLfloat(0.0));
-      glVertex2f(GLfloat(1.0), GLfloat(0.0));
-      glVertex2f(GLfloat(1.0), GLfloat(1.0));
-      glVertex2f(GLfloat(0.0), GLfloat(1.0));
-      glEnd();
-      glPopMatrix();
+    if (!textureID)
+      initializeGLDisplay();
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+    // damage() only seems to work when called from draw() on Windows
+    if (this->damage() & FL_DAMAGE_EXPOSE) {
+      forceUpdateLineMask = 0xFF;
+      forceUpdateLineCnt = 0;
+      forceUpdateTimer.reset();
     }
+#endif
     if (redrawFlag || videoResampleEnabled) {
       redrawFlag = false;
       displayFrame();
@@ -994,12 +1015,16 @@ namespace Ep128Emu {
       if (screenshotCallbackCnt)
         checkScreenshotCallback();
     }
+#if !(defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER))
+    // damage() only seems to work when called from draw() on Windows
     if (this->damage() & FL_DAMAGE_EXPOSE) {
       forceUpdateLineMask = 0xFF;
       forceUpdateLineCnt = 0;
       forceUpdateTimer.reset();
     }
-    else if (forceUpdateTimer.getRealTime() >= 0.085) {
+    else
+#endif
+    if (forceUpdateTimer.getRealTime() >= 0.085) {
       forceUpdateLineMask |= (uint8_t(1) << forceUpdateLineCnt);
       forceUpdateLineCnt++;
       forceUpdateLineCnt &= uint8_t(7);
