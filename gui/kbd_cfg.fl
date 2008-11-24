@@ -1,5 +1,5 @@
 # data file for the Fltk User Interface Designer (fluid)
-version 1.0107 
+version 1.0109 
 do_not_include_H_from_C 
 header_name {.hpp} 
 code_name {.cpp}
@@ -762,8 +762,8 @@ class Ep128EmuGUI_KbdConfigWindow {open
   try {
     std::string tmp;
     if (gui.browseFile(tmp, gui.configDirectory,
-                       "Configuration files (*.cfg)",
-                       Fl_File_Chooser::CREATE,
+                       "Configuration files\\t*.cfg",
+                       Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
                        "Save keyboard configuration as ASCII text file")) {
       Ep128Emu::ConfigurationDB tmpCfg;
       char    cvName[16];
