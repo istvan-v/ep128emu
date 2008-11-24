@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -23,7 +23,6 @@
 #include "videorec.hpp"
 
 #include <cmath>
-#include <cstring>
 
 static const size_t aviHeaderSize_RLE8 = 0x0546;
 static const size_t aviHeaderSize_YV12 = 0x0146;
@@ -165,8 +164,8 @@ namespace Ep128Emu {
   void VideoCapture::vsyncStateChange(bool newState, unsigned int currentSlot_)
   {
     vsyncState = newState;
-    if (newState && (vsyncCnt + int(hsyncCnt >= 51)) >= 261) {
-      vsyncCnt = -19 - int(hsyncCnt >= 51);
+    if (newState && (vsyncCnt + int(hsyncCnt >= 51)) >= 260) {
+      vsyncCnt = -20 - int(hsyncCnt >= 51);
       oddFrame = (currentSlot_ >= 20U && currentSlot_ < 48U);
     }
   }
@@ -412,8 +411,8 @@ namespace Ep128Emu {
       curLine += 2;
       if (curLine < videoHeight)
         tmpFrameBuf.lineBytes(curLine) = 0U;
-      if (vsyncCnt >= 261 && (vsyncState || vsyncCnt >= 335))
-        vsyncCnt = -19;
+      if (vsyncCnt >= 259 && (vsyncState || vsyncCnt >= 333))
+        vsyncCnt = -21;
       vsyncCnt++;
     }
     else {
@@ -1129,8 +1128,8 @@ namespace Ep128Emu {
     lineBufBytes = 0;
     if (vsyncCnt != 0) {
       curLine += 2;
-      if (vsyncCnt >= 261 && (vsyncState || vsyncCnt >= 335))
-        vsyncCnt = -19;
+      if (vsyncCnt >= 259 && (vsyncState || vsyncCnt >= 333))
+        vsyncCnt = -21;
       vsyncCnt++;
     }
     else {
