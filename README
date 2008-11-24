@@ -1,5 +1,5 @@
-ep128emu 2.0.5.1
-================
+ep128emu 2.0.6 beta
+===================
 
 ep128emu is an open source, portable emulator of the Enterprise 128
 computer, written in C++, and supporting Windows and POSIX platforms
@@ -182,7 +182,7 @@ Command line options
     while in OpenGL mode the textures are 16 bit (R5G6B5) only, to
     improve performance
   -colorscheme <N>
-    select GUI color scheme N (0, 1, or 2)
+    select GUI color scheme N (0, 1, 2, or 3)
   OPTION=VALUE
     set configuration variable 'OPTION' to 'VALUE'; the available
     variable names are the same as those used in ASCII format
@@ -193,13 +193,13 @@ Command line options
 'File' menu
 -----------
 
-Configuration / Load from ASCII file
+Configuration / Load from ASCII file (Alt + Q)
 
   Select and load an ASCII format configuration file and apply the new
   settings. If the configuration file does not include all the supported
   options, those that are omitted are left unchanged.
 
-Configuration / Load from binary file
+Configuration / Load from binary file (Alt + L)
 
   Load an ep128emu format binary file, which may be a previously saved
   snapshot, demo, or a binary format configuration file.
@@ -220,7 +220,7 @@ Configuration / Revert
   Reload emulator configuration from ~/.ep128emu/ep128cfg.dat, and apply
   the original settings.
 
-Save snapshot
+Save snapshot (Alt + S)
 
   Save a snapshot of the current state of the emulated machine to the
   selected file. The snapshot will also include the current memory
@@ -230,7 +230,7 @@ Save snapshot
   that the state of any floppy drives is currently not saved, and the
   drives are reset on loading a snapshot.
 
-Load snapshot
+Load snapshot (Alt + L)
 
   Load an ep128emu format binary file, which may be a previously saved
   snapshot, demo, or a binary format configuration file.
@@ -257,11 +257,11 @@ Record demo
   different releases of the emulator, and the timing may also be
   incorrect when using a different version to play a demo file.
 
-Stop demo (Ctrl + F12)
+Stop demo (Alt + K)
 
   Stop any currently running demo playback or recording.
 
-Load demo
+Load demo (Alt + L)
 
   Load an ep128emu format binary file, which may be a previously saved
   snapshot, demo, or a binary format configuration file.
@@ -289,14 +289,14 @@ Record video / Stop
   Stop video capture, and close any AVI file that is currently being
   written.
 
-Save screenshot
+Save screenshot (F12, Alt + C)
 
   Save a screenshot in 8 bit RLE compressed TGA format. The video output
   is captured immediately after activating this menu item, and is saved
   at a resolution of 768x576 without any processing (color correction,
   effects, etc.).
 
-Quit
+Quit (Shift + F12)
 
   Exit the emulator.
 
@@ -378,7 +378,7 @@ Sound / Decrease volume
 
   Decrease sound output volume by about 2 dB.
 
-Floppy / Configure...
+Floppy / Configure... (Alt + D)
 
   Opens a dialog for setting up floppy emulation. For each drive, an
   image file can be selected, and disk geometry parameters can be
@@ -410,7 +410,7 @@ Floppy / Replace disk / All drives
   mostly useful when accessing real floppy disks, after the disk is
   changed.
 
-Set working directory
+Set working directory (Alt + F)
 
   Set the directory to be accessed by the optional file I/O ROM
   extension modules.
@@ -639,7 +639,7 @@ passed to the EXOS call.
 Copyright
 =========
 
-ep128emu is copyright (C) 2003-2007 by Istvan Varga
+ep128emu is copyright (C) 2003-2008 by Istvan Varga
 <istvanv@users.sourceforge.net>. Z80 emulation copyright (C) 1999-2003
 by Kevin Thacker and Vincze Béla György.
 
