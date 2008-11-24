@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -20,7 +20,6 @@
 #include "ep128emu.hpp"
 #include "system.hpp"
 
-#include <cstring>
 #include <typeinfo>
 
 #include <FL/Fl.H>
@@ -350,8 +349,8 @@ namespace Ep128Emu {
     }
     if (vsyncCnt != 0) {
       curLine += 2;
-      if (vsyncCnt >= 262 && (vsyncState || vsyncCnt >= 336))
-        vsyncCnt = -18;
+      if (vsyncCnt >= 261 && (vsyncState || vsyncCnt >= 335))
+        vsyncCnt = -19;
       vsyncCnt++;
     }
     else {
@@ -365,8 +364,8 @@ namespace Ep128Emu {
   void FLTKDisplay_::vsyncStateChange(bool newState, unsigned int currentSlot_)
   {
     vsyncState = newState;
-    if (newState && vsyncCnt >= 262) {
-      vsyncCnt = -18;
+    if (newState && vsyncCnt >= 261) {
+      vsyncCnt = -19;
       oddFrame = (currentSlot_ >= 20U && currentSlot_ < 48U);
     }
   }
@@ -889,6 +888,14 @@ namespace Ep128Emu {
 
   void FLTKDisplay::draw()
   {
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+    // damage() only seems to work when called from draw() on Windows
+    if (this->damage() & FL_DAMAGE_EXPOSE) {
+      forceUpdateLineMask = 0xFF;
+      forceUpdateLineCnt = 0;
+      forceUpdateTimer.reset();
+    }
+#endif
     if (redrawFlag) {
       redrawFlag = false;
       displayFrame();
@@ -972,12 +979,16 @@ namespace Ep128Emu {
       if (screenshotCallbackCnt)
         checkScreenshotCallback();
     }
+#if !(defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER))
+    // damage() only seems to work when called from draw() on Windows
     if (this->damage() & FL_DAMAGE_EXPOSE) {
       forceUpdateLineMask = 0xFF;
       forceUpdateLineCnt = 0;
       forceUpdateTimer.reset();
     }
-    else if (forceUpdateTimer.getRealTime() >= 0.085) {
+    else
+#endif
+    if (forceUpdateTimer.getRealTime() >= 0.085) {
       forceUpdateLineMask |= (uint8_t(1) << forceUpdateLineCnt);
       forceUpdateLineCnt++;
       forceUpdateLineCnt &= uint8_t(7);
