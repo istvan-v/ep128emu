@@ -1,5 +1,5 @@
 # data file for the Fltk User Interface Designer (fluid)
-version 1.0107 
+version 1.0109 
 do_not_include_H_from_C 
 header_name {.hpp} 
 code_name {.cpp}
@@ -286,7 +286,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.display.quality = int(o->value() + 0.5);
   gui.config.displaySettingsChanged = true;
 }}
-          tooltip {This parameter is used only in OpenGL mode. Larger values increase the texture size and enable more effects at the expense of higher CPU usage} xywh {20 336 110 23} type Horizontal color 47 selection_color 52 align 8 maximum 3 step 1 value 1
+          tooltip {This parameter is used only in OpenGL mode. Larger values increase the texture size and enable more effects at the expense of higher CPU usage} xywh {20 336 110 23} type Horizontal color 47 selection_color 52 align 8 maximum 3 step 1 value 2
         }
         Fl_Value_Input pixelAspectRatioValuator {
           label {Pixel aspect ratio}
@@ -338,6 +338,35 @@ class Ep128EmuGUI_DisplayConfigWindow {open
 }}
           tooltip {Amount of temporal filtering in OpenGL / single buffered mode} xywh {195 374 120 21} type Horizontal color 47 selection_color 52 labelsize 12 align 8 maximum 0.95 value 0.25
         }
+      }
+      Fl_Button {} {
+        label {Reset default settings}
+        callback {{
+  gui.config.displaySettingsChanged = true;
+  gui.config.display.enabled = true;
+  gui.config.display.bufferingMode = 0;
+  gui.config.display.quality = 2;
+  gui.config.display.brightness = 0.0;
+  gui.config.display.contrast = 1.0;
+  gui.config.display.gamma = 1.0;
+  gui.config.display.hueShift = 0.0;
+  gui.config.display.saturation = 1.0;
+  gui.config.display.red.brightness = 0.0;
+  gui.config.display.red.contrast = 1.0;
+  gui.config.display.red.gamma = 1.0;
+  gui.config.display.green.brightness = 0.0;
+  gui.config.display.green.contrast = 1.0;
+  gui.config.display.green.gamma = 1.0;
+  gui.config.display.blue.brightness = 0.0;
+  gui.config.display.blue.contrast = 1.0;
+  gui.config.display.blue.gamma = 1.0;
+  gui.config.display.lineShade = 0.75;
+  gui.config.display.blendScale = 1.0;
+  gui.config.display.motionBlur = 0.25;
+  gui.config.display.pixelAspectRatio = 1.0;
+  updateWindow();
+}}
+        xywh {15 415 170 25} selection_color 50
       }
       Fl_Button {} {
         label Apply

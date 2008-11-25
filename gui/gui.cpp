@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -18,6 +18,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include "gui.hpp"
+#include "guicolor.hpp"
 
 #ifdef WIN32
 #  undef WIN32
@@ -66,10 +67,11 @@ void Ep128EmuGUI::init_()
   demoRecordFile = (Ep128Emu::File *) 0;
   quickSnapshotFileName = "";
   updateDisplayEntered = false;
-  browseFileWindowShowFlag = false;
   debugWindowShowFlag = false;
   debugWindowOpenFlag = false;
-  browseFileWindow = (Fl_File_Chooser *) 0;
+  browseFileWindowShowFlag = false;
+  browseFileStatus = 1;
+  browseFileWindow = (Fl_Native_File_Chooser *) 0;
   windowToShow = (Fl_Window *) 0;
   diskConfigWindow = (Ep128EmuGUI_DiskConfigWindow *) 0;
   displaySettingsWindow = (Ep128EmuGUI_DisplayConfigWindow *) 0;
@@ -78,7 +80,7 @@ void Ep128EmuGUI::init_()
   machineConfigWindow = (Ep128EmuGUI_MachineConfigWindow *) 0;
   debugWindow = (Ep128EmuGUI_DebugWindow *) 0;
   aboutWindow = (Ep128EmuGUI_AboutWindow *) 0;
-  savedSpeedPercentage = 100U;
+  savedSpeedPercentage = 0U;
   std::string defaultDir_(".");
   snapshotDirectory = defaultDir_;
   demoDirectory = defaultDir_;
@@ -88,9 +90,9 @@ void Ep128EmuGUI::init_()
   tapeImageDirectory = defaultDir_;
   diskImageDirectory = defaultDir_;
   romImageDirectory = defaultDir_;
-  prgFileDirectory = defaultDir_;
   debuggerDirectory = defaultDir_;
   screenshotDirectory = defaultDir_;
+  screenshotFileName = "";
   guiConfig.createKey("gui.snapshotDirectory", snapshotDirectory);
   guiConfig.createKey("gui.demoDirectory", demoDirectory);
   guiConfig.createKey("gui.soundFileDirectory", soundFileDirectory);
@@ -99,20 +101,19 @@ void Ep128EmuGUI::init_()
   guiConfig.createKey("gui.tapeImageDirectory", tapeImageDirectory);
   guiConfig.createKey("gui.diskImageDirectory", diskImageDirectory);
   guiConfig.createKey("gui.romImageDirectory", romImageDirectory);
-  guiConfig.createKey("gui.prgFileDirectory", prgFileDirectory);
   guiConfig.createKey("gui.debuggerDirectory", debuggerDirectory);
   guiConfig.createKey("gui.screenshotDirectory", screenshotDirectory);
-  browseFileWindow = new Fl_File_Chooser("", "*", Fl_File_Chooser::SINGLE, "");
+  browseFileWindow = new Fl_Native_File_Chooser();
   Fl::add_check(&fltkCheckCallback, (void *) this);
 }
 
 void Ep128EmuGUI::updateDisplay_windowTitle()
 {
   if (oldPauseFlag) {
-    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.5.1 (paused)");
+    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.6 beta (paused)");
   }
   else {
-    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.5.1 (%d%%)",
+    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.6 beta (%d%%)",
                  int(oldSpeedPercentage));
   }
   mainWindow->label(&(windowTitleBuf[0]));
@@ -209,7 +210,7 @@ void Ep128EmuGUI::updateDisplay(double t)
   }
   if (browseFileWindowShowFlag | debugWindowShowFlag) {
     if (browseFileWindowShowFlag) {
-      browseFileWindow->show();
+      browseFileStatus = browseFileWindow->show();
       browseFileWindowShowFlag = false;
     }
     if (debugWindowShowFlag) {
@@ -247,13 +248,13 @@ void Ep128EmuGUI::updateDisplay(double t)
   int   newDemoStatus = (vmThreadStatus.isRecordingDemo ?
                          2 : (vmThreadStatus.isPlayingDemo ? 1 : 0));
   if (newDemoStatus != oldDemoStatus) {
-    const Fl_Menu_Item *m = mainMenuBar->find_item("File/Stop demo (Ctrl+F12)");
+    Fl_Menu_Item& m = getMenuItem(0);   // "File/Stop demo (Alt+K)"
     if (newDemoStatus == 0) {
       if (oldDemoStatus == 2)
         closeDemoFile(false);
       demoStatusDisplay1->hide();
       demoStatusDisplay2->hide();
-      const_cast<Fl_Menu_Item *>(m)->deactivate();
+      m.deactivate();
     }
     else {
       demoStatusDisplay1->show();
@@ -266,7 +267,7 @@ void Ep128EmuGUI::updateDisplay(double t)
         demoStatusDisplay2->labelcolor(Fl_Color(1));
         demoStatusDisplay2->label("R");
       }
-      const_cast<Fl_Menu_Item *>(m)->activate();
+      m.activate();
     }
     oldDemoStatus = newDemoStatus;
     mainWindow->redraw();
@@ -388,19 +389,61 @@ void Ep128EmuGUI::errorMessage(const char *msg)
   }
 }
 
-void Ep128EmuGUI::run()
+Fl_Menu_Item& Ep128EmuGUI::getMenuItem(int n)
 {
-  config.setErrorCallback(&errorMessageCallback, (void *) this);
-  // set initial window size from saved configuration
-  flDisplay->setFLTKEventCallback(&handleFLTKEvent, (void *) this);
-  mainWindow->resizable((Fl_Widget *) 0);
-  emulatorWindow->color(47, 47);
-  resizeWindow(config.display.width, config.display.height);
-  updateDisplay_windowTitle();
-  // create menu bar
-  mainMenuBar->add("File/Configuration/Load from ASCII file",
+  const char  *s = (char *) 0;
+  switch (n) {
+  case 0:
+    s = "File/Stop demo (Alt+K)";
+    break;
+  case 1:
+    s = "File/Record audio/Stop";
+    break;
+  case 2:
+    s = "File/Record video/Stop";
+    break;
+  case 3:
+    s = "Machine/Speed/No limit (Alt+W)";
+    break;
+  case 4:
+    s = "Options/Process priority/Idle";
+    break;
+  case 5:
+    s = "Options/Process priority/Below normal";
+    break;
+  case 6:
+    s = "Options/Process priority/Normal";
+    break;
+  case 7:
+    s = "Options/Process priority/Above normal";
+    break;
+  case 8:
+    s = "Options/Process priority/High";
+    break;
+  default:
+    throw Ep128Emu::Exception("internal error: invalid menu item number");
+  }
+  return *(const_cast<Fl_Menu_Item *>(mainMenuBar->find_item(s)));
+}
+
+int Ep128EmuGUI::getMenuItemIndex(int n)
+{
+  const Fl_Menu_Item  *tmp = &(getMenuItem(n));
+  return int(tmp - mainMenuBar->menu());
+}
+
+void Ep128EmuGUI::createMenus()
+{
+  Ep128Emu::setWindowIcon(mainWindow, 0);
+  Ep128Emu::setWindowIcon(diskConfigWindow->window, 1);
+  Ep128Emu::setWindowIcon(displaySettingsWindow->window, 2);
+  Ep128Emu::setWindowIcon(keyboardConfigWindow->window, 3);
+  Ep128Emu::setWindowIcon(machineConfigWindow->window, 3);
+  Ep128Emu::setWindowIcon(aboutWindow->window, 10);
+  Ep128Emu::setWindowIcon(errorMessageWindow, 12);
+  mainMenuBar->add("File/Configuration/Load from ASCII file (Alt+Q)",
                    (char *) 0, &menuCallback_File_LoadConfig, (void *) this);
-  mainMenuBar->add("File/Configuration/Load from binary file",
+  mainMenuBar->add("File/Configuration/Load from binary file (Alt+L)",
                    (char *) 0, &menuCallback_File_LoadFile, (void *) this);
   mainMenuBar->add("File/Configuration/Save as ASCII file",
                    (char *) 0, &menuCallback_File_SaveConfig, (void *) this);
@@ -408,9 +451,9 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_File_SaveMainCfg, (void *) this);
   mainMenuBar->add("File/Configuration/Revert",
                    (char *) 0, &menuCallback_File_RevertCfg, (void *) this);
-  mainMenuBar->add("File/Save snapshot",
+  mainMenuBar->add("File/Save snapshot (Alt+S)",
                    (char *) 0, &menuCallback_File_SaveSnapshot, (void *) this);
-  mainMenuBar->add("File/Load snapshot",
+  mainMenuBar->add("File/Load snapshot (Alt+L)",
                    (char *) 0, &menuCallback_File_LoadFile, (void *) this);
   mainMenuBar->add("File/Quick snapshot/Set file name",
                    (char *) 0, &menuCallback_File_QSFileName, (void *) this);
@@ -420,9 +463,9 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_File_QSLoad, (void *) this);
   mainMenuBar->add("File/Record demo",
                    (char *) 0, &menuCallback_File_RecordDemo, (void *) this);
-  mainMenuBar->add("File/Stop demo (Ctrl+F12)",
+  mainMenuBar->add("File/Stop demo (Alt+K)",
                    (char *) 0, &menuCallback_File_StopDemo, (void *) this);
-  mainMenuBar->add("File/Load demo",
+  mainMenuBar->add("File/Load demo (Alt+L)",
                    (char *) 0, &menuCallback_File_LoadFile, (void *) this);
   mainMenuBar->add("File/Record audio/Start...",
                    (char *) 0, &menuCallback_File_RecordSound, (void *) this);
@@ -432,11 +475,11 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_File_RecordVideo, (void *) this);
   mainMenuBar->add("File/Record video/Stop",
                    (char *) 0, &menuCallback_File_StopAVIRecord, (void *) this);
-  mainMenuBar->add("File/Save screenshot",
+  mainMenuBar->add("File/Save screenshot (F12)",
                    (char *) 0, &menuCallback_File_Screenshot, (void *) this);
-  mainMenuBar->add("File/Quit",
+  mainMenuBar->add("File/Quit (Shift+F12)",
                    (char *) 0, &menuCallback_File_Quit, (void *) this);
-  mainMenuBar->add("Machine/Speed/No limit",
+  mainMenuBar->add("Machine/Speed/No limit (Alt+W)",
                    (char *) 0, &menuCallback_Machine_FullSpeed, (void *) this);
   mainMenuBar->add("Machine/Speed/10%",
                    (char *) 0, &menuCallback_Machine_Speed_10, (void *) this);
@@ -444,29 +487,29 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Machine_Speed_25, (void *) this);
   mainMenuBar->add("Machine/Speed/50%",
                    (char *) 0, &menuCallback_Machine_Speed_50, (void *) this);
-  mainMenuBar->add("Machine/Speed/100%",
+  mainMenuBar->add("Machine/Speed/100% (Alt+E)",
                    (char *) 0, &menuCallback_Machine_Speed_100, (void *) this);
   mainMenuBar->add("Machine/Speed/200%",
                    (char *) 0, &menuCallback_Machine_Speed_200, (void *) this);
   mainMenuBar->add("Machine/Speed/400%",
                    (char *) 0, &menuCallback_Machine_Speed_400, (void *) this);
-  mainMenuBar->add("Machine/Tape/Select image file",
+  mainMenuBar->add("Machine/Tape/Select image file (Alt+T)",
                    (char *) 0, &menuCallback_Machine_OpenTape, (void *) this);
-  mainMenuBar->add("Machine/Tape/Play (Shift + F9)",
+  mainMenuBar->add("Machine/Tape/Play (Alt+P)",
                    (char *) 0, &menuCallback_Machine_TapePlay, (void *) this);
-  mainMenuBar->add("Machine/Tape/Stop (Shift + F10)",
+  mainMenuBar->add("Machine/Tape/Stop (Alt+O)",
                    (char *) 0, &menuCallback_Machine_TapeStop, (void *) this);
-  mainMenuBar->add("Machine/Tape/Record (Shift + F12)",
+  mainMenuBar->add("Machine/Tape/Record",
                    (char *) 0, &menuCallback_Machine_TapeRecord, (void *) this);
-  mainMenuBar->add("Machine/Tape/Rewind/To beginning of tape",
+  mainMenuBar->add("Machine/Tape/Rewind/To beginning of tape (Alt+R)",
                    (char *) 0, &menuCallback_Machine_TapeRewind, (void *) this);
-  mainMenuBar->add("Machine/Tape/Rewind/To previous marker",
+  mainMenuBar->add("Machine/Tape/Rewind/To previous marker (Alt+,)",
                    (char *) 0, &menuCallback_Machine_TapePrvCP, (void *) this);
   mainMenuBar->add("Machine/Tape/Rewind/By 10 seconds",
                    (char *) 0, &menuCallback_Machine_TapeBwd10s, (void *) this);
   mainMenuBar->add("Machine/Tape/Rewind/By 60 seconds",
                    (char *) 0, &menuCallback_Machine_TapeBwd60s, (void *) this);
-  mainMenuBar->add("Machine/Tape/Fast forward/To next marker (F12)",
+  mainMenuBar->add("Machine/Tape/Fast forward/To next marker (Alt+.)",
                    (char *) 0, &menuCallback_Machine_TapeNxtCP, (void *) this);
   mainMenuBar->add("Machine/Tape/Fast forward/By 10 seconds",
                    (char *) 0, &menuCallback_Machine_TapeFwd10s, (void *) this);
@@ -498,10 +541,8 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Machine_QuickCfgS2, (void *) this);
   mainMenuBar->add("Machine/Toggle pause (F10)",
                    (char *) 0, &menuCallback_Machine_Pause, (void *) this);
-  mainMenuBar->add("Machine/Configure...",
+  mainMenuBar->add("Machine/Configure... (Shift+F10)",
                    (char *) 0, &menuCallback_Machine_Configure, (void *) this);
-  mainMenuBar->add("Options/Display/Configure...",
-                   (char *) 0, &menuCallback_Options_DpyConfig, (void *) this);
   mainMenuBar->add("Options/Display/Set size to 384x288",
                    (char *) 0, &menuCallback_Options_DpySize1, (void *) this);
   mainMenuBar->add("Options/Display/Set size to 768x576",
@@ -510,14 +551,14 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Options_DpySize3, (void *) this);
   mainMenuBar->add("Options/Display/Cycle display mode (F9)",
                    (char *) 0, &menuCallback_Options_DpyMode, (void *) this);
+  mainMenuBar->add("Options/Display/Configure... (Shift+F9)",
+                   (char *) 0, &menuCallback_Options_DpyConfig, (void *) this);
   mainMenuBar->add("Options/Sound/Increase volume",
                    (char *) 0, &menuCallback_Options_SndIncVol, (void *) this);
   mainMenuBar->add("Options/Sound/Decrease volume",
                    (char *) 0, &menuCallback_Options_SndDecVol, (void *) this);
-  mainMenuBar->add("Options/Sound/Configure...",
+  mainMenuBar->add("Options/Sound/Configure... (Alt+U)",
                    (char *) 0, &menuCallback_Options_SndConfig, (void *) this);
-  mainMenuBar->add("Options/Floppy/Configure...",
-                   (char *) 0, &menuCallback_Options_FloppyCfg, (void *) this);
   mainMenuBar->add("Options/Floppy/Remove disk/Drive A",
                    (char *) 0, &menuCallback_Options_FloppyRmA, (void *) this);
   mainMenuBar->add("Options/Floppy/Remove disk/Drive B",
@@ -538,20 +579,56 @@ void Ep128EmuGUI::run()
                    (char *) 0, &menuCallback_Options_FloppyRpD, (void *) this);
   mainMenuBar->add("Options/Floppy/Replace disk/All drives",
                    (char *) 0, &menuCallback_Options_FloppyRpl, (void *) this);
-  mainMenuBar->add("Options/Keyboard map",
+  mainMenuBar->add("Options/Floppy/Configure... (Alt+D)",
+                   (char *) 0, &menuCallback_Options_FloppyCfg, (void *) this);
+  mainMenuBar->add("Options/Process priority/Idle",
+                   (char *) 0, &menuCallback_Options_PPriority, (void *) this);
+  mainMenuBar->add("Options/Process priority/Below normal",
+                   (char *) 0, &menuCallback_Options_PPriority, (void *) this);
+  mainMenuBar->add("Options/Process priority/Normal",
+                   (char *) 0, &menuCallback_Options_PPriority, (void *) this);
+  mainMenuBar->add("Options/Process priority/Above normal",
+                   (char *) 0, &menuCallback_Options_PPriority, (void *) this);
+  mainMenuBar->add("Options/Process priority/High",
+                   (char *) 0, &menuCallback_Options_PPriority, (void *) this);
+  mainMenuBar->add("Options/Keyboard map (Alt+I)",
                    (char *) 0, &menuCallback_Options_KbdConfig, (void *) this);
-  mainMenuBar->add("Options/Set working directory",
+  mainMenuBar->add("Options/Set working directory (Alt+F)",
                    (char *) 0, &menuCallback_Options_FileIODir, (void *) this);
-  mainMenuBar->add("Debug/Start debugger",
+  mainMenuBar->add("Debug/Start debugger (Alt+B)",
                    (char *) 0, &menuCallback_Debug_OpenDebugger, (void *) this);
   mainMenuBar->add("Help/About",
                    (char *) 0, &menuCallback_Help_About, (void *) this);
-  const_cast<Fl_Menu_Item *>(mainMenuBar->find_item(
-                                 "File/Record video/Stop"))->deactivate();
-  mainMenuBar->mode(int(mainMenuBar->find_item("Machine/Speed/No limit")
-                        - mainMenuBar->menu()),
-                    FL_MENU_TOGGLE);
+  // "File/Record video/Stop"
+  getMenuItem(2).deactivate();
+  // "Machine/Speed/No limit (Alt+W)"
+  mainMenuBar->mode(getMenuItemIndex(3), FL_MENU_TOGGLE);
+  // "Options/Process priority/Idle"
+  // "Options/Process priority/Below normal"
+  // "Options/Process priority/Normal"
+  // "Options/Process priority/Above normal"
+  // "Options/Process priority/High"
+  for (int i = 4; i <= 8; i++)
+    mainMenuBar->mode(getMenuItemIndex(i), FL_MENU_RADIO);
+#ifndef WIN32
+  // TODO: implement process priority setting on non-Windows platforms
+  for (int i = 4; i <= 8; i++)
+    getMenuItem(i).deactivate();
+#endif
   updateMenu();
+}
+
+void Ep128EmuGUI::run()
+{
+  config.setErrorCallback(&errorMessageCallback, (void *) this);
+  // set initial window size from saved configuration
+  flDisplay->setFLTKEventCallback(&handleFLTKEvent, (void *) this);
+  mainWindow->resizable((Fl_Widget *) 0);
+  emulatorWindow->color(47, 47);
+  resizeWindow(config.display.width, config.display.height);
+  updateDisplay_windowTitle();
+  // create menu bar
+  createMenus();
   mainWindow->show();
   emulatorWindow->show();
   // load and apply GUI configuration
@@ -583,8 +660,6 @@ void Ep128EmuGUI::run()
   } while (mainWindow->shown() && !exitFlag);
   // close windows and stop emulation thread
   browseFileWindowShowFlag = false;
-  if (browseFileWindow->shown())
-    browseFileWindow->hide();
   windowToShow = (Fl_Window *) 0;
   if (errorMessageWindow->shown())
     errorMessageWindow->hide();
@@ -699,51 +774,108 @@ int Ep128EmuGUI::handleFLTKEvent(void *userData, int event)
       }
       int   n = -1;
       switch (keyCode) {
-      case FL_Alt_L:
-        n = 28;
-        break;
-      case FL_Alt_R:
-        n = 29;
-        break;
-      case (FL_F + 5):
-      case (FL_F + 6):
-      case (FL_F + 7):
-      case (FL_F + 8):
       case (FL_F + 9):
       case (FL_F + 10):
       case (FL_F + 11):
       case (FL_F + 12):
-        n = keyCode - (FL_F + 5);
+        n = keyCode - (FL_F + 9);
         if (Fl::event_shift())
-          n += 8;
+          n += 4;
         else if (Fl::event_ctrl())
-          n += 16;
-        break;
-      case 0x64:
-        if (Fl::event_alt() || !isKeyPress)
-          n = 24;
-        break;
-      case 0x6D:
-        if (Fl::event_alt() || !isKeyPress)
-          n = 25;
-        break;
-      case 0x77:
-        if (Fl::event_alt() || !isKeyPress)
-          n = 26;
+          n += 8;
         break;
       case FL_Pause:
-        n = 27;
+        n = 12;
         break;
       case FL_Page_Down:
-        n = 30;
+        n = 13;
         break;
       case FL_Page_Up:
+        n = 14;
+        break;
+      case FL_Alt_L:
+        n = 15;
+        break;
+      case FL_Alt_R:
+        n = 16;
+        break;
+      case (FL_KP + '0'):
+        n = 17;
+        break;
+      case (FL_KP + '1'):
+        n = 18;
+        break;
+      case (FL_KP + '3'):
+        n = 19;
+        break;
+      case (FL_KP + '4'):
+        n = 20;
+        break;
+      case 0x2C:                // ','
+        n = 21;
+        break;
+      case 0x2E:                // '.'
+        n = 22;
+        break;
+      case 0x61:                // 'A'
+        n = 23;
+        break;
+      case 0x62:                // 'B'
+        n = 24;
+        break;
+      case 0x63:                // 'C'
+        n = 25;
+        break;
+      case 0x64:                // 'D'
+        n = 26;
+        break;
+      case 0x65:                // 'E'
+        n = 27;
+        break;
+      case 0x66:                // 'F'
+        n = 28;
+        break;
+      case 0x69:                // 'I'
+        n = 29;
+        break;
+      case 0x6B:                // 'K'
+        n = 30;
+        break;
+      case 0x6C:                // 'L'
         n = 31;
         break;
+      case 0x6F:                // 'O'
+        n = 32;
+        break;
+      case 0x70:                // 'P'
+        n = 33;
+        break;
+      case 0x71:                // 'Q'
+        n = 34;
+        break;
+      case 0x72:                // 'R'
+        n = 35;
+        break;
+      case 0x73:                // 'S'
+        n = 36;
+        break;
+      case 0x74:                // 'T'
+        n = 37;
+        break;
+      case 0x75:                // 'U'
+        n = 38;
+        break;
+      case 0x77:                // 'W'
+        n = 39;
+        break;
+      }
+      if (n >= 21) {
+        if (isKeyPress && !Fl::event_alt())
+          n = -1;
       }
       if (n >= 0) {
-        uint32_t  bitMask = 1U << n;
-        bool      wasPressed = !!(gui_.functionKeyState & bitMask);
+        uint32_t  bitMask = 1U << (unsigned char) (n < 12 ? (n & 3) : (n - 8));
+        bool      wasPressed = bool(gui_.functionKeyState & bitMask);
         if (isKeyPress != wasPressed) {
           if (isKeyPress)
             gui_.functionKeyState |= bitMask;
@@ -751,77 +883,101 @@ int Ep128EmuGUI::handleFLTKEvent(void *userData, int event)
             gui_.functionKeyState &= (bitMask ^ uint32_t(0xFFFFFFFFU));
           if (isKeyPress) {
             switch (n) {
-            case 0:                                     // F5:
-              gui_.menuCallback_Machine_TapePlay((Fl_Widget *) 0, userData);
-              break;
-            case 1:                                     // F6:
-              gui_.menuCallback_Machine_OpenTape((Fl_Widget *) 0, userData);
-              break;
-            case 2:                                     // F7:
-              gui_.menuCallback_File_LoadFile((Fl_Widget *) 0, userData);
-              break;
-            case 4:                                     // F9:
+            case 0:                                     // F9:
               gui_.menuCallback_Options_DpyMode((Fl_Widget *) 0, userData);
               break;
-            case 5:                                     // F10:
+            case 1:                                     // F10:
+            case 12:                                    // Pause:
               gui_.menuCallback_Machine_Pause((Fl_Widget *) 0, userData);
               break;
-            case 6:                                     // F11:
+            case 2:                                     // F11:
               gui_.menuCallback_Machine_Reset((Fl_Widget *) 0, userData);
               break;
-            case 7:                                     // F12:
-              gui_.menuCallback_Machine_TapeNxtCP((Fl_Widget *) 0, userData);
+            case 3:                                     // F12:
+            case 25:                                    // Alt+C:
+              gui_.menuCallback_File_Screenshot((Fl_Widget *) 0, userData);
               break;
-            case 8:                                     // Shift + F5:
-              gui_.menuCallback_Machine_TapeStop((Fl_Widget *) 0, userData);
+            case 4:                                     // Shift+F9:
+              gui_.menuCallback_Options_DpyConfig((Fl_Widget *) 0, userData);
               break;
-            case 9:                                     // Shift + F6:
-              gui_.menuCallback_Machine_TapeRecord((Fl_Widget *) 0, userData);
+            case 5:                                     // Shift+F10:
+              gui_.menuCallback_Machine_Configure((Fl_Widget *) 0, userData);
               break;
-            case 10:                                    // Shift + F7:
-              gui_.menuCallback_File_SaveSnapshot((Fl_Widget *) 0, userData);
-              break;
-            case 12:                                    // Shift + F9:
-              gui_.menuCallback_Machine_TapePlay((Fl_Widget *) 0, userData);
-              break;
-            case 13:                                    // Shift + F10:
-              gui_.menuCallback_Machine_TapeStop((Fl_Widget *) 0, userData);
-              break;
-            case 14:                                    // Shift + F11:
+            case 6:                                     // Shift+F11:
               gui_.menuCallback_Machine_ResetAll((Fl_Widget *) 0, userData);
               break;
-            case 15:                                    // Shift + F12:
-              gui_.menuCallback_Machine_TapeRecord((Fl_Widget *) 0, userData);
+            case 7:                                     // Shift+F12:
+              gui_.menuCallback_File_Quit((Fl_Widget *) 0, userData);
               break;
-            case 20:                                    // Ctrl + F9:
+            case 8:                                     // Ctrl+F9:
               gui_.menuCallback_File_QSSave((Fl_Widget *) 0, userData);
               break;
-            case 21:                                    // Ctrl + F10:
+            case 9:                                     // Ctrl+F10:
               gui_.menuCallback_File_QSLoad((Fl_Widget *) 0, userData);
               break;
-            case 22:                                    // Ctrl + F11:
+            case 10:                                    // Ctrl+F11:
               gui_.menuCallback_Machine_ColdReset((Fl_Widget *) 0, userData);
               break;
-            case 23:                                    // Ctrl + F12:
-              gui_.menuCallback_File_StopDemo((Fl_Widget *) 0, userData);
-              break;
-            case 24:                                    // Alt + D:
-              gui_.menuCallback_Options_FloppyCfg((Fl_Widget *) 0, userData);
-              break;
-            case 25:                                    // Alt + M:
-              gui_.menuCallback_Debug_OpenDebugger((Fl_Widget *) 0, userData);
-              break;
-            case 26:                                    // Alt + W:
-              gui_.menuCallback_Machine_FullSpeed((Fl_Widget *) 0, userData);
-              break;
-            case 27:                                    // Pause:
-              gui_.menuCallback_Machine_Pause((Fl_Widget *) 0, userData);
-              break;
-            case 30:                                    // PageDown:
+            case 13:                                    // PageDown:
               gui_.menuCallback_Machine_QuickCfgL1((Fl_Widget *) 0, userData);
               break;
-            case 31:                                    // PageUp:
+            case 14:                                    // PageUp:
               gui_.menuCallback_Machine_QuickCfgL2((Fl_Widget *) 0, userData);
+              break;
+            case 17:                                    // KP_0:
+            case 37:                                    // Alt+T:
+              gui_.menuCallback_Machine_OpenTape((Fl_Widget *) 0, userData);
+              break;
+            case 18:                                    // KP_1:
+            case 32:                                    // Alt+O:
+              gui_.menuCallback_Machine_TapeStop((Fl_Widget *) 0, userData);
+              break;
+            case 19:                                    // KP_3:
+            case 33:                                    // Alt+P:
+              gui_.menuCallback_Machine_TapePlay((Fl_Widget *) 0, userData);
+              break;
+            case 20:                                    // KP_4:
+            case 35:                                    // Alt+R:
+              gui_.menuCallback_Machine_TapeRewind((Fl_Widget *) 0, userData);
+              break;
+            case 21:                                    // Alt+,:
+              gui_.menuCallback_Machine_TapePrvCP((Fl_Widget *) 0, userData);
+              break;
+            case 22:                                    // Alt+.:
+              gui_.menuCallback_Machine_TapeNxtCP((Fl_Widget *) 0, userData);
+              break;
+            case 24:                                    // Alt+B:
+              gui_.menuCallback_Debug_OpenDebugger((Fl_Widget *) 0, userData);
+              break;
+            case 26:                                    // Alt+D:
+              gui_.menuCallback_Options_FloppyCfg((Fl_Widget *) 0, userData);
+              break;
+            case 27:                                    // Alt+E:
+              gui_.menuCallback_Machine_Speed_100((Fl_Widget *) 0, userData);
+              break;
+            case 28:                                    // Alt+F:
+              gui_.menuCallback_Options_FileIODir((Fl_Widget *) 0, userData);
+              break;
+            case 29:                                    // Alt+I:
+              gui_.menuCallback_Options_KbdConfig((Fl_Widget *) 0, userData);
+              break;
+            case 30:                                    // Alt+K:
+              gui_.menuCallback_File_StopDemo((Fl_Widget *) 0, userData);
+              break;
+            case 31:                                    // Alt+L:
+              gui_.menuCallback_File_LoadFile((Fl_Widget *) 0, userData);
+              break;
+            case 34:                                    // Alt+Q:
+              gui_.menuCallback_File_LoadConfig((Fl_Widget *) 0, userData);
+              break;
+            case 36:                                    // Alt+S:
+              gui_.menuCallback_File_SaveSnapshot((Fl_Widget *) 0, userData);
+              break;
+            case 38:                                    // Alt+U:
+              gui_.menuCallback_Options_SndConfig((Fl_Widget *) 0, userData);
+              break;
+            case 39:                                    // Alt+W:
+              gui_.menuCallback_Machine_FullSpeed((Fl_Widget *) 0, userData);
               break;
             }
           }
@@ -852,9 +1008,8 @@ bool Ep128EmuGUI::browseFile(std::string& fileName, std::string& dirName,
                              const char *pattern, int type, const char *title)
 {
   bool    retval = false;
-  Fl_File_Chooser *w = (Fl_File_Chooser *) 0;
+  bool    lockFlag = false;
   try {
-    fileName.clear();
 #ifdef WIN32
     uintptr_t currentThreadID = uintptr_t(GetCurrentThreadId());
 #else
@@ -862,63 +1017,83 @@ bool Ep128EmuGUI::browseFile(std::string& fileName, std::string& dirName,
 #endif
     if (currentThreadID != mainThreadID) {
       Fl::lock();
-      w = browseFileWindow;
-      while (w->shown()) {
-        Fl::unlock();
-        updateDisplay();
-        Fl::lock();
+      lockFlag = true;
+    }
+    browseFileWindow->type(type);
+    browseFileWindow->title(title);
+    browseFileWindow->filter(pattern);
+    browseFileWindow->directory(dirName.c_str());
+    if (type != Fl_Native_File_Chooser::BROWSE_DIRECTORY &&
+        type != Fl_Native_File_Chooser::BROWSE_MULTI_DIRECTORY &&
+        type != Fl_Native_File_Chooser::BROWSE_SAVE_DIRECTORY) {
+      std::string tmp;
+      std::string tmp2;
+      Ep128Emu::splitPath(fileName, tmp2, tmp);
+#if !(defined(WIN32) || defined(__APPLE__))
+      if (dirName.length() > 0) {
+        tmp2 = dirName;
+        if (dirName[dirName.length() - 1] != '/' &&
+            dirName[dirName.length() - 1] != '\\') {
+          tmp2 += '/';
+        }
+        tmp2 += tmp;
+        tmp = tmp2;
       }
-      w->directory(dirName.c_str());
-      w->filter(pattern);
-      w->type(type);
-      w->label(title);
-      browseFileWindowShowFlag = true;
-      while (true) {
-        bool  tmp = browseFileWindowShowFlag;
-        Fl::unlock();
-        if (!tmp)
-          break;
-        updateDisplay();
-        Fl::lock();
-      }
+#endif
+      browseFileWindow->preset_file(tmp.c_str());
     }
     else {
-      w = new Fl_File_Chooser(dirName.c_str(), pattern, type, title);
-      w->show();
+      browseFileWindow->preset_file((char *) 0);
     }
-    Fl::lock();
-    while (true) {
-      Fl::unlock();
-      updateDisplay();
-      Fl::lock();
-      if (!w->shown()) {
-        try {
-          const char  *s = w->value();
-          if (s != (char *) 0) {
-            fileName = s;
-            Ep128Emu::stripString(fileName);
-            std::string tmp;
-            Ep128Emu::splitPath(fileName, dirName, tmp);
-            retval = true;
-          }
-        }
-        catch (...) {
-          Fl::unlock();
-          throw;
-        }
+    fileName.clear();
+    browseFileStatus = 1;
+    if (currentThreadID != mainThreadID) {
+      browseFileWindowShowFlag = true;
+      do {
         Fl::unlock();
-        break;
+        lockFlag = false;
+        updateDisplay();
+        Fl::lock();
+        lockFlag = true;
+      } while (browseFileWindowShowFlag);
+    }
+    else {
+      browseFileStatus = browseFileWindow->show();
+    }
+    if (browseFileStatus < 0) {
+      const char  *s = browseFileWindow->errmsg();
+      if (s == (char *) 0 || s[0] == '\0')
+        s = "error selecting file";
+      std::string tmp(s);
+      if (currentThreadID != mainThreadID) {
+        Fl::unlock();
+        lockFlag = false;
+      }
+      errorMessage(tmp.c_str());
+      if (currentThreadID != mainThreadID) {
+        Fl::lock();
+        lockFlag = true;
       }
     }
-    if (currentThreadID == mainThreadID)
-      delete w;
+    else if (browseFileStatus == 0) {
+      const char  *s = browseFileWindow->filename();
+      if (s != (char *) 0) {
+        fileName = s;
+        Ep128Emu::stripString(fileName);
+        std::string tmp;
+        Ep128Emu::splitPath(fileName, dirName, tmp);
+        retval = true;
+      }
+    }
+    if (currentThreadID != mainThreadID) {
+      Fl::unlock();
+      lockFlag = false;
+    }
   }
   catch (std::exception& e) {
-    if (w != (Fl_File_Chooser *) 0 && w != browseFileWindow) {
-      if (w->shown())
-        w->hide();
-      delete w;
-    }
+    if (lockFlag)
+      Fl::unlock();
+    fileName.clear();
     errorMessage(e.what());
   }
   return retval;
@@ -928,7 +1103,8 @@ void Ep128EmuGUI::applyEmulatorConfiguration(bool updateWindowFlag_)
 {
   if (lockVMThread()) {
     try {
-      bool    updateMenuFlag_ = config.soundSettingsChanged;
+      bool    updateMenuFlag_ =
+          config.soundSettingsChanged | config.vmProcessPriorityChanged;
       config.applySettings();
       vmThread.setSpeedPercentage(config.vm.speedPercentage == 100U &&
                                   config.sound.enabled ?
@@ -964,17 +1140,20 @@ void Ep128EmuGUI::applyEmulatorConfiguration(bool updateWindowFlag_)
 
 void Ep128EmuGUI::updateMenu()
 {
-  const Fl_Menu_Item  *m;
-  m = mainMenuBar->find_item("Machine/Speed/No limit");
+  // "Machine/Speed/No limit (Alt+W)"
   if (config.vm.speedPercentage == 0U)
-    const_cast<Fl_Menu_Item *>(m)->set();
+    getMenuItem(3).set();
   else
-    const_cast<Fl_Menu_Item *>(m)->clear();
-  m = mainMenuBar->find_item("File/Record audio/Stop");
+    getMenuItem(3).clear();
+  // "File/Record audio/Stop"
   if (config.sound.file.length() > 0)
-    const_cast<Fl_Menu_Item *>(m)->activate();
+    getMenuItem(1).activate();
   else
-    const_cast<Fl_Menu_Item *>(m)->deactivate();
+    getMenuItem(1).deactivate();
+  // "Options/Process priority"
+  int     tmp = config.vm.processPriority + 6;
+  tmp = (tmp > 4 ? (tmp < 8 ? tmp : 8) : 4);
+  getMenuItem(tmp).setonly();
 }
 
 void Ep128EmuGUI::errorMessageCallback(void *userData, const char *msg)
@@ -987,8 +1166,13 @@ void Ep128EmuGUI::fileNameCallback(void *userData, std::string& fileName)
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(userData));
   try {
     std::string tmp(gui_.config.fileio.workingDirectory);
-    gui_.browseFile(fileName, tmp, "All files (*)",
-                    Fl_File_Chooser::CREATE, "Open file");
+    gui_.browseFile(fileName, tmp, "All files\t*",
+#ifdef WIN32
+                    Fl_Native_File_Chooser::BROWSE_FILE,
+#else
+                    Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
+#endif
+                    "Open file");
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -1013,9 +1197,12 @@ void Ep128EmuGUI::screenshotCallback(void *userData,
   std::string   fName;
   std::FILE     *f = (std::FILE *) 0;
   try {
-    if (!gui_.browseFile(fName, gui_.screenshotDirectory, "TGA files (*.tga)",
-                         Fl_File_Chooser::CREATE, "Save screenshot"))
+    fName = gui_.screenshotFileName;
+    if (!gui_.browseFile(fName, gui_.screenshotDirectory, "TGA files\t*.tga",
+                         Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
+                         "Save screenshot"))
       return;
+    gui_.screenshotFileName = fName;
     f = std::fopen(fName.c_str(), "wb");
     if (!f)
       throw Ep128Emu::Exception("error opening screenshot file");
@@ -1202,8 +1389,9 @@ void Ep128EmuGUI::menuCallback_File_LoadFile(Fl_Widget *o, void *v)
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
     std::string tmp;
-    if (gui_.browseFile(tmp, gui_.loadFileDirectory, "All files (*)",
-                        Fl_File_Chooser::SINGLE, "Load ep128emu binary file")) {
+    if (gui_.browseFile(tmp, gui_.loadFileDirectory, "All files\t*",
+                        Fl_Native_File_Chooser::BROWSE_FILE,
+                        "Load ep128emu binary file")) {
       if (gui_.lockVMThread()) {
         try {
           Ep128Emu::File  f(tmp.c_str());
@@ -1232,8 +1420,8 @@ void Ep128EmuGUI::menuCallback_File_LoadConfig(Fl_Widget *o, void *v)
   try {
     std::string tmp;
     if (gui_.browseFile(tmp, gui_.configDirectory,
-                        "Configuration files (*.cfg)",
-                        Fl_File_Chooser::SINGLE,
+                        "Configuration files\t*.cfg",
+                        Fl_Native_File_Chooser::BROWSE_FILE,
                         "Load ASCII format configuration file")) {
       gui_.config.loadState(tmp.c_str());
       gui_.applyEmulatorConfiguration(true);
@@ -1251,8 +1439,8 @@ void Ep128EmuGUI::menuCallback_File_SaveConfig(Fl_Widget *o, void *v)
   try {
     std::string tmp;
     if (gui_.browseFile(tmp, gui_.configDirectory,
-                        "Configuration files (*.cfg)",
-                        Fl_File_Chooser::CREATE,
+                        "Configuration files\t*.cfg",
+                        Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
                         "Save configuration as ASCII text file")) {
       gui_.config.saveState(tmp.c_str());
     }
@@ -1297,8 +1485,13 @@ void Ep128EmuGUI::menuCallback_File_QSFileName(Fl_Widget *o, void *v)
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
     std::string tmp;
-    if (gui_.browseFile(tmp, gui_.snapshotDirectory, "Snapshot files (*)",
-                        Fl_File_Chooser::CREATE, "Select quick snapshot file"))
+    if (gui_.browseFile(tmp, gui_.snapshotDirectory, "Snapshot files\t*",
+#ifdef WIN32
+                        Fl_Native_File_Chooser::BROWSE_FILE,
+#else
+                        Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
+#endif
+                        "Select quick snapshot file"))
       gui_.quickSnapshotFileName = tmp;
   }
   catch (std::exception& e) {
@@ -1370,8 +1563,9 @@ void Ep128EmuGUI::menuCallback_File_SaveSnapshot(Fl_Widget *o, void *v)
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
     std::string tmp;
-    if (gui_.browseFile(tmp, gui_.snapshotDirectory, "Snapshot files (*)",
-                        Fl_File_Chooser::CREATE, "Save snapshot")) {
+    if (gui_.browseFile(tmp, gui_.snapshotDirectory, "Snapshot files\t*",
+                        Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
+                        "Save snapshot")) {
       gui_.loadFileDirectory = gui_.snapshotDirectory;
       if (gui_.lockVMThread()) {
         try {
@@ -1398,8 +1592,9 @@ void Ep128EmuGUI::menuCallback_File_RecordDemo(Fl_Widget *o, void *v)
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
     std::string tmp;
-    if (gui_.browseFile(tmp, gui_.demoDirectory, "Demo files (*)",
-                        Fl_File_Chooser::CREATE, "Record demo")) {
+    if (gui_.browseFile(tmp, gui_.demoDirectory, "Demo files\t*",
+                        Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
+                        "Record demo")) {
       gui_.loadFileDirectory = gui_.demoDirectory;
       if (gui_.lockVMThread()) {
         if (gui_.closeDemoFile(true)) {
@@ -1445,8 +1640,8 @@ void Ep128EmuGUI::menuCallback_File_RecordSound(Fl_Widget *o, void *v)
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
     std::string tmp;
-    if (gui_.browseFile(tmp, gui_.soundFileDirectory, "Sound files (*.wav)",
-                        Fl_File_Chooser::CREATE,
+    if (gui_.browseFile(tmp, gui_.soundFileDirectory, "Sound files\t*.wav",
+                        Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
                         "Record sound output to WAV file")) {
       gui_.config["sound.file"] = tmp;
       gui_.applyEmulatorConfiguration(true);
@@ -1475,8 +1670,8 @@ void Ep128EmuGUI::menuCallback_File_RecordVideo(Fl_Widget *o, void *v)
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
     std::string tmp;
-    if (!gui_.browseFile(tmp, gui_.soundFileDirectory, "AVI files (*.avi)",
-                         Fl_File_Chooser::CREATE,
+    if (!gui_.browseFile(tmp, gui_.soundFileDirectory, "AVI files\t*.avi",
+                         Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
                          "Record video output to AVI file")) {
       return;
     }
@@ -1490,8 +1685,7 @@ void Ep128EmuGUI::menuCallback_File_RecordVideo(Fl_Widget *o, void *v)
                                  gui_.config.videoCapture.yuvFormat,
                                  &Ep128EmuGUI::errorMessageCallback,
                                  &Ep128EmuGUI::fileNameCallback, v);
-        const_cast<Fl_Menu_Item *>(gui_.mainMenuBar->find_item(
-                                       "File/Record video/Stop"))->activate();
+        gui_.getMenuItem(2).activate();         // "File/Record video/Stop"
         gui_.vm.setVideoCaptureFile(tmp);
       }
       catch (...) {
@@ -1515,8 +1709,7 @@ void Ep128EmuGUI::menuCallback_File_StopAVIRecord(Fl_Widget *o, void *v)
     if (gui_.lockVMThread()) {
       try {
         gui_.vm.closeVideoCapture();
-        const_cast<Fl_Menu_Item *>(gui_.mainMenuBar->find_item(
-                                       "File/Record video/Stop"))->deactivate();
+        gui_.getMenuItem(2).deactivate();       // "File/Record video/Stop"
       }
       catch (...) {
         gui_.unlockVMThread();
@@ -1666,8 +1859,13 @@ void Ep128EmuGUI::menuCallback_Machine_OpenTape(Fl_Widget *o, void *v)
   try {
     std::string tmp;
     if (gui_.browseFile(tmp, gui_.tapeImageDirectory,
-                        "Tape files (*.{tap,wav,aif,aiff,au,snd})",
-                        Fl_File_Chooser::CREATE, "Select tape image file")) {
+                        "Tape files\t*.{tap,wav,aif,aiff,au,snd}",
+#ifdef WIN32
+                        Fl_Native_File_Chooser::BROWSE_FILE,
+#else
+                        Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
+#endif
+                        "Select tape image file")) {
       Ep128EmuGUI::menuCallback_Machine_TapeStop(o, v);
       gui_.config["tape.imageFile"] = tmp;
       gui_.applyEmulatorConfiguration();
@@ -1994,26 +2192,6 @@ void Ep128EmuGUI::menuCallback_Machine_Configure(Fl_Widget *o, void *v)
   gui_.machineConfigWindow->show();
 }
 
-void Ep128EmuGUI::menuCallback_Options_DpyMode(Fl_Widget *o, void *v)
-{
-  (void) o;
-  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
-  switch (gui_.displayMode) {
-  case 0:
-    gui_.displayMode = 2;
-    break;
-  case 2:
-    gui_.displayMode = 3;
-    break;
-  case 3:
-    gui_.displayMode = 1;
-    break;
-  default:
-    gui_.displayMode = 0;
-    break;
-  }
-}
-
 void Ep128EmuGUI::menuCallback_Options_DpySize1(Fl_Widget *o, void *v)
 {
   (void) o;
@@ -2033,6 +2211,26 @@ void Ep128EmuGUI::menuCallback_Options_DpySize3(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   gui_.resizeWindow(1152, 864);
+}
+
+void Ep128EmuGUI::menuCallback_Options_DpyMode(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  switch (gui_.displayMode) {
+  case 0:
+    gui_.displayMode = 2;
+    break;
+  case 2:
+    gui_.displayMode = 3;
+    break;
+  case 3:
+    gui_.displayMode = 1;
+    break;
+  default:
+    gui_.displayMode = 0;
+    break;
+  }
 }
 
 void Ep128EmuGUI::menuCallback_Options_DpyConfig(Fl_Widget *o, void *v)
@@ -2077,13 +2275,6 @@ void Ep128EmuGUI::menuCallback_Options_SndConfig(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   gui_.soundSettingsWindow->show();
-}
-
-void Ep128EmuGUI::menuCallback_Options_FloppyCfg(Fl_Widget *o, void *v)
-{
-  (void) o;
-  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
-  gui_.diskConfigWindow->show();
 }
 
 void Ep128EmuGUI::menuCallback_Options_FloppyRmA(Fl_Widget *o, void *v)
@@ -2304,6 +2495,31 @@ void Ep128EmuGUI::menuCallback_Options_FloppyRpl(Fl_Widget *o, void *v)
   }
 }
 
+void Ep128EmuGUI::menuCallback_Options_FloppyCfg(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  gui_.diskConfigWindow->show();
+}
+
+void Ep128EmuGUI::menuCallback_Options_PPriority(Fl_Widget *o, void *v)
+{
+  (void) o;
+  Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
+  int     n = -2;
+  for (int i = 4; i <= 8; i++) {
+    if (gui_.getMenuItem(i).value() != 0)
+      n = i - 6;
+  }
+  try {
+    gui_.config["vm.processPriority"] = n;
+    gui_.applyEmulatorConfiguration();
+  }
+  catch (std::exception& e) {
+    gui_.errorMessage(e.what());
+  }
+}
+
 void Ep128EmuGUI::menuCallback_Options_KbdConfig(Fl_Widget *o, void *v)
 {
   (void) o;
@@ -2320,8 +2536,9 @@ void Ep128EmuGUI::menuCallback_Options_FileIODir(Fl_Widget *o, void *v)
         gui_.config["fileio.workingDirectory"];
     std::string tmp;
     std::string tmp2 = std::string(cv);
-    if (gui_.browseFile(tmp, tmp2, "*", Fl_File_Chooser::DIRECTORY,
-                        "Select working directory for emulated machine")) {
+    if (gui_.browseFile(tmp, tmp2, "*",
+                        Fl_Native_File_Chooser::BROWSE_SAVE_DIRECTORY,
+                        "Select working directory for the emulated machine")) {
       cv = tmp;
       gui_.applyEmulatorConfiguration();
     }

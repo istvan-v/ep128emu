@@ -1,12 +1,10 @@
 # data file for the Fltk User Interface Designer (fluid)
-version 1.0107 
+version 1.0109 
 do_not_include_H_from_C 
 header_name {.hpp} 
 code_name {.cpp}
 decl {\#include "gui.hpp"} {selected
 } 
-
-decl {\#include <FL/Fl_File_Chooser.H>} {} 
 
 class Ep128EmuGUI {open
 } {
@@ -56,10 +54,11 @@ class Ep128EmuGUI {open
   decl {Ep128Emu::File *demoRecordFile;} {}
   decl {std::string quickSnapshotFileName;} {}
   decl {bool updateDisplayEntered;} {}
-  decl {bool browseFileWindowShowFlag;} {}
   decl {bool debugWindowShowFlag;} {}
   decl {bool debugWindowOpenFlag;} {}
-  decl {Fl_File_Chooser *browseFileWindow;} {}
+  decl {bool browseFileWindowShowFlag;} {}
+  decl {int browseFileStatus;} {}
+  decl {Fl_Native_File_Chooser *browseFileWindow;} {}
   decl {Fl_Window *windowToShow;} {}
   decl {std::string snapshotDirectory;} {}
   decl {std::string demoDirectory;} {}
@@ -69,9 +68,9 @@ class Ep128EmuGUI {open
   decl {std::string tapeImageDirectory;} {}
   decl {std::string diskImageDirectory;} {}
   decl {std::string romImageDirectory;} {}
-  decl {std::string prgFileDirectory;} {}
   decl {std::string debuggerDirectory;} {}
   decl {std::string screenshotDirectory;} {}
+  decl {std::string screenshotFileName;} {}
   decl {Ep128Emu::ConfigurationDB guiConfig;} {}
   decl {Ep128EmuGUI_DiskConfigWindow *diskConfigWindow;} {}
   decl {Ep128EmuGUI_DisplayConfigWindow *displaySettingsWindow;} {}
@@ -92,6 +91,9 @@ class Ep128EmuGUI {open
   }
   decl {void errorMessage(const char *msg);} {public
   }
+  decl {Fl_Menu_Item& getMenuItem(int n);} {}
+  decl {int getMenuItemIndex(int n);} {}
+  decl {void createMenus();} {}
   decl {void run();} {public
   }
   decl {void resizeWindow(int w, int h);} {}
@@ -161,15 +163,14 @@ class Ep128EmuGUI {open
   decl {static void menuCallback_Machine_QuickCfgS1(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Machine_QuickCfgS2(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Machine_Configure(Fl_Widget *o, void *v);} {}
-  decl {static void menuCallback_Options_DpyMode(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_DpySize1(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_DpySize2(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_DpySize3(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_DpyMode(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_DpyConfig(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_SndIncVol(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_SndDecVol(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_SndConfig(Fl_Widget *o, void *v);} {}
-  decl {static void menuCallback_Options_FloppyCfg(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_FloppyRmA(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_FloppyRmB(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_FloppyRmC(Fl_Widget *o, void *v);} {}
@@ -180,6 +181,8 @@ class Ep128EmuGUI {open
   decl {static void menuCallback_Options_FloppyRpC(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_FloppyRpD(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_FloppyRpl(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_FloppyCfg(Fl_Widget *o, void *v);} {}
+  decl {static void menuCallback_Options_PPriority(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_KbdConfig(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Options_FileIODir(Fl_Widget *o, void *v);} {}
   decl {static void menuCallback_Debug_OpenDebugger(Fl_Widget *o, void *v);} {}
@@ -191,7 +194,7 @@ class Ep128EmuGUI {open
 }} {}
     Fl_Window mainWindow {
       label ep128emu open
-      xywh {248 54 400 360} type Single color 48 selection_color 0 resizable
+      xywh {248 54 400 360} type Single color 48 resizable
       code0 {o->add(emulatorWindow);} size_range {384 348 1536 1182} visible
     } {
       Fl_Menu_Bar mainMenuBar {open
@@ -219,13 +222,13 @@ class Ep128EmuGUI {open
       } {
         Fl_Box demoStatusDisplay1 {
           label {Demo:}
-          xywh {50 335 50 20} color 48 selection_color 15 labelsize 12 align 20
+          xywh {50 335 50 20} color 48 labelsize 12 align 20
         }
         Fl_Box demoStatusDisplay2 {
           xywh {97 335 20 20} box THIN_DOWN_BOX color 56 labelfont 5 labelsize 12 labelcolor 6 align 16
         }
         Fl_Box tapeInfoDisplay {
-          xywh {130 335 150 20} color 48 selection_color 15 labelsize 12 align 16
+          xywh {130 335 150 20} color 48 labelsize 12 align 16
           code0 {o->label("Tape: none");}
         }
         Fl_Group tapePositionDisplay {open
@@ -239,13 +242,13 @@ class Ep128EmuGUI {open
     }
     Fl_Window errorMessageWindow {
       label {ep128emu error} open
-      xywh {249 553 280 150} type Double color 48 selection_color 15 modal visible
+      xywh {249 553 280 150} type Double color 48 modal visible
     } {
       Fl_Box {} {
-        xywh {10 10 260 95} box THIN_UP_BOX selection_color 15
+        xywh {10 10 260 95} box THIN_UP_BOX
       }
       Fl_Box errorMessageText {
-        xywh {20 15 240 85} box FLAT_BOX selection_color 15 align 144
+        xywh {20 15 240 85} box FLAT_BOX align 144
       }
       Fl_Button {} {
         label OK
@@ -269,7 +272,6 @@ class Ep128EmuGUI {open
   debugWindow->hide();
   vmThread.quit(true);
   errorMessageWindow->hide();
-  browseFileWindow->hide();
   diskConfigWindow->hide();
   displaySettingsWindow->hide();
   keyboardConfigWindow->hide();

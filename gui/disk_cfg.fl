@@ -1,5 +1,5 @@
 # data file for the Fltk User Interface Designer (fluid)
-version 1.0107 
+version 1.0109 
 do_not_include_H_from_C 
 header_name {.hpp} 
 code_name {.cpp}
@@ -31,8 +31,24 @@ class Ep128EmuGUI_DiskConfigWindow {open
         Fl_Group {} {open
           tooltip {Note: you can set any of the disk geometry parameters to -1 to have it calculated from the image file size and the file system header} xywh {20 21 360 85} box THIN_UP_BOX
         } {
+          Fl_Button {} {
+            label {A:}
+            callback {{
+  try {
+\#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+    gui.config["floppy.a.imageFile"] = "\\\\\\\\.\\\\A:";
+\#else
+    gui.config["floppy.a.imageFile"] = "/dev/fd0";
+\#endif
+    floppyAImageFileValuator->value(gui.config.floppy.a.imageFile.c_str());
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+            tooltip {Use real floppy disk in drive A} xywh {28 33 25 25} color 50 selection_color 51 labelfont 1
+          }
           Fl_Input floppyAImageFileValuator {
-            label {A: }
             callback {{
   try {
     gui.config["floppy.a.imageFile"] = o->value();
@@ -41,7 +57,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
     gui.errorMessage(e.what());
   }
 }}
-            tooltip {File names like /dev/fd0u720 (Linux) or \\\\.\\A: (Windows) can be used for direct access to actual floppy disks; leave the file name blank to have no disk emulated in this drive} xywh {55 33 205 25} labelfont 1
+            tooltip {File names like /dev/fd0u720 (Linux) or \\\\.\\A: (Windows) can be used for direct access to actual floppy disks; leave the file name blank to have no disk emulated in this drive} xywh {55 33 205 25}
             code0 {o->cursor_color(Fl_Color(3));}
           }
           Fl_Button {} {
@@ -50,8 +66,8 @@ class Ep128EmuGUI_DiskConfigWindow {open
   try {
     std::string tmp;
     if (gui.browseFile(tmp, gui.diskImageDirectory,
-                       "Disk image files (*)",
-                       Fl_File_Chooser::SINGLE,
+                       "Disk image files\\t*",
+                       Fl_Native_File_Chooser::BROWSE_FILE,
                        "Select disk image file")) {
       gui.config["floppy.a.imageFile"] = tmp;
       floppyAImageFileValuator->value(tmp.c_str());
@@ -84,7 +100,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   gui.config.floppyAChanged = true;
   o->value(double(gui.config.floppy.a.sides));
 }}
-            xywh {130 70 35 23} align 8 when 4 minimum -1 maximum 2 step 1 value 2
+            xywh {130 70 35 23} align 8 when 4 minimum -1 maximum 2 step 1 value -1
             code0 {o->cursor_color(Fl_Color(3));}
           }
           Fl_Value_Input floppyASectorsPerTrackValuator {
@@ -94,15 +110,31 @@ class Ep128EmuGUI_DiskConfigWindow {open
   gui.config.floppyAChanged = true;
   o->value(double(gui.config.floppy.a.sectorsPerTrack));
 }}
-            xywh {215 70 40 23} align 8 when 4 minimum -1 maximum 240 step 1 value 9
+            xywh {215 70 40 23} align 8 when 4 minimum -1 maximum 240 step 1 value -1
             code0 {o->cursor_color(Fl_Color(3));}
           }
         }
         Fl_Group {} {open
           tooltip {Note: you can set any of the disk geometry parameters to -1 to have it calculated from the image file size and the file system header} xywh {20 117 360 85} box THIN_UP_BOX
         } {
+          Fl_Button {} {
+            label {B:}
+            callback {{
+  try {
+\#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+    gui.config["floppy.b.imageFile"] = "\\\\\\\\.\\\\B:";
+\#else
+    gui.config["floppy.b.imageFile"] = "/dev/fd1";
+\#endif
+    floppyBImageFileValuator->value(gui.config.floppy.b.imageFile.c_str());
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+            tooltip {Use real floppy disk in drive B} xywh {28 129 25 25} color 50 selection_color 51 labelfont 1
+          }
           Fl_Input floppyBImageFileValuator {
-            label {B: }
             callback {{
   try {
     gui.config["floppy.b.imageFile"] = o->value();
@@ -111,7 +143,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
     gui.errorMessage(e.what());
   }
 }}
-            tooltip {File names like /dev/fd0u720 (Linux) or \\\\.\\A: (Windows) can be used for direct access to actual floppy disks; leave the file name blank to have no disk emulated in this drive} xywh {55 129 205 25} labelfont 1
+            tooltip {File names like /dev/fd0u720 (Linux) or \\\\.\\A: (Windows) can be used for direct access to actual floppy disks; leave the file name blank to have no disk emulated in this drive} xywh {55 129 205 25}
             code0 {o->cursor_color(Fl_Color(3));}
           }
           Fl_Button {} {
@@ -120,8 +152,8 @@ class Ep128EmuGUI_DiskConfigWindow {open
   try {
     std::string tmp;
     if (gui.browseFile(tmp, gui.diskImageDirectory,
-                       "Disk image files (*)",
-                       Fl_File_Chooser::SINGLE,
+                       "Disk image files\\t*",
+                       Fl_Native_File_Chooser::BROWSE_FILE,
                        "Select disk image file")) {
       gui.config["floppy.b.imageFile"] = tmp;
       floppyBImageFileValuator->value(tmp.c_str());
@@ -154,7 +186,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   gui.config.floppyBChanged = true;
   o->value(double(gui.config.floppy.b.sides));
 }}
-            xywh {130 166 35 23} align 8 when 4 minimum -1 maximum 2 step 1 value 2
+            xywh {130 166 35 23} align 8 when 4 minimum -1 maximum 2 step 1 value -1
             code0 {o->cursor_color(Fl_Color(3));}
           }
           Fl_Value_Input floppyBSectorsPerTrackValuator {
@@ -164,7 +196,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   gui.config.floppyBChanged = true;
   o->value(double(gui.config.floppy.b.sectorsPerTrack));
 }}
-            xywh {215 166 40 23} align 8 when 4 minimum -1 maximum 240 step 1 value 9
+            xywh {215 166 40 23} align 8 when 4 minimum -1 maximum 240 step 1 value -1
             code0 {o->cursor_color(Fl_Color(3));}
           }
         }
@@ -190,8 +222,8 @@ class Ep128EmuGUI_DiskConfigWindow {open
   try {
     std::string tmp;
     if (gui.browseFile(tmp, gui.diskImageDirectory,
-                       "Disk image files (*)",
-                       Fl_File_Chooser::SINGLE,
+                       "Disk image files\\t*",
+                       Fl_Native_File_Chooser::BROWSE_FILE,
                        "Select disk image file")) {
       gui.config["floppy.c.imageFile"] = tmp;
       floppyCImageFileValuator->value(tmp.c_str());
@@ -224,7 +256,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   gui.config.floppyCChanged = true;
   o->value(double(gui.config.floppy.c.sides));
 }}
-            xywh {130 262 35 23} align 8 when 4 minimum -1 maximum 2 step 1 value 2
+            xywh {130 262 35 23} align 8 when 4 minimum -1 maximum 2 step 1 value -1
             code0 {o->cursor_color(Fl_Color(3));}
           }
           Fl_Value_Input floppyCSectorsPerTrackValuator {
@@ -234,7 +266,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   gui.config.floppyCChanged = true;
   o->value(double(gui.config.floppy.c.sectorsPerTrack));
 }}
-            xywh {215 262 40 23} align 8 when 4 minimum -1 maximum 240 step 1 value 9
+            xywh {215 262 40 23} align 8 when 4 minimum -1 maximum 240 step 1 value -1
             code0 {o->cursor_color(Fl_Color(3));}
           }
         }
@@ -260,8 +292,8 @@ class Ep128EmuGUI_DiskConfigWindow {open
   try {
     std::string tmp;
     if (gui.browseFile(tmp, gui.diskImageDirectory,
-                       "Disk image files (*)",
-                       Fl_File_Chooser::SINGLE,
+                       "Disk image files\\t*",
+                       Fl_Native_File_Chooser::BROWSE_FILE,
                        "Select disk image file")) {
       gui.config["floppy.d.imageFile"] = tmp;
       floppyDImageFileValuator->value(tmp.c_str());
@@ -294,7 +326,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   gui.config.floppyDChanged = true;
   o->value(double(gui.config.floppy.d.sides));
 }}
-            xywh {130 358 35 23} align 8 when 4 minimum -1 maximum 2 step 1 value 2
+            xywh {130 358 35 23} align 8 when 4 minimum -1 maximum 2 step 1 value -1
             code0 {o->cursor_color(Fl_Color(3));}
           }
           Fl_Value_Input floppyDSectorsPerTrackValuator {
@@ -304,10 +336,42 @@ class Ep128EmuGUI_DiskConfigWindow {open
   gui.config.floppyDChanged = true;
   o->value(double(gui.config.floppy.d.sectorsPerTrack));
 }}
-            xywh {215 358 40 23} align 8 when 4 minimum -1 maximum 240 step 1 value 9
+            xywh {215 358 40 23} align 8 when 4 minimum -1 maximum 240 step 1 value -1
             code0 {o->cursor_color(Fl_Color(3));}
           }
         }
+      }
+      Fl_Button {} {
+        label {Clear all}
+        callback {{
+  try {
+    gui.config.floppy.a.tracks = -1;
+    gui.config.floppy.a.sides = -1;
+    gui.config.floppy.a.sectorsPerTrack = -1;
+    gui.config.floppyAChanged = true;
+    gui.config.floppy.a.imageFile.clear();
+    gui.config.floppy.b.tracks = -1;
+    gui.config.floppy.b.sides = -1;
+    gui.config.floppy.b.sectorsPerTrack = -1;
+    gui.config.floppyBChanged = true;
+    gui.config.floppy.b.imageFile.clear();
+    gui.config.floppy.c.tracks = -1;
+    gui.config.floppy.c.sides = -1;
+    gui.config.floppy.c.sectorsPerTrack = -1;
+    gui.config.floppyCChanged = true;
+    gui.config.floppy.c.imageFile.clear();
+    gui.config.floppy.d.tracks = -1;
+    gui.config.floppy.d.sides = -1;
+    gui.config.floppy.d.sectorsPerTrack = -1;
+    gui.config.floppyDChanged = true;
+    gui.config.floppy.d.imageFile.clear();
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+  updateWindow();
+}}
+        xywh {15 415 80 25} selection_color 50
       }
       Fl_Button {} {
         label Apply
