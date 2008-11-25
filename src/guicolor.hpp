@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -20,9 +20,31 @@
 #ifndef EP128EMU_GUICOLOR_HPP
 #define EP128EMU_GUICOLOR_HPP
 
+class Fl_Window;
+
 namespace Ep128Emu {
 
+  /*!
+   * Set the GUI theme to be used (should be called before any window is
+   * shown):
+   *   0: default (dark background)
+   *   1: Windows 2000
+   *   2: plastic
+   *   3: Gtk+
+   */
   void setGUIColorScheme(int colorScheme = 0);
+
+  /*!
+   * Set the icon for window 'w' (must be called before the window is first
+   * shown). This is currently only implemented for Windows. 'iconNum' can be
+   * one of the following values:
+   *   0: ep128emu logo
+   *  10: information icon
+   *  11: question icon
+   *  12: warning icon
+   *  13: error icon
+   */
+  void setWindowIcon(Fl_Window *w, int iconNum);
 
 }       // namespace Ep128Emu
 
