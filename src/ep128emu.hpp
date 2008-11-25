@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -23,7 +23,9 @@
 #include <exception>
 #include <new>
 #include <string>
-#include <iostream>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #if defined(HAVE_STDINT_H) || defined(__GNUC__)
 #  include <stdint.h>
@@ -34,12 +36,12 @@ typedef short               int16_t;
 typedef unsigned short      uint16_t;
 typedef int                 int32_t;
 typedef unsigned int        uint32_t;
-#  ifndef _WIN32
-typedef long long           int64_t;
-typedef unsigned long long  uint64_t;
-#  else
+#  if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
 typedef __int64             int64_t;
 typedef unsigned __int64    uint64_t;
+#  else
+typedef long long           int64_t;
+typedef unsigned long long  uint64_t;
 #  endif
 #endif
 
@@ -78,6 +80,18 @@ namespace Ep128Emu {
   };
 
 }       // namespace Ep128Emu
+
+#if defined(__GNUC__) && (__GNUC__ >= 3) && defined(__i386__) && !defined(__ICC)
+#  define EP128EMU_REGPARM1 __attribute__ ((__regparm__ (1)))
+#  define EP128EMU_REGPARM2 __attribute__ ((__regparm__ (2)))
+#  define EP128EMU_REGPARM3 __attribute__ ((__regparm__ (3)))
+#  define EP128EMU_INLINE   __attribute__ ((__always_inline__)) inline
+#else
+#  define EP128EMU_REGPARM1
+#  define EP128EMU_REGPARM2
+#  define EP128EMU_REGPARM3
+#  define EP128EMU_INLINE   inline
+#endif
 
 #include "fileio.hpp"
 
