@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -22,8 +22,6 @@
 #include "guicolor.hpp"
 
 #include <iostream>
-#include <cstdio>
-#include <cstring>
 #include <cmath>
 
 static void cfgErrorFunc(void *userData, const char *msg)
@@ -41,11 +39,11 @@ int main(int argc, char **argv)
       (Ep128Emu::EmulatorConfiguration *) 0;
   Ep128Emu::VMThread        *vmThread = (Ep128Emu::VMThread *) 0;
   Ep128EmuGUI               *gui_ = (Ep128EmuGUI *) 0;
-  bool      glEnabled = true;
   const char  *cfgFileName = "ep128cfg.dat";
   int       snapshotNameIndex = 0;
   int       colorScheme = 0;
   int       retval = 0;
+  bool      glEnabled = true;
   bool      configLoaded = false;
 
   try {
@@ -54,8 +52,16 @@ int main(int argc, char **argv)
       if (std::strcmp(argv[i], "-cfg") == 0 && i < (argc - 1)) {
         i++;
       }
-      else if (std::strcmp(argv[i], "-snapshot") == 0 && i < (argc - 1)) {
-        i++;
+      else if (std::strcmp(argv[i], "-snapshot") == 0) {
+        if (++i >= argc)
+          throw Ep128Emu::Exception("missing snapshot file name");
+        snapshotNameIndex = i;
+      }
+      else if (std::strcmp(argv[i], "-colorscheme") == 0) {
+        if (++i >= argc)
+          throw Ep128Emu::Exception("missing color scheme number");
+        colorScheme = int(std::atoi(argv[i]));
+        colorScheme = (colorScheme >= 0 && colorScheme <= 3 ? colorScheme : 0);
       }
       else if (std::strcmp(argv[i], "-ep128") == 0) {
         cfgFileName = "ep128cfg.dat";
@@ -65,11 +71,6 @@ int main(int argc, char **argv)
       }
       else if (std::strcmp(argv[i], "-no-opengl") == 0) {
         glEnabled = false;
-      }
-      else if (std::strcmp(argv[i], "-colorscheme") == 0 && i < (argc - 1)) {
-        i++;
-        colorScheme = int(std::atoi(argv[i]));
-        colorScheme = (colorScheme >= 0 && colorScheme <= 2 ? colorScheme : 0);
       }
       else if (std::strcmp(argv[i], "-h") == 0 ||
                std::strcmp(argv[i], "-help") == 0 ||
@@ -88,7 +89,7 @@ int main(int argc, char **argv)
         std::cerr << "    -no-opengl          "
                      "use software video driver" << std::endl;
         std::cerr << "    -colorscheme <N>    "
-                     "use GUI color scheme N (0, 1, or 2)" << std::endl;
+                     "use GUI color scheme N (0, 1, 2, or 3)" << std::endl;
         std::cerr << "    OPTION=VALUE        "
                      "set configuration variable 'OPTION' to 'VALUE'"
                   << std::endl;
@@ -123,7 +124,7 @@ int main(int argc, char **argv)
           std::string cmdLine = "\"";
           cmdLine += argv[0];
           size_t  i = cmdLine.length();
-          while (i > 0) {
+          while (i > 1) {
             i--;
             if (cmdLine[i] == '/' || cmdLine[i] == '\\') {
               i++;
@@ -159,14 +160,9 @@ int main(int argc, char **argv)
           throw Ep128Emu::Exception("missing configuration file name");
         config->loadState(argv[i], false);
       }
-      else if (std::strcmp(argv[i], "-snapshot") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing snapshot file name");
-        snapshotNameIndex = i;
-      }
-      else if (std::strcmp(argv[i], "-colorscheme") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing color scheme number");
+      else if (std::strcmp(argv[i], "-snapshot") == 0 ||
+               std::strcmp(argv[i], "-colorscheme") == 0) {
+        i++;
       }
       else {
         const char  *s = argv[i];
@@ -193,7 +189,7 @@ int main(int argc, char **argv)
       }
     }
     config->applySettings();
-    if (snapshotNameIndex >= 1) {
+    if (snapshotNameIndex > 0) {
       Ep128Emu::File  f(argv[snapshotNameIndex], false);
       vm->registerChunkTypes(f);
       f.processAllChunks();
