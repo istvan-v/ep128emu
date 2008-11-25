@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -171,6 +171,23 @@ namespace Ep128Emu {
    * if it does not exist yet.
    */
   std::string getEp128EmuHomeDirectory();
+
+  /*!
+   * Returns a pseudo-random number in the range 1 to 0x7FFFFFFE.
+   */
+  int getRandomNumber(int& seedValue);
+
+  /*!
+   * Initialize a pseudo-random generator to be used with getRandomNumber().
+   */
+  void setRandomSeed(int& seedValue, uint32_t n);
+
+  /*!
+   * Set the process priority to 'n' (-2 to +3, 0 is the normal priority,
+   * higher values mean higher priority). On error, such as not having
+   * sufficient privileges, Ep128Emu::Exception may be thrown.
+   */
+  void setProcessPriority(int n);
 
 }       // namespace Ep128Emu
 

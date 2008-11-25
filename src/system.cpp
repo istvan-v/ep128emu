@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -20,8 +20,6 @@
 #include "ep128emu.hpp"
 #include "system.hpp"
 
-#include <cstdlib>
-
 #ifdef WIN32
 #  undef WIN32
 #endif
@@ -38,6 +36,9 @@
 #  include <sys/time.h>
 #  include <unistd.h>
 #  include <pthread.h>
+#  if defined(__linux) || defined(__linux__)
+#    include <sys/resource.h>
+#  endif
 #endif
 
 #include <errno.h>
@@ -497,6 +498,64 @@ namespace Ep128Emu {
     _mkdir(dirName.c_str());
 #endif
     return dirName;
+  }
+
+  int getRandomNumber(int& seedValue)
+  {
+    int64_t   tmp = int32_t(seedValue) * int64_t(742938285);
+    uint32_t  tmp2 = uint32_t(tmp & int64_t(0x7FFFFFFF)) + uint32_t(tmp >> 31);
+    if (tmp2 >= 0x80000000U)
+      tmp2 = tmp2 - 0x7FFFFFFFU;
+    seedValue = int(tmp2);
+    return seedValue;
+  }
+
+  void setRandomSeed(int& seedValue, uint32_t n)
+  {
+    while (n >= 0x7FFFFFFFU)
+      n = n - 0x7FFFFFFEU;
+    if (n == 0U)
+      n = 0x7FFFFFFEU;
+    seedValue = int(n);
+    (void) getRandomNumber(seedValue);
+  }
+
+  void setProcessPriority(int n)
+  {
+#if 0 && (defined(__linux) || defined(__linux__))
+    // FIXME: this does not work correctly
+    n = (-n) * 10;
+    n = (n > -20 ? (n < 19 ? n : 19) : -20);
+    if (setpriority(PRIO_PROCESS, 0, n) != 0)
+      throw Ep128Emu::Exception("error setting process priority");
+#endif
+#if defined(WIN32)
+    n = (n > -2 ? (n < 2 ? n : 2) : -2);
+    DWORD   tmp = NORMAL_PRIORITY_CLASS;
+    switch (n) {
+    case -2:
+      tmp = IDLE_PRIORITY_CLASS;
+      break;
+    case -1:
+      tmp = BELOW_NORMAL_PRIORITY_CLASS;
+      break;
+    case 1:
+      tmp = ABOVE_NORMAL_PRIORITY_CLASS;
+      break;
+    case 2:
+      tmp = HIGH_PRIORITY_CLASS;
+      break;
+#if 0
+    case 3:
+      tmp = REALTIME_PRIORITY_CLASS;
+      break;
+#endif
+    }
+    if (!SetPriorityClass(GetCurrentProcess(), tmp))
+      throw Ep128Emu::Exception("error setting process priority");
+#else
+    (void) n;
+#endif
   }
 
 }       // namespace Ep128Emu
