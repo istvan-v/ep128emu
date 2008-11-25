@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -19,8 +19,6 @@
 
 #ifndef EP128EMU_FLDISP_HPP
 #define EP128EMU_FLDISP_HPP
-
-#include <cstdlib>
 
 #include "ep128emu.hpp"
 #include "system.hpp"

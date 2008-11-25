@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -25,6 +25,7 @@
 #include "guicolor.hpp"
 
 #include <FL/Fl_File_Chooser.H>
+#include <FL/Fl_Native_File_Chooser.H>
 
 #ifdef WIN32
 #  undef WIN32
@@ -53,7 +54,7 @@ static int keyboardMap_EP[256] = {
   0x006A,     -1,     -1,     -1, 0x006B,     -1, 0x003B,     -1,
   0x006C,     -1, 0x0027,     -1, 0x005D,     -1,     -1,     -1,
   0xFF61, 0xFF57, 0xFF54,     -1, 0xFF53,     -1, 0xFF52,     -1,
-  0xFF13, 0xFF50, 0xFF51,     -1, 0xFF0D,     -1, 0xFFE9, 0xFFEA,
+  0xFF13, 0xFF50, 0xFF51,     -1, 0xFF0D,     -1, 0xFFEA, 0xFE03,
   0x006D,     -1, 0xFFFF,     -1, 0x002C,     -1, 0x002F,     -1,
   0x002E,     -1, 0xFFE2,     -1, 0x0020,     -1, 0xFF63,     -1,
   0x0069,     -1,     -1,     -1, 0x006F,     -1, 0x0060,     -1,
@@ -90,7 +91,7 @@ static int keyboardMap_EP_HU[256] = {
   0x006A,     -1,     -1,     -1, 0x006B,     -1, 0x00E9,     -1,
   0x006C,     -1, 0x00E1,     -1, 0x00FA,     -1,     -1,     -1,
   0xFF61, 0xFF57, 0xFF54,     -1, 0xFF53,     -1, 0xFF52,     -1,
-  0xFF13, 0xFF50, 0xFF51,     -1, 0xFF0D,     -1, 0xFFE9, 0xFFEA,
+  0xFF13, 0xFF50, 0xFF51,     -1, 0xFF0D,     -1, 0xFFEA, 0xFE03,
   0x006D,     -1, 0xFFFF,     -1, 0x002C,     -1, 0x002D,     -1,
   0x002E,     -1, 0xFFE2,     -1, 0x0020,     -1, 0xFF63,     -1,
   0x0069,     -1,     -1,     -1, 0x006F,     -1, 0x0030,     -1,
@@ -127,7 +128,7 @@ static int keyboardMap_EP_HU[256] = {
   0x006A,     -1,     -1,     -1, 0x006B,     -1, 0x003B,     -1,
   0x006C,     -1, 0x0027,     -1, 0x005D,     -1,     -1,     -1,
   0xFF61, 0xFF57, 0xFF54,     -1, 0xFF53,     -1, 0xFF52,     -1,
-  0xFF13, 0xFF50, 0xFF51,     -1, 0xFF0D,     -1, 0xFFE9, 0xFFEA,
+  0xFF13, 0xFF50, 0xFF51,     -1, 0xFF0D,     -1, 0xFFEA, 0xFE03,
   0x006D,     -1, 0xFFFF,     -1, 0x002C,     -1, 0x002D,     -1,
   0x002E,     -1, 0xFFE2,     -1, 0x0020,     -1, 0xFF63,     -1,
   0x0069,     -1,     -1,     -1, 0x006F,     -1, 0x0030,     -1,
@@ -486,7 +487,6 @@ class Ep128EmuGUIConfiguration {
     std::string tapeImageDirectory;
     std::string diskImageDirectory;
     std::string romImageDirectory;
-    std::string prgFileDirectory;
     std::string debuggerDirectory;
     std::string screenshotDirectory;
   } gui;
@@ -494,7 +494,7 @@ class Ep128EmuGUIConfiguration {
   Ep128EmuGUIConfiguration(Ep128Emu::ConfigurationDB& config,
                            const std::string& installDirectory)
   {
-    gui.snapshotDirectory = ".";
+    gui.snapshotDirectory = installDirectory + "snapshot";
     gui.demoDirectory = installDirectory + "demo";
     gui.soundFileDirectory = ".";
     gui.configDirectory = installDirectory + "config";
@@ -502,7 +502,6 @@ class Ep128EmuGUIConfiguration {
     gui.tapeImageDirectory = installDirectory + "tape";
     gui.diskImageDirectory = installDirectory + "disk";
     gui.romImageDirectory = installDirectory + "roms";
-    gui.prgFileDirectory = installDirectory + "progs";
     gui.debuggerDirectory = ".";
     gui.screenshotDirectory = ".";
     config.createKey("gui.snapshotDirectory", gui.snapshotDirectory);
@@ -513,7 +512,6 @@ class Ep128EmuGUIConfiguration {
     config.createKey("gui.tapeImageDirectory", gui.tapeImageDirectory);
     config.createKey("gui.diskImageDirectory", gui.diskImageDirectory);
     config.createKey("gui.romImageDirectory", gui.romImageDirectory);
-    config.createKey("gui.prgFileDirectory", gui.prgFileDirectory);
     config.createKey("gui.debuggerDirectory", gui.debuggerDirectory);
     config.createKey("gui.screenshotDirectory", gui.screenshotDirectory);
   }
@@ -588,9 +586,9 @@ int main(int argc, char **argv)
     mkdir(tmp2.c_str(), 0755);
     tmp2 = tmp + "disk";
     mkdir(tmp2.c_str(), 0755);
-    tmp2 = tmp + "progs";
-    mkdir(tmp2.c_str(), 0755);
     tmp2 = tmp + "roms";
+    mkdir(tmp2.c_str(), 0755);
+    tmp2 = tmp + "snapshot";
     mkdir(tmp2.c_str(), 0755);
     tmp2 = tmp + "tape";
     mkdir(tmp2.c_str(), 0755);
@@ -613,9 +611,9 @@ int main(int argc, char **argv)
     _mkdir(tmp2.c_str());
     tmp2 = tmp + "disk";
     _mkdir(tmp2.c_str());
-    tmp2 = tmp + "progs";
-    _mkdir(tmp2.c_str());
     tmp2 = tmp + "roms";
+    _mkdir(tmp2.c_str());
+    tmp2 = tmp + "snapshot";
     _mkdir(tmp2.c_str());
     tmp2 = tmp + "tape";
     _mkdir(tmp2.c_str());

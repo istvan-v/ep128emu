@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -51,6 +51,7 @@ namespace Ep128Emu {
     };
     // ----------------
     void displayFrame();
+    void initializeGLDisplay();
     void drawFrame_quality0(Message_LineData **lineBuffers_,
                             double x0, double y0, double x1, double y1);
     void drawFrame_quality1(Message_LineData **lineBuffers_,

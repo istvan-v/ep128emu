@@ -14,7 +14,7 @@
 
   ;Name and file
   Name "ep128emu"
-  OutFile "ep128emu-2.0.5.1.exe"
+  OutFile "ep128emu-2.0.6-beta.exe"
 
   ;Default installation folder
   InstallDir "$PROGRAMFILES\ep128emu2"
@@ -89,11 +89,11 @@ Section "ep128emu2" SecMain
 
   File "..\disk\disk.zip"
 
-  SetOutPath "$INSTDIR\progs"
-
   SetOutPath "$INSTDIR\roms"
 
   File "..\roms\epfileio.rom"
+
+  SetOutPath "$INSTDIR\snapshot"
 
   SetOutPath "$INSTDIR\tape"
 
@@ -375,6 +375,7 @@ Section "Uninstall"
   Delete "$INSTDIR\roms\zt18.rom"
   Delete "$INSTDIR\roms\zx41.rom"
   RMDir "$INSTDIR\roms"
+  RMDir "$INSTDIR\snapshot"
   RMDir /r "$INSTDIR\src"
   RMDir "$INSTDIR\tape"
 

@@ -21,7 +21,6 @@
 
 #include "z80.hpp"
 #include "z80macros.hpp"
-#include <cstring>
 
 namespace Ep128 {
 
