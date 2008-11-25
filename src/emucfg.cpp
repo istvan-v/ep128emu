@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -20,8 +20,7 @@
 #include "ep128emu.hpp"
 #include "cfg_db.hpp"
 #include "emucfg.hpp"
-
-#include <cstdio>
+#include "system.hpp"
 
 template <typename T>
 static void configChangeCallback(void *userData,
@@ -96,6 +95,17 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "vm.speedPercentage",
                                 vm.speedPercentage, 100U,
                                 soundSettingsChanged, 0.0, 1000.0);
+    defineConfigurationVariable(*this, "vm.processPriority",
+                                vm.processPriority, int(0),
+                                vmProcessPriorityChanged,
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+                                -2.0, 3.0
+#else
+                                // TODO: implement process priority setting
+                                // on non-Windows platforms
+                                0.0, 0.0
+#endif
+                                );
     defineConfigurationVariable(*this, "vm.enableMemoryTimingEmulation",
                                 vm.enableMemoryTimingEmulation, true,
                                 vmConfigurationChanged);
@@ -364,6 +374,15 @@ namespace Ep128Emu {
       vm_.setEnableMemoryTimingEmulation(vm.enableMemoryTimingEmulation);
       vm_.setEnableFileIO(vm.enableFileIO);
       vmConfigurationChanged = false;
+    }
+    if (vmProcessPriorityChanged) {
+      try {
+        setProcessPriority(vm.processPriority);
+      }
+      catch (std::exception& e) {
+        errorCallback(errorCallbackUserData, e.what());
+      }
+      vmProcessPriorityChanged = false;
     }
     if (memoryConfigurationChanged) {
       vm_.resetMemoryConfiguration(memory.ram.size);
