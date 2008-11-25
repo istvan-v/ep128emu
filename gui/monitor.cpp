@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -21,7 +21,6 @@
 #include "debuglib.hpp"
 #include "monitor.hpp"
 
-#include <cstdio>
 #include <vector>
 
 #define MONITOR_MAX_LINES   (120)
@@ -913,7 +912,7 @@ void Ep128EmuGUIMonitor::command_help(const std::vector<std::string>& args)
     printMessage("    NN  search for exact byte value NN");
     printMessage("  MMNN  search for byte NN with bit mask MM");
     printMessage("     *  matches any single byte");
-    printMessage(" \"str\"  search for string (bit mask = 3F)");
+    printMessage(" \"str\"  search for string (bit mask = 7F)");
   }
   else if (args[1] == "I") {
     printMessage("I       print current monitor settings");
@@ -944,7 +943,7 @@ void Ep128EmuGUIMonitor::command_help(const std::vector<std::string>& args)
     printMessage("    NN  exact byte value NN");
     printMessage("  MMNN  byte NN with bit mask MM");
     printMessage("     *  match any single byte / no change");
-    printMessage(" \"str\"  string (bit mask = 3F)");
+    printMessage(" \"str\"  string (bit mask = 7F)");
   }
   else if (args[1] == "T") {
     printMessage("T <srcStart> <srcEnd> <dstStart>");
@@ -1201,13 +1200,8 @@ void Ep128EmuGUIMonitor::parseSearchPattern(
     if (args[i].length() >= 1) {
       if (args[i][0] == '"') {
         for (size_t j = 1; j < args[i].length(); j++) {
-          uint8_t c = uint8_t(args[i][j] & 0x7F);
-          if (c >= 0x60)
-            c = c & 0x1F;
-          else
-            c = c & 0x3F;
-          searchString_.push_back(c);
-          searchMask_.push_back(uint8_t(0x3F));
+          searchString_.push_back(uint8_t(args[i][j] & 0x7F));
+          searchMask_.push_back(uint8_t(0x7F));
         }
       }
       else if (args[i] == "*") {
@@ -1219,11 +1213,11 @@ void Ep128EmuGUIMonitor::parseSearchPattern(
         uint32_t  n = parseHexNumberEx(args[i].c_str());
         if (n > 0xFFFFU)
           throw Ep128Emu::Exception("search value is out of range");
-        uint8_t   m = 0xFF;
+        uint32_t  m = 0xFFU;
         // use upper 8 bits as AND mask
         if (n > 0xFFU)
-          m = uint8_t(n >> 8);
-        searchString_.push_back(uint8_t(n) & m);
+          m = n >> 8;
+        searchString_.push_back(uint8_t(n & m));
         searchMask_.push_back(m);
       }
     }
