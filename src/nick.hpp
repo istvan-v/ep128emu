@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -60,15 +60,6 @@ namespace Ep128 {
 
   // --------------------------------------------------------------------------
 
-#ifdef REGPARM
-#  undef REGPARM
-#endif
-#if defined(__GNUC__) && (__GNUC__ >= 3) && defined(__i386__) && !defined(__ICC)
-#  define REGPARM __attribute__ ((__regparm__ (3)))
-#else
-#  define REGPARM
-#endif
-
   class NickRenderer {
    protected:
     struct NickTables {
@@ -105,7 +96,7 @@ namespace Ep128 {
     {
     }
     // render 16 pixels to 'buf'; called 46 times per line
-    virtual REGPARM void doRender(uint8_t*& buf) = 0;
+    virtual EP128EMU_REGPARM3 void doRender(uint8_t*& buf) = 0;
   };
 
 #ifdef DECLARE_RENDERER
@@ -117,7 +108,7 @@ class x : public NickRenderer {                 \
   x(NickLPB& lpb_, const uint8_t *videoMemory_) \
     : NickRenderer(lpb_, videoMemory_) { }      \
   virtual ~x() { }                              \
-  virtual REGPARM void doRender(uint8_t*& buf); \
+  virtual EP128EMU_REGPARM3 void doRender(uint8_t*& buf);   \
 }
 
   DECLARE_RENDERER(NickRenderer_Blank);
@@ -159,10 +150,6 @@ class x : public NickRenderer {                 \
 
 #undef DECLARE_RENDERER
 
-#ifdef REGPARM
-#  undef REGPARM
-#endif
-
   class NickRendererTable {
    private:
     NickRenderer  **t;
@@ -190,6 +177,7 @@ class x : public NickRenderer {                 \
     uint8_t   borderColor;
     uint8_t   dataBusState;
     bool      lptClockEnabled;
+    uint8_t   savedBorderColor;
     bool      vsyncFlag;
     // --------
     void clearLineBuffer();
