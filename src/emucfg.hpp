@@ -179,7 +179,6 @@ namespace Ep128Emu {
     // --------
     struct {
       int         bpPriorityThreshold;
-      bool        noBreakOnDataRead;
     } debug;
     bool          debugSettingsChanged;
     // --------

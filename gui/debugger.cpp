@@ -216,8 +216,6 @@ void Ep128EmuGUI_DebugWindow::updateWindow()
     updateMemoryDumpDisplay();
     updateIOPortDisplay();
     updateDisassemblyDisplay();
-    noBreakOnDataReadValuator->value(
-        gui.config.debug.noBreakOnDataRead ? 1 : 0);
     bpPriorityThresholdValuator->value(
         double(gui.config.debug.bpPriorityThreshold));
   }

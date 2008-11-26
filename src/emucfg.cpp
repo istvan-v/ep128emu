@@ -347,9 +347,6 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "debug.bpPriorityThreshold",
                                 debug.bpPriorityThreshold, int(0),
                                 debugSettingsChanged, 0.0, 4.0);
-    defineConfigurationVariable(*this, "debug.noBreakOnDataRead",
-                                debug.noBreakOnDataRead, false,
-                                debugSettingsChanged);
     // ----------------
     defineConfigurationVariable(*this, "videoCapture.frameRate",
                                 videoCapture.frameRate, int(50),
@@ -577,7 +574,6 @@ namespace Ep128Emu {
     }
     if (debugSettingsChanged) {
       vm_.setBreakPointPriorityThreshold(debug.bpPriorityThreshold);
-      vm_.setNoBreakOnDataRead(debug.noBreakOnDataRead);
       debugSettingsChanged = false;
     }
     if (videoCaptureSettingsChanged) {

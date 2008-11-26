@@ -148,7 +148,6 @@ namespace Ep128Emu {
       tapeSoundFileFilterMaxFreq(5000.0f),
       breakPointCallback(&defaultBreakPointCallback),
       breakPointCallbackUserData((void *) 0),
-      noBreakOnDataRead(false),
       fileIOEnabled(false),
 #ifndef WIN32
       fileIOWorkingDirectory("./"),
@@ -591,11 +590,6 @@ namespace Ep128Emu {
   void VirtualMachine::setBreakPointPriorityThreshold(int n)
   {
     (void) n;
-  }
-
-  void VirtualMachine::setNoBreakOnDataRead(bool n)
-  {
-    noBreakOnDataRead = n;
   }
 
   void VirtualMachine::setSingleStepMode(int mode_)

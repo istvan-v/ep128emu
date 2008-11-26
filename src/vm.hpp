@@ -63,7 +63,6 @@ namespace Ep128Emu {
     void            (*breakPointCallback)(void *userData, int type,
                                           uint16_t addr, uint8_t value);
     void            *breakPointCallbackUserData;
-    bool            noBreakOnDataRead;
     bool            fileIOEnabled;
    private:
     std::string     fileIOWorkingDirectory;
@@ -342,12 +341,6 @@ namespace Ep128Emu {
      */
     virtual void setBreakPointPriorityThreshold(int n);
     /*!
-     * If 'n' is true, breakpoints will not be triggered on reads from
-     * any memory address other than the current value of the program
-     * counter.
-     */
-    virtual void setNoBreakOnDataRead(bool n);
-    /*!
      * Set if the breakpoint callback should be called whenever the first byte
      * of a CPU instruction is read from memory. 'mode_' should be one of the
      * following values:
@@ -355,6 +348,7 @@ namespace Ep128Emu {
      *   1: single step mode (break on every instruction, ignore breakpoints)
      *   2: step over mode
      *   3: trace (similar to mode 1, but does not ignore breakpoints)
+     *   4: step into mode
      */
     virtual void setSingleStepMode(int mode_);
     /*!
