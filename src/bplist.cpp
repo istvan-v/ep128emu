@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -26,6 +26,33 @@
 #include <algorithm>
 
 namespace Ep128Emu {
+
+  BreakPoint::BreakPoint(bool isIO_, bool haveSegment_,
+                         bool r_, bool w_, bool x_, bool ignoreFlag_,
+                         uint8_t segment_, uint16_t addr_, int priority_)
+  {
+    n_ = (r_ ? 0x01000000U : 0x00000000U)
+         + (w_ ? 0x02000000U : 0x00000000U)
+         + (x_ ? 0x04000000U : 0x00000000U);
+    if (!(n_))
+      n_ = 0x07000000U;
+    n_ += (priority_ > 0 ?
+           (priority_ < 3 ? (uint32_t(priority_) << 22) : 0x00C00000U)
+           : 0x00000000U);
+    if (isIO_) {
+      n_ += (0x10000000U + uint32_t(addr_ & 0xFFFF));
+      n_ = n_ & 0xFBFFFFFFU;
+    }
+    else if (haveSegment_) {
+      n_ += (0x08000000U
+             + (uint32_t(segment_ & 0xFF) << 14) + uint32_t(addr_ & 0x3FFF));
+    }
+    else {
+      n_ += (0x00000000U + uint32_t(addr_ & 0xFFFF));
+    }
+    if (ignoreFlag_)
+      n_ = (n_ & 0xEFFFFFFFU) | 0x27C00000U;
+  }
 
   BreakPointList::BreakPointList(const std::string& lst)
   {
@@ -57,7 +84,8 @@ namespace Ep128Emu {
       uint16_t  addr = 0, lastAddr;
       uint8_t   segment = 0;
       bool      isIO = false, haveSegment = false;
-      bool      isRead = false, isWrite = false, isIgnore = false;
+      bool      isRead = false, isWrite = false, isExecute = false;
+      bool      isIgnore = false;
       int       priority = -1;
       uint32_t  n;
 
@@ -132,6 +160,9 @@ namespace Ep128Emu {
         case 'w':
           isWrite = true;
           break;
+        case 'x':
+          isExecute = true;
+          break;
         case 'i':
           isIgnore = true;
           break;
@@ -149,14 +180,17 @@ namespace Ep128Emu {
       if (isIgnore) {
         if (isIO)
           throw Exception("ignore flag is not allowed for I/O breakpoints");
-        if (isRead || isWrite || priority >= 0)
+        if (isRead || isWrite || isExecute || priority >= 0)
           throw Exception("read/write flags and priority are not allowed "
                           "for ignore breakpoints");
         priority = 3;
       }
-      if (!isRead && !isWrite) {
+      if (isIO && isExecute)
+        throw Exception("execute flag is not allowed for I/O breakpoints");
+      if (!isRead && !isWrite && !isExecute) {
         isRead = true;
         isWrite = true;
+        isExecute = !isIO;
       }
       if (priority < 0)
         priority = 2;
@@ -173,8 +207,8 @@ namespace Ep128Emu {
         std::map<uint32_t, BreakPoint>::iterator  i_ = bpList.find(addr_);
         if (i_ == bpList.end()) {
           // add new breakpoint
-          BreakPoint  bp(isIO, haveSegment, isRead, isWrite, isIgnore,
-                         segment, addr, priority);
+          BreakPoint  bp(isIO, haveSegment, isRead, isWrite, isExecute,
+                         isIgnore, segment, addr, priority);
           bpList.insert(std::pair<uint32_t, BreakPoint>(addr_, bp));
         }
         else {
@@ -183,6 +217,7 @@ namespace Ep128Emu {
           BreakPoint  bp(isIO, haveSegment,
                          (isRead || bpp->isRead()),
                          (isWrite || bpp->isWrite()),
+                         (isExecute || bpp->isExecute()),
                          (isIgnore && bpp->isIgnore()),
                          segment, addr,
                          (priority > bpp->priority() ?
@@ -201,31 +236,33 @@ namespace Ep128Emu {
   }
 
   void BreakPointList::addMemoryBreakPoint(uint8_t segment, uint16_t addr,
-                                           bool r, bool w, bool ignoreFlag,
-                                           int priority)
+                                           bool r, bool w, bool x,
+                                           bool ignoreFlag, int priority)
   {
-    lst_.push_back(BreakPoint(false, true, r, w, ignoreFlag,
+    lst_.push_back(BreakPoint(false, true, r, w, x, ignoreFlag,
                               segment, addr, priority));
   }
 
   void BreakPointList::addMemoryBreakPoint(uint16_t addr,
-                                           bool r, bool w, bool ignoreFlag,
-                                           int priority)
+                                           bool r, bool w, bool x,
+                                           bool ignoreFlag, int priority)
   {
-    lst_.push_back(BreakPoint(false, false, r, w, ignoreFlag,
+    lst_.push_back(BreakPoint(false, false, r, w, x, ignoreFlag,
                               0, addr, priority));
   }
 
   void BreakPointList::addIOBreakPoint(uint16_t addr,
                                        bool r, bool w, int priority)
   {
-    lst_.push_back(BreakPoint(true, false, r, w, false, 0, addr, priority));
+    lst_.push_back(BreakPoint(true, false, r, w, false, false,
+                              0, addr, priority));
   }
 
   std::string BreakPointList::getBreakPointList()
   {
     std::ostringstream  lst;
-    BreakPoint          prv_bp(false, false, false, false, false, 0, 0, 0);
+    BreakPoint          prv_bp(false, false, false, false, false, false,
+                               0, 0, 0);
     size_t              i;
     uint16_t            firstAddr = 0;
 
@@ -243,6 +280,7 @@ namespace Ep128Emu {
           bp.haveSegment() == prv_bp.haveSegment() &&
           bp.isRead() == prv_bp.isRead() &&
           bp.isWrite() == prv_bp.isWrite() &&
+          bp.isExecute() == prv_bp.isExecute() &&
           bp.isIgnore() == prv_bp.isIgnore() &&
           bp.priority() == prv_bp.priority() &&
           bp.segment() == prv_bp.segment()) {
@@ -263,8 +301,19 @@ namespace Ep128Emu {
           lst << "-" << std::setw(4) << lastAddr;
       }
       if (!prv_bp.isIgnore()) {
-        if (prv_bp.isRead() != prv_bp.isWrite())
-          lst << (prv_bp.isRead() ? "r" : "w");
+        bool    r = prv_bp.isRead();
+        bool    w = prv_bp.isWrite();
+        bool    x = prv_bp.isExecute();
+        if (prv_bp.isIO())
+          x = r;
+        if (!((r && w && x) || !(r || w || x))) {
+          if (r)
+            lst << "r";
+          if (w)
+            lst << "w";
+          if (x && !prv_bp.isIO())
+            lst << "x";
+        }
         if (prv_bp.priority() != 2)
           lst << "p" << std::setw(1) << prv_bp.priority();
       }
@@ -289,8 +338,19 @@ namespace Ep128Emu {
           lst << "-" << std::setw(4) << lastAddr;
       }
       if (!prv_bp.isIgnore()) {
-        if (prv_bp.isRead() != prv_bp.isWrite())
-          lst << (prv_bp.isRead() ? "r" : "w");
+        bool    r = prv_bp.isRead();
+        bool    w = prv_bp.isWrite();
+        bool    x = prv_bp.isExecute();
+        if (prv_bp.isIO())
+          x = r;
+        if (!((r && w && x) || !(r || w || x))) {
+          if (r)
+            lst << "r";
+          if (w)
+            lst << "w";
+          if (x && !prv_bp.isIO())
+            lst << "x";
+        }
         if (prv_bp.priority() != 2)
           lst << "p" << std::setw(1) << prv_bp.priority();
       }
@@ -329,12 +389,13 @@ namespace Ep128Emu {
   void BreakPointList::saveState(File::Buffer& buf)
   {
     buf.setPosition(0);
-    buf.writeUInt32(0x01000001);        // version number
+    buf.writeUInt32(0x01000002);        // version number
     for (size_t i = 0; i < lst_.size(); i++) {
       buf.writeBoolean(lst_[i].isIO());
       buf.writeBoolean(lst_[i].haveSegment());
       buf.writeBoolean(lst_[i].isRead());
       buf.writeBoolean(lst_[i].isWrite());
+      buf.writeBoolean(lst_[i].isExecute());
       buf.writeBoolean(lst_[i].isIgnore());
       buf.writeByte(lst_[i].segment());
       buf.writeUInt32(lst_[i].addr());
@@ -354,7 +415,7 @@ namespace Ep128Emu {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
-    if (version != 0x01000001) {
+    if (!(version >= 0x01000001 && version <= 0x01000002)) {
       buf.setPosition(buf.getDataSize());
       throw Exception("incompatible breakpoint list format");
     }
@@ -366,11 +427,14 @@ namespace Ep128Emu {
       bool      haveSegment = buf.readBoolean();
       bool      isRead = buf.readBoolean();
       bool      isWrite = buf.readBoolean();
+      bool      isExecute = isRead;
+      if (version >= 0x01000002)
+        isExecute = buf.readBoolean();
       bool      isIgnore = buf.readBoolean();
       uint8_t   segment = buf.readByte();
       uint16_t  addr = uint16_t(buf.readUInt32());
       int       priority = buf.readByte();
-      BreakPoint  bp(isIO, haveSegment, isRead, isWrite, isIgnore,
+      BreakPoint  bp(isIO, haveSegment, isRead, isWrite, isExecute, isIgnore,
                      segment, addr, priority);
       lst_.push_back(bp);
     }

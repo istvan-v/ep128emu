@@ -497,10 +497,11 @@ scripts:
     priority 'priority' (0 to 3). 'bptype' can be one of the following
     values:
 
-      0: memory read or write
+      0: any memory access (read, write, or Z80 opcode read)
       1: memory read
       2: memory write
-      3: memory read or write (same as bptype == 0)
+      3: any memory access, same as bptype == 0
+      4: Z80 opcode read
       5: I/O port read
       6: I/O port write
       7: I/O port read or write

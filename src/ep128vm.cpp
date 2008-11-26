@@ -116,7 +116,7 @@ namespace Ep128 {
         vm.videoMemoryWait();
     }
     vm.updateCPUCycles(nCycles);
-    return (vm.memory.read(addr));
+    return vm.memory.read(addr);
   }
 
   uint16_t Ep128VM::Z80_::readMemoryWord(uint16_t addr)
@@ -158,7 +158,7 @@ namespace Ep128 {
     }
     vm.updateCPUCycles(nCycles);
     if (!vm.singleStepMode)
-      return vm.memory.read(addr);
+      return vm.memory.readOpcode(addr);
     // single step mode
     return vm.checkSingleStepModeBreak();
   }
@@ -176,7 +176,7 @@ namespace Ep128 {
         vm.videoMemoryWait();
     }
     vm.updateCPUCycles(nCycles);
-    return vm.memory.read(addr);
+    return vm.memory.readOpcode(addr);
   }
 
   uint8_t Ep128VM::Z80_::readOpcodeByte(int offset)
@@ -192,7 +192,7 @@ namespace Ep128 {
         vm.videoMemoryWait();
     }
     vm.updateCPUCycles(nCycles);
-    return (vm.memory.read(addr));
+    return vm.memory.readOpcode(addr);
   }
 
   uint16_t Ep128VM::Z80_::readOpcodeWord(int offset)
@@ -216,8 +216,8 @@ namespace Ep128 {
     }
     else
       vm.updateCPUCycles(6);
-    uint16_t  retval = vm.memory.read(addr);
-    retval |= (uint16_t(vm.memory.read((addr + 1) & 0xFFFF) << 8));
+    uint16_t  retval = vm.memory.readOpcode(addr);
+    retval |= (uint16_t(vm.memory.readOpcode((addr + 1) & 0xFFFF) << 8));
     return retval;
   }
 
@@ -548,10 +548,6 @@ namespace Ep128 {
   void Ep128VM::Memory_::breakPointCallback(bool isWrite,
                                             uint16_t addr, uint8_t value)
   {
-    if (vm.noBreakOnDataRead && !isWrite) {
-      if (uint16_t(vm.z80.getReg().PC.W.l) != addr)
-        return;
-    }
     if (!vm.memory.checkIgnoreBreakPoint(vm.z80.getReg().PC.W.l)) {
       int     bpType = int(isWrite) + 1;
       if (!isWrite && uint16_t(vm.z80.getReg().PC.W.l) == addr)
@@ -1019,61 +1015,59 @@ namespace Ep128 {
     uint16_t  addr = z80.getReg().PC.W.l;
     uint8_t   b0 = 0x00;
     if (singleStepMode == 3) {
-      b0 = memory.read(addr);
+      b0 = memory.readOpcode(addr);
       if (!singleStepMode)
         return b0;
     }
     else
       b0 = memory.readNoDebug(addr);
-    if (singleStepMode == 2) {
-      if (singleStepModeNextAddr >= 0 &&
-          int32_t(addr) != singleStepModeNextAddr)
-        return b0;
-    }
     int32_t   nxtAddr = int32_t(-1);
-    switch (b0) {
-    case 0x10:                                  // DJNZ
-    case 0xF7:                                  // EXOS
-      nxtAddr = (addr + 2) & 0xFFFF;
-      break;
-    case 0x76:                                  // HLT
-    case 0xC7:                                  // RST
-    case 0xCF:
-    case 0xD7:
-    case 0xDF:
-    case 0xE7:
-    case 0xEF:
-    case 0xFF:
-      nxtAddr = (addr + 1) & 0xFFFF;
-      break;
-    case 0xC4:                                  // CALL
-    case 0xCC:
-    case 0xCD:
-    case 0xD4:
-    case 0xDC:
-    case 0xE4:
-    case 0xEC:
-    case 0xF4:
-    case 0xFC:
-      nxtAddr = (addr + 3) & 0xFFFF;
-      break;
-    case 0xED:
-      {
-        uint8_t   b1 = memory.readNoDebug((addr + 1) & 0xFFFF);
-        switch (b1) {
-        case 0xB0:                              // LDIR
-        case 0xB1:                              // CPIR
-        case 0xB2:                              // INIR
-        case 0xB3:                              // OTIR
-        case 0xB8:                              // LDDR
-        case 0xB9:                              // CPDR
-        case 0xBA:                              // INDR
-        case 0xBB:                              // OTDR
-          nxtAddr = (addr + 2) & 0xFFFF;
-          break;
+    if (singleStepMode == 2 || singleStepMode == 4) {
+      // 'step over' or 'step into' mode
+      if (singleStepModeNextAddr >= 0 &&
+          int32_t(addr) != singleStepModeNextAddr) {
+        return b0;
+      }
+      int     opType = 0;
+      if (b0 < 0x80) {
+        if (b0 == 0x10)
+          opType = 0x12;                // DJNZ
+        else if ((b0 & 0xE7) == 0x20)
+          opType = 0x22;                // conditional JR
+        else if (b0 == 0x76)
+          opType = 0x71;                // HLT
+      }
+      else if (b0 != 0xED) {
+        if (b0 == 0xCD)
+          opType = 0x43;                // CALL
+        else if ((b0 & 0xC7) == 0xC2 || (b0 & 0xC7) == 0xC4)
+          opType = 0x33;                // conditional JP or CALL
+        else if ((b0 & 0xC7) == 0xC7)
+          opType = (b0 == 0xF7 ? 0x52 : 0x61);  // EXOS, RST
+      }
+      else {
+        uint8_t b1 = memory.readNoDebug((addr + 1) & 0xFFFF);
+        if ((b1 & 0xF4) == 0xB0)
+          opType = 0x82;                // LDIR etc.
+      }
+      if (singleStepMode == 2) {
+        // step over
+        if (opType != 0)
+          nxtAddr = int32_t((addr + uint16_t(opType & 0x0F)) & 0xFFFF);
+      }
+      else if (opType == 0x22 || opType == 0x33) {
+        // step into
+        uint16_t  tmp = memory.readNoDebug((addr + 1) & 0xFFFF);
+        if (opType == 0x22) {           // conditional JR
+          if (tmp & 0x80)
+            tmp = tmp | 0xFF00;
+          nxtAddr = int32_t((addr + 2 + tmp) & 0xFFFF);
+        }
+        else {                          // conditional JP or CALL
+          tmp = tmp | (uint16_t(memory.readNoDebug((addr + 2) & 0xFFFF)) << 8);
+          nxtAddr = int32_t(tmp);
         }
       }
-      break;
     }
     singleStepModeNextAddr = nxtAddr;
     if (!memory.checkIgnoreBreakPoint(addr))
@@ -1652,17 +1646,20 @@ namespace Ep128 {
   {
     for (size_t i = 0; i < bpList.getBreakPointCnt(); i++) {
       const Ep128Emu::BreakPoint& bp = bpList.getBreakPoint(i);
-      if (bp.isIO())
-        ioPorts.setBreakPoint(bp.addr(),
-                              bp.priority(), bp.isRead(), bp.isWrite());
-      else if (bp.haveSegment())
-        memory.setBreakPoint(bp.segment(), bp.addr(),
-                             bp.priority(), bp.isRead(), bp.isWrite(),
+      if (bp.isIO()) {
+        ioPorts.setBreakPoint(bp.addr(), bp.priority(),
+                              bp.isRead(), bp.isWrite());
+      }
+      else if (bp.haveSegment()) {
+        memory.setBreakPoint(bp.segment(), bp.addr(), bp.priority(),
+                             bp.isRead(), bp.isWrite(), bp.isExecute(),
                              bp.isIgnore());
-      else
-        memory.setBreakPoint(bp.addr(),
-                             bp.priority(), bp.isRead(), bp.isWrite(),
+      }
+      else {
+        memory.setBreakPoint(bp.addr(), bp.priority(),
+                             bp.isRead(), bp.isWrite(), bp.isExecute(),
                              bp.isIgnore());
+      }
     }
   }
 
@@ -1694,14 +1691,67 @@ namespace Ep128 {
 
   void Ep128VM::setSingleStepMode(int mode_)
   {
-    singleStepMode = uint8_t(mode_ >= 0 ? (mode_ <= 3 ? mode_ : 3) : 0);
-    int   n = 4;
-    if (!(singleStepMode == 1 || singleStepMode == 2)) {
-      n = int(breakPointPriorityThreshold);
-      singleStepModeNextAddr = int32_t(-1);
+    mode_ = ((mode_ >= 0 && mode_ <= 4) ? mode_ : 0);
+    if (mode_ == int(singleStepMode))
+      return;
+    singleStepMode = uint8_t(mode_);
+    singleStepModeNextAddr = int32_t(-1);
+    {
+      int     tmp = 4;
+      if (mode_ == 0 || mode_ == 3)
+        tmp = int(breakPointPriorityThreshold);
+      memory.setBreakPointPriorityThreshold(tmp);
+      ioPorts.setBreakPointPriorityThreshold(tmp);
     }
-    memory.setBreakPointPriorityThreshold(n);
-    ioPorts.setBreakPointPriorityThreshold(n);
+    if (mode_ != 2 && mode_ != 4)
+      return;
+    // "step over" or "step into" mode:
+    uint16_t  nxtAddr = uint16_t(z80.getReg().PC.W.l);
+    int       opNum = readMemory(nxtAddr, true);
+    nxtAddr = (nxtAddr + 1) & 0xFFFF;
+    if (opNum == 0xED) {
+      opNum = 0xED00 | int(readMemory(nxtAddr, true));
+      nxtAddr = (nxtAddr + 1) & 0xFFFF;
+    }
+    int     opType = 0;
+    if (opNum == 0x10)
+      opType = 0x11;                    // DJNZ
+    else if ((opNum | 0x18) == 0x38)
+      opType = 0x21;                    // conditional JR
+    else if ((opNum | 0x38) == 0xFA || (opNum | 0x38) == 0xFC)
+      opType = 0x32;                    // conditional JP or CALL
+    else if (opNum == 0xCD)
+      opType = 0x42;                    // CALL
+    else if (opNum == 0xF7)
+      opType = 0x51;                    // EXOS
+    else if ((opNum | 0x38) == 0xFF)
+      opType = 0x60;                    // RST
+    else if (opNum == 0x76)
+      opType = 0x70;                    // HLT
+    else if ((opNum | 0x0B) == 0xEDBB)
+      opType = 0x80;                    // LDIR etc.
+    if (mode_ == 2) {                   // step over
+      if (opType != 0) {
+        singleStepModeNextAddr =
+            int32_t((nxtAddr + uint16_t(opType & 0x0F)) & 0xFFFF);
+      }
+    }
+    else {                              // step into, find target address
+      if (opType == 0x21) {
+        // relative jump
+        uint16_t  tmp = readMemory(nxtAddr, true);
+        if (tmp & 0x80)
+          tmp = tmp | 0xFF00;
+        singleStepModeNextAddr = int32_t((nxtAddr + 1 + tmp) & 0xFFFF);
+      }
+      else if (opType == 0x32) {
+        // absolute jump
+        uint16_t  tmp = readMemory(nxtAddr, true);
+        nxtAddr = (nxtAddr + 1) & 0xFFFF;
+        tmp = tmp | (uint16_t(readMemory(nxtAddr, true)) << 8);
+        singleStepModeNextAddr = int32_t(tmp);
+      }
+    }
   }
 
   uint8_t Ep128VM::getMemoryPage(int n) const

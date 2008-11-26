@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -41,15 +41,16 @@ namespace Ep128 {
     uint8_t *pageAddressTableR[4];
     uint8_t *pageAddressTableW[4];
     void allocateSegment(uint8_t n, bool isROM);
+    void checkExecuteBreakPoint(uint16_t addr, uint8_t page, uint8_t value);
     void checkReadBreakPoint(uint16_t addr, uint8_t page, uint8_t value);
     void checkWriteBreakPoint(uint16_t addr, uint8_t page, uint8_t value);
    public:
     Memory();
     virtual ~Memory();
     void setBreakPoint(uint8_t segment, uint16_t addr,
-                       int priority, bool r, bool w, bool ignoreFlag);
+                       int priority, bool r, bool w, bool x, bool ignoreFlag);
     void setBreakPoint(uint16_t addr,
-                       int priority, bool r, bool w, bool ignoreFlag);
+                       int priority, bool r, bool w, bool x, bool ignoreFlag);
     void clearBreakPoints(uint8_t segment);
     void clearBreakPoints();
     void clearAllBreakPoints();
@@ -60,6 +61,7 @@ namespace Ep128 {
     void deleteSegment(uint8_t segment);
     void deleteAllSegments();
     inline uint8_t read(uint16_t addr);
+    inline uint8_t readOpcode(uint16_t addr);
     inline uint8_t readNoDebug(uint16_t addr) const;
     inline uint8_t readRaw(uint32_t addr) const;
     inline void write(uint16_t addr, uint8_t value);
@@ -87,6 +89,15 @@ namespace Ep128 {
     uint8_t value = pageAddressTableR[page][addr];
     if (haveBreakPoints)
       checkReadBreakPoint(addr, page, value);
+    return value;
+  }
+
+  inline uint8_t Memory::readOpcode(uint16_t addr)
+  {
+    uint8_t page = uint8_t(addr >> 14);
+    uint8_t value = pageAddressTableR[page][addr];
+    if (haveBreakPoints)
+      checkExecuteBreakPoint(addr, page, value);
     return value;
   }
 

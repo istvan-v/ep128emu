@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -28,55 +28,42 @@ namespace Ep128Emu {
   class BreakPoint {
    private:
     // 0x00000000: memory (16 bit address),
-    // 0x04000000: memory (8 bit segment + 14 bit address),
-    // 0x08000000: I/O (16 bit address)
+    // 0x08000000: memory (8 bit segment + 14 bit address),
+    // 0x10000000: I/O (16 bit address)
     // + 0x01000000 if set for read
     // + 0x02000000 if set for write
-    // + 0x10000000 to ignore other breakpoints if PC is at this address
+    // + 0x04000000 if set for execute
+    // + 0x20000000 to ignore other breakpoints if PC is at this address
     // + priority (0 to 3) * 0x00400000
     // + address
     uint32_t  n_;
    public:
     BreakPoint(bool isIO_, bool haveSegment_,
-               bool r_, bool w_, bool ignoreFlag_,
-               uint8_t segment_, uint16_t addr_, int priority_)
-    {
-      this->n_ = (r_ ? 0x01000000 : 0x00000000)
-                 + (w_ ? 0x02000000 : 0x00000000);
-      if (!(this->n_))
-        this->n_ = 0x03000000;
-      this->n_ += (priority_ > 0 ?
-                   (priority_ < 3 ? ((uint32_t) priority_ << 22) : 0x00C00000)
-                   : 0x00000000);
-      if (isIO_)
-        this->n_ += (0x08000000 + (uint32_t) (addr_ & 0xFFFF));
-      else if (haveSegment_)
-        this->n_ += (0x04000000 + ((uint32_t) (segment_ & 0xFF) << 14)
-                                + (uint32_t) (addr_ & 0x3FFF));
-      else
-        this->n_ += (0x00000000 + (uint32_t) (addr_ & 0xFFFF));
-      if (ignoreFlag_)
-        this->n_ = (this->n_ & 0xF7FFFFFFU) | 0x13C00000U;
-    }
+               bool r_, bool w_, bool x_, bool ignoreFlag_,
+               uint8_t segment_, uint16_t addr_, int priority_);
     bool isIO() const
     {
-      return !!(this->n_ & 0x08000000);
+      return bool(this->n_ & 0x10000000);
     }
     bool haveSegment() const
     {
-      return !!(this->n_ & 0x04000000);
+      return bool(this->n_ & 0x08000000);
     }
     bool isRead() const
     {
-      return !!(this->n_ & 0x01000000);
+      return bool(this->n_ & 0x01000000);
     }
     bool isWrite() const
     {
-      return !!(this->n_ & 0x02000000);
+      return bool(this->n_ & 0x02000000);
+    }
+    bool isExecute() const
+    {
+      return bool(this->n_ & 0x04000000);
     }
     bool isIgnore() const
     {
-      return !!(this->n_ & 0x10000000);
+      return bool(this->n_ & 0x20000000);
     }
     int priority() const
     {
@@ -122,6 +109,7 @@ namespace Ep128Emu {
      * and these optional modifiers:
      *   r              the breakpoint is triggered on reads
      *   w              the breakpoint is triggered on writes
+     *   x              the breakpoint is triggered on opcode reads
      *   p0             the breakpoint has a priority of 0
      *   p1             the breakpoint has a priority of 1
      *   p2             the breakpoint has a priority of 2
@@ -131,7 +119,7 @@ namespace Ep128Emu {
      *                  (read/write flags and priority are not used in
      *                  this case)
      * by default, the breakpoint is triggered on both reads and writes if
-     * 'r' or 'w' is not used, and has a priority of 2.
+     * 'r', 'w', or 'x' is not used, and has a priority of 2.
      * Example: 8000-8003rp1 means break on reading CPU addresses 0x8000,
      * 0x8001, 0x8002, and 0x8003, if the breakpoint priority threshold is
      * less than or equal to 1.
@@ -140,8 +128,10 @@ namespace Ep128Emu {
      */
     BreakPointList(const std::string& lst);
     void addMemoryBreakPoint(uint8_t segment, uint16_t addr,
-                             bool r, bool w, bool ignoreFlag, int priority);
-    void addMemoryBreakPoint(uint16_t addr, bool r, bool w, bool ignoreFlag,
+                             bool r, bool w, bool x, bool ignoreFlag,
+                             int priority);
+    void addMemoryBreakPoint(uint16_t addr,
+                             bool r, bool w, bool x, bool ignoreFlag,
                              int priority);
     void addIOBreakPoint(uint16_t addr, bool r, bool w, int priority);
     size_t getBreakPointCnt() const

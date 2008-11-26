@@ -188,21 +188,22 @@ namespace Ep128Emu {
       int       bpType = int(lua_tointeger(lst, 1));
       uint32_t  bpAddr = uint32_t(lua_tointeger(lst, 2));
       int       bpPriority = int(lua_tointeger(lst, 3));
-      if ((bpType & (~(int(27)))) == 0) {
-        bool    readFlag = ((bpType & 3) != 2);
-        bool    writeFlag = ((bpType & 3) != 1);
+      if ((bpType & (~(int(31)))) == 0 && (bpType & 7) < 5) {
+        bool    readFlag = ((bpType & 7) != 2 && (bpType & 7) != 4);
+        bool    writeFlag = ((bpType & 7) != 1 && (bpType & 7) != 4);
+        bool    executeFlag = ((bpType & 7) != 1 && (bpType & 7) != 2);
         bool    addr22BitFlag = bool(bpType & 8) || (bpAddr >= 0x00010000U);
         bool    ignoreFlag = bool(bpType & 16);
         if (!addr22BitFlag) {
           bpList.addMemoryBreakPoint(uint16_t(bpAddr & 0xFFFFU),
-                                     readFlag, writeFlag, ignoreFlag,
-                                     bpPriority);
+                                     readFlag, writeFlag, executeFlag,
+                                     ignoreFlag, bpPriority);
         }
         else {
           bpList.addMemoryBreakPoint(uint8_t((bpAddr >> 14) & 0xFFU),
                                      uint16_t(bpAddr & 0x3FFFU),
-                                     readFlag, writeFlag, ignoreFlag,
-                                     bpPriority);
+                                     readFlag, writeFlag, executeFlag,
+                                     ignoreFlag, bpPriority);
         }
       }
       else if (bpType >= 5 && bpType <= 7) {

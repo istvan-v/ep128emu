@@ -354,6 +354,7 @@ namespace Ep128 {
      *   1: single step mode (break on every instruction, ignore breakpoints)
      *   2: step over mode
      *   3: trace (similar to mode 1, but does not ignore breakpoints)
+     *   4: step into mode
      */
     virtual void setSingleStepMode(int mode_);
     /*!

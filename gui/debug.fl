@@ -1,5 +1,5 @@
 # data file for the Fltk User Interface Designer (fluid)
-version 1.0107 
+version 1.0109 
 do_not_include_H_from_C 
 header_name {.hpp} 
 code_name {.cpp}
@@ -354,24 +354,10 @@ class Ep128EmuGUI_DebugWindow {open
               callback {{
   applyBreakPointList();
 }}
-              tooltip {Enter watchpoint definitions, separated by spaces or newlines. Allowed formats include NN (I/O), NNNN (memory, CPU address), and NN:NNNN (memory, physical address as segment:offset); each N is a hexadecimal digit. Address ranges (separated by a - character) can also be specified. Use the following suffixes to check for read or write access only, set priority, or ignore watchpoints depending on the program counter: r, w, p0, p1, p2, p3, i.} xywh {570 55 360 230} box DOWN_BOX align 5 textfont 4
+              tooltip {Enter watchpoint definitions, separated by spaces or newlines. Allowed formats include NN (I/O), NNNN (memory, CPU address), and NN:NNNN (memory, physical address as segment:offset); each N is a hexadecimal digit. Address ranges (separated by a - character) can also be specified. Use the following suffixes to check for read, write, or execute access only, set priority, or ignore watchpoints depending on the program counter: r, w, x, p0, p1, p2, p3, i.} xywh {570 55 360 255} box DOWN_BOX align 5 textfont 4
               code0 {o->cursor_color(Fl_Color(3));}
               code1 {o->buffer(bpEditBuffer);}
               code2 {o->scrollbar_align(FL_ALIGN_RIGHT);}
-            }
-            Fl_Light_Button noBreakOnDataReadValuator {
-              label {Ignore data reads}
-              callback {{
-  gui.config.debug.noBreakOnDataRead = (o->value() != 0);
-  gui.config.debugSettingsChanged = true;
-  try {
-    gui.config.applySettings();
-  }
-  catch (std::exception& e) {
-    gui.errorMessage(e.what());
-  }
-}}
-              xywh {575 295 145 25} color 50 selection_color 3
             }
             Fl_Value_Slider bpPriorityThresholdValuator {
               label {Priority threshold}
@@ -385,7 +371,7 @@ class Ep128EmuGUI_DebugWindow {open
     gui.errorMessage(e.what());
   }
 }}
-              xywh {575 376 145 23} type Horizontal color 47 selection_color 52 align 5 maximum 4 step 1
+              xywh {575 331 145 23} type Horizontal color 47 selection_color 52 align 5 maximum 4 step 1
             }
             Fl_Button {} {
               label {Load from file}
@@ -394,8 +380,7 @@ class Ep128EmuGUI_DebugWindow {open
   try {
     std::string tmp;
     if (gui.browseFile(tmp, gui.debuggerDirectory,
-                       "All files (*)",
-                       Fl_File_Chooser::SINGLE,
+                       "All files\\t*", Fl_Native_File_Chooser::BROWSE_FILE,
                        "Load watchpoint definitions from file")) {
       f = std::fopen(tmp.c_str(), "rb");
       if (!f)
@@ -434,7 +419,7 @@ class Ep128EmuGUI_DebugWindow {open
     gui.errorMessage(e.what());
   }
 }}
-              xywh {780 295 145 25} color 50 selection_color 51
+              xywh {780 330 145 25} color 50 selection_color 51
             }
             Fl_Button {} {
               label {Save to file}
@@ -444,8 +429,8 @@ class Ep128EmuGUI_DebugWindow {open
   try {
     std::string tmp;
     if (gui.browseFile(tmp, gui.debuggerDirectory,
-                       "All files (*)",
-                       Fl_File_Chooser::CREATE,
+                       "All files\\t*",
+                       Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
                        "Save watchpoint definitions to file")) {
       f = std::fopen(tmp.c_str(), "w");
       if (!f)
@@ -476,14 +461,14 @@ class Ep128EmuGUI_DebugWindow {open
     gui.errorMessage(e.what());
   }
 }}
-              xywh {780 330 145 25} color 50 selection_color 51
+              xywh {780 370 145 25} color 50 selection_color 51
             }
             Fl_Button {} {
               label Apply
               callback {{
   applyBreakPointList();
 }}
-              tooltip {Reset watchpoints from text format definition} xywh {780 375 145 25} color 50 selection_color 51
+              tooltip {Reset watchpoints from text format definition} xywh {575 370 145 25} color 50 selection_color 51
             }
           }
           Fl_Group {} {open
@@ -502,8 +487,8 @@ class Ep128EmuGUI_DebugWindow {open
   try {
     std::string tmp;
     if (gui.browseFile(tmp, gui.debuggerDirectory,
-                       "Lua scripts (*.lua)",
-                       Fl_File_Chooser::SINGLE,
+                       "Lua scripts\\t*.lua",
+                       Fl_Native_File_Chooser::BROWSE_FILE,
                        "Load Lua script from file")) {
       f = std::fopen(tmp.c_str(), "rb");
       if (!f)
@@ -549,8 +534,8 @@ class Ep128EmuGUI_DebugWindow {open
   try {
     std::string tmp;
     if (gui.browseFile(tmp, gui.debuggerDirectory,
-                       "Lua scripts (*.lua)",
-                       Fl_File_Chooser::CREATE,
+                       "Lua scripts\\t*.lua",
+                       Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
                        "Save Lua script to file")) {
       f = std::fopen(tmp.c_str(), "w");
       if (!f)
@@ -614,20 +599,29 @@ class Ep128EmuGUI_DebugWindow {open
           }
         }
       }
-      Fl_Button stepButton {
-        label Step
+      Fl_Button stepIntoButton {
+        label {Step into}
         callback {{
   focusWidget = stepButton;
-  gui.vm.setSingleStepMode(1);
+  gui.vm.setSingleStepMode(4);
   this->hide();
 }}
-        xywh {685 685 80 25} selection_color 50
+        xywh {595 685 80 25} selection_color 50
       }
       Fl_Button stepOverButton {
         label {Step over}
         callback {{
   focusWidget = stepButton;
   gui.vm.setSingleStepMode(2);
+  this->hide();
+}}
+        xywh {685 685 80 25} selection_color 50
+      }
+      Fl_Button stepButton {
+        label Step
+        callback {{
+  focusWidget = stepButton;
+  gui.vm.setSingleStepMode(1);
   this->hide();
 }}
         xywh {775 685 80 25} selection_color 50
