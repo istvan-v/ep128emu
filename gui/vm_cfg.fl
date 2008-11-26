@@ -1,5 +1,5 @@
 # data file for the Fltk User Interface Designer (fluid)
-version 1.0107 
+version 1.0109 
 do_not_include_H_from_C 
 header_name {.hpp} 
 code_name {.cpp}
@@ -74,7 +74,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
   o->value(double(gui.config.vm.cpuClockFrequency));
 }}
-              xywh {30 70 120 25} align 8 when 4 minimum 1 maximum 5e+08 step 1 value 4e+06
+              xywh {30 70 120 25} align 8 when 4 minimum 2e+06 maximum 2.5e+08 step 1 value 4e+06
               code0 {o->cursor_color(Fl_Color(3));}
             }
             Fl_Value_Input vmVideoFrequencyValuator {
@@ -88,7 +88,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
   updateWindow();
 }}
-              xywh {30 105 120 25} align 8 when 4 minimum 100000 maximum 4e+07 step 1 value 890625
+              xywh {30 105 120 25} align 8 when 4 minimum 178125 maximum 1.78125e+06 step 1 value 890625
               code0 {o->cursor_color(Fl_Color(3));}
             }
             Fl_Value_Input vmSoundClockFrequencyValuator {
@@ -927,8 +927,8 @@ class Ep128EmuGUI_MachineConfigWindow {open
   try {
     std::string tmp;
     if (gui.browseFile(tmp, gui.romImageDirectory,
-                       "ROM image files (*.rom)",
-                       Fl_File_Chooser::SINGLE,
+                       "ROM image files\\t*.rom",
+                       Fl_Native_File_Chooser::BROWSE_FILE,
                        "Select ROM image file")) {
       setROMImageFile(segment_, tmp);
       switch (segment_) {
