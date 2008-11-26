@@ -107,11 +107,16 @@ Section "ep128emu2" SecMain
 
     ;Create shortcuts
     CreateDirectory "$SMPROGRAMS\$STARTMENU_FOLDER"
+    CreateDirectory "$SMPROGRAMS\$STARTMENU_FOLDER\GUI themes"
     SetOutPath "$INSTDIR"
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\ep128emu - OpenGL mode.lnk" "$INSTDIR\ep128emu.exe" '-opengl'
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\ep128emu - GL - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-opengl -colorscheme 1'
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\ep128emu - GL - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-opengl -colorscheme 2'
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\ep128emu - software mode.lnk" "$INSTDIR\ep128emu.exe" '-no-opengl'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\GUI themes\ep128emu - GL - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-opengl -colorscheme 1'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\GUI themes\ep128emu - GL - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-opengl -colorscheme 2'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\GUI themes\ep128emu - GL - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-opengl -colorscheme 3'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\GUI themes\ep128emu - Software - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-no-opengl -colorscheme 1'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\GUI themes\ep128emu - Software - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-no-opengl -colorscheme 2'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\GUI themes\ep128emu - Software - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-no-opengl -colorscheme 3'
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\README.lnk" "$INSTDIR\readme.txt"
     SetOutPath "$INSTDIR\tape"
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Tape editor.lnk" "$INSTDIR\tapeedit.exe"
@@ -136,6 +141,16 @@ Section "Source code" SecSrc
   File "..\*.patch"
   File "..\*.sh"
 
+  SetOutPath "$INSTDIR\src\Fl_Native_File_Chooser"
+
+  File "..\Fl_Native_File_Chooser\CREDITS"
+  File "..\Fl_Native_File_Chooser\README.txt"
+  File "..\Fl_Native_File_Chooser\*.cxx"
+
+  SetOutPath "$INSTDIR\src\Fl_Native_File_Chooser\FL"
+
+  File "..\Fl_Native_File_Chooser\FL\*.H"
+
   SetOutPath "$INSTDIR\src\config"
 
   File "..\config\*.cfg"
@@ -147,13 +162,8 @@ Section "Source code" SecSrc
   SetOutPath "$INSTDIR\src\gui"
 
   File "..\gui\*.fl"
-  File "..\gui\debugger.cpp"
-  File "..\gui\debugger.hpp"
-  File "..\gui\gui.cpp"
-  File "..\gui\gui.hpp"
-  File "..\gui\monitor.cpp"
-  File "..\gui\monitor.hpp"
-  File "..\gui\main.cpp"
+  File /x "*_fl.cpp" "..\gui\*.cpp"
+  File /x "*_fl.hpp" "..\gui\*.hpp"
 
   SetOutPath "$INSTDIR\src\installer"
 
@@ -183,6 +193,11 @@ Section "Source code" SecSrc
   SetOutPath "$INSTDIR\src\ep128emu.app\Contents\Resources"
 
   File "..\ep128emu.app\Contents\Resources\ep128emu.icns"
+
+  SetOutPath "$INSTDIR\src\resource"
+
+  File "..\resource\ep128emu.rc"
+  File "..\resource\*.ico"
 
   SetOutPath "$INSTDIR\src\roms"
 
@@ -382,16 +397,22 @@ Section "Uninstall"
   !insertmacro MUI_STARTMENU_GETFOLDER Application $MUI_TEMP
 
   Delete "$SMPROGRAMS\$MUI_TEMP\ep128emu - OpenGL mode.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\ep128emu - software mode.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\GUI themes\ep128emu - GL - Win2000 theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\GUI themes\ep128emu - GL - plastic theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\GUI themes\ep128emu - GL - Gtk+ theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\GUI themes\ep128emu - Software - Win2000 theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\GUI themes\ep128emu - Software - plastic theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\GUI themes\ep128emu - Software - Gtk+ theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\ep128emu - GL - Win2000 theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\ep128emu - GL - plastic theme.lnk"
-  Delete "$SMPROGRAMS\$MUI_TEMP\ep128emu - software mode.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\README.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\Tape editor.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\Reinstall configuration files.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\Uninstall.lnk"
 
   ;Delete empty start menu parent diretories
-  StrCpy $MUI_TEMP "$SMPROGRAMS\$MUI_TEMP"
+  StrCpy $MUI_TEMP "$SMPROGRAMS\$MUI_TEMP\GUI themes"
 
   startMenuDeleteLoop:
     ClearErrors
