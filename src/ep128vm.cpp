@@ -636,7 +636,7 @@ namespace Ep128 {
 
   void Ep128VM::Nick_::irqStateChange(bool newState)
   {
-    vm.dave.setInt1State(newState ? 1 : 0);
+    vm.dave.setInt1State(int(newState));
   }
 
   void Ep128VM::Nick_::drawLine(const uint8_t *buf, size_t nBytes)
@@ -1523,7 +1523,7 @@ namespace Ep128 {
   void Ep128VM::setKeyboardState(int keyCode, bool isPressed)
   {
     if (!isPlayingDemo)
-      dave.setKeyboardState(keyCode, (isPressed ? 1 : 0));
+      dave.setKeyboardState(keyCode, int(isPressed));
     if (isRecordingDemo) {
       if (haveTape() && getIsTapeMotorOn() && getTapeButtonState() != 0) {
         stopDemoRecording(false);

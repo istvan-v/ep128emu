@@ -85,11 +85,14 @@ namespace Ep128Emu {
 #  define EP128EMU_REGPARM1 __attribute__ ((__regparm__ (1)))
 #  define EP128EMU_REGPARM2 __attribute__ ((__regparm__ (2)))
 #  define EP128EMU_REGPARM3 __attribute__ ((__regparm__ (3)))
-#  define EP128EMU_INLINE   __attribute__ ((__always_inline__)) inline
 #else
 #  define EP128EMU_REGPARM1
 #  define EP128EMU_REGPARM2
 #  define EP128EMU_REGPARM3
+#endif
+#if defined(__GNUC__) && (__GNUC__ >= 3) && !defined(__ICC)
+#  define EP128EMU_INLINE   __attribute__ ((__always_inline__)) inline
+#else
 #  define EP128EMU_INLINE   inline
 #endif
 
