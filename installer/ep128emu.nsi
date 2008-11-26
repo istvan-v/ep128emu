@@ -91,7 +91,22 @@ Section "ep128emu2" SecMain
 
   SetOutPath "$INSTDIR\roms"
 
+  File "..\roms\asmen15.rom"
+  File "..\roms\basic20.rom"
+  File "..\roms\basic21.rom"
+  File "..\roms\epdos_z.rom"
   File "..\roms\epfileio.rom"
+  File "..\roms\exdos10.rom"
+  File "..\roms\exdos13.rom"
+  File "..\roms\exos20.rom"
+  File "..\roms\exos21.rom"
+  File "..\roms\exos22.rom"
+  File "..\roms\exos231.rom"
+  File "..\roms\fenas12.rom"
+  File "..\roms\heass10.rom"
+  File "..\roms\tasmon15.rom"
+  File "..\roms\zt18.rom"
+  File "..\roms\zx41.rom"
 
   SetOutPath "$INSTDIR\snapshot"
 
@@ -222,85 +237,17 @@ Section "Source code" SecSrc
 
 SectionEnd
 
-Section "Download ROM images" SecDLRoms
-
-  SetOutPath "$INSTDIR\roms"
-
-  Push ""
-  Push "zx41.rom"
-  Push "zt18.rom"
-  Push "tasmon15.rom"
-  Push "heass10.rom"
-  Push "fenas12.rom"
-  Push "exos23.rom"
-  Push "exos22.rom"
-  Push "exos21.rom"
-  Push "exos20.rom"
-  Push "exdos13.rom"
-  Push "exdos10.rom"
-  Push "epdos_z.rom"
-  Push "basic21.rom"
-  Push "basic20.rom"
-  Push "asmen15.rom"
-
-  downloadLoop:
-
-    Pop $0
-    StrCmp $0 "" downloadLoopDone 0
-    NSISdl::download "http://ep128emu.enterpriseforever.org/roms/$0" "$INSTDIR\roms\$0"
-    Pop $R0
-    StrCmp $R0 "success" downloadLoop 0
-    StrCmp $R0 "cancel" downloadLoop 0
-    MessageBox MB_OK "Download failed: $R0"
-    Goto downloadLoop
-
-  downloadLoopDone:
-
-SectionEnd
-
-Section "Download old ROM images" SecDLRoms2
-
-  SetOutPath "$INSTDIR\roms"
-
-  Push ""
-  Push "tasmon1.rom"
-  Push "tasmon0.rom"
-  Push "exos1.rom"
-  Push "exos0.rom"
-  Push "exdos1.rom"
-  Push "exdos0.rom"
-  Push "ep_basic.rom"
-
-  downloadLoop2:
-
-    Pop $0
-    StrCmp $0 "" downloadLoop2Done 0
-    NSISdl::download "http://ep128emu.enterpriseforever.org/roms/$0" "$INSTDIR\roms\$0"
-    Pop $R0
-    StrCmp $R0 "success" downloadLoop2 0
-    StrCmp $R0 "cancel" downloadLoop2 0
-    MessageBox MB_OK "Download failed: $R0"
-    Goto downloadLoop2
-
-  downloadLoop2Done:
-
-SectionEnd
-
 ;--------------------------------
 ;Descriptions
 
   ;Language strings
   LangString DESC_SecMain ${LANG_ENGLISH} "ep128emu binaries"
   LangString DESC_SecSrc ${LANG_ENGLISH} "ep128emu source code"
-  LangString DESC_SecDLRoms ${LANG_ENGLISH} "Download and install ROM images"
-  LangString DESC_SecDLRoms2 ${LANG_ENGLISH} "Download and install old ROM images (needed only by machine configurations created for versions before 2.0.2)"
 
   ;Assign language strings to sections
   !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
     !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} $(DESC_SecMain)
     !insertmacro MUI_DESCRIPTION_TEXT ${SecSrc} $(DESC_SecSrc)
-    !insertmacro MUI_DESCRIPTION_TEXT ${SecDLRoms} $(DESC_SecDLRoms)
-    !insertmacro MUI_DESCRIPTION_TEXT ${SecDLRoms2} $(DESC_SecDLRoms2)
   !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 ;--------------------------------
@@ -382,6 +329,7 @@ Section "Uninstall"
   Delete "$INSTDIR\roms\exos21.rom"
   Delete "$INSTDIR\roms\exos22.rom"
   Delete "$INSTDIR\roms\exos23.rom"
+  Delete "$INSTDIR\roms\exos231.rom"
   Delete "$INSTDIR\roms\fenas12.rom"
   Delete "$INSTDIR\roms\heass10.rom"
   Delete "$INSTDIR\roms\tasmon0.rom"

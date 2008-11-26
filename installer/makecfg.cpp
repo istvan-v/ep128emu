@@ -215,7 +215,7 @@ class Ep128EmuMachineConfiguration {
   }
 };
 
-static const char *machineConfigFileNames[34] = {
+static const char *machineConfigFileNames[] = {
   "EP_64k_Tape.cfg",                            // 0
   "EP_64k_Tape_NoCartridge.cfg",                // 1
   "EP_64k_Tape_NoCartridge_FileIO.cfg",         // 2
@@ -253,12 +253,12 @@ static const char *machineConfigFileNames[34] = {
 };
 
 // bits 0..7: number of RAM segments
-// bit 8:     EXOS 2.1 (exos0.rom at segment 0x00)
-// bit 9:     EXOS 2.1 (exos1.rom at segment 0x01)
+// bit 8:     -
+// bit 9:     -
 // bit 10:    EXOS 2.0 (exos20.rom at segments 0x00, 0x01)
 // bit 11:    EXOS 2.1 (exos21.rom at segments 0x00, 0x01)
 // bit 12:    EXOS 2.2 (exos22.rom at segments 0x00, 0x01, 0x02, 0x03)
-// bit 13:    EXOS 2.3 (exos23.rom at segments 0x00, 0x01, 0x02, 0x03)
+// bit 13:    EXOS 2.31 (exos231.rom at segments 0x00, 0x01, 0x02, 0x03)
 // bit 14:    BASIC 2.0 (basic20.rom at segment 0x04)
 // bit 15:    BASIC 2.0 (basic20.rom at segment 0x06)
 // bit 16:    BASIC 2.1 (basic21.rom at segment 0x04)
@@ -273,11 +273,12 @@ static const char *machineConfigFileNames[34] = {
 // bit 25:    ZOZOTOOLS (zt18.rom at segments 0x30, 0x31)
 // bit 26:    ZX (zx41.rom at segments 0x30, 0x31)
 // bit 27:    FILEIO (epfileio.rom at segment 0x10)
-// bit 28:    EXDOS (exdos0.rom at segment 0x20)
-// bit 29:    EXDOS (exdos1.rom at segment 0x21)
+// bit 28:    -
+// bit 29:    -
 // bit 30:    TASMON (tasmon15.rom at segments 0x05, 0x06)
+// bit 31:    -
 
-static const unsigned long machineConfigs[34] = {
+static const unsigned long machineConfigs[] = {
   0x00004404UL,         // EP_64k_Tape.cfg
   0x00000404UL,         // EP_64k_Tape_NoCartridge.cfg
   0x08000404UL,         // EP_64k_Tape_NoCartridge_FileIO.cfg
@@ -315,12 +316,12 @@ static const unsigned long machineConfigs[34] = {
 };
 
 static const char *romFileNames[24] = {
-  "exos0.rom",
-  "exos1.rom",
+  (char *) 0,
+  (char *) 0,
   "exos20.rom",
   "exos21.rom",
   "exos22.rom",
-  "exos23.rom",
+  "exos231.rom",
   "basic20.rom",
   "basic20.rom",
   "basic21.rom",
@@ -335,19 +336,19 @@ static const char *romFileNames[24] = {
   "zt18.rom",
   "zx41.rom",
   "epfileio.rom",
-  "exdos0.rom",
-  "exdos1.rom",
+  (char *) 0,
+  (char *) 0,
   "tasmon15.rom",
   (char *) 0
 };
 
 static const unsigned long romFileSegments[24] = {
-  0xFFFFFF00UL,         // exos0.rom
-  0xFFFFFF01UL,         // exos1.rom
+  0xFFFFFFFFUL,         // -
+  0xFFFFFFFFUL,         // -
   0xFFFF0100UL,         // exos20.rom
   0xFFFF0100UL,         // exos21.rom
   0x03020100UL,         // exos22.rom
-  0x03020100UL,         // exos23.rom
+  0x03020100UL,         // exos231.rom
   0xFFFFFF04UL,         // basic20.rom
   0xFFFFFF06UL,         // basic20.rom
   0xFFFFFF04UL,         // basic21.rom
@@ -362,10 +363,10 @@ static const unsigned long romFileSegments[24] = {
   0xFFFF3130UL,         // zt18.rom
   0xFFFF3130UL,         // zx41.rom
   0xFFFFFF10UL,         // epfileio.rom
-  0xFFFFFF20UL,         // exdos0.rom
-  0xFFFFFF21UL,         // exdos1.rom
+  0xFFFFFFFFUL,         // -
+  0xFFFFFFFFUL,         // -
   0xFFFF0605UL,         // tasmon15.rom
-  0xFFFFFFFFUL
+  0xFFFFFFFFUL          // -
 };
 
 Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
@@ -442,14 +443,6 @@ class Ep128EmuDisplaySndConfiguration {
     struct {
       double      latency;
       int         hwPeriods;
-      double      dcBlockFilter1Freq;
-      double      dcBlockFilter2Freq;
-      struct {
-        int       mode;
-        double    frequency;
-        double    level;
-        double    q;
-      } equalizer;
     } sound;
  public:
   Ep128EmuDisplaySndConfiguration(Ep128Emu::ConfigurationDB& config)
@@ -457,26 +450,13 @@ class Ep128EmuDisplaySndConfiguration {
     display.quality = 2;
 #ifndef WIN32
     sound.latency = 0.05;
-    sound.hwPeriods = 8;
 #else
     sound.latency = 0.1;
-    sound.hwPeriods = 16;
 #endif
-    sound.dcBlockFilter1Freq = 10.0;
-    sound.dcBlockFilter2Freq = 10.0;
-    sound.equalizer.mode = -1;
-    sound.equalizer.frequency = 1000.0;
-    sound.equalizer.level = 1.0;
-    sound.equalizer.q = 0.7071;
+    sound.hwPeriods = 16;
     config.createKey("display.quality", display.quality);
     config.createKey("sound.latency", sound.latency);
     config.createKey("sound.hwPeriods", sound.hwPeriods);
-    config.createKey("sound.dcBlockFilter1Freq", sound.dcBlockFilter1Freq);
-    config.createKey("sound.dcBlockFilter2Freq", sound.dcBlockFilter2Freq);
-    config.createKey("sound.equalizer.mode", sound.equalizer.mode);
-    config.createKey("sound.equalizer.frequency", sound.equalizer.frequency);
-    config.createKey("sound.equalizer.level", sound.equalizer.level);
-    config.createKey("sound.equalizer.q", sound.equalizer.q);
   }
 };
 
@@ -556,19 +536,15 @@ int main(int argc, char **argv)
 #ifndef WIN32
     tmp = Ep128Emu::getEp128EmuHomeDirectory();
 #endif
-    Fl_File_Chooser *w =
-        new Fl_File_Chooser(tmp.c_str(), "*",
-                            Fl_File_Chooser::DIRECTORY
-                            | Fl_File_Chooser::CREATE,
-                            "Select installation directory "
-                            "for ep128emu data files");
-    w->show();
-    w->value(tmp.c_str());
-    do {
-      Fl::wait(0.05);
-    } while (w->shown());
-    if (w->value() != (char *) 0)
-      installDirectory = w->value();
+    Fl_Native_File_Chooser  *w = new Fl_Native_File_Chooser();
+    w->type(Fl_Native_File_Chooser::BROWSE_SAVE_DIRECTORY);
+    w->title("Select installation directory for ep128emu data files");
+    w->filter("*");
+    w->directory(tmp.c_str());
+    if (w->show() == 0) {
+      if (w->filename() != (char *) 0)
+        installDirectory = w->filename();
+    }
     delete w;
   }
   Ep128Emu::stripString(installDirectory);
@@ -635,6 +611,8 @@ int main(int argc, char **argv)
   std::string romDirectory = installDirectory + "roms";
   romDirectory += c;
   Ep128EmuConfigInstallerGUI  *gui = new Ep128EmuConfigInstallerGUI();
+  Ep128Emu::setWindowIcon(gui->mainWindow, 11);
+  Ep128Emu::setWindowIcon(gui->errorWindow, 12);
   if (!forceInstallFlag) {
     gui->mainWindow->show();
     do {
@@ -647,7 +625,7 @@ int main(int argc, char **argv)
     Ep128Emu::ConfigurationDB     *config = (Ep128Emu::ConfigurationDB *) 0;
     Ep128EmuMachineConfiguration  *mCfg = (Ep128EmuMachineConfiguration *) 0;
     if (gui->enableCfgInstall) {
-      Ep128EmuDisplaySndConfiguration *dsCfg =
+      Ep128EmuDisplaySndConfiguration   *dsCfg =
           (Ep128EmuDisplaySndConfiguration *) 0;
       config = new Ep128Emu::ConfigurationDB();
       {
@@ -682,7 +660,9 @@ int main(int argc, char **argv)
       config = (Ep128Emu::ConfigurationDB *) 0;
       mCfg = (Ep128EmuMachineConfiguration *) 0;
     }
-    for (int i = 0; i < 34; i++) {
+    for (int i = 0;
+         i < int(sizeof(machineConfigs) / sizeof(unsigned long));
+         i++) {
       config = new Ep128Emu::ConfigurationDB();
       mCfg = new Ep128EmuMachineConfiguration(*config, i, romDirectory);
       try {

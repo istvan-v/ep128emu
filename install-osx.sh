@@ -9,7 +9,7 @@ else
   "$MAKECFG" "$BASE_DIR" ;
 fi
 
-if ( ! [ -e "$BASE_DIR/roms/exos23.rom" ] ) ; then
+if ( ! [ -e "$BASE_DIR/roms/exos231.rom" ] ) ; then
   SAVED_CWD="`pwd`"
   mkdir -p "$BASE_DIR/roms" || exit -1
   cd "$BASE_DIR/roms" || exit -1
