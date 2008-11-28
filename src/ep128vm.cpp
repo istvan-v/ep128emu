@@ -84,7 +84,7 @@ namespace Ep128 {
   Ep128VM::Z80_::Z80_(Ep128VM& vm_)
     : Z80(),
       vm(vm_),
-      defaultDeviceIsFILE(false)
+      defaultDeviceIsFILE(true)
   {
   }
 
