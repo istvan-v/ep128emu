@@ -22,6 +22,80 @@
 
 #include <vector>
 
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+
+#include <windows.h>
+#include <winioctl.h>
+
+static int checkFloppyDisk(const std::string& fileName,
+                           int& nTracks, int& nSides, int& nSectorsPerTrack)
+{
+  if (fileName.length() < 5)
+    return 0;                   // return value == 0: regular file
+  if (!(fileName[0] == '\\' && fileName[1] == '\\' &&
+        fileName[2] == '.' && fileName[3] == '\\')) {
+    return 0;
+  }
+  HANDLE  h = CreateFileA(fileName.c_str(), (DWORD) 0,
+                          FILE_SHARE_READ | FILE_SHARE_WRITE,
+                          (LPSECURITY_ATTRIBUTES) 0, OPEN_EXISTING,
+                          FILE_ATTRIBUTE_NORMAL, (HANDLE) 0);
+  if (h == INVALID_HANDLE_VALUE)
+    return -1;                  // return value == -1: error opening device
+  DISK_GEOMETRY diskGeometry;
+  DWORD   tmp;
+  if (DeviceIoControl(h, IOCTL_DISK_GET_DRIVE_GEOMETRY,
+                      (LPVOID) 0, (DWORD) 0,
+                      &diskGeometry, (DWORD) sizeof(diskGeometry),
+                      &tmp, (LPOVERLAPPED) 0) == FALSE) {
+    CloseHandle(h);
+    return -1;
+  }
+  bool    errorFlag = false;
+  if (!(diskGeometry.MediaType > Unknown &&
+        diskGeometry.MediaType < RemovableMedia)) {
+    errorFlag = true;
+  }
+  if (diskGeometry.Cylinders.QuadPart < (LONGLONG) 1 ||
+      diskGeometry.Cylinders.QuadPart > (LONGLONG) 240 ||
+      diskGeometry.TracksPerCylinder < (DWORD) 1 ||
+      diskGeometry.TracksPerCylinder > (DWORD) 2 ||
+      diskGeometry.SectorsPerTrack < (DWORD) 1 ||
+      diskGeometry.SectorsPerTrack > (DWORD) 240 ||
+      diskGeometry.BytesPerSector != (DWORD) 512) {
+    errorFlag = true;
+  }
+  if (nTracks >= 1 && nTracks <= 240) {
+    if (nTracks != int(diskGeometry.Cylinders.QuadPart))
+      errorFlag = true;
+  }
+  if (nSides >= 1 && nSides <= 2) {
+    if (nSides != int(diskGeometry.TracksPerCylinder))
+      errorFlag = true;
+  }
+  if (nSectorsPerTrack >= 1 && nSectorsPerTrack <= 240) {
+    if (nSectorsPerTrack != int(diskGeometry.SectorsPerTrack))
+      errorFlag = true;
+  }
+  if (errorFlag) {
+    CloseHandle(h);
+    return -2;                  // return value == -2: invalid disk geometry
+  }
+  nTracks = int(diskGeometry.Cylinders.QuadPart);
+  nSides = int(diskGeometry.TracksPerCylinder);
+  nSectorsPerTrack = int(diskGeometry.SectorsPerTrack);
+  if (DeviceIoControl(h, IOCTL_DISK_IS_WRITABLE,
+                      (LPVOID) 0, (DWORD) 0, (LPVOID) 0, (DWORD) 0,
+                      &tmp, (LPOVERLAPPED) 0) == FALSE) {
+    CloseHandle(h);
+    return 1;                   // return value == 1: write protected disk
+  }
+  CloseHandle(h);
+  return 2;                     // return value == 2: writable floppy disk
+}
+
+#endif
+
 namespace Ep128Emu {
 
   WD177x::WD177x()
@@ -45,41 +119,62 @@ namespace Ep128Emu {
       steppingIn(false),
       busyFlagHackEnabled(false),
       busyFlagHack(false),
-      bufPos(512)
+      bufPos(512),
+      trackNotReadFlag(true),
+      trackDirtyFlag(false),
+      writeTrackSectorsRemaining(0),
+      writeTrackState(0xFF)
   {
-    buf.resize(512);
+    trackBuffer.resize(0);
     this->reset();
-    diskChangeFlag = true;
   }
 
   WD177x::~WD177x()
   {
-    try {
-      setDiskImageFile("", 0, 0, 0);
-    }
-    catch (...) {
+    if (imageFile) {
+      (void) flushTrack();              // FIXME: errors are ignored here
+      trackDirtyFlag = false;
+      std::fclose(imageFile);
+      imageFile = (std::FILE *) 0;
     }
   }
 
-  bool WD177x::setFilePosition()
+  bool WD177x::checkDiskPosition(bool ignoreSectorRegister)
   {
-    if (!imageFile)
+    if (!imageFile) {
       return false;
+    }
     if (currentTrack >= nTracks || currentTrack != trackRegister ||
         currentSide >= nSides ||
-        sectorRegister < 1 || sectorRegister > nSectorsPerTrack)
+        ((sectorRegister < 1 || sectorRegister > nSectorsPerTrack) &&
+         !ignoreSectorRegister)) {
       return false;
-    size_t  filePos =
-        ((size_t(currentTrack) * size_t(nSides) + size_t(currentSide))
-         * size_t(nSectorsPerTrack) + size_t(sectorRegister - 1))
-        * 512;
-    if (std::fseek(imageFile, long(filePos), SEEK_SET) < 0)
-      return false;
+    }
     return true;
+  }
+
+  void WD177x::setError(uint8_t n)
+  {
+    commandRegister = 0x00;
+    // on error: clear data request and busy flag, and trigger interrupt
+    statusRegister &= uint8_t(0xFC);
+    statusRegister |= n;
+    dataRequestFlag = false;
+    bufPos = 512;
+    writeTrackSectorsRemaining = 0;
+    writeTrackState = 0xFF;
+    if (!interruptRequestFlag) {
+      interruptRequestFlag = true;
+      interruptRequest();
+    }
   }
 
   void WD177x::doStep(bool updateFlag)
   {
+    if (trackDirtyFlag) {
+      (void) flushTrack();              // FIXME: errors are ignored here
+      trackDirtyFlag = false;
+    }
     if (steppingIn) {
       currentTrack++;
       if (updateFlag)
@@ -92,18 +187,23 @@ namespace Ep128Emu {
       if (currentTrack == 0)
         trackRegister = 0;
     }
+    trackNotReadFlag = true;
   }
 
   void WD177x::setDiskImageFile(const std::string& fileName_,
-                        int nTracks_, int nSides_, int nSectorsPerTrack_)
+                                int nTracks_, int nSides_,
+                                int nSectorsPerTrack_)
   {
     if ((fileName_ == "" && imageFileName == "") ||
         (fileName_ == imageFileName &&
          nTracks_ == int(nTracks) &&
          nSides_ == int(nSides) &&
-         nSectorsPerTrack_ == int(nSectorsPerTrack)))
+         nSectorsPerTrack_ == int(nSectorsPerTrack))) {
       return;
+    }
     if (imageFile) {
+      (void) flushTrack();              // FIXME: errors are ignored here
+      trackDirtyFlag = false;
       std::fclose(imageFile);
       imageFile = (std::FILE *) 0;
     }
@@ -113,16 +213,32 @@ namespace Ep128Emu {
     nSectorsPerTrack = 0;
     writeProtectFlag = false;
     this->reset();
-    diskChangeFlag = true;
     if (fileName_ == "")
       return;
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+    {
+      int     diskType = checkFloppyDisk(fileName_,
+                                         nTracks_, nSides_, nSectorsPerTrack_);
+      if (diskType == 1) {
+        writeProtectFlag = true;
+      }
+      else if (diskType == -2) {
+        throw Exception("wd177x: invalid or inconsistent "
+                        "disk image size parameters");
+      }
+      else if (diskType < 0) {
+        throw Exception("wd177x: error opening disk image file");
+      }
+    }
+#endif
     unsigned char tmpBuf[512];
     bool    nTracksValid = (nTracks_ >= 1 && nTracks_ <= 240);
     bool    nSidesValid = (nSides_ >= 1 && nSides_ <= 2);
     bool    nSectorsPerTrackValid =
                 (nSectorsPerTrack_ >= 1 && nSectorsPerTrack_ <= 240);
     try {
-      imageFile = std::fopen(fileName_.c_str(), "r+b");
+      if (!writeProtectFlag)
+        imageFile = std::fopen(fileName_.c_str(), "r+b");
       if (!imageFile) {
         imageFile = std::fopen(fileName_.c_str(), "rb");
         if (imageFile)
@@ -194,11 +310,13 @@ namespace Ep128Emu {
           }
         }
       }
-      if (err)
+      if (err) {
         throw Exception("wd177x: invalid or inconsistent "
                         "disk image size parameters");
+      }
       std::fseek(imageFile, 0L, SEEK_SET);
       imageFileName = fileName_;
+      trackBuffer.resize(size_t(nSectorsPerTrack_) * 512);
     }
     catch (...) {
       if (imageFile) {
@@ -212,7 +330,6 @@ namespace Ep128Emu {
     nSides = uint8_t(nSides_);
     nSectorsPerTrack = uint8_t(nSectorsPerTrack_);
     this->reset();
-    diskChangeFlag = true;
   }
 
   void WD177x::writeCommandRegister(uint8_t n)
@@ -278,12 +395,9 @@ namespace Ep128Emu {
       if (currentTrack == 0)
         statusRegister = statusRegister | 0x04;
       if (imageFile)
-        statusRegister = statusRegister | 0x02; // index pulse
-      statusRegister = statusRegister & 0xFE;   // clear busy flag
-      if (!interruptRequestFlag) {
-        interruptRequestFlag = true;
-        interruptRequest();
-      }
+        setError(0x02);                         // index pulse
+      else
+        setError();
     }
     else if ((n & 0xC0) == 0x80) {      // ---- Type II commands ----
       bool    a0 = ((n & 0x01) != 0);   // write deleted data mark (ignored)
@@ -310,10 +424,9 @@ namespace Ep128Emu {
       }
       bufPos = 512;
       if ((n & 0x20) == 0) {            // READ SECTOR
-        if (!setFilePosition())
+        if (!checkDiskPosition()) {
           statusRegister = statusRegister | 0x10;   // record not found
-        else if (std::fread(&(buf[0]), 1, 512, imageFile) != 512)
-          statusRegister = statusRegister | 0x08;   // CRC error
+        }
         else {
           dataRequestFlag = true;
           statusRegister = statusRegister | 0x02;
@@ -321,24 +434,20 @@ namespace Ep128Emu {
         }
       }
       else {                            // WRITE SECTOR
-        if (writeProtectFlag)
+        if (writeProtectFlag) {
           statusRegister = statusRegister | 0x40;   // disk is write protected
-        else if (!setFilePosition())
+        }
+        else if (!checkDiskPosition()) {
           statusRegister = statusRegister | 0x10;   // record not found
+        }
         else {
           dataRequestFlag = true;
           statusRegister = statusRegister | 0x02;
           bufPos = 0;
         }
       }
-      if (bufPos >= 512) {
-        // on error: clear busy flag, and trigger interrupt
-        statusRegister = statusRegister & 0xFE;
-        if (!interruptRequestFlag) {
-          interruptRequestFlag = true;
-          interruptRequest();
-        }
-      }
+      if (bufPos >= 512)
+        setError();
     }
     else if ((n & 0xF0) != 0xD0) {      // ---- Type III commands ----
       bool    p = ((n & 0x02) != 0);    // disable write precompensation
@@ -357,16 +466,7 @@ namespace Ep128Emu {
       }
       bufPos = 512;
       if ((n & 0x20) == 0) {            // READ ADDRESS
-        if (imageFile != (std::FILE *) 0 &&
-            currentTrack < nTracks &&
-            currentSide < nSides) {
-          buf[506] = currentTrack;
-          buf[507] = currentSide;
-          buf[508] = 0x01;          // assume first sector of track
-          buf[509] = 0x02;          // 512 bytes per sector
-          uint16_t  tmp = calculateCRC(&(buf[506]), 4, 0xB230);
-          buf[510] = uint8_t(tmp >> 8);         // CRC high byte
-          buf[511] = uint8_t(tmp & 0xFF);       // CRC low byte
+        if (checkDiskPosition(true)) {
           bufPos = 506;
           dataRequestFlag = true;
           statusRegister = statusRegister | 0x02;
@@ -377,17 +477,23 @@ namespace Ep128Emu {
       else if ((n & 0x10) == 0) {       // READ TRACK (FIXME: unimplemented)
         statusRegister = statusRegister | 0x80;     // not ready
       }
-      else {                            // WRITE TRACK (FIXME: unimplemented)
-        statusRegister = statusRegister | 0x20;     // write error
-      }
-      if (bufPos >= 512) {
-        // on error: clear busy flag, and trigger interrupt
-        statusRegister = statusRegister & 0xFE;
-        if (!interruptRequestFlag) {
-          interruptRequestFlag = true;
-          interruptRequest();
+      else {                            // WRITE TRACK
+        if (writeProtectFlag) {
+          statusRegister = statusRegister | 0x40;   // disk is write protected
+        }
+        else if (!checkDiskPosition(true)) {
+          statusRegister = statusRegister | 0x10;   // record not found
+        }
+        else {
+          dataRequestFlag = true;
+          statusRegister = statusRegister | 0x02;
+          bufPos = 0;
+          writeTrackSectorsRemaining = nSectorsPerTrack;
+          writeTrackState = 0;
         }
       }
+      if (bufPos >= 512)
+        setError();
     }
     else {                              // ---- Type IV commands ----
       bool    i0 = ((n & 0x01) != 0);
@@ -405,15 +511,6 @@ namespace Ep128Emu {
         if (currentTrack == 0)
           statusRegister = statusRegister | 0x04;
         statusRegister = statusRegister | 0x02; // index pulse
-      }
-      // if a write sector command is interrupted, may need to flush buffer
-      if ((commandRegister & 0xE0) == 0xA0 && (statusRegister & 0x01) != 0) {
-        if (bufPos > 0) {
-          for ( ; bufPos < 512; bufPos++)
-            buf[bufPos] = 0;
-          if (imageFile != (std::FILE *) 0 && !writeProtectFlag)
-            std::fwrite(&(buf[0]), 1, 512, imageFile);
-        }
       }
       // FIXME: only immediate interrupt is implemented
       statusRegister = statusRegister & 0xFE;
@@ -471,60 +568,255 @@ namespace Ep128Emu {
   void WD177x::writeDataRegister(uint8_t n)
   {
     dataRegister = n;
-    if (dataRequestFlag && (commandRegister & 0xE0) == 0xA0 && bufPos < 512) {
+    if (!dataRequestFlag)
+      return;
+    if ((commandRegister & 0xE0) == 0xA0 && bufPos < 512) {
       // writing sector
-      buf[bufPos++] = dataRegister;
+      if (sectorRegister < 1 || sectorRegister > nSectorsPerTrack) {
+        setError(0x10);                 // record not found
+        return;
+      }
+      if (trackNotReadFlag) {
+        if (!readTrack()) {
+          setError(0x0C);               // CRC error, lost data
+          trackNotReadFlag = true;
+          return;
+        }
+      }
+      trackDirtyFlag = true;
+      trackBuffer[size_t(sectorRegister - 1) * 512 + bufPos] = dataRegister;
+      bufPos++;
       if (bufPos >= 512) {
         bufPos = 0;
         // clear data request and busy flag
         dataRequestFlag = false;
         statusRegister = statusRegister & 0xFC;
-        if (setFilePosition()) {
-          if (std::fwrite(&(buf[0]), 1, 512, imageFile) == 512) {
-            if (commandRegister & 0x10) {
-              // multiple sectors: continue with writing next sector
-              sectorRegister++;
-              writeCommandRegister(commandRegister);
+        if (commandRegister & 0x10) {
+          // multiple sectors: continue with writing next sector
+          sectorRegister++;
+          writeCommandRegister(commandRegister);
+          return;
+        }
+        setError();
+      }
+    }
+    else if ((commandRegister & 0xF0) == 0xF0 && writeTrackState != 0xFF) {
+      // writing track
+      while (true) {
+        int     bytesReceived = int(writeTrackState >> 5);
+        if (writeTrackState < 0xE0)
+          writeTrackState = writeTrackState + 0x20;
+        uint8_t curState = writeTrackState & 0x1F;
+        uint8_t nxtState = curState + 1;
+        switch (curState) {
+        case 0:                         // gap
+        case 4:
+        case 13:
+          if (n != 0x4E) {
+            if (bytesReceived >= 7) {
+              writeTrackState = nxtState;
+              continue;
+            }
+            else {
+              setError(0x04);
+            }
+          }
+          break;
+        case 1:                         // sync
+        case 5:
+        case 14:
+          if (n != 0x00) {
+            if (bytesReceived >= 7) {
+              writeTrackState = nxtState;
+              continue;
+            }
+            else {
+              setError(0x04);
+            }
+          }
+          break;
+        case 2:                         // address mark
+          if (bytesReceived > 3 || (n != 0xF6 && bytesReceived != 3)) {
+            setError(0x04);
+          }
+          else if (bytesReceived == 3) {
+            writeTrackState = nxtState;
+            continue;
+          }
+          break;
+        case 6:
+        case 15:
+          if (bytesReceived > 3 || (n != 0xF5 && bytesReceived != 3)) {
+            setError(0x04);
+          }
+          else if (bytesReceived == 3) {
+            writeTrackState = nxtState;
+            continue;
+          }
+          break;
+        case 3:
+          if (n == 0xFC)
+            writeTrackState = nxtState;
+          else
+            setError(0x04);
+          break;
+        case 7:                         // sector ID
+          if (n == 0xFE)
+            writeTrackState = nxtState;
+          else
+            setError(0x04);
+          break;
+        case 16:                        // sector data
+          if (n == 0xFB)
+            writeTrackState = nxtState;
+          else
+            setError(0x04);
+          break;
+        case 8:                         // track number
+          if (n == currentTrack)
+            writeTrackState = nxtState;
+          else
+            setError(0x14);
+          break;
+        case 9:                         // side number
+          if (n == currentSide)
+            writeTrackState = nxtState;
+          else
+            setError(0x14);
+          break;
+        case 10:                        // sector number
+          if (n >= 1 && n <= nSectorsPerTrack) {
+            bufPos = size_t(n - 1) * 512;
+            writeTrackState = nxtState;
+          }
+          else {
+            setError(0x14);
+          }
+          break;
+        case 11:                        // sector length (must be 512 bytes)
+          if (n == 0x02)
+            writeTrackState = nxtState;
+          else
+            setError(0x04);
+          break;
+        case 12:                        // CRC
+        case 18:
+          if (n == 0xF7)
+            writeTrackState = nxtState;
+          else
+            setError(0x04);
+          break;
+        case 17:                        // sector data, store in buffer
+          if (n >= 0xF5 && n <= 0xF7) {
+            setError(0x0C);
+            return;
+          }
+          if (trackNotReadFlag) {
+            if (!readTrack()) {
+              setError(0x0C);           // CRC error, lost data
+              trackNotReadFlag = true;
               return;
             }
           }
-          else
-            statusRegister = statusRegister | 0x20; // write error
+          trackDirtyFlag = true;
+          trackBuffer[bufPos] = dataRegister;
+          bufPos++;
+          if ((bufPos & 511) == 0)
+            writeTrackState = nxtState;
+          break;
+        default:                        // gap at end of sector / track
+          if (n != 0x4E) {
+            setError(0x04);
+            return;
+          }
+          if (bytesReceived >= 6) {
+            if (writeTrackSectorsRemaining > 0)
+              writeTrackSectorsRemaining--;
+            if (writeTrackSectorsRemaining > 0)
+              writeTrackState = 4;          // continue with next sector
+            else
+              writeTrackState = nxtState;   // done formatting all sectors
+            if (writeTrackState == 31) {
+              // done formatting track
+              (void) flushTrack();      // FIXME: errors are ignored here
+              setError();
+            }
+          }
+          break;
         }
-        else
-          statusRegister = statusRegister | 0x10;   // record not found
-        commandRegister = 0x00;
-        if (!interruptRequestFlag) {
-          interruptRequestFlag = true;
-          interruptRequest();
-        }
+        break;
       }
     }
   }
 
   uint8_t WD177x::readDataRegister()
   {
-    if (dataRequestFlag && bufPos < 512) {
+    if (!(dataRequestFlag && bufPos < 512))
+      return dataRegister;
+    if ((commandRegister & 0xE0) == 0x80) {
       // reading sector
-      dataRegister = buf[bufPos++];
+      if (sectorRegister < 1 || sectorRegister > nSectorsPerTrack) {
+        setError(0x10);                 // record not found
+        dataRegister = 0x00;
+        return 0x00;
+      }
+      if (trackNotReadFlag) {
+        if (!readTrack()) {
+          setError(0x08);               // CRC error
+          dataRegister = 0x00;
+          return 0x00;
+        }
+      }
+      dataRegister = trackBuffer[size_t(sectorRegister - 1) * 512 + bufPos];
+      bufPos++;
       if (bufPos >= 512) {
         bufPos = 0;
         // clear data request and busy flag
         dataRequestFlag = false;
         statusRegister = statusRegister & 0xFC;
-        if ((commandRegister & 0xF0) == 0x90) {
+        if (commandRegister & 0x10) {
           // multiple sectors: continue with reading next sector
           sectorRegister++;
           writeCommandRegister(commandRegister);
         }
         else {
-          commandRegister = 0x00;
-          if (!interruptRequestFlag) {
-            interruptRequestFlag = true;
-            interruptRequest();
-          }
+          setError();
         }
       }
+    }
+    else if ((commandRegister & 0xF0) == 0xC0) {        // read address
+      switch (bufPos) {
+      case 506:
+        dataRegister = currentTrack;
+        break;
+      case 507:
+        dataRegister = currentSide;
+        break;
+      case 508:
+        dataRegister = 0x01;            // assume first sector of track
+        sectorRegister = dataRegister;
+        break;
+      case 509:
+        dataRegister = 0x02;            // 512 bytes per sector
+        break;
+      case 510:                         // CRC high byte
+      case 511:                         // CRC low byte
+        {
+          uint8_t   tmpBuf[4];
+          tmpBuf[0] = currentTrack;
+          tmpBuf[1] = currentSide;
+          tmpBuf[2] = 0x01;
+          tmpBuf[3] = 0x02;
+          uint16_t  tmp = calculateCRC(&(tmpBuf[0]), 4, 0xB230);
+          if (bufPos == 510)
+            dataRegister = uint8_t(tmp >> 8);
+          else
+            dataRegister = uint8_t(tmp & 0xFF);
+        }
+        break;
+      }
+      if (++bufPos >= 512)
+        setError();
     }
     return dataRegister;
   }
@@ -584,6 +876,53 @@ namespace Ep128Emu {
     busyFlagHackEnabled = isEnabled;
   }
 
+  bool WD177x::readTrack()
+  {
+    if (!trackNotReadFlag)
+      return true;
+    if (!imageFile) {
+      trackNotReadFlag = false;
+      return false;
+    }
+    size_t  nBytes = size_t(nSectorsPerTrack) * 512;
+    std::memset(&(trackBuffer.front()), 0x00, nBytes);
+    if (currentTrack >= nTracks) {
+      trackNotReadFlag = false;
+      return false;
+    }
+    long    filePos =
+        (long(currentTrack) * long(nSides) + long(currentSide)) * long(nBytes);
+    if (std::fseek(imageFile, filePos, SEEK_SET) < 0) {
+      trackNotReadFlag = false;
+      return false;
+    }
+    size_t  bytesRead =
+        std::fread(&(trackBuffer.front()), sizeof(uint8_t), nBytes, imageFile);
+    trackNotReadFlag = false;
+    return (bytesRead == nBytes);
+  }
+
+  bool WD177x::flushTrack()
+  {
+    if (!trackDirtyFlag)
+      return true;
+    if (currentTrack >= nTracks || writeProtectFlag || !imageFile) {
+      trackDirtyFlag = false;
+      return false;
+    }
+    size_t  nBytes = size_t(nSectorsPerTrack) * 512;
+    long    filePos =
+        (long(currentTrack) * long(nSides) + long(currentSide)) * long(nBytes);
+    if (std::fseek(imageFile, filePos, SEEK_SET) < 0) {
+      trackDirtyFlag = false;
+      return false;
+    }
+    size_t  bytesWritten =
+        std::fwrite(&(trackBuffer.front()), sizeof(uint8_t), nBytes, imageFile);
+    trackDirtyFlag = false;
+    return (bytesWritten == nBytes);
+  }
+
   uint16_t WD177x::calculateCRC(const uint8_t *buf_, size_t nBytes, uint16_t n)
   {
     size_t  nBits = nBytes << 3;
@@ -608,6 +947,8 @@ namespace Ep128Emu {
 
   void WD177x::reset()
   {
+    (void) flushTrack();                // FIXME: errors are ignored here
+    trackDirtyFlag = false;
     if (interruptRequestFlag) {
       interruptRequestFlag = false;
       clearInterruptRequest();
@@ -634,6 +975,9 @@ namespace Ep128Emu {
     steppingIn = false;
     busyFlagHack = false;
     bufPos = 512;
+    trackNotReadFlag = true;
+    writeTrackSectorsRemaining = 0;
+    writeTrackState = 0xFF;
   }
 
   void WD177x::interruptRequest()

@@ -47,10 +47,42 @@ namespace Ep128Emu {
     bool        steppingIn;
     bool        busyFlagHackEnabled;
     bool        busyFlagHack;
-    std::vector< uint8_t >  buf;
+    std::vector< uint8_t >  trackBuffer;
     size_t      bufPos;
-    bool setFilePosition();
+    bool        trackNotReadFlag;
+    bool        trackDirtyFlag;
+    uint8_t     writeTrackSectorsRemaining;
+    //  0: gap (60 * 0x4E)
+    //  1: sync (12 * 0x00)
+    //  2: index address mark (3 * 0xF6)
+    //  3: 0xFC
+    // ---- sector begin ----
+    //  4: gap (60 * 0x4E)
+    //  5: sync (12 * 0x00)
+    //  6: sector ID address mark (3 * 0xF5)
+    //  7: 0xFE
+    //  8: track number (0..nTracks-1)
+    //  9: side number (0..nSides-1)
+    // 10: sector number (1..nSectorsPerTrack)
+    // 11: sector length code = log2(sectorLength) - 7
+    // 12: CRC (0xF7)
+    // 13: gap (22 * 0x4E)
+    // 14: sync (12 * 0x00)
+    // 15: sector data address mark (3 * 0xF5)
+    // 16: 0xFB: normal sector, 0xF8: deleted sector
+    // 17: sector data (2 ^ (sectorLengthCode + 7) bytes)
+    // 18: CRC (0xF7)
+    // 19: gap (24 * 0x4E)
+    // ---- sector end ----
+    // 20: gap (520 * 0x4E)
+    // +(0x20 * N): N bytes of data was received
+    uint8_t     writeTrackState;
+    // ----------------
+    bool checkDiskPosition(bool ignoreSectorRegister = false);
+    void setError(uint8_t n = 0);
     void doStep(bool updateFlag);
+    bool readTrack();
+    bool flushTrack();
     static uint16_t calculateCRC(const uint8_t *buf_, size_t nBytes,
                                  uint16_t n = 0xFFFF);
    public:
