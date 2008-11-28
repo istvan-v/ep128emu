@@ -173,7 +173,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
             xywh {20 95 360 300} box DOWN_BOX color 48 align 5
           } {
             Fl_Group {} {open
-              xywh {25 100 325 635} box FLAT_BOX color 48
+              xywh {25 100 325 755} box FLAT_BOX color 48
             } {
               Fl_Box {} {
                 label Segment
@@ -727,6 +727,114 @@ class Ep128EmuGUI_MachineConfigWindow {open
                 xywh {280 700 65 25} when 4 maximum 999999 step 1
                 code0 {o->cursor_color(Fl_Color(3));}
               }
+              Fl_Box {} {
+                label 40
+                xywh {30 730 35 25} box DOWN_BOX color 7
+              }
+              Fl_Input memoryROM40FileNameValuator {
+                callback {{
+  setROMImageFile(0x40, o->value());
+}}
+                xywh {75 730 165 25}
+                code0 {o->cursor_color(Fl_Color(3));}
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  browseROMImageFile(0x40);
+}}
+                xywh {245 730 25 25} selection_color 50
+              }
+              Fl_Value_Input memoryROM40OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x40].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x40].offset));
+}}
+                xywh {280 730 65 25} when 4 maximum 999999 step 1
+                code0 {o->cursor_color(Fl_Color(3));}
+              }
+              Fl_Box {} {
+                label 41
+                xywh {30 760 35 25} box DOWN_BOX color 7
+              }
+              Fl_Input memoryROM41FileNameValuator {
+                callback {{
+  setROMImageFile(0x41, o->value());
+}}
+                xywh {75 760 165 25}
+                code0 {o->cursor_color(Fl_Color(3));}
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  browseROMImageFile(0x41);
+}}
+                xywh {245 760 25 25} selection_color 50
+              }
+              Fl_Value_Input memoryROM41OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x41].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x41].offset));
+}}
+                xywh {280 760 65 25} when 4 maximum 999999 step 1
+                code0 {o->cursor_color(Fl_Color(3));}
+              }
+              Fl_Box {} {
+                label 42
+                xywh {30 790 35 25} box DOWN_BOX color 7
+              }
+              Fl_Input memoryROM42FileNameValuator {
+                callback {{
+  setROMImageFile(0x42, o->value());
+}}
+                xywh {75 790 165 25}
+                code0 {o->cursor_color(Fl_Color(3));}
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  browseROMImageFile(0x42);
+}}
+                xywh {245 790 25 25} selection_color 50
+              }
+              Fl_Value_Input memoryROM42OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x42].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x42].offset));
+}}
+                xywh {280 790 65 25} when 4 maximum 999999 step 1
+                code0 {o->cursor_color(Fl_Color(3));}
+              }
+              Fl_Box {} {
+                label 43
+                xywh {30 820 35 25} box DOWN_BOX color 7
+              }
+              Fl_Input memoryROM43FileNameValuator {
+                callback {{
+  setROMImageFile(0x43, o->value());
+}}
+                xywh {75 820 165 25}
+                code0 {o->cursor_color(Fl_Color(3));}
+              }
+              Fl_Button {} {
+                label {...}
+                callback {{
+  browseROMImageFile(0x43);
+}}
+                xywh {245 820 25 25} selection_color 50
+              }
+              Fl_Value_Input memoryROM43OffsetValuator {
+                callback {{
+  gui.config.memory.rom[0x43].offset = int(o->clamp(o->value()) + 0.5);
+  gui.config.memoryConfigurationChanged = true;
+  o->value(double(gui.config.memory.rom[0x43].offset));
+}}
+                xywh {280 820 65 25} when 4 maximum 999999 step 1
+                code0 {o->cursor_color(Fl_Color(3));}
+              }
             }
           }
         }
@@ -868,6 +976,14 @@ class Ep128EmuGUI_MachineConfigWindow {open
   memoryROM32OffsetValuator->value(double(gui.config.memory.rom[0x32].offset));
   memoryROM33FileNameValuator->value(gui.config.memory.rom[0x33].file.c_str());
   memoryROM33OffsetValuator->value(double(gui.config.memory.rom[0x33].offset));
+  memoryROM40FileNameValuator->value(gui.config.memory.rom[0x40].file.c_str());
+  memoryROM40OffsetValuator->value(double(gui.config.memory.rom[0x40].offset));
+  memoryROM41FileNameValuator->value(gui.config.memory.rom[0x41].file.c_str());
+  memoryROM41OffsetValuator->value(double(gui.config.memory.rom[0x41].offset));
+  memoryROM42FileNameValuator->value(gui.config.memory.rom[0x42].file.c_str());
+  memoryROM42OffsetValuator->value(double(gui.config.memory.rom[0x42].offset));
+  memoryROM43FileNameValuator->value(gui.config.memory.rom[0x43].file.c_str());
+  memoryROM43OffsetValuator->value(double(gui.config.memory.rom[0x43].offset));
   tapeDefaultSampleRateValuator->value(double(gui.config.tape.defaultSampleRate));
   tapeChannelValuator->value(double(gui.config.tape.soundFileChannel));
   tapeEnableFilterValuator->value(gui.config.tape.enableSoundFileFilter ? 1 : 0);
@@ -896,9 +1012,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
       }
       long    offs = long(gui.config.memory.rom[segment_].offset);
       bool    updateFlag = false;
-      while ((offs + 32767L) < fSize &&
-             segment_ != 0x07 && segment_ != 0x13 &&
-             segment_ != 0x23 && segment_ != 0x33) {
+      while ((offs + 32767L) < fSize && (segment_ & 0x03) != 0x03) {
         segment_++;
         offs = offs + 16384L;
         updateFlag = true;
@@ -991,6 +1105,18 @@ class Ep128EmuGUI_MachineConfigWindow {open
         break;
       case 0x33:
         memoryROM33FileNameValuator->value(gui.config.memory.rom[segment_].file.c_str());
+        break;
+      case 0x40:
+        memoryROM40FileNameValuator->value(gui.config.memory.rom[segment_].file.c_str());
+        break;
+      case 0x41:
+        memoryROM41FileNameValuator->value(gui.config.memory.rom[segment_].file.c_str());
+        break;
+      case 0x42:
+        memoryROM42FileNameValuator->value(gui.config.memory.rom[segment_].file.c_str());
+        break;
+      case 0x43:
+        memoryROM43FileNameValuator->value(gui.config.memory.rom[segment_].file.c_str());
         break;
       }
     }

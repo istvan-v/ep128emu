@@ -116,7 +116,7 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "memory.ram.size",
                                 memory.ram.size, 128,
                                 memoryConfigurationChanged, 64.0, 3712.0, 16.0);
-    for (size_t i = 0; i < 64; i++) {
+    for (size_t i = 0; i < 68; i++) {
       if (i >= 8 && (i & 15) >= 4)
         continue;
       char  tmpBuf[24];
@@ -383,7 +383,7 @@ namespace Ep128Emu {
     }
     if (memoryConfigurationChanged) {
       vm_.resetMemoryConfiguration(memory.ram.size);
-      for (size_t i = 0; i < 64; i++) {
+      for (size_t i = 0; i < 68; i++) {
         if (i >= 8 && (i & 15) >= 4)
           continue;
         try {

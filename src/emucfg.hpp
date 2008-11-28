@@ -66,8 +66,8 @@ namespace Ep128Emu {
         }
       };
       // ROM files can be loaded to segments 0x00 to 0x07, 0x10 to 0x13,
-      // 0x20 to 0x23, and 0x30 to 0x33
-      ROMSegmentConfig  rom[52];
+      // 0x20 to 0x23, 0x30 to 0x33, and 0x40 to 0x43
+      ROMSegmentConfig  rom[68];
     };
     MemoryConfiguration_  memory;
     bool          memoryConfigurationChanged;
