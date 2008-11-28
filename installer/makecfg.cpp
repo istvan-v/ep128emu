@@ -57,7 +57,7 @@ static int keyboardMap_EP[256] = {
 #ifndef WIN32
   0xFF13, 0xFF50, 0xFF51,     -1, 0xFF0D,     -1, 0xFFEA, 0xFE03,
 #else
-  0xFF13, 0xFF50, 0xFF51,     -1, 0xFF0D,     -1, 0xFFEA, 0x00E1,
+  0xFF13, 0xFF50, 0xFF51,     -1, 0xFF0D,     -1, 0xFFEA, 0xFF67,
 #endif
   0x006D,     -1, 0xFFFF,     -1, 0x002C,     -1, 0x002F,     -1,
   0x002E,     -1, 0xFFE2,     -1, 0x0020,     -1, 0xFF63,     -1,
@@ -132,7 +132,7 @@ static int keyboardMap_EP_HU[256] = {
   0x006A,     -1,     -1,     -1, 0x006B,     -1, 0x003B,     -1,
   0x006C,     -1, 0x0027,     -1, 0x005D,     -1,     -1,     -1,
   0xFF61, 0xFF57, 0xFF54,     -1, 0xFF53,     -1, 0xFF52,     -1,
-  0xFF13, 0xFF50, 0xFF51,     -1, 0xFF0D,     -1, 0xFFEA, 0x00E1,
+  0xFF13, 0xFF50, 0xFF51,     -1, 0xFF0D,     -1, 0xFFEA, 0xFF67,
   0x006D,     -1, 0xFFFF,     -1, 0x002C,     -1, 0x002D,     -1,
   0x002E,     -1, 0xFFE2,     -1, 0x0020,     -1, 0xFF63,     -1,
   0x0069,     -1,     -1,     -1, 0x006F,     -1, 0x0030,     -1,
@@ -204,8 +204,8 @@ class Ep128EmuMachineConfiguration {
       }
     };
     // ROM files can be loaded to segments 0x00 to 0x07, 0x10 to 0x13,
-    // 0x20 to 0x23, and 0x30 to 0x33
-    ROMSegmentConfig  rom[52];
+    // 0x20 to 0x23, 0x30 to 0x33, and 0x40 to 0x43
+    ROMSegmentConfig  rom[68];
   } memory;
  public:
   Ep128EmuMachineConfiguration(Ep128Emu::ConfigurationDB& config, int n,
@@ -265,12 +265,12 @@ static const char *machineConfigFileNames[] = {
 // bit 17:    BASIC 2.1 (basic21.rom at segment 0x06)
 // bit 18:    EXDOS 1.0 (exdos10.rom at segment 0x20)
 // bit 19:    EXDOS 1.3 (exdos13.rom at segments 0x20, 0x21)
-// bit 20:    EPDOS (epdos_z.rom at segments 0x10, 0x11)
+// bit 20:    EPDOS (epdos_z.rom at segments 0x30, 0x31)
 // bit 21:    ASMEN (asmen15.rom at segments 0x04, 0x05)
 // bit 22:    FENAS (fenas12.rom at segments 0x06, 0x07)
 // bit 23:    HEASS (heass10.rom at segments 0x04, 0x05)
 // bit 24:    TASMON (tasmon15.rom at segments 0x04, 0x05)
-// bit 25:    ZOZOTOOLS (zt18.rom at segments 0x30, 0x31)
+// bit 25:    ZOZOTOOLS (zt18.rom at segments 0x40, 0x41)
 // bit 26:    ZX (zx41.rom at segments 0x30, 0x31)
 // bit 27:    FILEIO (epfileio.rom at segment 0x10)
 // bit 28:    -
@@ -312,7 +312,7 @@ static const unsigned long machineConfigs[] = {
   0x08090814UL,         // EP_320k_EXDOS_FileIO.cfg
   0x090A0814UL,         // EP_320k_EXDOS_FileIO_TASMON.cfg
   0x010A0814UL,         // EP_320k_EXDOS_TASMON.cfg
-  0x02782028UL          // EP_640k_EXOS23_EXDOS_utils.cfg
+  0x0A782028UL          // EP_640k_EXOS23_EXDOS_utils.cfg
 };
 
 static const char *romFileNames[24] = {
@@ -355,12 +355,12 @@ static const unsigned long romFileSegments[24] = {
   0xFFFFFF06UL,         // basic21.rom
   0xFFFFFF20UL,         // exdos10.rom
   0xFFFF2120UL,         // exdos13.rom
-  0xFFFF1110UL,         // epdos_z.rom
+  0xFFFF3130UL,         // epdos_z.rom
   0xFFFF0504UL,         // asmen15.rom
   0xFFFF0706UL,         // fenas12.rom
   0xFFFF0504UL,         // heass10.rom
   0xFFFF0504UL,         // tasmon15.rom
-  0xFFFF3130UL,         // zt18.rom
+  0xFFFF4140UL,         // zt18.rom
   0xFFFF3130UL,         // zx41.rom
   0xFFFFFF10UL,         // epfileio.rom
   0xFFFFFFFFUL,         // -
@@ -433,6 +433,14 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
   config.createKey("memory.rom.32.offset", memory.rom[0x32].offset);
   config.createKey("memory.rom.33.file", memory.rom[0x33].file);
   config.createKey("memory.rom.33.offset", memory.rom[0x33].offset);
+  config.createKey("memory.rom.40.file", memory.rom[0x40].file);
+  config.createKey("memory.rom.40.offset", memory.rom[0x40].offset);
+  config.createKey("memory.rom.41.file", memory.rom[0x41].file);
+  config.createKey("memory.rom.41.offset", memory.rom[0x41].offset);
+  config.createKey("memory.rom.42.file", memory.rom[0x42].file);
+  config.createKey("memory.rom.42.offset", memory.rom[0x42].offset);
+  config.createKey("memory.rom.43.file", memory.rom[0x43].file);
+  config.createKey("memory.rom.43.offset", memory.rom[0x43].offset);
 }
 
 class Ep128EmuDisplaySndConfiguration {
