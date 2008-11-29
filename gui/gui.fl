@@ -43,8 +43,7 @@ class Ep128EmuGUI {open
   decl {bool oldPauseFlag;} {}
   decl {long oldTapeSampleRate;} {}
   decl {int oldTapeSampleSize;} {}
-  decl {uint32_t floppyDriveLEDStateFilter;} {}
-  decl {uint8_t oldFloppyDriveLEDState;} {}
+  decl {uint32_t oldFloppyDriveLEDState;} {}
   decl {bool oldTapeReadOnlyFlag;} {}
   decl {long oldTapePosition;} {}
   decl {uint32_t functionKeyState;} {}

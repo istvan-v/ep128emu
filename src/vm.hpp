@@ -222,7 +222,7 @@ namespace Ep128Emu {
      *   0x01000000: drive 3 red LED is on
      *   0x02000000: drive 3 green LED is on
      */
-    virtual uint32_t getFloppyDriveLEDState() const;
+    virtual uint32_t getFloppyDriveLEDState();
     /*!
      * Set if the emulated machine should be allowed to access files in the
      * working directory.

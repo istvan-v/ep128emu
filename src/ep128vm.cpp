@@ -1547,7 +1547,7 @@ namespace Ep128 {
     uint32_t  n = 0U;
     for (int i = 3; i >= 0; i--) {
       n = n << 8;
-      n |= (uint32_t(floppyDrives[i].getLEDState()) << 1);
+      n |= uint32_t(floppyDrives[i].getLEDState());
     }
     vmStatus_.floppyDriveLEDState = n;
     vmStatus_.isPlayingDemo = isPlayingDemo;
@@ -1607,12 +1607,12 @@ namespace Ep128 {
                                      nTracks_, nSides_, nSectorsPerTrack_);
   }
 
-  uint32_t Ep128VM::getFloppyDriveLEDState() const
+  uint32_t Ep128VM::getFloppyDriveLEDState()
   {
     uint32_t  n = 0U;
     for (int i = 3; i >= 0; i--) {
       n = n << 8;
-      n |= (uint32_t(floppyDrives[i].getLEDState()) << 1);
+      n |= uint32_t(floppyDrives[i].getLEDState());
     }
     return n;
   }

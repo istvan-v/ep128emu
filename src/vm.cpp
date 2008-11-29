@@ -389,7 +389,7 @@ namespace Ep128Emu {
     (void) nSectorsPerTrack_;
   }
 
-  uint32_t VirtualMachine::getFloppyDriveLEDState() const
+  uint32_t VirtualMachine::getFloppyDriveLEDState()
   {
     return 0U;
   }

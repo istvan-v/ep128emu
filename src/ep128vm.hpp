@@ -311,7 +311,7 @@ namespace Ep128 {
      *   0x01000000: drive 3 red LED is on
      *   0x02000000: drive 3 green LED is on
      */
-    virtual uint32_t getFloppyDriveLEDState() const;
+    virtual uint32_t getFloppyDriveLEDState();
     // ---------------------------- TAPE EMULATION ----------------------------
     /*!
      * Set tape image file name (if the file name is NULL or empty, tape

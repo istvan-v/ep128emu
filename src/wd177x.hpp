@@ -27,6 +27,8 @@ namespace Ep128Emu {
 
   class WD177x {
    private:
+    static const uint32_t ledStateCount1 = 60U;         // 120 ms
+    static const uint32_t ledStateCount2 = 2000U;       // 4000 ms
     std::string imageFileName;
     std::FILE   *imageFile;
     uint8_t     nTracks;
@@ -47,9 +49,16 @@ namespace Ep128Emu {
     bool        steppingIn;
     bool        busyFlagHackEnabled;
     bool        busyFlagHack;
-    std::vector< uint8_t >  trackBuffer;
-    size_t      bufPos;
-    bool        trackNotReadFlag;
+    uint8_t     bufferedTrack;          // track stored in buffer, 0xFF: none
+    uint8_t     bufferedSide;           // side stored in buffer, 0xFF: none
+    uint32_t    ledStateCounter;
+    std::vector< uint32_t > buf_;
+    uint8_t     *trackBuffer;
+    // for each sector of the buffered track:
+    // bit 0: sector data is valid, bit 7: sector is "dirty" (not flushed)
+    uint8_t     *flagsBuffer;
+    uint8_t     *tmpBuffer;
+    long        bufPos;                 // position in track buffer, -1: none
     bool        trackDirtyFlag;
     uint8_t     writeTrackSectorsRemaining;
     //  0: gap (60 * 0x4E)
@@ -81,9 +90,16 @@ namespace Ep128Emu {
     bool checkDiskPosition(bool ignoreSectorRegister = false);
     void setError(uint8_t n = 0);
     void doStep(bool updateFlag);
+    void closeDiskImage();
+    void copySector(int n);
+    void clearDirtyFlag();
+    void clearFlagsBuffer();
+    void clearBuffer(uint8_t *buf);
+    bool updateBufferedTrack();
     bool readTrack();
     bool flushTrack();
-    static uint16_t calculateCRC(const uint8_t *buf_, size_t nBytes,
+    uint8_t getLEDState_();
+    static uint16_t calculateCRC(const uint8_t *buf, size_t nBytes,
                                  uint16_t n = 0xFFFF);
    public:
     WD177x();
@@ -107,16 +123,19 @@ namespace Ep128Emu {
     virtual void setIsWD1773(bool isEnabled);
     inline void setSide(int n)
     {
-      currentSide = uint8_t(n) & 1;
+      currentSide = uint8_t(n & 1);
     }
     virtual bool getInterruptRequestFlag() const;
     virtual bool getDataRequestFlag() const;
     virtual bool haveDisk() const;
     virtual bool getIsWriteProtected() const;
     void setEnableBusyFlagHack(bool isEnabled);
-    inline bool getLEDState() const
+    // returns 0: black (off), 1: red, 2: green, 3: yellow-green
+    inline uint8_t getLEDState()
     {
-      return bool(statusRegister & 0x01);
+      if (ledStateCounter)
+        return getLEDState_();
+      return 0x00;
     }
     virtual void reset();
    protected:

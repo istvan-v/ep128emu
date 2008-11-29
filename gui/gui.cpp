@@ -56,8 +56,7 @@ void Ep128EmuGUI::init_()
   oldPauseFlag = true;
   oldTapeSampleRate = -1L;
   oldTapeSampleSize = -1;
-  floppyDriveLEDStateFilter = 0U;
-  oldFloppyDriveLEDState = 0x00;
+  oldFloppyDriveLEDState = 0U;
   oldTapeReadOnlyFlag = false;
   oldTapePosition = -2L;
   functionKeyState = 0U;
@@ -327,24 +326,19 @@ void Ep128EmuGUI::updateDisplay(double t)
     tapePositionDisplay->redraw();
     tapeStatusDisplay->redraw();
   }
-  floppyDriveLEDStateFilter =
-      uint32_t(((floppyDriveLEDStateFilter & 0x7F7F7F7FU) << 1)
-               | vmThreadStatus.floppyDriveLEDState);
-  uint8_t newFloppyDriveLEDState =
-      uint8_t(bool(floppyDriveLEDStateFilter & 0x000000FFU))
-      | (uint8_t(bool(floppyDriveLEDStateFilter & 0x0000FF00U)) << 1)
-      | (uint8_t(bool(floppyDriveLEDStateFilter & 0x00FF0000U)) << 2)
-      | (uint8_t(bool(floppyDriveLEDStateFilter & 0xFF000000U)) << 3);
+  uint32_t  newFloppyDriveLEDState = vmThreadStatus.floppyDriveLEDState;
   if (newFloppyDriveLEDState != oldFloppyDriveLEDState) {
     oldFloppyDriveLEDState = newFloppyDriveLEDState;
-    Fl_Color  ledColors_[2] = { FL_BLACK, Fl_Color(87) };
-    driveALEDDisplay->color(ledColors_[newFloppyDriveLEDState & 0x01]);
+    Fl_Color  ledColors_[4] = {
+      FL_BLACK, Fl_Color(92), FL_GREEN, Fl_Color(87)
+    };
+    driveALEDDisplay->color(ledColors_[newFloppyDriveLEDState & 0x03U]);
     driveALEDDisplay->redraw();
-    driveBLEDDisplay->color(ledColors_[(newFloppyDriveLEDState & 0x02) >> 1]);
+    driveBLEDDisplay->color(ledColors_[(newFloppyDriveLEDState >> 8) & 0x03U]);
     driveBLEDDisplay->redraw();
-    driveCLEDDisplay->color(ledColors_[(newFloppyDriveLEDState & 0x04) >> 2]);
+    driveCLEDDisplay->color(ledColors_[(newFloppyDriveLEDState >> 16) & 0x03U]);
     driveCLEDDisplay->redraw();
-    driveDLEDDisplay->color(ledColors_[(newFloppyDriveLEDState & 0x08) >> 3]);
+    driveDLEDDisplay->color(ledColors_[(newFloppyDriveLEDState >> 24) & 0x03U]);
     driveDLEDDisplay->redraw();
   }
   if (statsTimer.getRealTime() >= 0.5) {
