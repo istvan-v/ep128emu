@@ -36,20 +36,33 @@ static int checkFloppyDisk(const std::string& fileName,
         fileName[2] == '.' && fileName[3] == '\\')) {
     return 0;
   }
-  HANDLE  h = CreateFileA(fileName.c_str(), (DWORD) 0,
-                          FILE_SHARE_READ | FILE_SHARE_WRITE,
-                          (LPSECURITY_ATTRIBUTES) 0, OPEN_EXISTING,
-                          FILE_ATTRIBUTE_NORMAL, (HANDLE) 0);
-  if (h == INVALID_HANDLE_VALUE)
-    return -1;                  // return value == -1: error opening device
   DISK_GEOMETRY diskGeometry;
+  HANDLE  h = INVALID_HANDLE_VALUE;
   DWORD   tmp;
-  if (DeviceIoControl(h, IOCTL_DISK_GET_DRIVE_GEOMETRY,
-                      (LPVOID) 0, (DWORD) 0,
-                      &diskGeometry, (DWORD) sizeof(diskGeometry),
-                      &tmp, (LPOVERLAPPED) 0) == FALSE) {
-    CloseHandle(h);
-    return -1;
+  bool    retryFlag = false;
+  while (true) {
+    h = CreateFileA(fileName.c_str(), (DWORD) 0,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    (LPSECURITY_ATTRIBUTES) 0, OPEN_EXISTING,
+                    FILE_ATTRIBUTE_NORMAL, (HANDLE) 0);
+    if (h == INVALID_HANDLE_VALUE)
+      return -1;                // return value == -1: error opening device
+    if (DeviceIoControl(h, IOCTL_DISK_GET_DRIVE_GEOMETRY,
+                        (LPVOID) 0, (DWORD) 0,
+                        &diskGeometry, (DWORD) sizeof(diskGeometry),
+                        &tmp, (LPOVERLAPPED) 0) == FALSE) {
+      if (!retryFlag) {
+        retryFlag = true;
+        std::FILE *f = std::fopen(fileName.c_str(), "rb");
+        if (f)
+          std::fclose(f);
+        CloseHandle(h);
+        continue;
+      }
+      CloseHandle(h);
+      return -1;
+    }
+    break;
   }
   bool    errorFlag = false;
   if (!(diskGeometry.MediaType > Unknown &&
@@ -959,7 +972,7 @@ namespace Ep128Emu {
     bool    errorFlag = false;
     if (currentTrack >= nTracks || currentSide >= nSides)
       errorFlag = true;
-    if (lastSector < firstSector)
+    if (!firstSector)
       return (!errorFlag);
     clearBuffer(tmpBuffer);
     if (!errorFlag) {
@@ -991,35 +1004,43 @@ namespace Ep128Emu {
       clearDirtyFlag();
       return false;
     }
-    uint8_t firstSector = 0;
     uint8_t lastSector = 0;
-    for (uint8_t i = 1; i <= nSectorsPerTrack; i++) {
-      if (flagsBuffer[i - 1] & 0x80) {
-        if (!firstSector)
-          firstSector = i;
-        lastSector = i;
+    bool    errorFlag = false;
+    while (true) {
+      uint8_t firstSector = 0;
+      for (uint8_t i = lastSector + 1; i <= nSectorsPerTrack; i++) {
+        uint8_t tmp = flagsBuffer[i - 1];
+        if (tmp & 0x80) {
+          if (!firstSector)
+            firstSector = i;
+          lastSector = i;
+        }
+        else if (!tmp) {
+          if (firstSector)
+            break;
+        }
+      }
+      if (!firstSector) {
+        clearDirtyFlag();
+        return (!errorFlag);
+      }
+      size_t  offs = size_t(firstSector - 1) * 512;
+      size_t  nBytes = size_t(lastSector + 1 - firstSector) * 512;
+      long    filePos =
+          (long(bufferedTrack) * long(nSides) + long(bufferedSide))
+          * (long(nSectorsPerTrack) * 512L)
+          + long(offs);
+      if (std::fseek(imageFile, filePos, SEEK_SET) < 0) {
+        errorFlag = true;
+      }
+      else {
+        size_t  bytesWritten = std::fwrite(&(trackBuffer[offs]),
+                                           sizeof(uint8_t), nBytes, imageFile);
+        if (bytesWritten != nBytes)
+          errorFlag = true;
       }
     }
-    if (lastSector < firstSector) {
-      trackDirtyFlag = false;
-      return true;
-    }
-    size_t  offs = size_t(firstSector - 1) * 512;
-    size_t  nBytes = size_t(lastSector + 1 - firstSector) * 512;
-    long    filePos = (long(bufferedTrack) * long(nSides) + long(bufferedSide))
-                      * long(nSectorsPerTrack);
-    filePos = (filePos * 512L) + long(offs);
-    bool    errorFlag = false;
-    if (std::fseek(imageFile, filePos, SEEK_SET) < 0) {
-      errorFlag = true;
-    }
-    else {
-      size_t  bytesWritten =
-          std::fwrite(&(trackBuffer[offs]), sizeof(uint8_t), nBytes, imageFile);
-      errorFlag = (bytesWritten != nBytes);
-    }
-    clearDirtyFlag();
-    return (!errorFlag);
+    return false;       // not reached
   }
 
   uint8_t WD177x::getLEDState_()
