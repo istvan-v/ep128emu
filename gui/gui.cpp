@@ -1184,6 +1184,73 @@ void Ep128EmuGUI::fltkCheckCallback(void *userData)
   }
 }
 
+size_t Ep128EmuGUI::rleCompressLine(unsigned char *outBuf,
+                                    const unsigned char *inBuf, size_t width)
+{
+  unsigned char   rleLengths[1024];
+  unsigned char   rleLength = 0;
+  unsigned char   rleByte = 0x00;
+  for (size_t i = width; i-- > 0; ) {
+    if (inBuf[i] == rleByte) {
+      if (rleLength < 255)
+        rleLength++;
+    }
+    else {
+      rleLength = 1;
+      rleByte = inBuf[i];
+    }
+    rleLengths[i] = rleLength;
+  }
+  unsigned short  compressedSizes[256];
+  unsigned char   literalLengths[1024];
+  compressedSizes[width & 255] = 2;
+  for (size_t i = width; i-- > 0; ) {
+    size_t  k = rleLengths[i];
+    size_t  l = 0;
+    size_t  bestSize = size_t(compressedSizes[(i + k) & 255]) + 2;
+    if (k < 2) {
+      size_t  m = width - i;
+      if (m > 255)
+        m = 255;
+      for (size_t j = 3; j <= m; j++) {
+        size_t  tmp =
+            size_t(compressedSizes[(i + j) & 255]) + ((j + 3) & (~(size_t(1))));
+        if (tmp <= bestSize) {
+          l = j;
+          bestSize = tmp;
+        }
+        else if (tmp > (bestSize + 3)) {
+          break;
+        }
+      }
+    }
+    compressedSizes[i & 255] = (unsigned short) bestSize;
+    literalLengths[i] = (unsigned char) l;
+  }
+  size_t  j = 0;
+  for (size_t i = 0; i < width; ) {
+    unsigned char l = literalLengths[i];
+    if (!l) {
+      l = rleLengths[i];
+      outBuf[j++] = l;
+      outBuf[j++] = inBuf[i];
+      i += size_t(l);
+    }
+    else {
+      outBuf[j++] = 0x00;
+      outBuf[j++] = l;
+      do {
+        outBuf[j++] = inBuf[i++];
+      } while (--l);
+      if (j & 1)
+        outBuf[j++] = 0x00;
+    }
+  }
+  outBuf[j++] = 0x00;                   // end of line
+  outBuf[j++] = 0x00;
+  return j;
+}
+
 void Ep128EmuGUI::screenshotCallback(void *userData,
                                      const unsigned char *buf, int w_, int h_)
 {
@@ -1192,7 +1259,7 @@ void Ep128EmuGUI::screenshotCallback(void *userData,
   std::FILE     *f = (std::FILE *) 0;
   try {
     fName = gui_.screenshotFileName;
-    if (!gui_.browseFile(fName, gui_.screenshotDirectory, "TGA files\t*.tga",
+    if (!gui_.browseFile(fName, gui_.screenshotDirectory, "BMP files\t*.bmp",
                          Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
                          "Save screenshot"))
       return;
@@ -1200,76 +1267,65 @@ void Ep128EmuGUI::screenshotCallback(void *userData,
     f = std::fopen(fName.c_str(), "wb");
     if (!f)
       throw Ep128Emu::Exception("error opening screenshot file");
-    unsigned char tmpBuf[1032];
-    tmpBuf[0] = 0;                      // ID length
-    tmpBuf[1] = 1;                      // use colormap
-    tmpBuf[2] = 9;                      // image type (colormap/RLE)
-    tmpBuf[3] = 0;                      // color map specification
-    tmpBuf[4] = 0;                      // first entry index = 0
-    tmpBuf[5] = 0;
-    tmpBuf[6] = 1;                      // length = 256
-    tmpBuf[7] = 24;                     // colormap entry size
-    tmpBuf[8] = 0;                      // X origin
-    tmpBuf[9] = 0;
-    tmpBuf[10] = 0;                     // Y origin
-    tmpBuf[11] = 0;
-    tmpBuf[12] = (unsigned char) (w_ & 0xFF);   // image width
-    tmpBuf[13] = (unsigned char) (w_ >> 8);
-    tmpBuf[14] = (unsigned char) (h_ & 0xFF);   // image height
-    tmpBuf[15] = (unsigned char) (h_ >> 8);
-    tmpBuf[16] = 8;                     // bits per pixel
-    tmpBuf[17] = 0x20;                  // image descriptor (origin: top/left)
-    for (int i = 0; i < 768; i += 3) {
-      tmpBuf[i + 18] = buf[i + 2];
-      tmpBuf[i + 19] = buf[i + 1];
-      tmpBuf[i + 20] = buf[i];
+    unsigned char tmpBuf[1078];
+    for (int i = 0; i < 54; i++)
+      tmpBuf[i] = 0x00;
+    for (int i = 0; i < 1024; i += 4) {         // palette:
+      tmpBuf[i + 54] = buf[(i >> 2) * 3 + 2];   // B
+      tmpBuf[i + 55] = buf[(i >> 2) * 3 + 1];   // G
+      tmpBuf[i + 56] = buf[(i >> 2) * 3];       // R
+      tmpBuf[i + 57] = 0x00;                    // unused
     }
-    if (std::fwrite(&(tmpBuf[0]), sizeof(unsigned char), 786, f) != 786)
+    if (std::fwrite(&(tmpBuf[0]), sizeof(unsigned char), 1078, f) != 1078) {
       throw Ep128Emu::Exception("error writing screenshot file "
                                 "- is the disk full ?");
-    for (int yc = 0; yc < h_; yc++) {
-      const unsigned char *bufp = &(buf[yc * w_ + 768]);
+    }
+    size_t  compressedSize = 0;
+    for (int yc = h_; yc-- > 0; ) {
       // RLE encode line
-      unsigned char   *p = &(tmpBuf[0]);
-      int     xc = 0;
-      while (xc < w_) {
-        if (xc == (w_ - 1)) {
-          *(p++) = 0x00;
-          *(p++) = bufp[xc];
-          xc++;
-        }
-        else if (bufp[xc] == bufp[xc + 1]) {
-          int     tmp = xc + 2;
-          while (tmp < w_ && (tmp - xc) < 128) {
-            if (bufp[tmp] != bufp[xc])
-              break;
-            tmp++;
-          }
-          *(p++) = (unsigned char) (((tmp - xc) - 1) | 0x80);
-          *(p++) = bufp[xc];
-          xc = tmp;
-        }
-        else {
-          int     tmp = xc + 2;
-          while (tmp < w_ && (tmp - xc) < 128) {
-            if (bufp[tmp] == bufp[tmp - 1]) {
-              tmp--;
-              break;
-            }
-            tmp++;
-          }
-          *(p++) = (unsigned char) ((tmp - xc) - 1);
-          while (xc < tmp) {
-            *(p++) = bufp[xc];
-            xc++;
-          }
-        }
+      size_t  nBytes = rleCompressLine(&(tmpBuf[0]),
+                                       &(buf[(yc * w_) + 768]), size_t(w_));
+      if (yc == 0) {
+        tmpBuf[nBytes++] = 0x00;        // end of file
+        tmpBuf[nBytes++] = 0x01;
       }
-      size_t  nBytes = size_t(p - &(tmpBuf[0]));
-      if (std::fwrite(&(tmpBuf[0]), sizeof(unsigned char), nBytes, f) != nBytes)
+      compressedSize += nBytes;
+      if (std::fwrite(&(tmpBuf[0]), sizeof(unsigned char), nBytes, f)
+          != nBytes) {
         throw Ep128Emu::Exception("error writing screenshot file "
                                   "- is the disk full ?");
+      }
     }
+    if (std::fseek(f, 0L, SEEK_SET) < 0)
+      throw Ep128Emu::Exception("error writing screenshot file header");
+    for (int i = 0; i < 54; i++)
+      tmpBuf[i] = 0x00;
+    tmpBuf[0] = 0x42;                   // 'B'
+    tmpBuf[1] = 0x4D;                   // 'M'
+    tmpBuf[2] = (unsigned char) ((compressedSize + 1078) & 0xFF);
+    tmpBuf[3] = (unsigned char) (((compressedSize + 1078) >> 8) & 0xFF);
+    tmpBuf[4] = (unsigned char) ((compressedSize + 1078) >> 16);
+    tmpBuf[10] = 0x36;                  // bitmap data offset (1078) LSB
+    tmpBuf[11] = 0x04;                  // bitmap data offset (1078) MSB
+    tmpBuf[14] = 0x28;                  // size of BITMAPINFOHEADER
+    tmpBuf[18] = (unsigned char) (w_ & 0xFF);   // image width
+    tmpBuf[19] = (unsigned char) (w_ >> 8);
+    tmpBuf[22] = (unsigned char) (h_ & 0xFF);   // image height
+    tmpBuf[23] = (unsigned char) (h_ >> 8);
+    tmpBuf[26] = 0x01;                  // biPlanes
+    tmpBuf[28] = 0x08;                  // biBitCount
+    tmpBuf[30] = 0x01;                  // biCompression: BI_RLE8
+    tmpBuf[34] = (unsigned char) (compressedSize & 0xFF);   // bitmap data size
+    tmpBuf[35] = (unsigned char) ((compressedSize >> 8) & 0xFF);
+    tmpBuf[36] = (unsigned char) (compressedSize >> 16);
+    tmpBuf[38] = 0x13;                  // biXPelsPerMeter (72 dpi)
+    tmpBuf[39] = 0x0B;
+    tmpBuf[42] = 0x13;                  // biYPelsPerMeter (72 dpi)
+    tmpBuf[43] = 0x0B;
+    tmpBuf[47] = 0x01;                  // biClrUsed (256) MSB
+    tmpBuf[51] = 0x01;                  // biClrImportant (256) MSB
+    if (std::fwrite(&(tmpBuf[0]), sizeof(unsigned char), 54, f) != 54)
+      throw Ep128Emu::Exception("error writing screenshot file header");
   }
   catch (std::exception& e) {
     if (f) {

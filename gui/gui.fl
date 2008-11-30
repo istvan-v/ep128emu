@@ -109,6 +109,7 @@ class Ep128EmuGUI {open
   decl {static void errorMessageCallback(void *userData, const char *msg);} {}
   decl {static void fileNameCallback(void *userData, std::string& fileName);} {}
   decl {static void fltkCheckCallback(void *userData);} {}
+  decl {static size_t rleCompressLine(unsigned char *outBuf, const unsigned char *inBuf, size_t width);} {}
   decl {static void screenshotCallback(void *userData, const unsigned char *buf, int w_, int h_);} {}
   decl {static void pollJoystickInput(void *userData);} {}
   decl {bool closeDemoFile(bool stopDemo_);} {}
