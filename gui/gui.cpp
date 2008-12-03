@@ -563,7 +563,7 @@ void Ep128EmuGUI::createMenus()
                    (char *) 0, &menuCallback_Options_FloppyRmD, (void *) this);
   mainMenuBar->add("Options/Floppy/Remove disk/All drives",
                    (char *) 0, &menuCallback_Options_FloppyRmv, (void *) this);
-  mainMenuBar->add("Options/Floppy/Replace disk/Drive A",
+  mainMenuBar->add("Options/Floppy/Replace disk/Drive A (Alt+H)",
                    (char *) 0, &menuCallback_Options_FloppyRpA, (void *) this);
   mainMenuBar->add("Options/Floppy/Replace disk/Drive B",
                    (char *) 0, &menuCallback_Options_FloppyRpB, (void *) this);
@@ -778,55 +778,55 @@ int Ep128EmuGUI::handleFLTKEvent(void *userData, int event)
         else if (Fl::event_ctrl())
           n += 8;
         break;
-      case FL_Pause:
+      case FL_Page_Down:
         n = 12;
         break;
-      case FL_Page_Down:
+      case FL_Page_Up:
         n = 13;
         break;
-      case FL_Page_Up:
+      case FL_Alt_L:
         n = 14;
         break;
-      case FL_Alt_L:
+      case FL_Alt_R:
         n = 15;
         break;
-      case FL_Alt_R:
+      case (FL_KP + '0'):
         n = 16;
         break;
-      case (FL_KP + '0'):
+      case (FL_KP + '1'):
         n = 17;
         break;
-      case (FL_KP + '1'):
+      case (FL_KP + '3'):
         n = 18;
         break;
-      case (FL_KP + '3'):
+      case (FL_KP + '4'):
         n = 19;
         break;
-      case (FL_KP + '4'):
+      case 0x2C:                // ','
         n = 20;
         break;
-      case 0x2C:                // ','
+      case 0x2E:                // '.'
         n = 21;
         break;
-      case 0x2E:                // '.'
+      case 0x61:                // 'A'
         n = 22;
         break;
-      case 0x61:                // 'A'
+      case 0x62:                // 'B'
         n = 23;
         break;
-      case 0x62:                // 'B'
+      case 0x63:                // 'C'
         n = 24;
         break;
-      case 0x63:                // 'C'
+      case 0x64:                // 'D'
         n = 25;
         break;
-      case 0x64:                // 'D'
+      case 0x65:                // 'E'
         n = 26;
         break;
-      case 0x65:                // 'E'
+      case 0x66:                // 'F'
         n = 27;
         break;
-      case 0x66:                // 'F'
+      case 0x68:                // 'H'
         n = 28;
         break;
       case 0x69:                // 'I'
@@ -863,7 +863,7 @@ int Ep128EmuGUI::handleFLTKEvent(void *userData, int event)
         n = 39;
         break;
       }
-      if (n >= 21) {
+      if (n >= 20) {
         if (isKeyPress && !Fl::event_alt())
           n = -1;
       }
@@ -881,14 +881,13 @@ int Ep128EmuGUI::handleFLTKEvent(void *userData, int event)
               gui_.menuCallback_Options_DpyMode((Fl_Widget *) 0, userData);
               break;
             case 1:                                     // F10:
-            case 12:                                    // Pause:
               gui_.menuCallback_Machine_Pause((Fl_Widget *) 0, userData);
               break;
             case 2:                                     // F11:
               gui_.menuCallback_Machine_Reset((Fl_Widget *) 0, userData);
               break;
             case 3:                                     // F12:
-            case 25:                                    // Alt+C:
+            case 24:                                    // Alt+C:
               gui_.menuCallback_File_Screenshot((Fl_Widget *) 0, userData);
               break;
             case 4:                                     // Shift+F9:
@@ -912,45 +911,48 @@ int Ep128EmuGUI::handleFLTKEvent(void *userData, int event)
             case 10:                                    // Ctrl+F11:
               gui_.menuCallback_Machine_ColdReset((Fl_Widget *) 0, userData);
               break;
-            case 13:                                    // PageDown:
+            case 12:                                    // PageDown:
               gui_.menuCallback_Machine_QuickCfgL1((Fl_Widget *) 0, userData);
               break;
-            case 14:                                    // PageUp:
+            case 13:                                    // PageUp:
               gui_.menuCallback_Machine_QuickCfgL2((Fl_Widget *) 0, userData);
               break;
-            case 17:                                    // KP_0:
+            case 16:                                    // KP_0:
             case 37:                                    // Alt+T:
               gui_.menuCallback_Machine_OpenTape((Fl_Widget *) 0, userData);
               break;
-            case 18:                                    // KP_1:
+            case 17:                                    // KP_1:
             case 32:                                    // Alt+O:
               gui_.menuCallback_Machine_TapeStop((Fl_Widget *) 0, userData);
               break;
-            case 19:                                    // KP_3:
+            case 18:                                    // KP_3:
             case 33:                                    // Alt+P:
               gui_.menuCallback_Machine_TapePlay((Fl_Widget *) 0, userData);
               break;
-            case 20:                                    // KP_4:
+            case 19:                                    // KP_4:
             case 35:                                    // Alt+R:
               gui_.menuCallback_Machine_TapeRewind((Fl_Widget *) 0, userData);
               break;
-            case 21:                                    // Alt+,:
+            case 20:                                    // Alt+,:
               gui_.menuCallback_Machine_TapePrvCP((Fl_Widget *) 0, userData);
               break;
-            case 22:                                    // Alt+.:
+            case 21:                                    // Alt+.:
               gui_.menuCallback_Machine_TapeNxtCP((Fl_Widget *) 0, userData);
               break;
-            case 24:                                    // Alt+B:
+            case 23:                                    // Alt+B:
               gui_.menuCallback_Debug_OpenDebugger((Fl_Widget *) 0, userData);
               break;
-            case 26:                                    // Alt+D:
+            case 25:                                    // Alt+D:
               gui_.menuCallback_Options_FloppyCfg((Fl_Widget *) 0, userData);
               break;
-            case 27:                                    // Alt+E:
+            case 26:                                    // Alt+E:
               gui_.menuCallback_Machine_Speed_100((Fl_Widget *) 0, userData);
               break;
-            case 28:                                    // Alt+F:
+            case 27:                                    // Alt+F:
               gui_.menuCallback_Options_FileIODir((Fl_Widget *) 0, userData);
+              break;
+            case 28:                                    // Alt+H:
+              gui_.menuCallback_Options_FloppyRpA((Fl_Widget *) 0, userData);
               break;
             case 29:                                    // Alt+I:
               gui_.menuCallback_Options_KbdConfig((Fl_Widget *) 0, userData);
@@ -1263,6 +1265,7 @@ void Ep128EmuGUI::screenshotCallback(void *userData,
                          Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
                          "Save screenshot"))
       return;
+    Ep128Emu::addFileNameExtension(fName, "bmp");
     gui_.screenshotFileName = fName;
     f = std::fopen(fName.c_str(), "wb");
     if (!f)
@@ -1492,6 +1495,7 @@ void Ep128EmuGUI::menuCallback_File_SaveConfig(Fl_Widget *o, void *v)
                         "Configuration files\t*.cfg",
                         Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
                         "Save configuration as ASCII text file")) {
+      Ep128Emu::addFileNameExtension(tmp, "cfg");
       gui_.config.saveState(tmp.c_str());
     }
   }
@@ -1613,9 +1617,10 @@ void Ep128EmuGUI::menuCallback_File_SaveSnapshot(Fl_Widget *o, void *v)
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
     std::string tmp;
-    if (gui_.browseFile(tmp, gui_.snapshotDirectory, "Snapshot files\t*",
+    if (gui_.browseFile(tmp, gui_.snapshotDirectory, "Snapshot files\t*.ep128s",
                         Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
                         "Save snapshot")) {
+      Ep128Emu::addFileNameExtension(tmp, "ep128s");
       gui_.loadFileDirectory = gui_.snapshotDirectory;
       if (gui_.lockVMThread()) {
         try {
@@ -1642,9 +1647,10 @@ void Ep128EmuGUI::menuCallback_File_RecordDemo(Fl_Widget *o, void *v)
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
     std::string tmp;
-    if (gui_.browseFile(tmp, gui_.demoDirectory, "Demo files\t*",
+    if (gui_.browseFile(tmp, gui_.demoDirectory, "Demo files\t*.ep128d",
                         Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
                         "Record demo")) {
+      Ep128Emu::addFileNameExtension(tmp, "ep128d");
       gui_.loadFileDirectory = gui_.demoDirectory;
       if (gui_.lockVMThread()) {
         if (gui_.closeDemoFile(true)) {
@@ -1693,6 +1699,7 @@ void Ep128EmuGUI::menuCallback_File_RecordSound(Fl_Widget *o, void *v)
     if (gui_.browseFile(tmp, gui_.soundFileDirectory, "Sound files\t*.wav",
                         Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
                         "Record sound output to WAV file")) {
+      Ep128Emu::addFileNameExtension(tmp, "wav");
       gui_.config["sound.file"] = tmp;
       gui_.applyEmulatorConfiguration(true);
     }
@@ -1729,6 +1736,7 @@ void Ep128EmuGUI::menuCallback_File_RecordVideo(Fl_Widget *o, void *v)
       gui_.menuCallback_File_StopAVIRecord(o, v);
       return;
     }
+    Ep128Emu::addFileNameExtension(tmp, "avi");
     if (gui_.lockVMThread()) {
       try {
         gui_.vm.openVideoCapture(gui_.config.videoCapture.frameRate,
