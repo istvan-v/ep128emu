@@ -130,9 +130,11 @@ the PATH; on MacOS X, an .app package is created in 'ep128emu.app'.
 When installing the first time, you also need to set up configuration
 files and ROM images:
 
-  * copy all .rom files from the roms directory to ~/.ep128emu/roms (or,
-    in the case of MacOS X, ~/Library/Application Support/ep128emu/roms)
-  * after installing the ROM images, run 'ep128emu', and click OK to the
+  * download
+    http://ep128emu.enterpriseforever.org/roms/ep128emu_roms.bin,
+    and copy it to ~/.ep128emu/roms (or, in the case of MacOS X,
+    ~/Library/Application Support/ep128emu/roms)
+  * after installing the ROM package, run 'makecfg', and click OK to the
     windows that pop up asking for the base directory of configuration
     and data files, and if configuration files should be installed
 
@@ -146,6 +148,11 @@ A binary package with an installer is available at the SourceForge
 download page:
   http://sourceforge.net/project/showfiles.php?group_id=128766
 To install, just run the executable, and follow the instructions.
+The installer can automatically download the ROM images needed for
+running the emulator, but these can also be installed manually by
+downloading
+http://ep128emu.enterpriseforever.org/roms/ep128emu_roms.zip, and
+extracting it to roms\ under the selected installation folder.
 When asked if configuration files should be reinstalled, click 'OK'
 when installing the first time, but this step can be skipped in later
 installations to preserve the configuration.
@@ -392,7 +399,7 @@ Floppy / Remove disk / All drives
   These are just shortcuts for setting the image file name for a
   specific floppy drive to an empty string.
 
-Floppy / Replace disk / Drive A
+Floppy / Replace disk / Drive A (Alt + H)
 Floppy / Replace disk / Drive B
 Floppy / Replace disk / Drive C
 Floppy / Replace disk / Drive D
