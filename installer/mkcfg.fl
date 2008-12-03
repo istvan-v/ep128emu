@@ -1,5 +1,5 @@
 # data file for the Fltk User Interface Designer (fluid)
-version 1.0107 
+version 1.0109 
 do_not_include_H_from_C 
 header_name {.hpp} 
 code_name {.cpp}
@@ -25,12 +25,15 @@ class Ep128EmuConfigInstallerGUI {open
       xywh {296 333 370 95} type Double color 48 visible
     } {
       Fl_Check_Button {} {
-        label {Use Hungarian keyboard map}
         callback {{
   keyboardMapHU = (o->value() != 0);
 }}
         xywh {10 15 25 25} down_box DOWN_BOX
         code0 {o->value(0);}
+      }
+      Fl_Box {} {
+        label {Use Hungarian keyboard map}
+        xywh {35 15 200 25} color 48 align 20
       }
       Fl_Button {} {
         label OK
