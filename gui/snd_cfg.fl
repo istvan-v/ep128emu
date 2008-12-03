@@ -90,6 +90,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
                        "Sound files\\t*.wav",
                        Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
                        "Select sound output file")) {
+      Ep128Emu::addFileNameExtension(tmp, "wav");
       gui.config["sound.file"] = tmp;
       soundOutputFileValuator->value(gui.config.sound.file.c_str());
     }
