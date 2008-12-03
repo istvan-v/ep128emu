@@ -91,22 +91,7 @@ Section "ep128emu2" SecMain
 
   SetOutPath "$INSTDIR\roms"
 
-  File "..\roms\asmen15.rom"
-  File "..\roms\basic20.rom"
-  File "..\roms\basic21.rom"
-  File "..\roms\epdos_z.rom"
   File "..\roms\epfileio.rom"
-  File "..\roms\exdos10.rom"
-  File "..\roms\exdos13.rom"
-  File "..\roms\exos20.rom"
-  File "..\roms\exos21.rom"
-  File "..\roms\exos22.rom"
-  File "..\roms\exos231.rom"
-  File "..\roms\fenas12.rom"
-  File "..\roms\heass10.rom"
-  File "..\roms\tasmon15.rom"
-  File "..\roms\zt18.rom"
-  File "..\roms\zx41.rom"
 
   SetOutPath "$INSTDIR\snapshot"
 
@@ -140,8 +125,6 @@ Section "ep128emu2" SecMain
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
 
   !insertmacro MUI_STARTMENU_WRITE_END
-
-  ExecWait '"$INSTDIR\makecfg.exe" "$INSTDIR"'
 
 SectionEnd
 
@@ -237,17 +220,70 @@ Section "Source code" SecSrc
 
 SectionEnd
 
+Section "Associate snapshot and demo files with ep128emu" SecAssocFiles
+
+  WriteRegStr HKCR ".ep128" "" "Ep128Emu.SnapshotFile"
+  WriteRegStr HKCR ".ep128s" "" "Ep128Emu.SnapshotFile"
+  WriteRegStr HKCR "Ep128Emu.SnapshotFile" "" "Ep128Emu snapshot file"
+  WriteRegStr HKCR "Ep128Emu.SnapshotFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,0"
+  WriteRegStr HKCR "Ep128Emu.SnapshotFile\shell" "" "open"
+  WriteRegStr HKCR "Ep128Emu.SnapshotFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -snapshot "%1"'
+  WriteRegStr HKCR ".ep128d" "" "Ep128Emu.DemoFile"
+  WriteRegStr HKCR "Ep128Emu.DemoFile" "" "Ep128Emu demo file"
+  WriteRegStr HKCR "Ep128Emu.DemoFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,0"
+  WriteRegStr HKCR "Ep128Emu.DemoFile\shell" "" "open"
+  WriteRegStr HKCR "Ep128Emu.DemoFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -snapshot "%1"'
+
+SectionEnd
+
+Section "Download ROM images" SecDLRoms
+
+  SetOutPath "$INSTDIR\roms"
+
+  NSISdl::download "http://ep128emu.enterpriseforever.org/roms/ep128emu_roms.bin" "$INSTDIR\roms\ep128emu_roms.bin"
+  Pop $R0
+  StrCmp $R0 "success" downloadDone 0
+  StrCmp $R0 "cancel" downloadDone 0
+
+  MessageBox MB_OK "WARNING: download from ep128emu.enterpriseforever.org failed ($R0), trying www.sharemation.com instead"
+
+  NSISdl::download "http://www.sharemation.com/IstvanV/roms/ep128emu_roms.bin" "$INSTDIR\roms\ep128emu_roms.bin"
+  Pop $R0
+  StrCmp $R0 "success" downloadDone 0
+  StrCmp $R0 "cancel" downloadDone 0
+
+  MessageBox MB_OK "Download failed: $R0"
+
+  downloadDone:
+
+SectionEnd
+
+Section "Install configuration files" SecInstCfg
+
+  SectionIn RO
+
+  SetOutPath "$INSTDIR"
+  ExecWait '"$INSTDIR\makecfg.exe" "$INSTDIR"'
+
+SectionEnd
+
 ;--------------------------------
 ;Descriptions
 
   ;Language strings
   LangString DESC_SecMain ${LANG_ENGLISH} "ep128emu binaries"
   LangString DESC_SecSrc ${LANG_ENGLISH} "ep128emu source code"
+  LangString DESC_SecAssocFiles ${LANG_ENGLISH} "Associate snapshot and demo files with ep128emu"
+  LangString DESC_SecDLRoms ${LANG_ENGLISH} "Download and install ROM images"
+  LangString DESC_SecInstCfg ${LANG_ENGLISH} "Install configuration files"
 
   ;Assign language strings to sections
   !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
     !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} $(DESC_SecMain)
     !insertmacro MUI_DESCRIPTION_TEXT ${SecSrc} $(DESC_SecSrc)
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecAssocFiles} $(DESC_SecAssocFiles)
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecDLRoms} $(DESC_SecDLRoms)
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecInstCfg} $(DESC_SecInstCfg)
   !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 ;--------------------------------
@@ -272,57 +308,130 @@ Section "Uninstall"
   Delete "$INSTDIR\portaudio.dll.0.0.19"
   Delete "$INSTDIR\SDL.dll"
   Delete "$INSTDIR\tapeedit.exe"
-  Delete "$INSTDIR\config\EP_Keyboard_HU.cfg"
-  Delete "$INSTDIR\config\EP_Keyboard_US.cfg"
-  Delete "$INSTDIR\config\EP_64k_Tape.cfg"
-  Delete "$INSTDIR\config\EP_64k_Tape_NoCartridge.cfg"
-  Delete "$INSTDIR\config\EP_64k_Tape_NoCartridge_FileIO.cfg"
-  Delete "$INSTDIR\config\EP_64k_Tape_FileIO.cfg"
-  Delete "$INSTDIR\config\EP_64k_Tape_FileIO_TASMON.cfg"
-  Delete "$INSTDIR\config\EP_64k_Tape_TASMON.cfg"
-  Delete "$INSTDIR\config\EP_64k_EXDOS.cfg"
-  Delete "$INSTDIR\config\EP_64k_EXDOS_NoCartridge.cfg"
-  Delete "$INSTDIR\config\EP_64k_EXDOS_NoCartridge_FileIO.cfg"
-  Delete "$INSTDIR\config\EP_64k_EXDOS_FileIO.cfg"
-  Delete "$INSTDIR\config\EP_64k_EXDOS_FileIO_TASMON.cfg"
-  Delete "$INSTDIR\config\EP_64k_EXDOS_TASMON.cfg"
-  Delete "$INSTDIR\config\EP_128k_Tape.cfg"
-  Delete "$INSTDIR\config\EP_128k_Tape_NoCartridge.cfg"
-  Delete "$INSTDIR\config\EP_128k_Tape_NoCartridge_FileIO.cfg"
-  Delete "$INSTDIR\config\EP_128k_Tape_FileIO.cfg"
-  Delete "$INSTDIR\config\EP_128k_Tape_FileIO_TASMON.cfg"
-  Delete "$INSTDIR\config\EP_128k_Tape_TASMON.cfg"
   Delete "$INSTDIR\config\EP_128k_EXDOS.cfg"
+  Delete "$INSTDIR\config\EP_128k_EXDOS_FileIO.cfg"
+  Delete "$INSTDIR\config\EP_128k_EXDOS_FileIO_SpectrumEmulator.cfg"
+  Delete "$INSTDIR\config\EP_128k_EXDOS_FileIO_TASMON.cfg"
   Delete "$INSTDIR\config\EP_128k_EXDOS_NoCartridge.cfg"
   Delete "$INSTDIR\config\EP_128k_EXDOS_NoCartridge_FileIO.cfg"
-  Delete "$INSTDIR\config\EP_128k_EXDOS_FileIO.cfg"
-  Delete "$INSTDIR\config\EP_128k_EXDOS_FileIO_TASMON.cfg"
   Delete "$INSTDIR\config\EP_128k_EXDOS_TASMON.cfg"
-  Delete "$INSTDIR\config\EP_128k_EXDOS_FileIO_SpectrumEmulator.cfg"
-  Delete "$INSTDIR\config\EP_320k_Tape.cfg"
-  Delete "$INSTDIR\config\EP_320k_Tape_FileIO.cfg"
-  Delete "$INSTDIR\config\EP_320k_Tape_FileIO_TASMON.cfg"
-  Delete "$INSTDIR\config\EP_320k_Tape_TASMON.cfg"
+  Delete "$INSTDIR\config\EP_128k_Tape.cfg"
+  Delete "$INSTDIR\config\EP_128k_Tape_FileIO.cfg"
+  Delete "$INSTDIR\config\EP_128k_Tape_FileIO_TASMON.cfg"
+  Delete "$INSTDIR\config\EP_128k_Tape_NoCartridge.cfg"
+  Delete "$INSTDIR\config\EP_128k_Tape_NoCartridge_FileIO.cfg"
+  Delete "$INSTDIR\config\EP_128k_Tape_TASMON.cfg"
   Delete "$INSTDIR\config\EP_320k_EXDOS.cfg"
   Delete "$INSTDIR\config\EP_320k_EXDOS_FileIO.cfg"
   Delete "$INSTDIR\config\EP_320k_EXDOS_FileIO_TASMON.cfg"
   Delete "$INSTDIR\config\EP_320k_EXDOS_TASMON.cfg"
+  Delete "$INSTDIR\config\EP_320k_Tape.cfg"
+  Delete "$INSTDIR\config\EP_320k_Tape_FileIO.cfg"
+  Delete "$INSTDIR\config\EP_320k_Tape_FileIO_TASMON.cfg"
+  Delete "$INSTDIR\config\EP_320k_Tape_TASMON.cfg"
   Delete "$INSTDIR\config\EP_640k_EXOS23_EXDOS_utils.cfg"
+  Delete "$INSTDIR\config\EP_64k_EXDOS.cfg"
+  Delete "$INSTDIR\config\EP_64k_EXDOS_FileIO.cfg"
+  Delete "$INSTDIR\config\EP_64k_EXDOS_FileIO_TASMON.cfg"
+  Delete "$INSTDIR\config\EP_64k_EXDOS_NoCartridge.cfg"
+  Delete "$INSTDIR\config\EP_64k_EXDOS_NoCartridge_FileIO.cfg"
+  Delete "$INSTDIR\config\EP_64k_EXDOS_TASMON.cfg"
+  Delete "$INSTDIR\config\EP_64k_Tape.cfg"
+  Delete "$INSTDIR\config\EP_64k_Tape_FileIO.cfg"
+  Delete "$INSTDIR\config\EP_64k_Tape_FileIO_TASMON.cfg"
+  Delete "$INSTDIR\config\EP_64k_Tape_NoCartridge.cfg"
+  Delete "$INSTDIR\config\EP_64k_Tape_NoCartridge_FileIO.cfg"
+  Delete "$INSTDIR\config\EP_64k_Tape_TASMON.cfg"
+  Delete "$INSTDIR\config\EP_Keyboard_HU.cfg"
+  Delete "$INSTDIR\config\EP_Keyboard_US.cfg"
+  Delete "$INSTDIR\config\ep128brd\EP2048k_EXOS231_EXDOS_utils.cfg"
+  Delete "$INSTDIR\config\ep128brd\EP_128k_EXDOS.cfg"
+  Delete "$INSTDIR\config\ep128brd\EP_128k_EXDOS_FileIO.cfg"
+  Delete "$INSTDIR\config\ep128brd\EP_128k_EXDOS_FileIO_SpectrumEmulator.cfg"
+  Delete "$INSTDIR\config\ep128brd\EP_128k_EXDOS_TASMON.cfg"
+  Delete "$INSTDIR\config\ep128brd\EP_128k_Tape.cfg"
+  Delete "$INSTDIR\config\ep128brd\EP_128k_Tape_FileIO.cfg"
+  Delete "$INSTDIR\config\ep128brd\EP_128k_Tape_FileIO_TASMON.cfg"
+  Delete "$INSTDIR\config\ep128brd\EP_128k_Tape_TASMON.cfg"
+  Delete "$INSTDIR\config\ep128brd\EP_640k_EXOS231_EXDOS.cfg"
+  Delete "$INSTDIR\config\ep128brd\EP_640k_EXOS231_EXDOS_utils.cfg"
+  Delete "$INSTDIR\config\ep128esp\EP2048k_EXOS231_EXDOS_utils.cfg"
+  Delete "$INSTDIR\config\ep128esp\EP_128k_EXDOS.cfg"
+  Delete "$INSTDIR\config\ep128esp\EP_128k_EXDOS_FileIO.cfg"
+  Delete "$INSTDIR\config\ep128esp\EP_128k_EXDOS_FileIO_SpectrumEmulator.cfg"
+  Delete "$INSTDIR\config\ep128esp\EP_128k_EXDOS_TASMON.cfg"
+  Delete "$INSTDIR\config\ep128esp\EP_128k_Tape.cfg"
+  Delete "$INSTDIR\config\ep128esp\EP_128k_Tape_FileIO.cfg"
+  Delete "$INSTDIR\config\ep128esp\EP_128k_Tape_FileIO_TASMON.cfg"
+  Delete "$INSTDIR\config\ep128esp\EP_128k_Tape_TASMON.cfg"
+  Delete "$INSTDIR\config\ep128esp\EP_640k_EXOS231_EXDOS.cfg"
+  Delete "$INSTDIR\config\ep128esp\EP_640k_EXOS231_EXDOS_utils.cfg"
+  Delete "$INSTDIR\config\ep128hun\EP2048k_EXOS231_EXDOS_utils.cfg"
+  Delete "$INSTDIR\config\ep128hun\EP_128k_EXDOS.cfg"
+  Delete "$INSTDIR\config\ep128hun\EP_128k_EXDOS_FileIO.cfg"
+  Delete "$INSTDIR\config\ep128hun\EP_128k_EXDOS_FileIO_SpectrumEmulator.cfg"
+  Delete "$INSTDIR\config\ep128hun\EP_128k_EXDOS_TASMON.cfg"
+  Delete "$INSTDIR\config\ep128hun\EP_128k_Tape.cfg"
+  Delete "$INSTDIR\config\ep128hun\EP_128k_Tape_FileIO.cfg"
+  Delete "$INSTDIR\config\ep128hun\EP_128k_Tape_FileIO_TASMON.cfg"
+  Delete "$INSTDIR\config\ep128hun\EP_128k_Tape_TASMON.cfg"
+  Delete "$INSTDIR\config\ep128hun\EP_640k_EXOS22_EXDOS.cfg"
+  Delete "$INSTDIR\config\ep128hun\EP_640k_EXOS23_EXDOS.cfg"
+  Delete "$INSTDIR\config\ep128hun\EP_640k_EXOS231_EXDOS.cfg"
+  Delete "$INSTDIR\config\ep128hun\EP_640k_EXOS231_EXDOS_utils.cfg"
+  Delete "$INSTDIR\config\ep128uk\EP2048k_EXOS231_EXDOS_utils.cfg"
+  Delete "$INSTDIR\config\ep128uk\EP_128k_EXDOS.cfg"
+  Delete "$INSTDIR\config\ep128uk\EP_128k_EXDOS_EP-PLUS.cfg"
+  Delete "$INSTDIR\config\ep128uk\EP_128k_EXDOS_EP-PLUS_TASMON.cfg"
+  Delete "$INSTDIR\config\ep128uk\EP_128k_EXDOS_FileIO.cfg"
+  Delete "$INSTDIR\config\ep128uk\EP_128k_EXDOS_FileIO_SpectrumEmulator.cfg"
+  Delete "$INSTDIR\config\ep128uk\EP_128k_EXDOS_NoCartridge.cfg"
+  Delete "$INSTDIR\config\ep128uk\EP_128k_EXDOS_TASMON.cfg"
+  Delete "$INSTDIR\config\ep128uk\EP_128k_Tape.cfg"
+  Delete "$INSTDIR\config\ep128uk\EP_128k_Tape_EP-PLUS.cfg"
+  Delete "$INSTDIR\config\ep128uk\EP_128k_Tape_FileIO.cfg"
+  Delete "$INSTDIR\config\ep128uk\EP_128k_Tape_FileIO_TASMON.cfg"
+  Delete "$INSTDIR\config\ep128uk\EP_128k_Tape_NoCartridge.cfg"
+  Delete "$INSTDIR\config\ep128uk\EP_128k_Tape_NoCartridge_FileIO.cfg"
+  Delete "$INSTDIR\config\ep128uk\EP_128k_Tape_TASMON.cfg"
+  Delete "$INSTDIR\config\ep128uk\EP_640k_EXOS231_EXDOS.cfg"
+  Delete "$INSTDIR\config\ep128uk\EP_640k_EXOS231_EXDOS_utils.cfg"
+  Delete "$INSTDIR\config\ep64\EP_64k_EXDOS.cfg"
+  Delete "$INSTDIR\config\ep64\EP_64k_EXDOS_FileIO.cfg"
+  Delete "$INSTDIR\config\ep64\EP_64k_EXDOS_NoCartridge.cfg"
+  Delete "$INSTDIR\config\ep64\EP_64k_EXDOS_TASMON.cfg"
+  Delete "$INSTDIR\config\ep64\EP_64k_Tape.cfg"
+  Delete "$INSTDIR\config\ep64\EP_64k_Tape_FileIO.cfg"
+  Delete "$INSTDIR\config\ep64\EP_64k_Tape_NoCartridge.cfg"
+  Delete "$INSTDIR\config\ep64\EP_64k_Tape_TASMON.cfg"
+  RMDir "$INSTDIR\config\ep128brd"
+  RMDir "$INSTDIR\config\ep128esp"
+  RMDir "$INSTDIR\config\ep128hun"
+  RMDir "$INSTDIR\config\ep128uk"
+  RMDir "$INSTDIR\config\ep64"
   RMDir "$INSTDIR\config"
   RMDir "$INSTDIR\demo"
   Delete "$INSTDIR\disk\disk.zip"
   RMDir "$INSTDIR\disk"
   RMDir "$INSTDIR\progs"
   Delete "$INSTDIR\roms\asmen15.rom"
+  Delete "$INSTDIR\roms\asmon15.rom"
   Delete "$INSTDIR\roms\basic20.rom"
   Delete "$INSTDIR\roms\basic21.rom"
+  Delete "$INSTDIR\roms\brd.rom"
+  Delete "$INSTDIR\roms\cyrus.rom"
+  Delete "$INSTDIR\roms\ep-plus.rom"
+  Delete "$INSTDIR\roms\ep128emu_roms.bin"
   Delete "$INSTDIR\roms\ep_basic.rom"
   Delete "$INSTDIR\roms\epdos_z.rom"
   Delete "$INSTDIR\roms\epfileio.rom"
+  Delete "$INSTDIR\roms\esp.rom"
   Delete "$INSTDIR\roms\exdos0.rom"
+  Delete "$INSTDIR\roms\exdos1.rom"
   Delete "$INSTDIR\roms\exdos10.rom"
   Delete "$INSTDIR\roms\exdos13.rom"
-  Delete "$INSTDIR\roms\exdos1.rom"
+  Delete "$INSTDIR\roms\exdos13isdos10esp.rom"
+  Delete "$INSTDIR\roms\exdos13isdos10hun.rom"
   Delete "$INSTDIR\roms\exos0.rom"
   Delete "$INSTDIR\roms\exos1.rom"
   Delete "$INSTDIR\roms\exos20.rom"
@@ -330,12 +439,30 @@ Section "Uninstall"
   Delete "$INSTDIR\roms\exos22.rom"
   Delete "$INSTDIR\roms\exos23.rom"
   Delete "$INSTDIR\roms\exos231.rom"
+  Delete "$INSTDIR\roms\exos231esp.rom"
+  Delete "$INSTDIR\roms\exos231hun.rom"
+  Delete "$INSTDIR\roms\exos231uk.rom"
   Delete "$INSTDIR\roms\fenas12.rom"
+  Delete "$INSTDIR\roms\forth.rom"
+  Delete "$INSTDIR\roms\genmon.rom"
   Delete "$INSTDIR\roms\heass10.rom"
+  Delete "$INSTDIR\roms\heass10hfont.rom"
+  Delete "$INSTDIR\roms\heass10uk.rom"
+  Delete "$INSTDIR\roms\heassekn.rom"
+  Delete "$INSTDIR\roms\hun.rom"
+  Delete "$INSTDIR\roms\iview.rom"
+  Delete "$INSTDIR\roms\lisp.rom"
+  Delete "$INSTDIR\roms\pascal11.rom"
+  Delete "$INSTDIR\roms\pasians.rom"
   Delete "$INSTDIR\roms\tasmon0.rom"
-  Delete "$INSTDIR\roms\tasmon15.rom"
   Delete "$INSTDIR\roms\tasmon1.rom"
+  Delete "$INSTDIR\roms\tasmon15.rom"
+  Delete "$INSTDIR\roms\tpt.rom"
   Delete "$INSTDIR\roms\zt18.rom"
+  Delete "$INSTDIR\roms\zt18ekn.rom"
+  Delete "$INSTDIR\roms\zt18hfnt.rom"
+  Delete "$INSTDIR\roms\zt18hun.rom"
+  Delete "$INSTDIR\roms\zt18uk.rom"
   Delete "$INSTDIR\roms\zx41.rom"
   RMDir "$INSTDIR\roms"
   RMDir "$INSTDIR\snapshot"
