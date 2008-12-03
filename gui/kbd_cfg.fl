@@ -6,6 +6,14 @@ code_name {.cpp}
 decl {\#include "gui.hpp"} {selected
 } 
 
+decl {\#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)} {} 
+
+decl {\#define WIN32_LEAN_AND_MEAN 1} {} 
+
+decl {\#include <windows.h>} {} 
+
+decl {\#endif} {} 
+
 class Ep128EmuGUI_KbdDefineWindow {open : {public Fl_Double_Window}
 } {
   decl {int keyCode_;} {public
@@ -38,6 +46,15 @@ class Ep128EmuGUI_KbdDefineWindow {open : {public Fl_Double_Window}
     return 1;
   case FL_KEYDOWN:
     keyCode_ = Fl::event_key();
+\#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+    if (keyCode == FL_Shift_L || keyCode == FL_Shift_R) {
+      // work around FLTK bug
+      if (GetKeyState(VK_RSHIFT) < 0)
+        keyCode = FL_Shift_R;
+      else
+        keyCode = FL_Shift_L;
+    }
+\#endif
     return 1;
   }
   return 0;
@@ -765,6 +782,7 @@ class Ep128EmuGUI_KbdConfigWindow {open
                        "Configuration files\\t*.cfg",
                        Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
                        "Save keyboard configuration as ASCII text file")) {
+      Ep128Emu::addFileNameExtension(tmp, "cfg");
       Ep128Emu::ConfigurationDB tmpCfg;
       char    cvName[16];
       for (int i = 0; i < 256; i++) {
