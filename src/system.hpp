@@ -189,6 +189,12 @@ namespace Ep128Emu {
    */
   void setProcessPriority(int n);
 
+  /*!
+   * If 'fileName' does not already have an extension (starting with a dot
+   * character), append a dot character and 's' to the file name.
+   */
+  void addFileNameExtension(std::string& fileName, const char *s);
+
 }       // namespace Ep128Emu
 
 #endif  // EP128EMU_SYSTEM_HPP

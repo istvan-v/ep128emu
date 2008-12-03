@@ -558,5 +558,42 @@ namespace Ep128Emu {
 #endif
   }
 
+  void addFileNameExtension(std::string& fileName, const char *s)
+  {
+    if (s == (char *) 0 || s[0] == '\0')
+      return;
+    const std::string&  fName = fileName;
+    if (fName.length() < 1)
+      return;
+    for (size_t i = fName.length(); i-- > 0; ) {
+      char    c = fName[i];
+      if (c == ':' || c == '/' || c == '\\') {
+        if ((i + 1) >= fName.length())
+          return;
+        break;
+      }
+      if (c == '.') {
+        if (i == 0) {
+          if (fName.length() == 1)
+            return;
+        }
+        else {
+          c = fName[i - 1];
+          if (c == '.' || c == ':' || c == '/' || c == '\\') {
+            if ((i + 1) >= fName.length())
+              return;
+          }
+          else if ((i + 1) < fName.length()) {
+            return;
+          }
+        }
+        break;
+      }
+    }
+    if (fName[fName.length() - 1] != '.')
+      fileName += '.';
+    fileName += s;
+  }
+
 }       // namespace Ep128Emu
 
