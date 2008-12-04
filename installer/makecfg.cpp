@@ -254,7 +254,7 @@ class Ep128EmuMachineConfiguration {
 // bit 39:    fenas12.rom at segments 06h..07h
 // bit 40:    forth.rom at segment 33h
 // bit 41:    genmon.rom at segments 42h..43h
-// bit 42:    heass10ekn.rom at segments 12h..13h
+// bit 42:    heassekn.rom at segments 12h..13h
 // bit 43:    heass10uk.rom at segments 12h..13h
 // bit 44:    iview.rom at segment 30h
 // bit 45:    iview.rom at segment 40h
@@ -371,7 +371,7 @@ static const char *romFileNames[58] = {
   "fenas12.rom",
   "forth.rom",
   "genmon.rom",
-  "heass10ekn.rom",
+  "heassekn.rom",
   "heass10uk.rom",
   "iview.rom",
   "iview.rom",
@@ -432,7 +432,7 @@ static const unsigned long romFileSegments[58] = {
   0x0607FFFFUL,         // fenas12.rom
   0x33FFFFFFUL,         // forth.rom
   0x4243FFFFUL,         // genmon.rom
-  0x1213FFFFUL,         // heass10ekn.rom
+  0x1213FFFFUL,         // heassekn.rom
   0x1213FFFFUL,         // heass10uk.rom
   0x30FFFFFFUL,         // iview.rom
   0x40FFFFFFUL,         // iview.rom

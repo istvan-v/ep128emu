@@ -47,12 +47,12 @@ class Ep128EmuGUI_KbdDefineWindow {open : {public Fl_Double_Window}
   case FL_KEYDOWN:
     keyCode_ = Fl::event_key();
 \#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
-    if (keyCode == FL_Shift_L || keyCode == FL_Shift_R) {
+    if (keyCode_ == FL_Shift_L || keyCode_ == FL_Shift_R) {
       // work around FLTK bug
       if (GetKeyState(VK_RSHIFT) < 0)
-        keyCode = FL_Shift_R;
+        keyCode_ = FL_Shift_R;
       else
-        keyCode = FL_Shift_L;
+        keyCode_ = FL_Shift_L;
     }
 \#endif
     return 1;
