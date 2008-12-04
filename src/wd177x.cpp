@@ -860,11 +860,6 @@ namespace Ep128Emu {
     return dataRegister;
   }
 
-  bool WD177x::getDiskChangeFlag() const
-  {
-    return diskChangeFlag;
-  }
-
   void WD177x::clearDiskChangeFlag()
   {
     diskChangeFlag = false;
@@ -873,26 +868,6 @@ namespace Ep128Emu {
   void WD177x::setIsWD1773(bool isEnabled)
   {
     isWD1773 = isEnabled;
-  }
-
-  bool WD177x::getInterruptRequestFlag() const
-  {
-    return interruptRequestFlag;
-  }
-
-  bool WD177x::getDataRequestFlag() const
-  {
-    return dataRequestFlag;
-  }
-
-  bool WD177x::haveDisk() const
-  {
-    return (imageFile != (std::FILE *) 0);
-  }
-
-  bool WD177x::getIsWriteProtected() const
-  {
-    return writeProtectFlag;
   }
 
   void WD177x::setEnableBusyFlagHack(bool isEnabled)

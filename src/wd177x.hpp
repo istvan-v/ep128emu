@@ -118,17 +118,32 @@ namespace Ep128Emu {
     virtual uint8_t readDataRegister();
     virtual uint8_t readStatusRegisterDebug() const;
     virtual uint8_t readDataRegisterDebug() const;
-    virtual bool getDiskChangeFlag() const;
+    inline bool getDiskChangeFlag() const
+    {
+      return diskChangeFlag;
+    }
     virtual void clearDiskChangeFlag();
     virtual void setIsWD1773(bool isEnabled);
     inline void setSide(int n)
     {
       currentSide = uint8_t(n & 1);
     }
-    virtual bool getInterruptRequestFlag() const;
-    virtual bool getDataRequestFlag() const;
-    virtual bool haveDisk() const;
-    virtual bool getIsWriteProtected() const;
+    inline bool getInterruptRequestFlag() const
+    {
+      return interruptRequestFlag;
+    }
+    inline bool getDataRequestFlag() const
+    {
+      return dataRequestFlag;
+    }
+    inline bool haveDisk() const
+    {
+      return (imageFile != (std::FILE *) 0);
+    }
+    inline bool getIsWriteProtected() const
+    {
+      return writeProtectFlag;
+    }
     void setEnableBusyFlagHack(bool isEnabled);
     // returns 0: black (off), 1: red, 2: green, 3: yellow-green
     inline uint8_t getLEDState()
