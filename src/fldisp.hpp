@@ -77,6 +77,7 @@ namespace Ep128Emu {
         }
         return true;
       }
+      Message_LineData& operator=(const Message_LineData& r);
     };
     class Message_FrameDone : public Message {
      public:
@@ -156,7 +157,7 @@ namespace Ep128Emu {
     void          (*screenshotCallback)(void *,
                                         const unsigned char *, int, int);
     void          *screenshotCallbackUserData;
-    int           screenshotCallbackCnt;
+    bool          screenshotCallbackFlag;
    public:
     FLTKDisplay_();
     virtual ~FLTKDisplay_();
@@ -250,14 +251,14 @@ namespace Ep128Emu {
     // ----------------
     Colormap      colormap;
     /*!
-     * linesChanged[n] & 0x01 is non-zero if video data for line n has been
-     * received in the current frame; linesChanged[n] & 0x80 is non-zero if
-     * line n has changed in the current frame
+     * linesChanged[n] is true if line n has changed in the current frame
      */
-    uint8_t       *linesChanged;
+    bool          *linesChanged;
     uint8_t       forceUpdateLineCnt;
     uint8_t       forceUpdateLineMask;
     bool          redrawFlag;
+    bool          prvFrameWasOdd;
+    int           lastLineNum;
     Timer         noInputTimer;
     Timer         forceUpdateTimer;
    public:

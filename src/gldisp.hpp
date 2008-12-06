@@ -53,13 +53,18 @@ namespace Ep128Emu {
     void displayFrame();
     void initializeGLDisplay();
     void drawFrame_quality0(Message_LineData **lineBuffers_,
-                            double x0, double y0, double x1, double y1);
+                            double x0, double y0, double x1, double y1,
+                            bool oddFrame_);
     void drawFrame_quality1(Message_LineData **lineBuffers_,
-                            double x0, double y0, double x1, double y1);
+                            double x0, double y0, double x1, double y1,
+                            bool oddFrame_);
     void drawFrame_quality2(Message_LineData **lineBuffers_,
-                            double x0, double y0, double x1, double y1);
+                            double x0, double y0, double x1, double y1,
+                            bool oddFrame_);
     void drawFrame_quality3(Message_LineData **lineBuffers_,
-                            double x0, double y0, double x1, double y1);
+                            double x0, double y0, double x1, double y1,
+                            bool oddFrame_);
+    void copyFrameToRingBuffer();
     static void fltkIdleCallback(void *userData_);
     // ----------------
     Colormap      colormap;
@@ -70,6 +75,8 @@ namespace Ep128Emu {
     uint8_t       forceUpdateLineCnt;
     uint8_t       forceUpdateLineMask;
     bool          redrawFlag;
+    bool          prvFrameWasOdd;
+    int           lastLineNum;
     Timer         noInputTimer;
     Timer         forceUpdateTimer;
     Timer         displayFrameRateTimer;

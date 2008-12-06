@@ -179,6 +179,8 @@ namespace Ep128Emu {
       forceUpdateLineCnt(0),
       forceUpdateLineMask(0),
       redrawFlag(false),
+      prvFrameWasOdd(false),
+      lastLineNum(-2),
       displayFrameRate(60.0),
       inputFrameRate(50.0),
       ringBufferReadPos(0.0),
@@ -239,7 +241,7 @@ namespace Ep128Emu {
 
   void OpenGLDisplay::drawFrame_quality0(Message_LineData **lineBuffers_,
                                          double x0, double y0,
-                                         double x1, double y1)
+                                         double x1, double y1, bool oddFrame_)
   {
     unsigned char lineBuf1[768];
     unsigned char *curLine_ = &(lineBuf1[0]);
@@ -247,21 +249,17 @@ namespace Ep128Emu {
     // no texture filtering or effects
     for (size_t yc = 0; yc < 288; yc += 8) {
       for (size_t offs = 0; offs < 8; offs++) {
-        linesChanged[yc + offs + 1] = false;
         // decode video data
         const unsigned char *bufp = (unsigned char *) 0;
         size_t  nBytes = 0;
-        size_t  lineNum = (yc + offs + 1) << 1;
-        if (lineBuffers_[lineNum + 0] != (Message_LineData *) 0) {
-          lineBuffers_[lineNum + 0]->getLineData(bufp, nBytes);
+        size_t  lineNum = ((yc + offs + 1) << 1) + size_t(oddFrame_);
+        if (lineBuffers_[lineNum]) {
+          lineBuffers_[lineNum]->getLineData(bufp, nBytes);
           decodeLine(curLine_, bufp, nBytes);
         }
-        else if (lineBuffers_[lineNum + 1] != (Message_LineData *) 0) {
-          lineBuffers_[lineNum + 1]->getLineData(bufp, nBytes);
-          decodeLine(curLine_, bufp, nBytes);
-        }
-        else
+        else {
           std::memset(curLine_, 0, 768);
+        }
         // build 16-bit texture:
         // full horizontal resolution, no interlace (768x8)
         uint16_t  *txtp = &(textureBuffer[offs * 768]);
@@ -292,13 +290,12 @@ namespace Ep128Emu {
 
   void OpenGLDisplay::drawFrame_quality1(Message_LineData **lineBuffers_,
                                          double x0, double y0,
-                                         double x1, double y1)
+                                         double x1, double y1, bool oddFrame_)
   {
     unsigned char lineBuf1[768];
     GLfloat txtycf0 = GLfloat(1.0 / 16.0);
     GLfloat txtycf1 = GLfloat(15.0 / 16.0);
-    if (lineBuffers_[100] == (Message_LineData *) 0 &&
-        lineBuffers_[101] != (Message_LineData *) 0) {
+    if (oddFrame_) {
       // interlace
       txtycf0 -= GLfloat(0.5 / 16.0);
       txtycf1 -= GLfloat(0.5 / 16.0);
@@ -306,18 +303,14 @@ namespace Ep128Emu {
     unsigned char *curLine_ = &(lineBuf1[0]);
     // half horizontal resolution, no interlace (384x288)
     for (size_t yc = 0; yc < 588; yc += 28) {
-      for (size_t offs = 0; offs < 32; offs += 2) {
+      for (size_t offs = size_t(oddFrame_); offs < 32; offs += 2) {
         // decode video data
         const unsigned char *bufp = (unsigned char *) 0;
         size_t  nBytes = 0;
         bool    haveLineData = false;
         if ((yc + offs) < 578) {
-          if (lineBuffers_[yc + offs] != (Message_LineData *) 0) {
+          if (lineBuffers_[yc + offs]) {
             lineBuffers_[yc + offs]->getLineData(bufp, nBytes);
-            haveLineData = true;
-          }
-          else if (lineBuffers_[yc + offs + 1] != (Message_LineData *) 0) {
-            lineBuffers_[yc + offs + 1]->getLineData(bufp, nBytes);
             haveLineData = true;
           }
         }
@@ -356,13 +349,12 @@ namespace Ep128Emu {
 
   void OpenGLDisplay::drawFrame_quality2(Message_LineData **lineBuffers_,
                                          double x0, double y0,
-                                         double x1, double y1)
+                                         double x1, double y1, bool oddFrame_)
   {
     unsigned char lineBuf1[768];
     GLfloat txtycf0 = GLfloat(1.0 / 16.0);
     GLfloat txtycf1 = GLfloat(15.0 / 16.0);
-    if (lineBuffers_[100] == (Message_LineData *) 0 &&
-        lineBuffers_[101] != (Message_LineData *) 0) {
+    if (oddFrame_) {
       // interlace
       txtycf0 -= GLfloat(0.5 / 16.0);
       txtycf1 -= GLfloat(0.5 / 16.0);
@@ -370,18 +362,14 @@ namespace Ep128Emu {
     unsigned char *curLine_ = &(lineBuf1[0]);
     // full horizontal resolution, no interlace (768x288)
     for (size_t yc = 0; yc < 588; yc += 28) {
-      for (size_t offs = 0; offs < 32; offs += 2) {
+      for (size_t offs = size_t(oddFrame_); offs < 32; offs += 2) {
         // decode video data
         const unsigned char *bufp = (unsigned char *) 0;
         size_t  nBytes = 0;
         bool    haveLineData = false;
         if ((yc + offs) < 578) {
-          if (lineBuffers_[yc + offs] != (Message_LineData *) 0) {
+          if (lineBuffers_[yc + offs]) {
             lineBuffers_[yc + offs]->getLineData(bufp, nBytes);
-            haveLineData = true;
-          }
-          else if (lineBuffers_[yc + offs + 1] != (Message_LineData *) 0) {
-            lineBuffers_[yc + offs + 1]->getLineData(bufp, nBytes);
             haveLineData = true;
           }
         }
@@ -420,10 +408,10 @@ namespace Ep128Emu {
 
   void OpenGLDisplay::drawFrame_quality3(Message_LineData **lineBuffers_,
                                          double x0, double y0,
-                                         double x1, double y1)
+                                         double x1, double y1, bool oddFrame_)
   {
     if (displayParameters.lineShade >= 0.9925f) {
-      drawFrame_quality2(lineBuffers_, x0, y0, x1, y1);
+      drawFrame_quality2(lineBuffers_, x0, y0, x1, y1, oddFrame_);
       return;
     }
     unsigned char lineBuf1[768];
@@ -436,12 +424,16 @@ namespace Ep128Emu {
       bool    haveLineDataInPrvLine = false;
       bool    haveLineDataInCurLine = false;
       bool    haveLineDataInNxtLine = false;
-      if (yc > 0 && yc < 579)
-        haveLineDataInPrvLine = bool(lineBuffers_[yc - 1]);
-      if (yc < 578)
-        haveLineDataInCurLine = bool(lineBuffers_[yc]);
-      if (yc < 577)
-        haveLineDataInNxtLine = bool(lineBuffers_[yc + 1]);
+      if ((yc & 1) == size_t(oddFrame_)) {
+        if (yc < 578)
+          haveLineDataInCurLine = bool(lineBuffers_[yc]);
+      }
+      else {
+        if (yc > 0 && yc < 579)
+          haveLineDataInPrvLine = bool(lineBuffers_[yc - 1]);
+        if (yc < 577)
+          haveLineDataInNxtLine = bool(lineBuffers_[yc + 1]);
+      }
       if (haveLineDataInCurLine | haveLineDataInNxtLine) {
         unsigned char *tmp = curLine_;
         curLine_ = prvLine_;
@@ -582,6 +574,14 @@ namespace Ep128Emu {
         displayParameters.bufferingMode == 0) {
       // full horizontal resolution, no interlace (768x288)
       // no texture filtering or effects
+      if (forceUpdateLineMask) {
+        // make sure that all lines are updated at a slow rate
+        for (size_t yc = 0; yc < 289; yc++) {
+          if (forceUpdateLineMask & (uint8_t(1) << uint8_t((yc >> 3) & 7)))
+            linesChanged[yc] = true;
+        }
+        forceUpdateLineMask = 0;
+      }
       glDisable(GL_BLEND);
       unsigned char lineBuf1[768];
       unsigned char *curLine_ = &(lineBuf1[0]);
@@ -600,17 +600,14 @@ namespace Ep128Emu {
           // decode video data
           const unsigned char *bufp = (unsigned char *) 0;
           size_t  nBytes = 0;
-          size_t  lineNum = (yc + offs + 1) << 1;
-          if (lineBuffers[lineNum + 0] != (Message_LineData *) 0) {
-            lineBuffers[lineNum + 0]->getLineData(bufp, nBytes);
+          size_t  lineNum = ((yc + offs + 1) << 1) + size_t(prvFrameWasOdd);
+          if (lineBuffers[lineNum]) {
+            lineBuffers[lineNum]->getLineData(bufp, nBytes);
             decodeLine(curLine_, bufp, nBytes);
           }
-          else if (lineBuffers[lineNum + 1] != (Message_LineData *) 0) {
-            lineBuffers[lineNum + 1]->getLineData(bufp, nBytes);
-            decodeLine(curLine_, bufp, nBytes);
-          }
-          else
+          else {
             std::memset(curLine_, 0, 768);
+          }
           // build 16-bit texture:
           // full horizontal resolution, no interlace (768x8)
           uint16_t  *txtp = &(textureBuffer[offs * 768]);
@@ -641,24 +638,6 @@ namespace Ep128Emu {
       glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
       glPopMatrix();
       glFlush();
-      // make sure that all lines are updated at a slow rate
-      if (forceUpdateLineMask) {
-        if (!screenshotCallbackCnt) {
-          for (size_t yc = 0; yc < 289; yc++) {
-            if (!(forceUpdateLineMask & (uint8_t(1) << uint8_t((yc >> 3) & 7))))
-              continue;
-            for (size_t tmp = (yc << 1); tmp < ((yc + 1) << 1); tmp++) {
-              if (lineBuffers[tmp] != (Message_LineData *) 0) {
-                Message *m = lineBuffers[tmp];
-                lineBuffers[tmp] = (Message_LineData *) 0;
-                deleteMessage(m);
-              }
-            }
-            linesChanged[yc] = true;
-          }
-          forceUpdateLineMask = 0;
-        }
-      }
     }
     else if (displayParameters.bufferingMode != 2) {
       float   blendScale3 = displayParameters.motionBlur;
@@ -679,34 +658,25 @@ namespace Ep128Emu {
       case 0:
         // full horizontal resolution, no interlace (768x288)
         // no texture filtering or effects
-        drawFrame_quality0(lineBuffers, x0, y0, x1, y1);
+        drawFrame_quality0(lineBuffers, x0, y0, x1, y1, prvFrameWasOdd);
         break;
       case 1:
         // half horizontal resolution, no interlace (384x288)
-        drawFrame_quality1(lineBuffers, x0, y0, x1, y1);
+        drawFrame_quality1(lineBuffers, x0, y0, x1, y1, prvFrameWasOdd);
         break;
       case 2:
         // full horizontal resolution, no interlace (768x288)
-        drawFrame_quality2(lineBuffers, x0, y0, x1, y1);
+        drawFrame_quality2(lineBuffers, x0, y0, x1, y1, prvFrameWasOdd);
         break;
       case 3:
         // full horizontal resolution, interlace (768x576)
-        drawFrame_quality3(lineBuffers, x0, y0, x1, y1);
+        drawFrame_quality3(lineBuffers, x0, y0, x1, y1, prvFrameWasOdd);
         break;
       }
       // clean up
       glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
       glPopMatrix();
       glFlush();
-      if (!screenshotCallbackCnt) {
-        for (size_t n = 0; n < 578; n++) {
-          if (lineBuffers[n] != (Message_LineData *) 0) {
-            Message *m = lineBuffers[n];
-            lineBuffers[n] = (Message_LineData *) 0;
-            deleteMessage(m);
-          }
-        }
-      }
     }
     else {
       // resample video input to monitor refresh rate
@@ -734,23 +704,26 @@ namespace Ep128Emu {
         ringBufferReadPos -= 4.0;
       if (readPosFrac <= 0.998) {
         glDisable(GL_BLEND);
+        Message_LineData  **lineBuffers_ = frameRingBuffer[readPosInt & 3];
+        bool    oddFrame_ = (lineBuffers_[100] == (Message_LineData *) 0 &&
+                             lineBuffers_[101] != (Message_LineData *) 0);
         switch (displayParameters.displayQuality) {
         case 0:
           // full horizontal resolution, no interlace (768x288)
           // no texture filtering or effects
-          drawFrame_quality0(frameRingBuffer[readPosInt & 3], x0, y0, x1, y1);
+          drawFrame_quality0(lineBuffers_, x0, y0, x1, y1, oddFrame_);
           break;
         case 1:
           // half horizontal resolution, no interlace (384x288)
-          drawFrame_quality1(frameRingBuffer[readPosInt & 3], x0, y0, x1, y1);
+          drawFrame_quality1(lineBuffers_, x0, y0, x1, y1, oddFrame_);
           break;
         case 2:
           // full horizontal resolution, no interlace (768x288)
-          drawFrame_quality2(frameRingBuffer[readPosInt & 3], x0, y0, x1, y1);
+          drawFrame_quality2(lineBuffers_, x0, y0, x1, y1, oddFrame_);
           break;
         case 3:
           // full horizontal resolution, interlace (768x576)
-          drawFrame_quality3(frameRingBuffer[readPosInt & 3], x0, y0, x1, y1);
+          drawFrame_quality3(lineBuffers_, x0, y0, x1, y1, oddFrame_);
           break;
         }
       }
@@ -763,27 +736,27 @@ namespace Ep128Emu {
         }
         else
           glDisable(GL_BLEND);
+        Message_LineData  **lineBuffers_ =
+            frameRingBuffer[(readPosInt + 1) & 3];
+        bool    oddFrame_ = (lineBuffers_[100] == (Message_LineData *) 0 &&
+                             lineBuffers_[101] != (Message_LineData *) 0);
         switch (displayParameters.displayQuality) {
         case 0:
           // full horizontal resolution, no interlace (768x288)
           // no texture filtering or effects
-          drawFrame_quality0(frameRingBuffer[(readPosInt + 1) & 3],
-                             x0, y0, x1, y1);
+          drawFrame_quality0(lineBuffers_, x0, y0, x1, y1, oddFrame_);
           break;
         case 1:
           // half horizontal resolution, no interlace (384x288)
-          drawFrame_quality1(frameRingBuffer[(readPosInt + 1) & 3],
-                             x0, y0, x1, y1);
+          drawFrame_quality1(lineBuffers_, x0, y0, x1, y1, oddFrame_);
           break;
         case 2:
           // full horizontal resolution, no interlace (768x288)
-          drawFrame_quality2(frameRingBuffer[(readPosInt + 1) & 3],
-                             x0, y0, x1, y1);
+          drawFrame_quality2(lineBuffers_, x0, y0, x1, y1, oddFrame_);
           break;
         case 3:
           // full horizontal resolution, interlace (768x576)
-          drawFrame_quality3(frameRingBuffer[(readPosInt + 1) & 3],
-                             x0, y0, x1, y1);
+          drawFrame_quality3(lineBuffers_, x0, y0, x1, y1, oddFrame_);
           break;
         }
       }
@@ -792,10 +765,6 @@ namespace Ep128Emu {
       glPopMatrix();
       glFlush();
     }
-
-    messageQueueMutex.lock();
-    framesPending = (framesPending > 0 ? (framesPending - 1) : 0);
-    messageQueueMutex.unlock();
   }
 
   void OpenGLDisplay::initializeGLDisplay()
@@ -827,18 +796,44 @@ namespace Ep128Emu {
     glPopMatrix();
   }
 
+  void OpenGLDisplay::copyFrameToRingBuffer()
+  {
+    Message_LineData  **lineBuffers_ = frameRingBuffer[ringBufferWritePos];
+    try {
+      for (size_t yc = 0; yc < 578; yc++) {
+        if (lineBuffers_[yc]) {
+          deleteMessage(lineBuffers_[yc]);
+          lineBuffers_[yc] = (Message_LineData *) 0;
+        }
+        if ((yc & 1) == size_t(prvFrameWasOdd) &&
+            lineBuffers[yc] != (Message_LineData *) 0) {
+          Message_LineData  *m = allocateMessage< Message_LineData >();
+          *m = *(lineBuffers[yc]);
+          lineBuffers_[yc] = m;
+        }
+      }
+    }
+    catch (std::exception) {
+      for (size_t yc = 0; yc < 578; yc++) {
+        if (lineBuffers_[yc]) {
+          deleteMessage(lineBuffers_[yc]);
+          lineBuffers_[yc] = (Message_LineData *) 0;
+        }
+      }
+    }
+    ringBufferWritePos = (ringBufferWritePos + 1) & 3;
+  }
+
   void OpenGLDisplay::draw()
   {
     if (!textureID)
       initializeGLDisplay();
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
-    // damage() only seems to work when called from draw() on Windows
     if (this->damage() & FL_DAMAGE_EXPOSE) {
       forceUpdateLineMask = 0xFF;
       forceUpdateLineCnt = 0;
       forceUpdateTimer.reset();
+      redrawFlag = true;
     }
-#endif
     if (redrawFlag || videoResampleEnabled) {
       redrawFlag = false;
       displayFrame();
@@ -873,54 +868,63 @@ namespace Ep128Emu {
       if (typeid(*m) == typeid(Message_LineData)) {
         Message_LineData  *msg;
         msg = static_cast<Message_LineData *>(m);
-        if (msg->lineNum >= 0 && msg->lineNum < 578) {
+        int     lineNum = msg->lineNum;
+        if (lineNum >= 0 && lineNum < 578) {
+          lastLineNum = lineNum;
+          if ((lineNum & 1) == int(prvFrameWasOdd) &&
+              lineBuffers[lineNum ^ 1] != (Message_LineData *) 0) {
+            // non-interlaced mode: clear any old lines in the other field
+            linesChanged[lineNum >> 1] = true;
+            deleteMessage(lineBuffers[lineNum ^ 1]);
+            lineBuffers[lineNum ^ 1] = (Message_LineData *) 0;
+          }
           if (displayParameters.displayQuality == 0) {
-            msg->lineNum = msg->lineNum & (~(int(1)));
             if (!displayParameters.bufferingMode) {
               // check if this line has changed
-              if (lineBuffers[msg->lineNum] != (Message_LineData *) 0) {
-                if (*(lineBuffers[msg->lineNum]) == *msg) {
+              int     lineNum_ = (lineNum & (~(int(1)))) | int(prvFrameWasOdd);
+              if (lineBuffers[lineNum_]) {
+                if (*(lineBuffers[lineNum_]) == *msg) {
                   deleteMessage(m);
                   continue;
                 }
               }
-              linesChanged[msg->lineNum >> 1] = true;
+              linesChanged[lineNum >> 1] = true;
             }
           }
-          if (lineBuffers[msg->lineNum] != (Message_LineData *) 0)
-            deleteMessage(lineBuffers[msg->lineNum]);
-          lineBuffers[msg->lineNum] = msg;
+          if (lineBuffers[lineNum])
+            deleteMessage(lineBuffers[lineNum]);
+          lineBuffers[lineNum] = msg;
           continue;
         }
       }
       else if (typeid(*m) == typeid(Message_FrameDone)) {
         // need to update display
-        if (redrawFlag) {
-          // lost a frame
-          messageQueueMutex.lock();
-          framesPending = (framesPending > 0 ? (framesPending - 1) : 0);
-          messageQueueMutex.unlock();
-        }
+        messageQueueMutex.lock();
+        framesPending = (framesPending > 0 ? (framesPending - 1) : 0);
+        messageQueueMutex.unlock();
         redrawFlag = true;
         deleteMessage(m);
-        noInputTimer.reset();
-        if (screenshotCallbackCnt) {
-          checkScreenshotCallback();
+        prvFrameWasOdd = bool(lastLineNum & 1);
+        for (int yc = (lastLineNum | 1) + 1; yc < 578; yc++) {
+          // clear any remaining lines
+          if (lineBuffers[yc]) {
+            linesChanged[yc >> 1] = true;
+            deleteMessage(lineBuffers[yc]);
+            lineBuffers[yc] = (Message_LineData *) 0;
+          }
         }
-        else if (videoResampleEnabled) {
+        lastLineNum = (lastLineNum & 1) - 2;
+        noInputTimer.reset();
+        if (screenshotCallbackFlag)
+          checkScreenshotCallback();
+        if (videoResampleEnabled) {
           double  t = inputFrameRateTimer.getRealTime();
           inputFrameRateTimer.reset();
           t = (t > 0.002 ? (t < 0.25 ? t : 0.25) : 0.002);
           inputFrameRate = 1.0 / ((0.97 / inputFrameRate) + (0.03 * t));
           if (ringBufferWritePos != int(ringBufferReadPos)) {
             // if buffer is not already full, copy current frame
-            for (size_t yc = 0; yc < 578; yc++) {
-              if (frameRingBuffer[ringBufferWritePos][yc])
-                deleteMessage(frameRingBuffer[ringBufferWritePos][yc]);
-              frameRingBuffer[ringBufferWritePos][yc] = lineBuffers[yc];
-              lineBuffers[yc] = (Message_LineData *) 0;
-            }
-            ringBufferWritePos = (ringBufferWritePos + 1) & 3;
+            copyFrameToRingBuffer();
             continue;
           }
         }
@@ -993,38 +997,15 @@ namespace Ep128Emu {
       }
       deleteMessage(m);
     }
-    if (noInputTimer.getRealTime() > 1.0) {
-      noInputTimer.reset(0.45);
-      if (redrawFlag) {
-        // lost a frame
-        messageQueueMutex.lock();
-        framesPending = (framesPending > 0 ? (framesPending - 1) : 0);
-        messageQueueMutex.unlock();
-      }
-      if (videoResampleEnabled) {
-        for (size_t yc = 0; yc < 578; yc++) {
-          Message *m = frameRingBuffer[ringBufferWritePos][yc];
-          if (m) {
-            frameRingBuffer[ringBufferWritePos][yc] = (Message_LineData *) 0;
-            deleteMessage(m);
-          }
-        }
-        ringBufferWritePos = (ringBufferWritePos + 1) & 3;
-      }
+    if (noInputTimer.getRealTime() > 0.5) {
+      noInputTimer.reset(0.25);
+      if (videoResampleEnabled)
+        copyFrameToRingBuffer();
       redrawFlag = true;
-      if (screenshotCallbackCnt)
+      if (screenshotCallbackFlag)
         checkScreenshotCallback();
     }
-#if !(defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER))
-    // damage() only seems to work when called from draw() on Windows
-    if (this->damage() & FL_DAMAGE_EXPOSE) {
-      forceUpdateLineMask = 0xFF;
-      forceUpdateLineCnt = 0;
-      forceUpdateTimer.reset();
-    }
-    else
-#endif
-    if (forceUpdateTimer.getRealTime() >= 0.085) {
+    if (forceUpdateTimer.getRealTime() >= 0.15) {
       forceUpdateLineMask |= (uint8_t(1) << forceUpdateLineCnt);
       forceUpdateLineCnt++;
       forceUpdateLineCnt &= uint8_t(7);
