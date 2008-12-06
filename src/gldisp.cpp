@@ -419,7 +419,7 @@ namespace Ep128Emu {
     unsigned char *curLine_ = &(lineBuf1[0]);
     unsigned char *prvLine_ = &(lineBuf2[0]);
     // full horizontal resolution, interlace (768x576)
-    int     cnt = 0;
+    int     cnt = -2;
     for (size_t yc = 0; yc < 590; yc++) {
       bool    haveLineDataInPrvLine = false;
       bool    haveLineDataInCurLine = false;
@@ -457,11 +457,7 @@ namespace Ep128Emu {
         for (size_t xc = 0; xc < 768; xc++)
           txtp[xc] = colormap(prvLine_[xc], curLine_[xc]);
       }
-      else if (haveLineDataInPrvLine) {
-        for (size_t xc = 0; xc < 768; xc++)
-          txtp[xc] = colormap(curLine_[xc], 0);
-      }
-      else if (haveLineDataInNxtLine) {
+      else if (haveLineDataInPrvLine || haveLineDataInNxtLine) {
         for (size_t xc = 0; xc < 768; xc++)
           txtp[xc] = colormap(0, curLine_[xc]);
       }
@@ -469,8 +465,8 @@ namespace Ep128Emu {
         for (size_t xc = 0; xc < 768; xc++)
           txtp[xc] = colormap(0);
       }
-      if (++cnt == 16) {
-        cnt = 2;
+      if (++cnt == 14) {
+        cnt = 0;
         // load texture
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 16,
                         GL_RGB, GL_UNSIGNED_SHORT_5_6_5,

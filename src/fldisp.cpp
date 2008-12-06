@@ -573,8 +573,8 @@ namespace Ep128Emu {
     savedDisplayParameters.displayQuality = 0;
     savedDisplayParameters.bufferingMode = 0;
     try {
-      linesChanged = new bool[578];
-      for (size_t n = 0; n < 578; n++)
+      linesChanged = new bool[289];
+      for (size_t n = 0; n < 289; n++)
         linesChanged[n] = false;
     }
     catch (...) {
@@ -641,8 +641,8 @@ namespace Ep128Emu {
 
     if (forceUpdateLineMask) {
       // make sure that all lines are updated at a slow rate
-      for (size_t yc = 0; yc < 578; yc++) {
-        if (forceUpdateLineMask & (uint8_t(1) << uint8_t((yc >> 3) & 7)))
+      for (size_t yc = 0; yc < 289; yc++) {
+        if (forceUpdateLineMask & (uint8_t(1) << uint8_t((yc >> 2) & 7)))
           linesChanged[yc] = true;
       }
       forceUpdateLineMask = 0;
@@ -664,14 +664,17 @@ namespace Ep128Emu {
           lineNumbers_[4] = lineNumbers_[3];
         }
         int   l0 = curLine_;
-        int   l1 = curLine_ ^ 1;
-        if (lineBuffers[l0])
+        if (lineBuffers[l0]) {
           lineNumbers_[ycAnd3] = l0;
-        else if (lineBuffers[l1])
-          lineNumbers_[ycAnd3] = l1;
-        else
+        }
+        else if (lineBuffers[l0 - 1]) {
+          l0 = l0 - 1;
+          lineNumbers_[ycAnd3] = l0;
+        }
+        else {
           lineNumbers_[ycAnd3] = -1;
-        if (linesChanged[l0] | linesChanged[l1])
+        }
+        if (linesChanged[l0 >> 1])
           skippingLines_ = false;
         if (ycAnd3 == 3 || yc == (displayHeight_ - 1)) {
           if (!skippingLines_) {
@@ -865,10 +868,8 @@ namespace Ep128Emu {
         }
       }
       std::free(pixelBuf_);
-      for (size_t yc = 0; yc < 578; yc += 2) {
+      for (size_t yc = 0; yc < 289; yc++)
         linesChanged[yc] = false;
-        linesChanged[yc + 1] = false;
-      }
     }
   }
 
@@ -914,7 +915,7 @@ namespace Ep128Emu {
           if ((lineNum & 1) == int(prvFrameWasOdd) &&
               lineBuffers[lineNum ^ 1] != (Message_LineData *) 0) {
             // non-interlaced mode: clear any old lines in the other field
-            linesChanged[lineNum ^ 1] = true;
+            linesChanged[lineNum >> 1] = true;
             deleteMessage(lineBuffers[lineNum ^ 1]);
             lineBuffers[lineNum ^ 1] = (Message_LineData *) 0;
           }
@@ -925,7 +926,7 @@ namespace Ep128Emu {
               continue;
             }
           }
-          linesChanged[lineNum] = true;
+          linesChanged[lineNum >> 1] = true;
           if (lineBuffers[lineNum])
             deleteMessage(lineBuffers[lineNum]);
           lineBuffers[lineNum] = msg;
@@ -943,7 +944,7 @@ namespace Ep128Emu {
         for (int n = (lastLineNum | 1) + 1; n < 578; n++) {
           // clear any remaining lines
           if (lineBuffers[n]) {
-            linesChanged[n] = true;
+            linesChanged[n >> 1] = true;
             deleteMessage(lineBuffers[n]);
             lineBuffers[n] = (Message_LineData *) 0;
           }
@@ -961,7 +962,7 @@ namespace Ep128Emu {
         DisplayParameters tmp_dp(displayParameters);
         tmp_dp.lineShade = 1.0f;
         colormap.setParams(tmp_dp);
-        for (size_t n = 0; n < 578; n++)
+        for (size_t n = 0; n < 289; n++)
           linesChanged[n] = true;
       }
       deleteMessage(m);

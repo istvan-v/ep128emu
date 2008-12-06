@@ -449,6 +449,10 @@ namespace Ep128Emu {
           currentSide = uint8_t(hs ? 1 : 0);
       }
       bufPos = -1L;
+      if (!imageFile) {
+        statusRegister = statusRegister | 0x10;     // record not found
+        return;
+      }
       if ((n & 0x20) == 0) {            // READ SECTOR
         if (!checkDiskPosition()) {
           statusRegister = statusRegister | 0x10;   // record not found
@@ -492,6 +496,10 @@ namespace Ep128Emu {
         clearInterruptRequest();
       }
       bufPos = -1L;
+      if (!imageFile) {
+        statusRegister = statusRegister | 0x10;     // record not found
+        return;
+      }
       if ((n & 0x20) == 0) {            // READ ADDRESS
         if (checkDiskPosition(true)) {
           bufPos = 0L;
@@ -499,8 +507,7 @@ namespace Ep128Emu {
           statusRegister = statusRegister | 0x02;
         }
         else {
-          statusRegister = statusRegister | 0x11;   // record not found
-          return;
+          statusRegister = statusRegister | 0x10;   // record not found
         }
       }
       else if ((n & 0x10) == 0) {       // READ TRACK (FIXME: unimplemented)

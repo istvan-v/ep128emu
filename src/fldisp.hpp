@@ -251,7 +251,7 @@ namespace Ep128Emu {
     // ----------------
     Colormap      colormap;
     /*!
-     * linesChanged[n] is true if line n has changed in the current frame
+     * linesChanged[n / 2] is true if line n has changed in the current frame
      */
     bool          *linesChanged;
     uint8_t       forceUpdateLineCnt;
