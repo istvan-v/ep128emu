@@ -21,7 +21,7 @@
 
 namespace Ep128 {
 
-  inline Z80_BYTE Z80::RD_BYTE_INDEX(Z80_WORD Index)
+  EP128EMU_INLINE Z80_BYTE Z80::RD_BYTE_INDEX(Z80_WORD Index)
   {
     SETUP_INDEXED_ADDRESS(Index);
     return readMemory(R.IndexPlusOffset);
@@ -30,14 +30,14 @@ namespace Ep128 {
   /*----------------------------------*/
   /* write a byte of data using index */
 
-  inline void Z80::WR_BYTE_INDEX_OLD(Z80_WORD Index, Z80_BYTE Data)
+  EP128EMU_INLINE void Z80::WR_BYTE_INDEX_OLD(Z80_WORD Index, Z80_BYTE Data)
   {
     Z80_BYTE_OFFSET Offset;
     Offset = (Z80_BYTE_OFFSET) readOpcodeByte(2);
     writeMemory(Z80_WORD(Index + Offset), Data);
   }
 
-  inline void Z80::LD_HL_n()
+  EP128EMU_INLINE void Z80::LD_HL_n()
   {
     R.TempByte = readOpcodeByte(1);
     writeMemory(R.HL.W, R.TempByte);
@@ -46,7 +46,7 @@ namespace Ep128 {
   /*---------------------------*/
   /* pop a word from the stack */
 
-  inline Z80_WORD Z80::POP()
+  EP128EMU_INLINE Z80_WORD Z80::POP()
   {
     Z80_WORD Data;
 
@@ -55,103 +55,103 @@ namespace Ep128 {
     return Data;
   }
 
-  inline void Z80::ADD_A_HL()
+  EP128EMU_INLINE void Z80::ADD_A_HL()
   {
     R.TempByte = readMemory(R.HL.W);
     ADD_A_X(R.TempByte);
   }
 
-  inline void Z80::ADD_A_n()
+  EP128EMU_INLINE void Z80::ADD_A_n()
   {
     R.TempByte = readOpcodeByte(1);
     ADD_A_X(R.TempByte);
   }
 
-  inline void Z80::ADC_A_HL()
+  EP128EMU_INLINE void Z80::ADC_A_HL()
   {
     R.TempByte = readMemory(R.HL.W);
     ADC_A_X(R.TempByte);
   }
 
-  inline void Z80::ADC_A_n()
+  EP128EMU_INLINE void Z80::ADC_A_n()
   {
     R.TempByte = readOpcodeByte(1);
     ADC_A_X(R.TempByte);
   }
 
-  inline void Z80::SUB_A_HL()
+  EP128EMU_INLINE void Z80::SUB_A_HL()
   {
     R.TempByte = readMemory(R.HL.W);
     SUB_A_X(R.TempByte);
   }
 
-  inline void Z80::SUB_A_n()
+  EP128EMU_INLINE void Z80::SUB_A_n()
   {
     R.TempByte = readOpcodeByte(1);
     SUB_A_X(R.TempByte);
   }
 
-  inline void Z80::SBC_A_HL()
+  EP128EMU_INLINE void Z80::SBC_A_HL()
   {
     R.TempByte = readMemory(R.HL.W);
     SBC_A_X(R.TempByte);
   }
 
-  inline void Z80::SBC_A_n()
+  EP128EMU_INLINE void Z80::SBC_A_n()
   {
     R.TempByte = readOpcodeByte(1);
     SBC_A_X(R.TempByte);
   }
 
-  inline void Z80::CP_A_HL()
+  EP128EMU_INLINE void Z80::CP_A_HL()
   {
     R.TempByte = readMemory(R.HL.W);
     CP_A_X(R.TempByte);
   }
 
-  inline void Z80::CP_A_n()
+  EP128EMU_INLINE void Z80::CP_A_n()
   {
     R.TempByte = readOpcodeByte(1);
     CP_A_X(R.TempByte);
   }
 
-  inline void Z80::AND_A_n()
+  EP128EMU_INLINE void Z80::AND_A_n()
   {
     R.TempByte = readOpcodeByte(1);
     AND_A_X(R.TempByte);
   }
 
-  inline void Z80::AND_A_HL()
+  EP128EMU_INLINE void Z80::AND_A_HL()
   {
     R.TempByte = readMemory(R.HL.W);
     AND_A_X(R.TempByte);
   }
 
-  inline void Z80::XOR_A_n()
+  EP128EMU_INLINE void Z80::XOR_A_n()
   {
     R.TempByte = readOpcodeByte(1);
     XOR_A_X(R.TempByte);
   }
 
-  inline void Z80::XOR_A_HL()
+  EP128EMU_INLINE void Z80::XOR_A_HL()
   {
     R.TempByte = readMemory(R.HL.W);
     XOR_A_X(R.TempByte);
   }
 
-  inline void Z80::OR_A_HL()
+  EP128EMU_INLINE void Z80::OR_A_HL()
   {
     R.TempByte = readMemory(R.HL.W);
     OR_A_X(R.TempByte);
   }
 
-  inline void Z80::OR_A_n()
+  EP128EMU_INLINE void Z80::OR_A_n()
   {
     R.TempByte = readOpcodeByte(1);
     OR_A_X(R.TempByte);
   }
 
-  inline void Z80::OUT_n_A()
+  EP128EMU_INLINE void Z80::OUT_n_A()
   {
     Z80_WORD Port;
 
@@ -161,7 +161,7 @@ namespace Ep128 {
     updateCycles(4);
   }
 
-  inline void Z80::IN_A_n()
+  EP128EMU_INLINE void Z80::IN_A_n()
   {
     Z80_WORD Port;
 
@@ -171,13 +171,13 @@ namespace Ep128 {
     updateCycles(4);
   }
 
-  inline void Z80::RRA()
+  EP128EMU_INLINE void Z80::RRA()
   {
     RR(R.AF.B.h);
     A_SHIFTING_FLAGS;
   }
 
-  inline void Z80::RRD()
+  EP128EMU_INLINE void Z80::RRD()
   {
     R.TempByte = readMemory(R.HL.W);
     writeMemory(R.HL.W, (Z80_BYTE) (((R.TempByte >> 4) | (R.AF.B.h << 4))));
@@ -190,7 +190,7 @@ namespace Ep128 {
     Z80_FLAGS_REG = Flags;
   }
 
-  inline void Z80::RLD()
+  EP128EMU_INLINE void Z80::RLD()
   {
     R.TempByte = readMemory(R.HL.W);
     writeMemory(R.HL.W, (Z80_BYTE) ((R.TempByte << 4) | (R.AF.B.h & 0x0f)));
@@ -206,7 +206,7 @@ namespace Ep128 {
   /*---------------------------*/
   /* jump to a memory location */
 
-  inline void Z80::JP()
+  EP128EMU_INLINE void Z80::JP()
   {
     /* set program counter to sub-routine address */
     R.PC.W.l = readOpcodeWord(1);
@@ -215,7 +215,7 @@ namespace Ep128 {
   /*------------------------------------*/
   /* jump relative to a memory location */
 
-  inline void Z80::JR()
+  EP128EMU_INLINE void Z80::JR()
   {
     Z80_BYTE_OFFSET Offset;
     Offset = (Z80_BYTE_OFFSET) readOpcodeByte(1);
@@ -225,7 +225,7 @@ namespace Ep128 {
   /*--------------------*/
   /* call a sub-routine */
 
-  inline void Z80::CALL()
+  EP128EMU_INLINE void Z80::CALL()
   {
     /* store return address on stack */
     PUSH((Z80_WORD) (R.PC.W.l + 3));
@@ -233,7 +233,7 @@ namespace Ep128 {
     R.PC.W.l = readOpcodeWord(1);
   }
 
-  inline void Z80::DJNZ_dd()
+  EP128EMU_INLINE void Z80::DJNZ_dd()
   {
     /* decrement B */
     R.BC.B.h--;

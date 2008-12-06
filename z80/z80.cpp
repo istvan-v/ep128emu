@@ -29,7 +29,7 @@
 
 namespace Ep128 {
 
-  inline void Z80::FD_CB_ExecuteInstruction()
+  EP128EMU_INLINE void Z80::FD_CB_ExecuteInstruction()
   {
     uint8_t Opcode;
     Opcode = readOpcodeByte(3);
@@ -1332,7 +1332,7 @@ namespace Ep128 {
   }
 
   /***************************************************************************/
-  inline void Z80::FD_ExecuteInstruction()
+  EP128EMU_INLINE void Z80::FD_ExecuteInstruction()
   {
     uint8_t Opcode;
     Opcode = readOpcodeSecondByte();
@@ -2241,7 +2241,7 @@ namespace Ep128 {
   }
 
   /***************************************************************************/
-  inline void Z80::DD_CB_ExecuteInstruction()
+  EP128EMU_INLINE void Z80::DD_CB_ExecuteInstruction()
   {
     uint8_t Opcode;
     Opcode = readOpcodeByte(3);
@@ -3544,7 +3544,7 @@ namespace Ep128 {
   }
 
   /***************************************************************************/
-  inline void Z80::DD_ExecuteInstruction()
+  EP128EMU_INLINE void Z80::DD_ExecuteInstruction()
   {
     uint8_t Opcode;
     Opcode = readOpcodeSecondByte();
@@ -4453,7 +4453,7 @@ namespace Ep128 {
   }
 
   /***************************************************************************/
-  inline void Z80::ED_ExecuteInstruction()
+  EP128EMU_INLINE void Z80::ED_ExecuteInstruction()
   {
     INC_REFRESH(2);
     uint8_t Opcode;
@@ -5276,7 +5276,7 @@ namespace Ep128 {
   }
 
   /***************************************************************************/
-  inline void Z80::CB_ExecuteInstruction()
+  EP128EMU_INLINE void Z80::CB_ExecuteInstruction()
   {
     uint8_t Opcode;
     Opcode = readOpcodeSecondByte();
