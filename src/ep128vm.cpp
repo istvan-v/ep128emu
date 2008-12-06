@@ -769,7 +769,8 @@ namespace Ep128 {
         default:
           return uint8_t(  (floppyDrive.getInterruptRequestFlag() ? 0x3E : 0x3C)
                          | (floppyDrive.getDiskChangeFlag() ? 0x00 : 0x40)
-                         | (floppyDrive.getDataRequestFlag() ? 0x80 : 0x00));
+                         | (floppyDrive.getDataRequestFlag() ? 0x80 : 0x00)
+                         | (floppyDrive.haveDisk() ? 0x00 : 0x01));
         }
       }
     }
@@ -835,7 +836,8 @@ namespace Ep128 {
       default:
         return uint8_t(  (floppyDrive.getInterruptRequestFlag() ? 0x3E : 0x3C)
                        | (floppyDrive.getDiskChangeFlag() ? 0x00 : 0x40)
-                       | (floppyDrive.getDataRequestFlag() ? 0x80 : 0x00));
+                       | (floppyDrive.getDataRequestFlag() ? 0x80 : 0x00)
+                       | (floppyDrive.haveDisk() ? 0x00 : 0x01));
       }
     }
     return uint8_t((addr & 0x0008) ? 0x7D : 0x00);

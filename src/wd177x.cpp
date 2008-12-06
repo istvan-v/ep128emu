@@ -499,8 +499,7 @@ namespace Ep128Emu {
           statusRegister = statusRegister | 0x02;
         }
         else {
-          statusRegister = statusRegister & 0xFE;
-          statusRegister = statusRegister | 0x10;   // record not found
+          statusRegister = statusRegister | 0x11;   // record not found
           return;
         }
       }
@@ -812,13 +811,13 @@ namespace Ep128Emu {
       switch (bufPos) {
       case 0L:
         dataRegister = currentTrack;
+        sectorRegister = dataRegister;
         break;
       case 1L:
         dataRegister = currentSide;
         break;
       case 2L:
         dataRegister = 0x01;            // assume first sector of track
-        sectorRegister = dataRegister;
         break;
       case 3L:
         dataRegister = 0x02;            // 512 bytes per sector
