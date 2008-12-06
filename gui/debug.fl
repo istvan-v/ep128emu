@@ -47,9 +47,15 @@ class Ep128EmuGUI_DebugWindow {open
   }
   decl {void show();} {public
   }
-  decl {bool shown();} {public
+  decl {bool shown() const;} {public
   }
   decl {void hide();} {public
+  }
+  decl {void activate();} {public
+  }
+  decl {bool active() const;} {public
+  }
+  decl {void deactivate(double tt = 0.125);} {public
   }
   decl {bool breakPoint(int type, uint16_t addr, uint8_t value);} {public
   }
@@ -59,12 +65,12 @@ class Ep128EmuGUI_DebugWindow {open
   decl {void updateMemoryDumpDisplay();} {}
   decl {void updateIOPortDisplay();} {}
   decl {long parseHexNumber(uint32_t& value, const char *s);} {}
-  decl {void parseMemoryDump(const char *s);} {}
   decl {void updateDisassemblyDisplay();} {}
   decl {uint32_t disassemblySearchBack(int insnCnt);} {}
   decl {void applyBreakPointList();} {}
   decl {static void breakPointCallback(void *userData, int type, uint16_t addr, uint8_t value);} {public
   }
+  decl {static void hideWindowCallback(void *userData);} {}
   Function {createDebugWindow()} {open private return_type void
   } {
     Fl_Window window {
@@ -604,7 +610,7 @@ class Ep128EmuGUI_DebugWindow {open
         callback {{
   focusWidget = stepButton;
   gui.vm.setSingleStepMode(4);
-  this->hide();
+  this->deactivate();
 }}
         xywh {595 685 80 25} selection_color 50
       }
@@ -613,7 +619,7 @@ class Ep128EmuGUI_DebugWindow {open
         callback {{
   focusWidget = stepButton;
   gui.vm.setSingleStepMode(2);
-  this->hide();
+  this->deactivate();
 }}
         xywh {685 685 80 25} selection_color 50
       }
@@ -622,7 +628,7 @@ class Ep128EmuGUI_DebugWindow {open
         callback {{
   focusWidget = stepButton;
   gui.vm.setSingleStepMode(1);
-  this->hide();
+  this->deactivate();
 }}
         xywh {775 685 80 25} selection_color 50
       }
@@ -631,7 +637,7 @@ class Ep128EmuGUI_DebugWindow {open
         callback {{
   focusWidget = continueButton;
   gui.vm.setSingleStepMode(0);
-  this->hide();
+  this->deactivate();
 }}
         xywh {865 685 80 25} selection_color 50
       }

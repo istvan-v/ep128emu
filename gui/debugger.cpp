@@ -108,6 +108,7 @@ Ep128EmuGUI_DebugWindow::~Ep128EmuGUI_DebugWindow()
 
 void Ep128EmuGUI_DebugWindow::show()
 {
+  this->activate();
   monitor_->closeTraceFile();
   updateWindow();
   if (!window->shown()) {
@@ -120,24 +121,62 @@ void Ep128EmuGUI_DebugWindow::show()
   window->show();
 }
 
-bool Ep128EmuGUI_DebugWindow::shown()
+bool Ep128EmuGUI_DebugWindow::shown() const
 {
   return bool(window->shown());
 }
 
 void Ep128EmuGUI_DebugWindow::hide()
 {
+  this->deactivate(1000000.0);
   if (window->shown()) {
     savedWindowPositionX = window->x();
     savedWindowPositionY = window->y();
   }
   window->hide();
+  std::strcpy(&(windowTitle[0]), "ep128emu debugger");
+  window->label(&(windowTitle[0]));
+}
+
+void Ep128EmuGUI_DebugWindow::activate()
+{
+  Fl::remove_timeout(&hideWindowCallback, (void *) this);
+  debugTabs->clear_output();
+  mainTab->clear_output();
+  monitorTab->clear_output();
+  stepIntoButton->clear_output();
+  stepOverButton->clear_output();
+  stepButton->clear_output();
+  continueButton->clear_output();
+}
+
+bool Ep128EmuGUI_DebugWindow::active() const
+{
+  if (!window->shown())
+    return false;
+  return (!continueButton->output());
+}
+
+void Ep128EmuGUI_DebugWindow::deactivate(double tt)
+{
+  Fl::remove_timeout(&hideWindowCallback, (void *) this);
+  if (tt <= 0.0) {
+    this->hide();
+    return;
+  }
+  mainTab->set_output();
+  monitorTab->set_output();
+  debugTabs->set_output();
+  stepIntoButton->set_output();
+  stepOverButton->set_output();
+  stepButton->set_output();
+  continueButton->set_output();
   if (gui.debugWindowOpenFlag) {
     gui.debugWindowOpenFlag = false;
     gui.unlockVMThread();
   }
-  std::strcpy(&(windowTitle[0]), "ep128emu debugger");
-  window->label(&(windowTitle[0]));
+  if (tt < 1000.0)
+    Fl::add_timeout(tt, &hideWindowCallback, (void *) this);
 }
 
 bool Ep128EmuGUI_DebugWindow::breakPoint(int type, uint16_t addr, uint8_t value)
@@ -230,8 +269,9 @@ void Ep128EmuGUI_DebugWindow::dumpMemory(std::string& buf,
                                          bool isCPUAddress)
 {
   try {
-    char      tmpBuf[8];
-    buf = "";
+    char      tmpBuf[16];
+    uint8_t   tmpBuf2[8];
+    buf.clear();
     int       cnt = 0;
     uint32_t  addrMask = uint32_t(isCPUAddress ? 0x0000FFFFU : 0x003FFFFFU);
     endAddr &= addrMask;
@@ -244,36 +284,33 @@ void Ep128EmuGUI_DebugWindow::dumpMemory(std::string& buf,
       }
       if (!cnt) {
         if (isCPUAddress)
-          std::sprintf(&(tmpBuf[0]), "  %04X", (unsigned int) startAddr);
+          std::sprintf(&(tmpBuf[0]), "  %04X ", (unsigned int) startAddr);
         else
-          std::sprintf(&(tmpBuf[0]), "%06X", (unsigned int) startAddr);
+          std::sprintf(&(tmpBuf[0]), "%06X ", (unsigned int) startAddr);
         buf += &(tmpBuf[0]);
       }
-      if (!(cnt & 3)) {
-        if (showCursor && startAddr == cursorAddr) {
-          std::sprintf(&(tmpBuf[0]), "  *%02X",
-                       (unsigned int) gui.vm.readMemory(startAddr,
-                                                        isCPUAddress));
-        }
-        else {
-          std::sprintf(&(tmpBuf[0]), "   %02X",
-                       (unsigned int) gui.vm.readMemory(startAddr,
-                                                        isCPUAddress));
-        }
-      }
-      else {
-        if (showCursor && startAddr == cursorAddr) {
-          std::sprintf(&(tmpBuf[0]), " *%02X",
-                       (unsigned int) gui.vm.readMemory(startAddr,
-                                                        isCPUAddress));
-        }
-        else {
-          std::sprintf(&(tmpBuf[0]), "  %02X",
-                       (unsigned int) gui.vm.readMemory(startAddr,
-                                                        isCPUAddress));
-        }
-      }
+      static const char *memoryDumpFormatTable_[8] = {
+         " %02X",   " %02X",   " %02X",   " %02X",
+        "  %02X",  " *%02X", "   %02X", "  *%02X"
+      };
+      tmpBuf2[cnt] = gui.vm.readMemory(startAddr, isCPUAddress);
+      int     fmtNdx = (showCursor ? 4 : 0) | (cnt != 4 ? 0 : 2)
+                       | (startAddr == cursorAddr ? 1 : 0);
+      std::sprintf(&(tmpBuf[0]), memoryDumpFormatTable_[fmtNdx],
+                   (unsigned int) tmpBuf2[cnt]);
       buf += &(tmpBuf[0]);
+      if (cnt == 7 && !showCursor) {
+        for (int i = 0; i < 8; i++) {
+          tmpBuf2[i] = tmpBuf2[i] & 0x7F;
+          if (tmpBuf2[i] < 0x20 || tmpBuf2[i] == 0x7F)
+            tmpBuf2[i] = 0x2E;
+        }
+        std::sprintf(&(tmpBuf[0]), " :%c%c%c%c%c%c%c%c",
+                     int(tmpBuf2[0]), int(tmpBuf2[1]), int(tmpBuf2[2]),
+                     int(tmpBuf2[3]), int(tmpBuf2[4]), int(tmpBuf2[5]),
+                     int(tmpBuf2[6]), int(tmpBuf2[7]));
+        buf += &(tmpBuf[0]);
+      }
       if (startAddr == endAddr)
         break;
       startAddr++;
@@ -458,40 +495,6 @@ long Ep128EmuGUI_DebugWindow::parseHexNumber(uint32_t& value, const char *s)
   return 0L;
 }
 
-void Ep128EmuGUI_DebugWindow::parseMemoryDump(const char *s)
-{
-  uint32_t  addr = 0U;
-  bool      haveAddress = false;
-  try {
-    while (true) {
-      uint32_t  tmp = 0U;
-      long      n = parseHexNumber(tmp, s);
-      if (!n)           // end of string or error
-        break;
-      if (n < 0L) {     // end of line
-        n = (-n);
-        haveAddress = false;
-        s = s + n;
-      }
-      else {
-        s = s + n;
-        if (!haveAddress) {
-          addr = tmp & 0x3FFFFFU;
-          haveAddress = true;
-        }
-        else {
-          gui.vm.writeMemory(addr, uint8_t(tmp & 0xFFU),
-                             memoryDumpCPUAddressMode);
-          addr++;
-        }
-      }
-    }
-  }
-  catch (std::exception& e) {
-    gui.errorMessage(e.what());
-  }
-}
-
 void Ep128EmuGUI_DebugWindow::updateDisassemblyDisplay()
 {
   try {
@@ -598,7 +601,7 @@ void Ep128EmuGUI_DebugWindow::breakPointCallback(void *userData, int type,
     Fl::unlock();
     return;             // do not show debugger window if tracing
   }
-  if (!debugWindow.shown()) {
+  if (!debugWindow.active()) {
     gui_.debugWindowShowFlag = true;
     Fl::awake();
   }
@@ -608,12 +611,17 @@ void Ep128EmuGUI_DebugWindow::breakPointCallback(void *userData, int type,
     Fl::lock();
   }
   while (true) {
-    bool  tmp = debugWindow.shown();
+    bool  tmp = debugWindow.active();
     Fl::unlock();
     if (!tmp)
       break;
     gui_.updateDisplay();
     Fl::lock();
   }
+}
+
+void Ep128EmuGUI_DebugWindow::hideWindowCallback(void *userData)
+{
+  reinterpret_cast< Ep128EmuGUI_DebugWindow * >(userData)->hide();
 }
 

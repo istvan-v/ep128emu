@@ -2610,7 +2610,7 @@ void Ep128EmuGUI::menuCallback_Debug_OpenDebugger(Fl_Widget *o, void *v)
 {
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
-  if (!gui_.debugWindow->shown()) {
+  if (!gui_.debugWindow->active()) {
     if (gui_.debugWindowShowFlag)
       return;
     if (!gui_.lockVMThread())

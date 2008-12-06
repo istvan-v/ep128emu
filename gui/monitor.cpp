@@ -690,7 +690,7 @@ void Ep128EmuGUIMonitor::command_step(const std::vector<std::string>& args)
     throw Ep128Emu::Exception("too many arguments");
   debugWindow->focusWidget = this;
   gui->vm.setSingleStepMode(1);
-  debugWindow->hide();
+  debugWindow->deactivate();
 }
 
 void Ep128EmuGUIMonitor::command_stepOver(const std::vector<std::string>& args)
@@ -699,7 +699,7 @@ void Ep128EmuGUIMonitor::command_stepOver(const std::vector<std::string>& args)
     throw Ep128Emu::Exception("too many arguments");
   debugWindow->focusWidget = this;
   gui->vm.setSingleStepMode(2);
-  debugWindow->hide();
+  debugWindow->deactivate();
 }
 
 void Ep128EmuGUIMonitor::command_trace(const std::vector<std::string>& args)
