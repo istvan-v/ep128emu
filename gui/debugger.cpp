@@ -118,6 +118,7 @@ void Ep128EmuGUI_DebugWindow::show()
     else
       stepButton->take_focus();
   }
+  window->label(&(windowTitle[0]));
   window->show();
 }
 
@@ -135,7 +136,6 @@ void Ep128EmuGUI_DebugWindow::hide()
   }
   window->hide();
   std::strcpy(&(windowTitle[0]), "ep128emu debugger");
-  window->label(&(windowTitle[0]));
 }
 
 void Ep128EmuGUI_DebugWindow::activate()
@@ -145,6 +145,9 @@ void Ep128EmuGUI_DebugWindow::activate()
   mainTab->clear_output();
   monitorTab->clear_output();
   stepIntoButton->clear_output();
+  returnButton->clear_output();
+  stepToButton->clear_output();
+  stepToAddressValuator->clear_output();
   stepOverButton->clear_output();
   stepButton->clear_output();
   continueButton->clear_output();
@@ -168,6 +171,9 @@ void Ep128EmuGUI_DebugWindow::deactivate(double tt)
   monitorTab->set_output();
   debugTabs->set_output();
   stepIntoButton->set_output();
+  returnButton->set_output();
+  stepToButton->set_output();
+  stepToAddressValuator->set_output();
   stepOverButton->set_output();
   stepButton->set_output();
   continueButton->set_output();
@@ -224,7 +230,6 @@ bool Ep128EmuGUI_DebugWindow::breakPoint(int type, uint16_t addr, uint8_t value)
   default:
     std::sprintf(&(windowTitle[0]), "Break");
   }
-  window->label(&(windowTitle[0]));
   disassemblyViewAddress = uint32_t(gui.vm.getProgramCounter() & 0xFFFF);
   if (focusWidget == monitor_)
     monitor_->breakMessage(&(windowTitle[0]));
@@ -283,19 +288,17 @@ void Ep128EmuGUI_DebugWindow::dumpMemory(std::string& buf,
         buf += '\n';
       }
       if (!cnt) {
-        if (isCPUAddress)
-          std::sprintf(&(tmpBuf[0]), "  %04X ", (unsigned int) startAddr);
-        else
-          std::sprintf(&(tmpBuf[0]), "%06X ", (unsigned int) startAddr);
+        std::sprintf(&(tmpBuf[0]),
+                     (isCPUAddress ? (showCursor ? "  %04X" : "  %04X ")
+                                     : (showCursor ? "%06X" : "%06X ")),
+                     (unsigned int) startAddr);
         buf += &(tmpBuf[0]);
       }
-      static const char *memoryDumpFormatTable_[8] = {
-         " %02X",   " %02X",   " %02X",   " %02X",
-        "  %02X",  " *%02X", "   %02X", "  *%02X"
+      static const char *memoryDumpFormatTable_[4] = {
+         " %02X",  " %02X", "  %02X", " *%02X"
       };
       tmpBuf2[cnt] = gui.vm.readMemory(startAddr, isCPUAddress);
-      int     fmtNdx = (showCursor ? 4 : 0) | (cnt != 4 ? 0 : 2)
-                       | (startAddr == cursorAddr ? 1 : 0);
+      int     fmtNdx = (showCursor ? 2 : 0) | (startAddr == cursorAddr ? 1 : 0);
       std::sprintf(&(tmpBuf[0]), memoryDumpFormatTable_[fmtNdx],
                    (unsigned int) tmpBuf2[cnt]);
       buf += &(tmpBuf[0]);
@@ -346,25 +349,23 @@ void Ep128EmuGUI_DebugWindow::updateMemoryDumpDisplay()
       switch (i) {
       case 0:
         addr = uint16_t(r.BC.W);
-        n = std::sprintf(bufp, "(BC-04)");
+        n = std::sprintf(bufp, " BC-04");
         break;
       case 1:
         addr = uint16_t(r.DE.W);
-        n = std::sprintf(bufp, "(DE-04)");
+        n = std::sprintf(bufp, " DE-04");
         break;
       case 2:
         addr = uint16_t(r.HL.W);
-        n = std::sprintf(bufp, "(HL-04)");
+        n = std::sprintf(bufp, " HL-04");
         break;
       }
       bufp = bufp + n;
-      for (int j = -4; j < 7; j++) {
+      for (int j = -4; j < 8; j++) {
         uint8_t tmp =
             gui.vm.readMemory(uint16_t((int(addr) + j) & 0xFFFF), true);
         if (j == 0)
-          fmt = "  *%02X";
-        else if (j == 4)
-          fmt = "   %02X";
+          fmt = " *%02X";
         else
           fmt = "  %02X";
         n = std::sprintf(bufp, fmt, (unsigned int) tmp & 0xFFU);
@@ -387,16 +388,14 @@ void Ep128EmuGUI_DebugWindow::updateMemoryDumpDisplay()
       uint16_t  addr = uint16_t(r.IX.W);
       int32_t   offs = ixViewOffset + int32_t((i - 1) * 8);
       if (offs >= 0)
-        n = std::sprintf(bufp, "(IX+%02X)", (unsigned int) offs & 0xFFU);
+        n = std::sprintf(bufp, " IX+%02X", (unsigned int) offs & 0xFFU);
       else
-        n = std::sprintf(bufp, "(IX-%02X)", (unsigned int) (-offs) & 0xFFU);
+        n = std::sprintf(bufp, " IX-%02X", (unsigned int) (-offs) & 0xFFU);
       bufp = bufp + n;
       addr = uint16_t((int32_t(addr) + offs) & 0xFFFF);
       for (int j = 0; j < 8; j++) {
         uint8_t tmp =
             gui.vm.readMemory(uint16_t((int(addr) + j) & 0xFFFF), true);
-        if (j == 4)
-          *(bufp++) = ' ';
         n = std::sprintf(bufp, "  %02X", (unsigned int) tmp & 0xFFU);
         bufp = bufp + n;
       }
@@ -417,16 +416,14 @@ void Ep128EmuGUI_DebugWindow::updateMemoryDumpDisplay()
       uint16_t  addr = uint16_t(r.IY.W);
       int32_t   offs = iyViewOffset + int32_t((i - 1) * 8);
       if (offs >= 0)
-        n = std::sprintf(bufp, "(IY+%02X)", (unsigned int) offs & 0xFFU);
+        n = std::sprintf(bufp, " IY+%02X", (unsigned int) offs & 0xFFU);
       else
-        n = std::sprintf(bufp, "(IY-%02X)", (unsigned int) (-offs) & 0xFFU);
+        n = std::sprintf(bufp, " IY-%02X", (unsigned int) (-offs) & 0xFFU);
       bufp = bufp + n;
       addr = uint16_t((int32_t(addr) + offs) & 0xFFFF);
       for (int j = 0; j < 8; j++) {
         uint8_t tmp =
             gui.vm.readMemory(uint16_t((int(addr) + j) & 0xFFFF), true);
-        if (j == 4)
-          *(bufp++) = ' ';
         n = std::sprintf(bufp, "  %02X", (unsigned int) tmp & 0xFFU);
         bufp = bufp + n;
       }
@@ -456,43 +453,6 @@ void Ep128EmuGUI_DebugWindow::updateIOPortDisplay()
   catch (std::exception& e) {
     gui.errorMessage(e.what());
   }
-}
-
-long Ep128EmuGUI_DebugWindow::parseHexNumber(uint32_t& value, const char *s)
-{
-  long  cnt = 0L;
-  if (!s)
-    return 0L;
-  while (*s == ' ' || *s == '\t') {
-    s++;
-    cnt++;
-  }
-  if (*s == '\0')
-    return 0L;
-  if (*s == '\r' || *s == '\n')
-    return (-(cnt + 1L));
-  uint32_t  tmpVal = 0U;
-  while (true) {
-    char  c = *s;
-    if (c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\0') {
-      value = tmpVal;
-      return cnt;
-    }
-    tmpVal = (tmpVal << 4) & 0xFFFFFFFFU;
-    if (c >= '0' && c <= '9')
-      tmpVal += uint32_t(c - '0');
-    else if (c >= 'A' && c <= 'F')
-      tmpVal += uint32_t((c - 'A') + 10);
-    else if (c >= 'a' && c <= 'f')
-      tmpVal += uint32_t((c - 'a') + 10);
-    else {
-      gui.errorMessage("invalid hexadecimal number format");
-      return 0L;
-    }
-    s++;
-    cnt++;
-  }
-  return 0L;
 }
 
 void Ep128EmuGUI_DebugWindow::updateDisassemblyDisplay()
