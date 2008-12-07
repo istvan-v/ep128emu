@@ -64,7 +64,6 @@ class Ep128EmuGUI_DebugWindow {open
   decl {void dumpMemory(std::string& buf, uint32_t startAddr, uint32_t endAddr, uint32_t cursorAddr, bool showCursor, bool isCPUAddress);} {}
   decl {void updateMemoryDumpDisplay();} {}
   decl {void updateIOPortDisplay();} {}
-  decl {long parseHexNumber(uint32_t& value, const char *s);} {}
   decl {void updateDisassemblyDisplay();} {}
   decl {uint32_t disassemblySearchBack(int insnCnt);} {}
   decl {void applyBreakPointList();} {}
@@ -98,17 +97,17 @@ class Ep128EmuGUI_DebugWindow {open
           } {
             Fl_Output cpuRegisterDisplay {
               label {CPU registers}
-              xywh {30 70 360 80} type Multiline align 5 textfont 5 textcolor 2
-              code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
-            }
-            Fl_Output memoryPagingDisplay {
-              label {Memory paging}
-              xywh {400 70 125 80} type Multiline align 5 textfont 5 textcolor 2
+              xywh {30 70 495 80} type Multiline align 5 textfont 5 textcolor 2
               code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
             }
             Fl_Output stackMemoryDumpDisplay {
               label Stack
-              xywh {30 175 495 105} type Multiline align 5 textfont 5 textcolor 2
+              xywh {30 175 360 105} type Multiline align 5 textfont 5 textcolor 2
+              code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
+            }
+            Fl_Output memoryPagingDisplay {
+              label {Memory paging}
+              xywh {400 175 125 105} type Multiline align 5 textfont 5 textcolor 2
               code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
             }
           }
@@ -178,7 +177,7 @@ class Ep128EmuGUI_DebugWindow {open
             Fl_Input memoryDumpStartAddressValuator {
               label {Start address}
               callback {{
-  if (parseHexNumber(memoryDumpStartAddress, o->value()) > 0L) {
+  if (Ep128Emu::parseHexNumber(memoryDumpStartAddress, o->value())) {
     if (memoryDumpStartAddress != memoryDumpViewAddress) {
       memoryDumpViewAddress = memoryDumpStartAddress;
       updateMemoryDumpDisplay();
@@ -294,7 +293,7 @@ class Ep128EmuGUI_DebugWindow {open
             Fl_Input disassemblyStartAddressValuator {
               label {Start address}
               callback {{
-  if (parseHexNumber(disassemblyStartAddress, o->value()) > 0L)
+  if (Ep128Emu::parseHexNumber(disassemblyStartAddress, o->value()))
     disassemblyViewAddress = disassemblyStartAddress;
   updateDisassemblyDisplay();
 }}
@@ -612,7 +611,48 @@ class Ep128EmuGUI_DebugWindow {open
   gui.vm.setSingleStepMode(4);
   this->deactivate();
 }}
-        xywh {595 685 80 25} selection_color 50
+        xywh {330 685 80 25} selection_color 50
+      }
+      Fl_Button returnButton {
+        label Return
+        callback {{
+  focusWidget = stepButton;
+  gui.vm.setSingleStepMode(2);
+  uint16_t  tmp = gui.vm.getStackPointer();
+  uint32_t  tmp2 = gui.vm.readMemory(tmp, true);
+  tmp = (tmp + 1) & 0xFFFF;
+  tmp2 = tmp2 | (uint32_t(gui.vm.readMemory(tmp, true)) << 8);
+  gui.vm.setSingleStepModeNextAddress(int32_t(tmp2));
+  this->deactivate();
+}}
+        xywh {420 685 80 25} selection_color 50
+      }
+      Fl_Button stepToButton {
+        label {Step to:}
+        callback {{
+  uint32_t  tmp = 0U;
+  if (Ep128Emu::parseHexNumber(tmp, stepToAddressValuator->value())) {
+    focusWidget = stepButton;
+    gui.vm.setSingleStepMode(2);
+    gui.vm.setSingleStepModeNextAddress(int32_t(tmp & 0xFFFFU));
+    this->deactivate();
+  }
+}}
+        xywh {510 685 80 25} selection_color 50
+      }
+      Fl_Input stepToAddressValuator {
+        callback {{
+  uint32_t  tmp = 0U;
+  if (!Ep128Emu::parseHexNumber(tmp, o->value()))
+    tmp = 0U;
+  tmp = tmp & 0xFFFFU;
+  char    tmp2[16];
+  std::sprintf(&(tmp2[0]), "%04X", (unsigned int) tmp);
+  o->value(&(tmp2[0]));
+}}
+        xywh {595 685 70 25} textfont 4
+        code0 {o->cursor_color(Fl_Color(3));}
+        code1 {o->value("0000");}
       }
       Fl_Button stepOverButton {
         label {Step over}

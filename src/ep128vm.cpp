@@ -1756,6 +1756,15 @@ namespace Ep128 {
     }
   }
 
+  void Ep128VM::setSingleStepModeNextAddress(int32_t addr)
+  {
+    if ((singleStepMode != 2 && singleStepMode != 4) || addr < 0)
+      addr = int32_t(-1);
+    else
+      addr &= int32_t(0xFFFF);
+    singleStepModeNextAddr = addr;
+  }
+
   uint8_t Ep128VM::getMemoryPage(int n) const
   {
     return memory.getPage(uint8_t(n & 3));
@@ -1822,20 +1831,29 @@ namespace Ep128 {
 
   void Ep128VM::listCPURegisters(std::string& buf) const
   {
-    char    tmpBuf[192];
+    char    tmpBuf[256];
     const Z80_REGISTERS&  r = z80.getReg();
-    std::sprintf(&(tmpBuf[0]),
-                 " PC   AF   BC   DE   HL   SP   IX   IY\n"
-                 "%04X %04X %04X %04X %04X %04X %04X %04X\n"
-                 "      AF'  BC'  DE'  HL'  IM   I    R\n"
-                 "     %04X %04X %04X %04X  %02X   %02X   %02X",
-                 (unsigned int) z80.getProgramCounter(), (unsigned int) r.AF.W,
-                 (unsigned int) r.BC.W, (unsigned int) r.DE.W,
-                 (unsigned int) r.HL.W, (unsigned int) r.SP.W,
-                 (unsigned int) r.IX.W, (unsigned int) r.IY.W,
-                 (unsigned int) r.altAF.W, (unsigned int) r.altBC.W,
-                 (unsigned int) r.altDE.W, (unsigned int) r.altHL.W,
-                 (unsigned int) r.IM, (unsigned int) r.I, (unsigned int) r.R);
+    std::sprintf(
+        &(tmpBuf[0]),
+        " PC   AF   BC   DE   HL   SP   IX   IY    F   ........\n"
+        "%04X %04X %04X %04X %04X %04X %04X %04X   F'  ........\n"
+        "      AF'  BC'  DE'  HL'  IM   I    R    IFF1 .\n"
+        "     %04X %04X %04X %04X  %02X   %02X   %02X   IFF2 .",
+        (unsigned int) z80.getProgramCounter(), (unsigned int) r.AF.W,
+        (unsigned int) r.BC.W, (unsigned int) r.DE.W,
+        (unsigned int) r.HL.W, (unsigned int) r.SP.W,
+        (unsigned int) r.IX.W, (unsigned int) r.IY.W,
+        (unsigned int) r.altAF.W, (unsigned int) r.altBC.W,
+        (unsigned int) r.altDE.W, (unsigned int) r.altHL.W,
+        (unsigned int) r.IM, (unsigned int) r.I, (unsigned int) r.R);
+    static const char *z80Flags_ = "SZ1H1VNC";
+    for (int i = 0; i < 8; i++) {
+      tmpBuf[i + 46] = ((r.AF.B.l & uint8_t(128 >> i)) ? z80Flags_[i] : '-');
+      tmpBuf[i + 101] =
+          ((r.altAF.B.l & uint8_t(128 >> i)) ? z80Flags_[i] : '-');
+    }
+    tmpBuf[156] = '0' + char(bool(r.IFF1));
+    tmpBuf[204] = '0' + char(bool(r.IFF2));
     buf = &(tmpBuf[0]);
   }
 

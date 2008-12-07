@@ -352,6 +352,14 @@ namespace Ep128Emu {
      */
     virtual void setSingleStepMode(int mode_);
     /*!
+     * Set the next address where single step mode will stop, ignoring any
+     * other instructions. If 'addr' is negative, then a break is triggered
+     * immediately at the next instruction.
+     * Note: setSingleStepMode() must be called first with a mode parameter
+     * of 2 or 4.
+     */
+    virtual void setSingleStepModeNextAddress(int32_t addr);
+    /*!
      * Set function to be called when a breakpoint is triggered.
      * 'type' can be one of the following values:
      *   0: breakpoint at opcode read
@@ -412,7 +420,7 @@ namespace Ep128Emu {
      * Dumps the current values of all CPU registers to 'buf' in ASCII format.
      * The register list may be written as multiple lines separated by '\n'
      * characters, however, there is no newline character at the end of the
-     * buffer. The maximum line width is 40 characters.
+     * buffer. The maximum line width is 56 characters.
      */
     virtual void listCPURegisters(std::string& buf) const;
     /*!

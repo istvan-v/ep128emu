@@ -1547,8 +1547,8 @@ namespace Ep128Emu {
       }
       if (mode == 1) {
         if (args.size() == 0 && curToken.length() > 0) {
-          // allow no space between command and first hexadecimal argument
-          if ((*s >= '0' && *s <= '9') ||
+          // allow no space between command and first argument
+          if ((*s >= '0' && *s <= '9') || *s == '%' ||
               (*s >= 'A' && *s <= 'F') || (*s >= 'a' && *s <= 'f')) {
             args.push_back(curToken);
             curToken = "";
@@ -1556,7 +1556,7 @@ namespace Ep128Emu {
           }
         }
         if ((*s >= 'A' && *s <= 'Z') || (*s >= '0' && *s <= '9') ||
-            *s == '_' || *s == '?') {
+            *s == '_' || (*s == '%' && curToken.length() == 0) || *s == '?') {
           curToken += (*s);
           s++;
           continue;
@@ -1606,25 +1606,62 @@ namespace Ep128Emu {
   bool parseHexNumber(uint32_t& n, const char *s)
   {
     n = 0U;
-    size_t  i;
-    for (i = 0; s[i] != '\0'; i++) {
-      if (s[i] >= '0' && s[i] <= '9')
-        n = (n << 4) | uint32_t(s[i] - '0');
-      else if (s[i] >= 'A' && s[i] <= 'F')
-        n = (n << 4) | uint32_t((s[i] - 'A') + 10);
-      else if (s[i] >= 'a' && s[i] <= 'f')
-        n = (n << 4) | uint32_t((s[i] - 'a') + 10);
-      else
-        return ((s[i] == 'H' || s[i] == 'h') && s[i + 1] == '\0' && i != 0);
+    if (!s)
+      return false;
+    while ((*s) == ' ' || (*s) == '\t' || (*s) == '\r' || (*s) == '\n')
+      s++;
+    uint32_t  k = 16U;          // assume hexadecimal format by default
+    if ((*s) == '%') {
+      k = 2U;
+      s++;
     }
-    return (i != 0);
+    else if ((*s) == 'O' || (*s) == 'o') {
+      k = 8U;
+      s++;
+    }
+    size_t  len = 0;
+    while ((s[len] >= '0' && s[len] <= '9') ||
+           (s[len] >= 'A' && s[len] <= 'F') ||
+           (s[len] >= 'a' && s[len] <= 'f')) {
+      len++;
+    }
+    if (len < 1)
+      return false;
+    if (s[len] != '\0') {
+      const char  *t = &(s[len]);
+      if (k == 16U) {
+        if ((*t) == 'O' || (*t) == 'o') {
+          k = 8U;
+          t++;
+        }
+        else if ((*t) == 'L' || (*t) == 'l') {
+          k = 10U;
+          t++;
+        }
+        else if ((*t) == 'H' || (*t) == 'h') {
+          t++;
+        }
+      }
+      while ((*t) == ' ' || (*t) == '\t' || (*t) == '\r' || (*t) == '\n')
+        t++;
+      if ((*t) != '\0')
+        return false;
+    }
+    for (size_t i = 0; i < len; i++) {
+      uint32_t  tmp =
+          uint32_t(s[i] - (s[i] <= '9' ? '0' : (s[i] <= 'Z' ? 'A' : 'a')));
+      if (tmp >= k)
+        return false;
+      n = (n * k) + tmp;
+    }
+    return true;
   }
 
   uint32_t parseHexNumberEx(const char *s, uint32_t mask_)
   {
     uint32_t  n = 0U;
     if (!parseHexNumber(n, s))
-      throw Ep128Emu::Exception("invalid hexadecimal number format");
+      throw Ep128Emu::Exception("invalid number format");
     return (n & mask_);
   }
 

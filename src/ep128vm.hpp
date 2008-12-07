@@ -358,6 +358,14 @@ namespace Ep128 {
      */
     virtual void setSingleStepMode(int mode_);
     /*!
+     * Set the next address where single step mode will stop, ignoring any
+     * other instructions. If 'addr' is negative, then a break is triggered
+     * immediately at the next instruction.
+     * Note: setSingleStepMode() must be called first with a mode parameter
+     * of 2 or 4.
+     */
+    virtual void setSingleStepModeNextAddress(int32_t addr);
+    /*!
      * Returns the segment at page 'n' (0 to 3).
      */
     virtual uint8_t getMemoryPage(int n) const;
@@ -404,7 +412,7 @@ namespace Ep128 {
      * Dumps the current values of all CPU registers to 'buf' in ASCII format.
      * The register list may be written as multiple lines separated by '\n'
      * characters, however, there is no newline character at the end of the
-     * buffer. The maximum line width is 40 characters.
+     * buffer. The maximum line width is 56 characters.
      */
     virtual void listCPURegisters(std::string& buf) const;
     /*!

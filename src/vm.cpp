@@ -597,6 +597,11 @@ namespace Ep128Emu {
     (void) mode_;
   }
 
+  void VirtualMachine::setSingleStepModeNextAddress(int32_t addr)
+  {
+    (void) addr;
+  }
+
   void VirtualMachine::setBreakPointCallback(void (*breakPointCallback_)(
                                                  void *userData, int type,
                                                  uint16_t addr, uint8_t value),
