@@ -1649,7 +1649,7 @@ namespace Ep128Emu {
     }
     for (size_t i = 0; i < len; i++) {
       uint32_t  tmp =
-          uint32_t(s[i] - (s[i] <= '9' ? '0' : (s[i] <= 'Z' ? 'A' : 'a')));
+          uint32_t(s[i] - (s[i] <= '9' ? '0' : (s[i] <= 'Z' ? '7' : 'W')));
       if (tmp >= k)
         return false;
       n = (n * k) + tmp;
