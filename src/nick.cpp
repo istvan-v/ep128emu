@@ -662,8 +662,6 @@ namespace Ep128 {
       case 0:
         {
           lpb.nLines = 256 - int(videoMemory[lptCurrentAddr + 0]);
-          if (linesRemaining <= 0)
-            linesRemaining = lpb.nLines;
           uint8_t modeByte = videoMemory[lptCurrentAddr + 1];
           bool    irqState = bool(modeByte & 0x80);
           if (irqState != lpb.interruptFlag) {
@@ -692,30 +690,34 @@ namespace Ep128 {
         lpb.rightMargin &= 0x3F;
         break;
       case 2:
-        lpb.ld1Base =    uint16_t(videoMemory[lptCurrentAddr + 4])
-                      | (uint16_t(videoMemory[lptCurrentAddr + 5]) << 8);
-        if (linesRemaining == lpb.nLines || !lpb.vresMode)
-          lpb.ld1Addr = lpb.ld1Base;
+        if (linesRemaining <= 0 || !lpb.vresMode) {
+          lpb.ld1Addr = uint16_t(videoMemory[lptCurrentAddr + 4])
+                        | (uint16_t(videoMemory[lptCurrentAddr + 5]) << 8);
+        }
         break;
       case 3:
-        lpb.ld2Base =    uint16_t(videoMemory[lptCurrentAddr + 6])
-                      | (uint16_t(videoMemory[lptCurrentAddr + 7]) << 8);
-        switch (lpb.videoMode) {
-        case 3:                     // CH256
-          lpb.ld2Base = (lpb.ld2Base << 8) & 0xFF00;
-          lpb.ld2Addr = (lpb.ld2Addr + 0x0100) & 0xFFFF;
-          break;
-        case 4:                     // CH128
-          lpb.ld2Base = (lpb.ld2Base << 7) & 0xFF80;
-          lpb.ld2Addr = (lpb.ld2Addr + 0x0080) & 0xFFFF;
-          break;
-        case 5:                     // CH64
-          lpb.ld2Base = (lpb.ld2Base << 6) & 0xFFC0;
-          lpb.ld2Addr = (lpb.ld2Addr + 0x0040) & 0xFFFF;
-          break;
+        {
+          uint16_t  ld2Base = videoMemory[lptCurrentAddr + 6];
+          ld2Base = ld2Base | (uint16_t(videoMemory[lptCurrentAddr + 7]) << 8);
+          switch (lpb.videoMode) {
+          case 3:                   // CH256
+            ld2Base = (ld2Base << 8) & 0xFF00;
+            lpb.ld2Addr = (lpb.ld2Addr + 0x0100) & 0xFFFF;
+            break;
+          case 4:                   // CH128
+            ld2Base = (ld2Base << 7) & 0xFF80;
+            lpb.ld2Addr = (lpb.ld2Addr + 0x0080) & 0xFFFF;
+            break;
+          case 5:                   // CH64
+            ld2Base = (ld2Base << 6) & 0xFFC0;
+            lpb.ld2Addr = (lpb.ld2Addr + 0x0040) & 0xFFFF;
+            break;
+          }
+          if (linesRemaining <= 0) {
+            lpb.ld2Addr = ld2Base;
+            linesRemaining = lpb.nLines;
+          }
         }
-        if (linesRemaining == lpb.nLines)
-          lpb.ld2Addr = lpb.ld2Base;
         break;
       case 4:
         lpb.palette[0] = videoMemory[lptCurrentAddr + 8];
@@ -759,7 +761,7 @@ namespace Ep128 {
     case 56:
       if (lptClockEnabled) {
         if (--linesRemaining == 0) {
-          if (!lpb.reloadFlag)
+          if (!(lpb.reloadFlag | forceReloadFlag))
             lptCurrentAddr = (lptCurrentAddr + 0x0010) & 0xFFF0;
           else
             lptCurrentAddr = lptBaseAddr;
@@ -802,8 +804,6 @@ namespace Ep128 {
     lpb.msbAlt = false;
     lpb.leftMargin = 8;
     lpb.rightMargin = 54;
-    lpb.ld1Base = 0;
-    lpb.ld2Base = 0;
     for (size_t i = 0; i < 16; i++)
       lpb.palette[i] = 0;
     lpb.ld1Addr = 0;
@@ -819,6 +819,7 @@ namespace Ep128 {
     lptClockEnabled = true;
     savedBorderColor = 0;
     vsyncFlag = false;
+    forceReloadFlag = false;
     try {
       uint32_t  *p = new uint32_t[129];     // for 513 bytes (57 * 9)
       lineBuf = reinterpret_cast<uint8_t *>(p);
@@ -900,10 +901,13 @@ namespace Ep128 {
     case 3:
       lptBaseAddr = (lptBaseAddr & 0x0FF0) | (uint16_t(value & 0x0F) << 12);
       lptClockEnabled = bool(value & 0x40);
-      if (!lptClockEnabled)
-        linesRemaining = 0;
-      if (!(value & 0x80))
-        lptCurrentAddr = lptBaseAddr;
+      forceReloadFlag = !(value & 0x80);
+      if (forceReloadFlag) {
+        if (lptClockEnabled)
+          lptCurrentAddr = lptBaseAddr;
+        else
+          linesRemaining = 1;
+      }
       break;
     }
   }
@@ -919,7 +923,8 @@ namespace Ep128 {
       return uint8_t((lptBaseAddr >> 4) & 0xFF);
     case 3:
       return uint8_t(((lptBaseAddr >> 12) & 0x0F)
-                     | (lptClockEnabled ? 0xF0 : 0xB0));
+                     | (lptClockEnabled ? 0x40 : 0x00)
+                     | (forceReloadFlag ? 0x30 : 0xB0));
     }
     return 0x00;                // not reached
   }
@@ -977,7 +982,7 @@ namespace Ep128 {
   void Nick::saveState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
-    buf.writeUInt32(0x02000000);        // version number
+    buf.writeUInt32(0x03000000U);       // version number
     buf.writeUInt32(uint32_t(lpb.nLines));
     buf.writeBoolean(lpb.interruptFlag);
     buf.writeBoolean(lpb.vresMode);
@@ -990,8 +995,6 @@ namespace Ep128 {
     buf.writeBoolean(lpb.msbAlt);
     buf.writeByte(lpb.leftMargin);
     buf.writeByte(lpb.rightMargin);
-    buf.writeUInt32(lpb.ld1Base);
-    buf.writeUInt32(lpb.ld2Base);
     for (size_t i = 0; i < 16; i++)
       buf.writeByte(lpb.palette[i]);
     buf.writeUInt32(lpb.ld1Addr);
@@ -1007,6 +1010,7 @@ namespace Ep128 {
     buf.writeByte(savedBorderColor);
     buf.writeByte(dataBusState);
     buf.writeBoolean(lptClockEnabled);
+    buf.writeBoolean(forceReloadFlag);
   }
 
   void Nick::saveState(Ep128Emu::File& f)
@@ -1021,7 +1025,7 @@ namespace Ep128 {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
-    if (version != 0x02000000) {
+    if (!(version >= 0x02000000U && version <= 0x03000000U)) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible Nick snapshot format");
     }
@@ -1039,18 +1043,9 @@ namespace Ep128 {
       lpb.msbAlt = buf.readBoolean();
       lpb.leftMargin = buf.readByte() & 0x3F;
       lpb.rightMargin = buf.readByte() & 0x3F;
-      lpb.ld1Base = uint16_t(buf.readUInt32()) & 0xFFFF;
-      lpb.ld2Base = uint16_t(buf.readUInt32()) & 0xFFFF;
-      switch (lpb.videoMode) {
-      case 3:                   // CH256
-        lpb.ld2Base &= 0xFF00;
-        break;
-      case 4:                   // CH128
-        lpb.ld2Base &= 0xFF80;
-        break;
-      case 5:                   // CH64
-        lpb.ld2Base &= 0xFFC0;
-        break;
+      if (version < 0x03000000U) {
+        (void) buf.readUInt32();        // was lpb.ld1Base
+        (void) buf.readUInt32();        // was lpb.ld2Base
       }
       for (size_t i = 0; i < 16; i++)
         lpb.palette[i] = buf.readByte();
@@ -1070,6 +1065,9 @@ namespace Ep128 {
       lineBufPtr = &(lineBuf[(currentSlot >= 7 ?
                               (currentSlot - 7) : (currentSlot + 50)) << 1]);
       lptClockEnabled = buf.readBoolean();
+      forceReloadFlag = false;
+      if (version >= 0x03000000U)
+        forceReloadFlag = buf.readBoolean();
       if (buf.getPosition() != buf.getDataSize())
         throw Ep128Emu::Exception("trailing garbage at end of "
                                   "Nick snapshot data");
