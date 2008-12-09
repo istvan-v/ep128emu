@@ -1065,19 +1065,22 @@ namespace Ep128 {
       lineBufPtr = &(lineBuf[(currentSlot >= 7 ?
                               (currentSlot - 7) : (currentSlot + 50)) << 1]);
       lptClockEnabled = buf.readBoolean();
-      forceReloadFlag = false;
-      if (version >= 0x03000000U)
+      if (version >= 0x03000000U) {
         forceReloadFlag = buf.readBoolean();
+      }
+      else {
+        forceReloadFlag = false;
+        if (currentSlot > 0 && currentSlot < 4 && linesRemaining == lpb.nLines)
+          linesRemaining = 0;
+      }
       if (buf.getPosition() != buf.getDataSize())
         throw Ep128Emu::Exception("trailing garbage at end of "
                                   "Nick snapshot data");
     }
     catch (...) {
       // reset NICK
-      writePort(0, 0);
-      writePort(1, 0);
-      writePort(2, 0);
-      writePort(3, 0);
+      for (uint16_t i = 0; i < 4; i++)
+        writePort(i, 0x00);
       currentSlot = 0;
       clearLineBuffer();
       throw;
