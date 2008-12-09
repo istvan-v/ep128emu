@@ -441,8 +441,11 @@ namespace Ep128 {
      * NOTE: getting a non-const reference will stop any demo recording or
      * playback.
      */
-    virtual Z80_REGISTERS& getZ80Registers();
-    virtual const Z80_REGISTERS& getZ80Registers() const;
+    Z80_REGISTERS& getZ80Registers();
+    inline const Z80_REGISTERS& getZ80Registers() const
+    {
+      return z80.getReg();
+    }
     // ------------------------------- FILE I/O -------------------------------
     /*!
      * Save snapshot of virtual machine state, including all ROM and RAM
