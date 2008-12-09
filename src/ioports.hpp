@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -56,6 +56,7 @@ namespace Ep128 {
     inline void write(uint16_t addr, uint8_t value);
     uint8_t readDebug(uint16_t addr) const;
     void writeDebug(uint16_t addr, uint8_t value);
+    inline uint8_t getLastValueWritten(uint16_t addr) const;
     void setReadCallback(uint16_t firstAddr, uint16_t lastAddr,
                          uint8_t (*func)(void *p, uint16_t addr),
                          void *userData, uint16_t baseAddr);
@@ -78,7 +79,7 @@ namespace Ep128 {
 
   inline uint8_t IOPorts::read(uint16_t addr)
   {
-    uint8_t       offs = (uint8_t) addr & 0xFF, value;
+    uint8_t       offs = uint8_t(addr & 0xFF), value;
     ReadCallback& cb = readCallbacks[offs];
 
     value = cb.func(cb.userData_, cb.addr_);
@@ -92,7 +93,7 @@ namespace Ep128 {
 
   inline void IOPorts::write(uint16_t addr, uint8_t value)
   {
-    uint8_t         offs = (uint8_t) addr & 0xFF;
+    uint8_t         offs = uint8_t(addr & 0xFF);
     WriteCallback&  cb = writeCallbacks[offs];
 
     if (breakPointTable) {
@@ -104,7 +105,12 @@ namespace Ep128 {
     cb.func(cb.userData_, cb.addr_, value);
   }
 
-}
+  inline uint8_t IOPorts::getLastValueWritten(uint16_t addr) const
+  {
+    return portValues[addr & 0xFF];
+  }
+
+}       // namespace Ep128
 
 #endif  // EP128EMU_IOPORTS_HPP
 
