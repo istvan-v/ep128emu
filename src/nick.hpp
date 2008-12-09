@@ -50,8 +50,6 @@ namespace Ep128 {
     bool      msbAlt;           // +2 to palette index if b7 of bitmap is set
     uint8_t   leftMargin;
     uint8_t   rightMargin;
-    uint16_t  ld1Base;          // LD1 base address
-    uint16_t  ld2Base;          // LD2 base address
     uint8_t   palette[16];      // 0..7 from LPB, 8..15 from FIXBIAS
     // ----------------
     uint16_t  ld1Addr;          // LD1 current address
@@ -171,14 +169,15 @@ class x : public NickRenderer {                 \
     NickRenderer  *currentRenderer;     // NULL if border only
     NickRendererTable   renderers;
     uint8_t   currentSlot;      // 0 to 56
-    uint8_t   *lineBuf;         // 57 slots = 912 pixels
-    uint8_t   *lineBufPtr;
-    uint8_t   *oldLineBufPtr;
     uint8_t   borderColor;
     uint8_t   dataBusState;
     bool      lptClockEnabled;
+    uint8_t   *lineBuf;         // 57 slots = 912 pixels
+    uint8_t   *lineBufPtr;
+    uint8_t   *oldLineBufPtr;
     uint8_t   savedBorderColor;
     bool      vsyncFlag;
+    bool      forceReloadFlag;
     // --------
     void clearLineBuffer();
    protected:
@@ -229,6 +228,26 @@ class x : public NickRenderer {                 \
     inline const uint8_t * getVideoOutput() const
     {
       return oldLineBufPtr;
+    }
+    inline uint16_t getLD1Address() const
+    {
+      return lpb.ld1Addr;
+    }
+    inline uint16_t getLD2Address() const
+    {
+      return lpb.ld2Addr;
+    }
+    inline uint16_t getLPBAddress() const
+    {
+      return lptCurrentAddr;
+    }
+    inline uint8_t getLPBLine() const
+    {
+      return uint8_t((256 - linesRemaining) & 255);
+    }
+    inline uint8_t getCurrentSlot() const
+    {
+      return currentSlot;
     }
     void runOneSlot();
     void saveState(Ep128Emu::File::Buffer&);
