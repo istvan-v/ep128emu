@@ -1,6 +1,61 @@
 Changes in version 2.0.6
 ------------------------
 
+  * various improvements have been made to the debugger:
+    - memory read watchpoints can have a type of 'r' or 'x' to break on
+      data or Z80 instruction reads only; the 'Ignore data reads' button
+      has been removed
+    - new "step" buttons for stepping to the target of any conditional
+      branch instruction ('Step into'), the 16-bit address at the top of
+      the stack ('Return'), or any 16-bit address specified by the user
+      ('Step to')
+    - the memory dump, CPU, and I/O register displays include more
+      information now
+    - in addition to the default hexadecimal format, it is also possible
+      to specify numbers in the monitor in binary (e.g. %1010), octal
+      (12o), and decimal (10l) format
+    - the 'Step over' button can also be used to skip conditional JP and
+      JR instructions
+    - fixed the flickering window effect while using the step buttons
+  * several new GUI keyboard shortcuts have been added; since these
+    shortcuts can only be triggered while the Alt key is pressed, in
+    the default configuration only the right Alt key (and, on Windows,
+    the menu key) are bound to the Enterprise emulation now
+  * native file dialogs are used instead of FLTK on Windows
+  * some improvements have been made to the installer:
+    - many new ROM files and machine configurations are installed
+    - on Windows, it is possible to associate snapshot and demo files
+      with the emulator
+    - ROM images are downloaded as a single compressed archive, rather
+      than separate uncompressed .rom files, for faster installation
+    - the Win32 emulator executable has an icon and includes file
+      information now
+  * FILE: is the default device on startup when using the epfileio.rom
+    extension
+  * floppy drive emulation improvements: implemented the 'write track'
+    command (formatting), image file I/O is buffered for improved
+    performance when using real disks, and a few emulation bugs have
+    been fixed
+  * in the memory configuration, ROM files can also be loaded to
+    segments 40h to 43h
+  * video display improvements and bug fixes; the screen is no longer
+    blanked while the emulator is paused; interlace effect is also
+    displayed at lower quality settings (1 and 2) in OpenGL mode
+  * some NICK emulation fixes (note: the timing of demos recorded with
+    older emulator versions may possibly be incorrect)
+  * software video mode is the default now if the emulator is started
+    without command line arguments
+  * screenshots are saved in 256 color RLE compressed BMP format instead
+    of TGA
+  * a few minor user interface improvements in the display and disk
+    configuration windows
+  * the process priority of the emulator can be set in the menu (this is
+    currently only implemented on Windows)
+  * if not specified by the user, the extension is automatically added
+    to file names by the file dialogs when saving files
+  * new 'Gtk+' GUI theme (-colorscheme 3)
+  * various minor bug fixes
+
 Changes in version 2.0.5.1
 --------------------------
 
