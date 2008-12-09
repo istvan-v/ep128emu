@@ -173,14 +173,14 @@ Command line options
   -snapshot <FILENAME>
     load snapshot or demo file on startup
   -opengl
-    use OpenGL video driver (this is the default, and is recommended
-    when hardware accelerated OpenGL is available)
+    use OpenGL video driver (recommended when hardware accelerated
+    OpenGL is available)
   -no-opengl
-    use software video driver; this is slower than OpenGL when used at
-    high resolutions, and also disables many display effects, but should
-    work on all machines; however, it will use a color depth of 24 bits,
-    while in OpenGL mode the textures are 16 bit (R5G6B5) only, to
-    improve performance
+    use software video driver (this is the default); it is slower than
+    OpenGL when used at high resolutions, and also disables many display
+    effects, but should work on all machines; however, it will use a
+    color depth of 24 bits, while in OpenGL mode the textures are 16 bit
+    (R5G6B5) only, to improve performance
   -colorscheme <N>
     select GUI color scheme N (0, 1, 2, or 3)
   OPTION=VALUE
@@ -407,8 +407,8 @@ Floppy / Replace disk / All drives
 
   Set the image file name for a specific (or all) floppy drive to an
   empty string, and then set the original file name again. This is
-  mostly useful when accessing real floppy disks, after the disk is
-  changed.
+  mostly useful when accessing real floppy disks, and should be used
+  after the disk is changed.
 
 Set working directory (Alt + F)
 

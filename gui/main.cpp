@@ -43,7 +43,7 @@ int main(int argc, char **argv)
   int       snapshotNameIndex = 0;
   int       colorScheme = 0;
   int       retval = 0;
-  bool      glEnabled = true;
+  bool      glEnabled = false;
   bool      configLoaded = false;
 
   try {
@@ -84,10 +84,10 @@ int main(int argc, char **argv)
         std::cerr << "    -snapshot <FNAME>   "
                      "load snapshot or demo file on startup" << std::endl;
         std::cerr << "    -opengl             "
-                     "use OpenGL video driver (this is the default)"
-                  << std::endl;
+                     "use OpenGL video driver" << std::endl;
         std::cerr << "    -no-opengl          "
-                     "use software video driver" << std::endl;
+                     "use software video driver (this is the default)"
+                  << std::endl;
         std::cerr << "    -colorscheme <N>    "
                      "use GUI color scheme N (0, 1, 2, or 3)" << std::endl;
         std::cerr << "    OPTION=VALUE        "

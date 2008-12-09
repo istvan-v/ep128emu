@@ -227,12 +227,12 @@ Section "Associate snapshot and demo files with ep128emu" SecAssocFiles
   WriteRegStr HKCR "Ep128Emu.SnapshotFile" "" "Ep128Emu snapshot file"
   WriteRegStr HKCR "Ep128Emu.SnapshotFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,0"
   WriteRegStr HKCR "Ep128Emu.SnapshotFile\shell" "" "open"
-  WriteRegStr HKCR "Ep128Emu.SnapshotFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -snapshot "%1"'
+  WriteRegStr HKCR "Ep128Emu.SnapshotFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -opengl -snapshot "%1"'
   WriteRegStr HKCR ".ep128d" "" "Ep128Emu.DemoFile"
   WriteRegStr HKCR "Ep128Emu.DemoFile" "" "Ep128Emu demo file"
   WriteRegStr HKCR "Ep128Emu.DemoFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,0"
   WriteRegStr HKCR "Ep128Emu.DemoFile\shell" "" "open"
-  WriteRegStr HKCR "Ep128Emu.DemoFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -snapshot "%1"'
+  WriteRegStr HKCR "Ep128Emu.DemoFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -opengl -snapshot "%1"'
 
 SectionEnd
 
