@@ -1859,43 +1859,33 @@ namespace Ep128 {
 
   void Ep128VM::listIORegisters(std::string& buf) const
   {
-    unsigned int  tmpBuf[176];
-    for (uint8_t i = 0x10; i < 0xC0; ) {
-      tmpBuf[i - 0x10] = ioPorts.readDebug(i);
-      i++;
-      if (i < 0x80) {
-        if (i == 0x14)
-          i = 0x18;
-        else if (i == 0x19)
-          i = 0x40;
-        else if (i == 0x45)
-          i = 0x80;
-      }
-      else if (i == 0x84)
-        i = 0xA0;
-      else if (i == 0xB0)
-        i = 0xB4;
-      else if (i == 0xB7)
-        i = 0xBF;
-    }
+    static const uint8_t  ioPortTable_[] = {
+      0x10, 0x11, 0x12, 0x13, 0x18, 0x40, 0x41, 0x42,
+      0x43, 0x44, 0x80, 0x81, 0x82, 0x83, 0xA0, 0xA1,
+      0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0xA8, 0xA9,
+      0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB4, 0xB5,
+      0xB6, 0xBF
+    };
+    unsigned int  tmpBuf[40];
+    for (size_t i = 0; i < (sizeof(ioPortTable_) / sizeof(uint8_t)); i++)
+      tmpBuf[i] = ioPorts.readDebug(ioPortTable_[i]);
     char    tmpBuf2[320];
     char    *bufp = &(tmpBuf2[0]);
     int     n;
     n = std::sprintf(bufp,
                      "Disk  WD: %02X(%02X) %02X %02X %02X  EXDOS: %02X(%02X)\n",
-                     tmpBuf[0x00],
+                     tmpBuf[0],
                      (unsigned int) ioPorts.getLastValueWritten(0x10),
-                     tmpBuf[0x01], tmpBuf[0x02], tmpBuf[0x03], tmpBuf[0x08],
+                     tmpBuf[1], tmpBuf[2], tmpBuf[3], tmpBuf[4],
                      (unsigned int) ioPorts.getLastValueWritten(0x18));
     bufp = bufp + n;
     n = std::sprintf(bufp,
                      "ZX    40: %02X %02X %02X %02X  44: %02X\n",
-                     tmpBuf[0x30], tmpBuf[0x31], tmpBuf[0x32], tmpBuf[0x33],
-                     tmpBuf[0x34]);
+                     tmpBuf[5], tmpBuf[6], tmpBuf[7], tmpBuf[8], tmpBuf[9]);
     bufp = bufp + n;
     n = std::sprintf(bufp,
                      "Nick  80: %02X %02X %02X %02X  Slot: %02X\n",
-                     tmpBuf[0x70], tmpBuf[0x71], tmpBuf[0x72], tmpBuf[0x73],
+                     tmpBuf[10], tmpBuf[11], tmpBuf[12], tmpBuf[13],
                      (unsigned int) nick.getCurrentSlot());
     bufp = bufp + n;
     n = std::sprintf(bufp,
@@ -1906,24 +1896,22 @@ namespace Ep128 {
                      (unsigned int) nick.getLD2Address());
     bufp = bufp + n;
     n = std::sprintf(bufp,
-                     "Dave  A0: %02X %02X %02X %02X  %02X %02X %02X %02X\n",
-                     tmpBuf[0x90], tmpBuf[0x91], tmpBuf[0x92], tmpBuf[0x93],
-                     tmpBuf[0x94], tmpBuf[0x95], tmpBuf[0x96], tmpBuf[0x97]);
-    bufp = bufp + n;
-    n = std::sprintf(bufp,
+                     "Dave  A0: %02X %02X %02X %02X  %02X %02X %02X %02X\n"
                      "Dave  A8: %02X %02X %02X %02X  %02X %02X %02X %02X\n",
-                     tmpBuf[0x98], tmpBuf[0x99], tmpBuf[0x9A], tmpBuf[0x9B],
-                     tmpBuf[0x9C], tmpBuf[0x9D], tmpBuf[0x9E], tmpBuf[0x9F]);
+                     tmpBuf[14], tmpBuf[15], tmpBuf[16], tmpBuf[17],
+                     tmpBuf[18], tmpBuf[19], tmpBuf[20], tmpBuf[21],
+                     tmpBuf[22], tmpBuf[23], tmpBuf[24], tmpBuf[25],
+                     tmpBuf[26], tmpBuf[27], tmpBuf[28], tmpBuf[29]);
     bufp = bufp + n;
     n = std::sprintf(bufp,
                      "Dave  B4: %02X(%02X) %02X(%02X) %02X(%02X)  BF: %02X",
-                     tmpBuf[0xA4],
+                     tmpBuf[30],
                      (unsigned int) ioPorts.getLastValueWritten(0xB4),
-                     tmpBuf[0xA5],
+                     tmpBuf[31],
                      (unsigned int) ioPorts.getLastValueWritten(0xB5),
-                     tmpBuf[0xA6],
+                     tmpBuf[32],
                      (unsigned int) ioPorts.getLastValueWritten(0xB6),
-                     tmpBuf[0xAF]);
+                     tmpBuf[33]);
     buf = &(tmpBuf2[0]);
   }
 
