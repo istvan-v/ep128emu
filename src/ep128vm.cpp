@@ -1859,30 +1859,72 @@ namespace Ep128 {
 
   void Ep128VM::listIORegisters(std::string& buf) const
   {
-    char    tmpBuf[320];
-    char    *bufp = &(tmpBuf[0]);
-    for (int i = 0; i < 7; i++) {
-      uint16_t  startAddr = 0x0014;             // WD177x / EXDOS
-      if (i >= 3)
-        startAddr = uint16_t(0x0088 + (i * 8)); // DAVE
-      else if (i == 1)
-        startAddr = 0x0040;                     // Spectrum emulator
-      else if (i == 2)
-        startAddr = 0x0080;                     // NICK
-      int     n = std::sprintf(bufp, "  %04X ", (unsigned int) startAddr);
-      bufp = bufp + n;
-      for (int j = 0; j < 8; j++) {
-        uint16_t  tmp = startAddr + uint16_t(j);
-        n = std::sprintf(bufp, "  %02X",
-                         (unsigned int) ioPorts.readDebug(tmp) & 0xFFU);
-        bufp = bufp + n;
-        if (j == 3)
-          *(bufp++) = ' ';
-        else if (j == 7)
-          *(bufp++) = (i != 6 ? '\n' : '\0');
+    unsigned int  tmpBuf[176];
+    for (uint8_t i = 0x10; i < 0xC0; ) {
+      tmpBuf[i - 0x10] = ioPorts.readDebug(i);
+      i++;
+      if (i < 0x80) {
+        if (i == 0x14)
+          i = 0x18;
+        else if (i == 0x19)
+          i = 0x40;
+        else if (i == 0x45)
+          i = 0x80;
       }
+      else if (i == 0x84)
+        i = 0xA0;
+      else if (i == 0xB0)
+        i = 0xB4;
+      else if (i == 0xB7)
+        i = 0xBF;
     }
-    buf = &(tmpBuf[0]);
+    char    tmpBuf2[320];
+    char    *bufp = &(tmpBuf2[0]);
+    int     n;
+    n = std::sprintf(bufp,
+                     "Disk  WD: %02X(%02X) %02X %02X %02X  EXDOS: %02X(%02X)\n",
+                     tmpBuf[0x00],
+                     (unsigned int) ioPorts.getLastValueWritten(0x10),
+                     tmpBuf[0x01], tmpBuf[0x02], tmpBuf[0x03], tmpBuf[0x08],
+                     (unsigned int) ioPorts.getLastValueWritten(0x18));
+    bufp = bufp + n;
+    n = std::sprintf(bufp,
+                     "ZX    40: %02X %02X %02X %02X  44: %02X\n",
+                     tmpBuf[0x30], tmpBuf[0x31], tmpBuf[0x32], tmpBuf[0x33],
+                     tmpBuf[0x34]);
+    bufp = bufp + n;
+    n = std::sprintf(bufp,
+                     "Nick  80: %02X %02X %02X %02X  Slot: %02X\n",
+                     tmpBuf[0x70], tmpBuf[0x71], tmpBuf[0x72], tmpBuf[0x73],
+                     (unsigned int) nick.getCurrentSlot());
+    bufp = bufp + n;
+    n = std::sprintf(bufp,
+                     "Nick  LPB: %04X,%02X  LD1: %04X  LD2: %04X\n",
+                     (unsigned int) nick.getLPBAddress(),
+                     (unsigned int) nick.getLPBLine(),
+                     (unsigned int) nick.getLD1Address(),
+                     (unsigned int) nick.getLD2Address());
+    bufp = bufp + n;
+    n = std::sprintf(bufp,
+                     "Dave  A0: %02X %02X %02X %02X  %02X %02X %02X %02X\n",
+                     tmpBuf[0x90], tmpBuf[0x91], tmpBuf[0x92], tmpBuf[0x93],
+                     tmpBuf[0x94], tmpBuf[0x95], tmpBuf[0x96], tmpBuf[0x97]);
+    bufp = bufp + n;
+    n = std::sprintf(bufp,
+                     "Dave  A8: %02X %02X %02X %02X  %02X %02X %02X %02X\n",
+                     tmpBuf[0x98], tmpBuf[0x99], tmpBuf[0x9A], tmpBuf[0x9B],
+                     tmpBuf[0x9C], tmpBuf[0x9D], tmpBuf[0x9E], tmpBuf[0x9F]);
+    bufp = bufp + n;
+    n = std::sprintf(bufp,
+                     "Dave  B4: %02X(%02X) %02X(%02X) %02X(%02X)  BF: %02X",
+                     tmpBuf[0xA4],
+                     (unsigned int) ioPorts.getLastValueWritten(0xB4),
+                     tmpBuf[0xA5],
+                     (unsigned int) ioPorts.getLastValueWritten(0xB5),
+                     tmpBuf[0xA6],
+                     (unsigned int) ioPorts.getLastValueWritten(0xB6),
+                     tmpBuf[0xAF]);
+    buf = &(tmpBuf2[0]);
   }
 
   uint32_t Ep128VM::disassembleInstruction(std::string& buf,
@@ -1899,11 +1941,6 @@ namespace Ep128 {
       stopDemoPlayback();
       stopDemoRecording(false);
     }
-    return z80.getReg();
-  }
-
-  const Z80_REGISTERS& Ep128VM::getZ80Registers() const
-  {
     return z80.getReg();
   }
 
