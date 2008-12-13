@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -125,8 +125,7 @@ namespace Ep128Emu {
      *         (c0a, c1a, bitmap_a, c0b, c1b, bitmap_b) and the pixel width
      *         is 1
      *   0x08: eight 8-bit color indices (pixel width = 2)
-     *   0x10: sixteen 8-bit color indices (pixel width = 1)
-     * The buffer contains 'nBytes' (in the range of 96 to 816) bytes of data.
+     * The buffer contains 'nBytes' (in the range of 96 to 432) bytes of data.
      */
     virtual void drawLine(const uint8_t *buf, size_t nBytes) = 0;
     /*!

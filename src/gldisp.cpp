@@ -34,13 +34,6 @@
 #include "gldisp.hpp"
 
 #ifdef WIN32
-#  undef WIN32
-#endif
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
-#  define WIN32 1
-#endif
-
-#ifdef WIN32
 #  include <wingdi.h>
 #  if defined(_MSC_VER) && !defined(__GNUC__)
 typedef void (APIENTRY *PFNGLBLENDCOLORPROC)(GLclampf, GLclampf, GLclampf,
@@ -797,16 +790,18 @@ namespace Ep128Emu {
     Message_LineData  **lineBuffers_ = frameRingBuffer[ringBufferWritePos];
     try {
       for (size_t yc = 0; yc < 578; yc++) {
-        if (lineBuffers_[yc]) {
-          deleteMessage(lineBuffers_[yc]);
-          lineBuffers_[yc] = (Message_LineData *) 0;
-        }
+        Message_LineData  *m = lineBuffers_[yc];
+        lineBuffers_[yc] = (Message_LineData *) 0;
         if ((yc & 1) == size_t(prvFrameWasOdd) &&
             lineBuffers[yc] != (Message_LineData *) 0) {
-          Message_LineData  *m = allocateMessage< Message_LineData >();
+          if (!m)
+            m = allocateMessage< Message_LineData >();
           *m = *(lineBuffers[yc]);
           lineBuffers_[yc] = m;
+          m = (Message_LineData *) 0;
         }
+        if (m)
+          deleteMessage(m);
       }
     }
     catch (std::exception) {
@@ -897,19 +892,25 @@ namespace Ep128Emu {
         // need to update display
         messageQueueMutex.lock();
         framesPending = (framesPending > 0 ? (framesPending - 1) : 0);
+        framesPendingFlag = (framesPending > 0);
         messageQueueMutex.unlock();
         redrawFlag = true;
         deleteMessage(m);
-        prvFrameWasOdd = bool(lastLineNum & 1);
-        for (int yc = (lastLineNum | 1) + 1; yc < 578; yc++) {
+        int     yc = lastLineNum;
+        prvFrameWasOdd = bool(yc & 1);
+        lastLineNum = (yc & 1) - 2;
+        if (yc < 576) {
           // clear any remaining lines
-          if (lineBuffers[yc]) {
-            linesChanged[yc >> 1] = true;
-            deleteMessage(lineBuffers[yc]);
-            lineBuffers[yc] = (Message_LineData *) 0;
-          }
+          yc = yc | 1;
+          do {
+            yc++;
+            if (lineBuffers[yc]) {
+              linesChanged[yc >> 1] = true;
+              deleteMessage(lineBuffers[yc]);
+              lineBuffers[yc] = (Message_LineData *) 0;
+            }
+          } while (yc < 577);
         }
-        lastLineNum = (lastLineNum & 1) - 2;
         noInputTimer.reset();
         if (screenshotCallbackFlag)
           checkScreenshotCallback();

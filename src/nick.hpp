@@ -203,9 +203,8 @@ class x : public NickRenderer {                 \
      *         (c0a, c1a, bitmap_a, c0b, c1b, bitmap_b) and the pixel width
      *         is 1
      *   0x08: eight 8-bit color indices (pixel width = 2)
-     *   0x10: sixteen 8-bit color indices (pixel width = 1)
      * The buffer is aligned to 4 bytes, and contains 'nBytes' (in the range
-     * of 96 to 816) bytes of data.
+     * of 96 to 432) bytes of data.
      */
     virtual void drawLine(const uint8_t *buf, size_t nBytes);
     /*!

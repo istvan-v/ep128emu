@@ -44,18 +44,20 @@ namespace Ep128Emu {
     };
     class Message_LineData : public Message {
      private:
-      // a line of 768 pixels needs a maximum space of 768 * (17 / 16) = 816
-      // ( = 204 * 4) bytes in compressed format
-      uint32_t  buf_[204];
       // number of bytes in buffer
-      size_t    nBytes_;
+      unsigned int  nBytes_;
      public:
       // line number
       int       lineNum;
+     private:
+      // a line of 768 pixels needs a maximum space of 768 * (9 / 16) = 432
+      // ( = 108 * 4) bytes in compressed format
+      uint32_t  buf_[108];
+     public:
       Message_LineData()
         : Message()
       {
-        nBytes_ = 0;
+        nBytes_ = 0U;
         lineNum = 0;
       }
       virtual ~Message_LineData();
@@ -70,7 +72,7 @@ namespace Ep128Emu {
       {
         if (r.nBytes_ != nBytes_)
           return false;
-        size_t  n = (nBytes_ + 3) >> 2;
+        size_t  n = (nBytes_ + 3U) >> 2;
         for (size_t i = 0; i < n; i++) {
           if (r.buf_[i] != buf_[i])
             return false;
@@ -143,6 +145,7 @@ namespace Ep128Emu {
     int           vsyncCnt;
     int           framesPending;
     bool          skippingFrame;
+    bool          framesPendingFlag;
     bool          vsyncState;
     bool          oddFrame;
     volatile bool videoResampleEnabled;
@@ -184,8 +187,7 @@ namespace Ep128Emu {
      *         (c0a, c1a, bitmap_a, c0b, c1b, bitmap_b) and the pixel width
      *         is 1
      *   0x08: eight 8-bit color indices (pixel width = 2)
-     *   0x10: sixteen 8-bit color indices (pixel width = 1)
-     * The buffer contains 'nBytes' (in the range of 96 to 816) bytes of data.
+     * The buffer contains 'nBytes' (in the range of 96 to 432) bytes of data.
      */
     virtual void drawLine(const uint8_t *buf, size_t nBytes);
     /*!
@@ -199,6 +201,14 @@ namespace Ep128Emu {
      * redraw() needs to be called to update the display.
      */
     virtual bool checkEvents() = 0;
+    /*!
+     * Returns true if there are any video frames in the message queue,
+     * so the next call to checkEvents() would return true.
+     */
+    inline bool haveFramesPending() const
+    {
+      return framesPendingFlag;
+    }
     /*!
      * Set function to be called once by checkEvents() after video data for
      * a complete frame has been received. 'buf' contains 768 bytes of

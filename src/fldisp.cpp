@@ -41,121 +41,145 @@ namespace Ep128Emu {
                                 const unsigned char *inBuf, size_t nBytes)
   {
     const unsigned char *bufp = inBuf;
-
-    for (size_t i = 0; i < 768; i += 16) {
-      unsigned char c = *(bufp++);
-      switch (c) {
-      case 0x01:
-        outBuf[i + 15] = outBuf[i + 14] =
-        outBuf[i + 13] = outBuf[i + 12] =
-        outBuf[i + 11] = outBuf[i + 10] =
-        outBuf[i +  9] = outBuf[i +  8] =
-        outBuf[i +  7] = outBuf[i +  6] =
-        outBuf[i +  5] = outBuf[i +  4] =
-        outBuf[i +  3] = outBuf[i +  2] =
-        outBuf[i +  1] = outBuf[i +  0] = *(bufp++);
+    unsigned char *endp = outBuf + 768;
+    do {
+      switch (bufp[0]) {
+      case 0x00:                        // blank
+        do {
+          outBuf[15] = outBuf[14] =
+          outBuf[13] = outBuf[12] =
+          outBuf[11] = outBuf[10] =
+          outBuf[ 9] = outBuf[ 8] =
+          outBuf[ 7] = outBuf[ 6] =
+          outBuf[ 5] = outBuf[ 4] =
+          outBuf[ 3] = outBuf[ 2] =
+          outBuf[ 1] = outBuf[ 0] = 0x00;
+          outBuf = outBuf + 16;
+          bufp = bufp + 1;
+          if (outBuf >= endp)
+            break;
+        } while (bufp[0] == 0x00);
         break;
-      case 0x02:
-        outBuf[i +  7] = outBuf[i +  6] =
-        outBuf[i +  5] = outBuf[i +  4] =
-        outBuf[i +  3] = outBuf[i +  2] =
-        outBuf[i +  1] = outBuf[i +  0] = *(bufp++);
-        outBuf[i + 15] = outBuf[i + 14] =
-        outBuf[i + 13] = outBuf[i + 12] =
-        outBuf[i + 11] = outBuf[i + 10] =
-        outBuf[i +  9] = outBuf[i +  8] = *(bufp++);
+      case 0x01:                        // 1 pixel, 256 colors
+        do {
+          outBuf[15] = outBuf[14] =
+          outBuf[13] = outBuf[12] =
+          outBuf[11] = outBuf[10] =
+          outBuf[ 9] = outBuf[ 8] =
+          outBuf[ 7] = outBuf[ 6] =
+          outBuf[ 5] = outBuf[ 4] =
+          outBuf[ 3] = outBuf[ 2] =
+          outBuf[ 1] = outBuf[ 0] = bufp[1];
+          outBuf = outBuf + 16;
+          bufp = bufp + 2;
+          if (outBuf >= endp)
+            break;
+        } while (bufp[0] == 0x01);
         break;
-      case 0x03:
-        {
-          unsigned char c0 = *(bufp++);
-          unsigned char c1 = *(bufp++);
-          unsigned char b = *(bufp++);
-          outBuf[i +  1] = outBuf[i +  0] = ((b & 128) ? c1 : c0);
-          outBuf[i +  3] = outBuf[i +  2] = ((b &  64) ? c1 : c0);
-          outBuf[i +  5] = outBuf[i +  4] = ((b &  32) ? c1 : c0);
-          outBuf[i +  7] = outBuf[i +  6] = ((b &  16) ? c1 : c0);
-          outBuf[i +  9] = outBuf[i +  8] = ((b &   8) ? c1 : c0);
-          outBuf[i + 11] = outBuf[i + 10] = ((b &   4) ? c1 : c0);
-          outBuf[i + 13] = outBuf[i + 12] = ((b &   2) ? c1 : c0);
-          outBuf[i + 15] = outBuf[i + 14] = ((b &   1) ? c1 : c0);
-        }
+      case 0x02:                        // 2 pixels, 256 colors
+        do {
+          outBuf[ 7] = outBuf[ 6] =
+          outBuf[ 5] = outBuf[ 4] =
+          outBuf[ 3] = outBuf[ 2] =
+          outBuf[ 1] = outBuf[ 0] = bufp[1];
+          outBuf[15] = outBuf[14] =
+          outBuf[13] = outBuf[12] =
+          outBuf[11] = outBuf[10] =
+          outBuf[ 9] = outBuf[ 8] = bufp[2];
+          outBuf = outBuf + 16;
+          bufp = bufp + 3;
+          if (outBuf >= endp)
+            break;
+        } while (bufp[0] == 0x02);
         break;
-      case 0x04:
-        outBuf[i +  3] = outBuf[i +  2] =
-        outBuf[i +  1] = outBuf[i +  0] = *(bufp++);
-        outBuf[i +  7] = outBuf[i +  6] =
-        outBuf[i +  5] = outBuf[i +  4] = *(bufp++);
-        outBuf[i + 11] = outBuf[i + 10] =
-        outBuf[i +  9] = outBuf[i +  8] = *(bufp++);
-        outBuf[i + 15] = outBuf[i + 14] =
-        outBuf[i + 13] = outBuf[i + 12] = *(bufp++);
+      case 0x03:                        // 8 pixels, 2 colors
+        do {
+          unsigned char c0 = bufp[1];
+          unsigned char c1 = bufp[2];
+          unsigned char b = bufp[3];
+          outBuf[ 1] = outBuf[ 0] = ((b & 128) ? c1 : c0);
+          outBuf[ 3] = outBuf[ 2] = ((b &  64) ? c1 : c0);
+          outBuf[ 5] = outBuf[ 4] = ((b &  32) ? c1 : c0);
+          outBuf[ 7] = outBuf[ 6] = ((b &  16) ? c1 : c0);
+          outBuf[ 9] = outBuf[ 8] = ((b &   8) ? c1 : c0);
+          outBuf[11] = outBuf[10] = ((b &   4) ? c1 : c0);
+          outBuf[13] = outBuf[12] = ((b &   2) ? c1 : c0);
+          outBuf[15] = outBuf[14] = ((b &   1) ? c1 : c0);
+          outBuf = outBuf + 16;
+          bufp = bufp + 4;
+          if (outBuf >= endp)
+            break;
+        } while (bufp[0] == 0x03);
         break;
-      case 0x06:
-        {
-          unsigned char c0 = *(bufp++);
-          unsigned char c1 = *(bufp++);
-          unsigned char b = *(bufp++);
-          outBuf[i +  0] = ((b & 128) ? c1 : c0);
-          outBuf[i +  1] = ((b &  64) ? c1 : c0);
-          outBuf[i +  2] = ((b &  32) ? c1 : c0);
-          outBuf[i +  3] = ((b &  16) ? c1 : c0);
-          outBuf[i +  4] = ((b &   8) ? c1 : c0);
-          outBuf[i +  5] = ((b &   4) ? c1 : c0);
-          outBuf[i +  6] = ((b &   2) ? c1 : c0);
-          outBuf[i +  7] = ((b &   1) ? c1 : c0);
-          c0 = *(bufp++);
-          c1 = *(bufp++);
-          b = *(bufp++);
-          outBuf[i +  8] = ((b & 128) ? c1 : c0);
-          outBuf[i +  9] = ((b &  64) ? c1 : c0);
-          outBuf[i + 10] = ((b &  32) ? c1 : c0);
-          outBuf[i + 11] = ((b &  16) ? c1 : c0);
-          outBuf[i + 12] = ((b &   8) ? c1 : c0);
-          outBuf[i + 13] = ((b &   4) ? c1 : c0);
-          outBuf[i + 14] = ((b &   2) ? c1 : c0);
-          outBuf[i + 15] = ((b &   1) ? c1 : c0);
-        }
+      case 0x04:                        // 4 pixels, 256 colors
+        do {
+          outBuf[ 3] = outBuf[ 2] =
+          outBuf[ 1] = outBuf[ 0] = bufp[1];
+          outBuf[ 7] = outBuf[ 6] =
+          outBuf[ 5] = outBuf[ 4] = bufp[2];
+          outBuf[11] = outBuf[10] =
+          outBuf[ 9] = outBuf[ 8] = bufp[3];
+          outBuf[15] = outBuf[14] =
+          outBuf[13] = outBuf[12] = bufp[4];
+          outBuf = outBuf + 16;
+          bufp = bufp + 5;
+          if (outBuf >= endp)
+            break;
+        } while (bufp[0] == 0x04);
         break;
-      case 0x08:
-        outBuf[i +  1] = outBuf[i +  0] = *(bufp++);
-        outBuf[i +  3] = outBuf[i +  2] = *(bufp++);
-        outBuf[i +  5] = outBuf[i +  4] = *(bufp++);
-        outBuf[i +  7] = outBuf[i +  6] = *(bufp++);
-        outBuf[i +  9] = outBuf[i +  8] = *(bufp++);
-        outBuf[i + 11] = outBuf[i + 10] = *(bufp++);
-        outBuf[i + 13] = outBuf[i + 12] = *(bufp++);
-        outBuf[i + 15] = outBuf[i + 14] = *(bufp++);
+      case 0x06:                        // 16 (2*8) pixels, 2*2 colors
+        do {
+          unsigned char c0 = bufp[1];
+          unsigned char c1 = bufp[2];
+          unsigned char b = bufp[3];
+          outBuf[ 0] = ((b & 128) ? c1 : c0);
+          outBuf[ 1] = ((b &  64) ? c1 : c0);
+          outBuf[ 2] = ((b &  32) ? c1 : c0);
+          outBuf[ 3] = ((b &  16) ? c1 : c0);
+          outBuf[ 4] = ((b &   8) ? c1 : c0);
+          outBuf[ 5] = ((b &   4) ? c1 : c0);
+          outBuf[ 6] = ((b &   2) ? c1 : c0);
+          outBuf[ 7] = ((b &   1) ? c1 : c0);
+          c0 = bufp[4];
+          c1 = bufp[5];
+          b = bufp[6];
+          outBuf[ 8] = ((b & 128) ? c1 : c0);
+          outBuf[ 9] = ((b &  64) ? c1 : c0);
+          outBuf[10] = ((b &  32) ? c1 : c0);
+          outBuf[11] = ((b &  16) ? c1 : c0);
+          outBuf[12] = ((b &   8) ? c1 : c0);
+          outBuf[13] = ((b &   4) ? c1 : c0);
+          outBuf[14] = ((b &   2) ? c1 : c0);
+          outBuf[15] = ((b &   1) ? c1 : c0);
+          outBuf = outBuf + 16;
+          bufp = bufp + 7;
+          if (outBuf >= endp)
+            break;
+        } while (bufp[0] == 0x06);
         break;
-      case 0x10:
-        outBuf[i +  0] = *(bufp++);
-        outBuf[i +  1] = *(bufp++);
-        outBuf[i +  2] = *(bufp++);
-        outBuf[i +  3] = *(bufp++);
-        outBuf[i +  4] = *(bufp++);
-        outBuf[i +  5] = *(bufp++);
-        outBuf[i +  6] = *(bufp++);
-        outBuf[i +  7] = *(bufp++);
-        outBuf[i +  8] = *(bufp++);
-        outBuf[i +  9] = *(bufp++);
-        outBuf[i + 10] = *(bufp++);
-        outBuf[i + 11] = *(bufp++);
-        outBuf[i + 12] = *(bufp++);
-        outBuf[i + 13] = *(bufp++);
-        outBuf[i + 14] = *(bufp++);
-        outBuf[i + 15] = *(bufp++);
+      case 0x08:                        // 8 pixels, 256 colors
+        do {
+          outBuf[ 1] = outBuf[ 0] = bufp[1];
+          outBuf[ 3] = outBuf[ 2] = bufp[2];
+          outBuf[ 5] = outBuf[ 4] = bufp[3];
+          outBuf[ 7] = outBuf[ 6] = bufp[4];
+          outBuf[ 9] = outBuf[ 8] = bufp[5];
+          outBuf[11] = outBuf[10] = bufp[6];
+          outBuf[13] = outBuf[12] = bufp[7];
+          outBuf[15] = outBuf[14] = bufp[8];
+          outBuf = outBuf + 16;
+          bufp = bufp + 9;
+          if (outBuf >= endp)
+            break;
+        } while (bufp[0] == 0x08);
         break;
-      default:
-        outBuf[i + 15] = outBuf[i + 14] =
-        outBuf[i + 13] = outBuf[i + 12] =
-        outBuf[i + 11] = outBuf[i + 10] =
-        outBuf[i +  9] = outBuf[i +  8] =
-        outBuf[i +  7] = outBuf[i +  6] =
-        outBuf[i +  5] = outBuf[i +  4] =
-        outBuf[i +  3] = outBuf[i +  2] =
-        outBuf[i +  1] = outBuf[i +  0] = 0;
+      default:                          // invalid flag byte
+        do {
+          *(outBuf++) = 0x00;
+        } while (outBuf < endp);
         break;
       }
-    }
+    } while (outBuf < endp);
 
     (void) nBytes;
 #if 0
@@ -177,33 +201,19 @@ namespace Ep128Emu {
   void FLTKDisplay_::Message_LineData::copyLine(const uint8_t *buf,
                                                 size_t nBytes)
   {
-    unsigned char *p = reinterpret_cast<unsigned char *>(&(buf_[0]));
-    size_t  i = 0;
-    if (nBytes & 1) {
-      p[0] = buf[0];
-      i++;
-    }
-    for ( ; i < nBytes; i += 2) {
-      p[i] = buf[i];
-      p[i + 1] = buf[i + 1];
-    }
-    nBytes_ = i;
-    for ( ; (i & 3) != 0; i++)
-      p[i] = 0;
+    nBytes_ = (unsigned int) nBytes;
+    if (nBytes_ & 3U)
+      buf_[nBytes_ / 4U] = 0U;
+    if (nBytes_)
+      std::memcpy(&(buf_[0]), buf, nBytes_);
   }
 
   FLTKDisplay_::Message_LineData&
       FLTKDisplay_::Message_LineData::operator=(const Message_LineData& r)
   {
-    nBytes_ = r.nBytes_;
-    lineNum = r.lineNum;
-    size_t  n = ((nBytes_ + 15) >> 4) << 2;
-    for (size_t i = 0; i < n; i += 4) {
-      buf_[i] = r.buf_[i];
-      buf_[i + 1] = r.buf_[i + 1];
-      buf_[i + 2] = r.buf_[i + 2];
-      buf_[i + 3] = r.buf_[i + 3];
-    }
+    std::memcpy(&nBytes_, &(r.nBytes_),
+                size_t((const char *) &(r.buf_[((r.nBytes_ + 7U) & (~7U)) / 4U])
+                       - (const char *) &(r.nBytes_)));
     return (*this);
   }
 
@@ -265,6 +275,7 @@ namespace Ep128Emu {
       vsyncCnt(0),
       framesPending(0),
       skippingFrame(false),
+      framesPendingFlag(false),
       vsyncState(false),
       oddFrame(false),
       videoResampleEnabled(false),
@@ -384,7 +395,7 @@ namespace Ep128Emu {
     bool    skippedFrame = skippingFrame;
     if (!skippedFrame)
       framesPending++;
-    bool    overrunFlag = (framesPending > 2);  // should this be configurable ?
+    bool    overrunFlag = (framesPending > 3);  // should this be configurable ?
     skippingFrame = overrunFlag;
     if (limitFrameRateFlag) {
       if (limitFrameRateTimer.getRealTime() < 0.02)
@@ -937,19 +948,25 @@ namespace Ep128Emu {
         // need to update display
         messageQueueMutex.lock();
         framesPending = (framesPending > 0 ? (framesPending - 1) : 0);
+        framesPendingFlag = (framesPending > 0);
         messageQueueMutex.unlock();
         redrawFlag = true;
         deleteMessage(m);
-        prvFrameWasOdd = bool(lastLineNum & 1);
-        for (int n = (lastLineNum | 1) + 1; n < 578; n++) {
+        int     n = lastLineNum;
+        prvFrameWasOdd = bool(n & 1);
+        lastLineNum = (n & 1) - 2;
+        if (n < 576) {
           // clear any remaining lines
-          if (lineBuffers[n]) {
-            linesChanged[n >> 1] = true;
-            deleteMessage(lineBuffers[n]);
-            lineBuffers[n] = (Message_LineData *) 0;
-          }
+          n = n | 1;
+          do {
+            n++;
+            if (lineBuffers[n]) {
+              linesChanged[n >> 1] = true;
+              deleteMessage(lineBuffers[n]);
+              lineBuffers[n] = (Message_LineData *) 0;
+            }
+          } while (n < 577);
         }
-        lastLineNum = (lastLineNum & 1) - 2;
         noInputTimer.reset();
         if (screenshotCallbackFlag)
           checkScreenshotCallback();
