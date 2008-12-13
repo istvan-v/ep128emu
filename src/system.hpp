@@ -22,9 +22,9 @@
 
 #include "ep128emu.hpp"
 
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
-#  define WIN32_LEAN_AND_MEAN   1
-#  include <windows.h>
+#ifdef WIN32
+#  include <windef.h>
+#  include <winbase.h>
 #else
 #  include <pthread.h>
 #endif
@@ -34,7 +34,7 @@ namespace Ep128Emu {
   class ThreadLock {
    private:
     struct ThreadLock_ {
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
       HANDLE          evt;
 #else
       pthread_mutex_t m;
@@ -61,7 +61,7 @@ namespace Ep128Emu {
 
   class Thread {
    private:
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
     HANDLE    thread_;
     static unsigned int __stdcall threadRoutine_(void *userData);
 #else
@@ -111,7 +111,7 @@ namespace Ep128Emu {
   class Mutex {
    private:
     struct Mutex_ {
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
       CRITICAL_SECTION  mutex_;
 #else
       pthread_mutex_t   mutex_;
@@ -124,8 +124,22 @@ namespace Ep128Emu {
     Mutex(const Mutex& m_);
     ~Mutex();
     Mutex& operator=(const Mutex& m_);
-    void lock();
-    void unlock();
+    inline void lock()
+    {
+#ifdef WIN32
+      EnterCriticalSection(&(m->mutex_));
+#else
+      pthread_mutex_lock(&(m->mutex_));
+#endif
+    }
+    inline void unlock()
+    {
+#ifdef WIN32
+      LeaveCriticalSection(&(m->mutex_));
+#else
+      pthread_mutex_unlock(&(m->mutex_));
+#endif
+    }
   };
 
   class Timer {

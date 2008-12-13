@@ -21,13 +21,6 @@
 #include "system.hpp"
 
 #ifdef WIN32
-#  undef WIN32
-#endif
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
-#  define WIN32 1
-#endif
-
-#ifdef WIN32
 #  define WIN32_LEAN_AND_MEAN   1
 #  include <direct.h>
 #  include <windows.h>
@@ -261,24 +254,6 @@ namespace Ep128Emu {
       m->refCnt_++;
     }
     return (*this);
-  }
-
-  void Mutex::lock()
-  {
-#ifdef WIN32
-    EnterCriticalSection(&(m->mutex_));
-#else
-    pthread_mutex_lock(&(m->mutex_));
-#endif
-  }
-
-  void Mutex::unlock()
-  {
-#ifdef WIN32
-    LeaveCriticalSection(&(m->mutex_));
-#else
-    pthread_mutex_unlock(&(m->mutex_));
-#endif
   }
 
   uint64_t Timer::getRealTime_()
