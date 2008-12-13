@@ -492,9 +492,20 @@ void Ep128EmuGUI_DebugWindow::updateDisassemblyDisplay()
 
 uint32_t Ep128EmuGUI_DebugWindow::disassemblySearchBack(int insnCnt)
 {
-  uint32_t    addrTable[256];
+  uint32_t  addrTable[256];
+  uint8_t   insnLengths[256];
   if (insnCnt > 50)
     insnCnt = 50;
+  for (uint32_t addr = disassemblyViewAddress - (uint32_t(insnCnt * 4) + 28U);
+       true;
+       addr++) {
+    addr = addr & 0xFFFFU;
+    uint32_t  tmp =
+        Ep128::Z80Disassembler::getNextInstructionAddr(gui.vm, addr, true);
+    insnLengths[addr & 0xFFU] = uint8_t((tmp - addr) & 0xFFU);
+    if (addr == (disassemblyViewAddress & 0xFFFFU))
+      break;
+  }
   for (uint32_t offs = 28U; true; offs--) {
     int       addrCnt = 0;
     uint32_t  addr = disassemblyViewAddress - (uint32_t(insnCnt * 4) + offs);
@@ -503,7 +514,7 @@ uint32_t Ep128EmuGUI_DebugWindow::disassemblySearchBack(int insnCnt)
     addrTable[addrCnt++] = addr;
     do {
       uint32_t  nxtAddr =
-          Ep128::Z80Disassembler::getNextInstructionAddr(gui.vm, addr, true);
+          (addr + uint32_t(insnLengths[addr & 0xFFU])) & 0xFFFFU;
       while (addr != nxtAddr) {
         if (addr == disassemblyViewAddress)
           doneFlag = true;
@@ -512,11 +523,18 @@ uint32_t Ep128EmuGUI_DebugWindow::disassemblySearchBack(int insnCnt)
       addrTable[addrCnt++] = addr;
     } while (!doneFlag);
     for (int i = 0; i < addrCnt; i++) {
-      if (addrTable[i] == disassemblyViewAddress ||
-          (offs == 0U && i == (addrCnt - 1))) {
+      if (addrTable[i] == disassemblyViewAddress) {
         if (i >= insnCnt)
           return addrTable[i - insnCnt];
       }
+    }
+    if (offs == 0U) {
+      if (insnCnt < 2)
+        break;
+      if (insnCnt > 2)
+        return addrTable[(addrCnt > insnCnt ? ((addrCnt - 1) - insnCnt) : 0)];
+      insnCnt--;
+      offs = 12U;
     }
   }
   return disassemblyViewAddress;
