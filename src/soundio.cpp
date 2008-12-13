@@ -23,24 +23,23 @@
 
 #include <sndfile.h>
 #include <portaudio.h>
-#include <iostream>
 #include <vector>
 
 #ifdef ENABLE_SOUND_DEBUG
 
 static bool isPortAudioError(const char *msg, PaError paError)
 {
-  std::cerr << " === " << msg << std::endl;
+  std::fprintf(stderr, " === %s\n", msg);
   if (paError == paNoError)
     return false;
-  std::cerr << " *** PortAudio error (error code = " << int(paError) << ")"
-            << std::endl;
-  std::cerr << " ***   " << Pa_GetErrorText(paError) << std::endl;
+  std::fprintf(stderr,
+               " *** PortAudio error (error code = %d)\n", int(paError));
+  std::fprintf(stderr, " ***   %s\n", Pa_GetErrorText(paError));
 #  ifndef USING_OLD_PORTAUDIO_API
   if (paError == paUnanticipatedHostError) {
     const PaHostErrorInfo   *errInfo = Pa_GetLastHostErrorInfo();
-    std::cerr << " *** host API error:" << std::endl;
-    std::cerr << " ***   " << errInfo->errorText << std::endl;
+    std::fprintf(stderr, " *** host API error:\n");
+    std::fprintf(stderr, " ***   %s\n", errInfo->errorText);
   }
 #  endif
   return true;
@@ -213,6 +212,7 @@ namespace Ep128Emu {
       writeBufIndex(0),
       readBufIndex(0),
       paStream((PaStream *) 0),
+      bufferSize(4096L),
       nextTime(0.0),
       closeDeviceLock(true)
   {
@@ -250,15 +250,11 @@ namespace Ep128Emu {
     if (paStream) {
 #ifndef USING_OLD_PORTAUDIO_API
       if (usingBlockingInterface) {
-        // ring buffer is not used for blocking I/O,
-        // so assume nPeriodsSW == 1
-#  if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
-        // reduce timing jitter on Win32
+        // reduce timing jitter
         double  t = nextTime - timer_.getRealTime();
         double  periodTime = double(long(nFrames)) / double(sampleRate);
         long    framesToWrite = Pa_GetStreamWriteAvailable(paStream);
-        switch (int((framesToWrite << 3)
-                    / (long(buffers[0].audioData.size() >> 1) * nPeriodsHW))) {
+        switch (int((framesToWrite << 3) / bufferSize)) {
         case 0:
           periodTime = periodTime * 2.0;
           break;
@@ -291,7 +287,7 @@ namespace Ep128Emu {
           timer_.reset();
           nextTime = 0.0;
         }
-#  endif
+        // ring buffer is not used for blocking I/O, so assume nPeriodsSW == 1
         for (size_t i = 0; i < nFrames; i++) {
           Buffer& buf_ = buffers[0];
           buf_.audioData[buf_.writePos++] = buf[(i << 1) + 0];
@@ -500,8 +496,10 @@ namespace Ep128Emu {
 #endif
     // calculate buffer size
     int   nPeriodsSW_ = (disableRingBuffer ? 1 : nPeriodsSW);
-    int   periodSize = int(totalLatency * sampleRate + 0.5)
-                       / (nPeriodsHW + nPeriodsSW_ - 2);
+    int   periodSize =
+        int(totalLatency * (usingBlockingInterface ? 1.4142f : 0.7071f)
+            * sampleRate + 0.5f)
+        / (nPeriodsHW + nPeriodsSW_ - 2);
     for (int i = 16; i < 16384; i <<= 1) {
       if (i >= periodSize) {
         periodSize = i;
@@ -510,12 +508,15 @@ namespace Ep128Emu {
     }
     if (periodSize > 16384)
       periodSize = 16384;
-    if (disableRingBuffer)
-      paLockTimeout = (unsigned int) (double(periodSize) * double(nPeriodsHW)
-                                      * 1000.0 / double(sampleRate)
-                                      + 0.999);
-    else
+    bufferSize = long(nPeriodsHW) * long(periodSize);
+    if (disableRingBuffer) {
+      paLockTimeout =
+          (unsigned int) (double(bufferSize) * 1000.0 / double(sampleRate)
+                          + 0.999);
+    }
+    else {
       paLockTimeout = 0U;
+    }
     // initialize buffers
     buffers.resize(size_t(nPeriodsSW_));
     for (int i = 0; i < nPeriodsSW_; i++) {
@@ -542,6 +543,16 @@ namespace Ep128Emu {
       err = Pa_OpenStream(&paStream, (PaStreamParameters *) 0, &streamParams,
                           sampleRate, unsigned(periodSize),
                           paNoFlag, &portAudioCallback, (void *) this);
+    if (err == paNoError) {
+      const PaStreamInfo  *streamInfo = Pa_GetStreamInfo(paStream);
+      if (streamInfo) {
+        // find out the actual buffer size
+        long    tmp = long(double(streamInfo->outputLatency)
+                           * streamInfo->sampleRate + 0.5);
+        if (tmp >= 16L && tmp <= 262144L)
+          bufferSize = tmp;
+      }
+    }
 #else
     PaError err =
         Pa_OpenStream(&paStream,

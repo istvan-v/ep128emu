@@ -100,6 +100,7 @@ namespace Ep128Emu {
     size_t        writeBufIndex;
     size_t        readBufIndex;
     PaStream      *paStream;
+    long          bufferSize;           // total buffer size in sample frames
     Timer         timer_;
     double        nextTime;
     ThreadLock    closeDeviceLock;
