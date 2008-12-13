@@ -27,15 +27,11 @@
 #include <FL/Fl_File_Chooser.H>
 #include <FL/Fl_Native_File_Chooser.H>
 
-#ifdef WIN32
-#  undef WIN32
-#endif
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
-#  include <direct.h>
-#  define WIN32 1
-#else
+#ifndef WIN32
 #  include <sys/types.h>
 #  include <sys/stat.h>
+#else
+#  include <direct.h>
 #endif
 
 #include <vector>
@@ -777,11 +773,7 @@ class Ep128EmuDisplaySndConfiguration {
   Ep128EmuDisplaySndConfiguration(Ep128Emu::ConfigurationDB& config)
   {
     display.quality = 2;
-#ifndef WIN32
-    sound.latency = 0.05;
-#else
-    sound.latency = 0.1;
-#endif
+    sound.latency = 0.07;
     sound.hwPeriods = 16;
     config.createKey("display.quality", display.quality);
     config.createKey("sound.latency", sound.latency);

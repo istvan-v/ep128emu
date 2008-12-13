@@ -98,7 +98,7 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "vm.processPriority",
                                 vm.processPriority, int(0),
                                 vmProcessPriorityChanged,
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
                                 -2.0, 3.0
 #else
                                 // TODO: implement process priority setting
@@ -214,7 +214,7 @@ namespace Ep128Emu {
                                 sound.sampleRate, 48000.0,
                                 soundSettingsChanged, 11025.0, 192000.0);
     defineConfigurationVariable(*this, "sound.latency",
-                                sound.latency, 0.1,
+                                sound.latency, 0.07,
                                 soundSettingsChanged, 0.005, 0.5);
     defineConfigurationVariable(*this, "sound.hwPeriods",
                                 sound.hwPeriods, int(16),
