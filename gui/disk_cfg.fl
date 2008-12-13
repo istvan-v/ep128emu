@@ -35,7 +35,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
             label {A:}
             callback {{
   try {
-\#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+\#ifdef WIN32
     gui.config["floppy.a.imageFile"] = "\\\\\\\\.\\\\A:";
 \#else
     gui.config["floppy.a.imageFile"] = "/dev/fd0";
@@ -121,7 +121,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
             label {B:}
             callback {{
   try {
-\#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+\#ifdef WIN32
     gui.config["floppy.b.imageFile"] = "\\\\\\\\.\\\\B:";
 \#else
     gui.config["floppy.b.imageFile"] = "/dev/fd1";

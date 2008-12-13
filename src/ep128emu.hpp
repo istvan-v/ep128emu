@@ -27,6 +27,13 @@
 #include <cstdlib>
 #include <cstring>
 
+#ifdef WIN32
+#  undef WIN32
+#endif
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#  define WIN32 1
+#endif
+
 #if defined(HAVE_STDINT_H) || defined(__GNUC__)
 #  include <stdint.h>
 #else
@@ -36,12 +43,19 @@ typedef short               int16_t;
 typedef unsigned short      uint16_t;
 typedef int                 int32_t;
 typedef unsigned int        uint32_t;
-#  if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#  ifdef WIN32
 typedef __int64             int64_t;
 typedef unsigned __int64    uint64_t;
 #  else
 typedef long long           int64_t;
 typedef unsigned long long  uint64_t;
+#  endif
+#  ifdef _WIN64
+typedef __int64             intptr_t;
+typedef unsigned __int64    uintptr_t;
+#  else
+typedef long                intptr_t;
+typedef unsigned long       uintptr_t;
 #  endif
 #endif
 

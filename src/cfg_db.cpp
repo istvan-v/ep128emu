@@ -688,7 +688,7 @@ namespace Ep128Emu {
     std::string fullName;
     if (useHomeDirectory) {
       fullName = getEp128EmuHomeDirectory();
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
       fullName += '\\';
 #else
       fullName += '/';
@@ -765,7 +765,7 @@ namespace Ep128Emu {
     std::string fullName;
     if (useHomeDirectory) {
       fullName = getEp128EmuHomeDirectory();
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
       fullName += '\\';
 #else
       fullName += '/';

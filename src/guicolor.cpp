@@ -24,7 +24,7 @@
 #include <FL/Fl.H>
 #include <FL/Fl_Window.H>
 
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
 
 #include <windows.h>
 #include <FL/x.H>
@@ -137,7 +137,7 @@ namespace Ep128Emu {
 
   void setWindowIcon(Fl_Window *w, int iconNum)
   {
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
     if (!(iconNum == 0 || (iconNum >= 10 && iconNum <= 13)))
       return;                   // ignore invalid icon numbers
     // FIXME: according to the FLTK documentation, Fl_Window::show(int, char**)

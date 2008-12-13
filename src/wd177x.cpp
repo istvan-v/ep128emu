@@ -22,7 +22,7 @@
 
 #include <vector>
 
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
 
 #include <windows.h>
 #include <winioctl.h>
@@ -239,7 +239,7 @@ namespace Ep128Emu {
     this->reset();
     if (fileName_ == "")
       return;
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
+#ifdef WIN32
     {
       int     diskType = checkFloppyDisk(fileName_,
                                          nTracks_, nSides_, nSectorsPerTrack_);

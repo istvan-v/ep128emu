@@ -50,7 +50,7 @@
 #define Z80_FLAGS_MASK                          0x003F
 
 #ifndef CPC_LSB_FIRST
-#  if defined(__i386__) || defined(__x86_64__) || defined(_WIN32)
+#  if defined(__i386__) || defined(__x86_64__) || defined(WIN32)
 #    define CPC_LSB_FIRST 1
 #  endif
 #endif
