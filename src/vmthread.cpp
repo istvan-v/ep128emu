@@ -22,12 +22,10 @@
 #include "vm.hpp"
 #include "vmthread.hpp"
 
-#include <iostream>
-
 static void defaultErrorCallback(void *userData_, const char *msg)
 {
   (void) userData_;
-  std::cerr << "ERROR: " << msg << std::endl;
+  std::fprintf(stderr, "ERROR: %s\n", msg);
 }
 
 static void dummyErrorCallback(void *userData_, const char *msg)
