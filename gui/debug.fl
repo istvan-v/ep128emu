@@ -55,7 +55,7 @@ class Ep128EmuGUI_DebugWindow {open
   }
   decl {bool active() const;} {public
   }
-  decl {void deactivate(double tt = 0.125);} {public
+  decl {void deactivate(double tt = 0.1);} {public
   }
   decl {bool breakPoint(int type, uint16_t addr, uint8_t value);} {public
   }
