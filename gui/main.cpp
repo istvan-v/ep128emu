@@ -21,14 +21,24 @@
 #include "system.hpp"
 #include "guicolor.hpp"
 
-#include <iostream>
-#include <cmath>
+#ifdef WIN32
+#  include <windows.h>
+#endif
 
+#ifndef WIN32
 static void cfgErrorFunc(void *userData, const char *msg)
 {
   (void) userData;
-  std::cerr << "WARNING: " << msg << std::endl;
+  std::fprintf(stderr, "WARNING: %s\n", msg);
 }
+#else
+static void cfgErrorFunc(void *userData, const char *msg)
+{
+  (void) userData;
+  (void) MessageBoxA((HWND) 0, (LPCSTR) msg, (LPCSTR) "ep128emu error",
+                     MB_OK | MB_ICONWARNING);
+}
+#endif
 
 int main(int argc, char **argv)
 {
@@ -43,9 +53,14 @@ int main(int argc, char **argv)
   int       snapshotNameIndex = 0;
   int       colorScheme = 0;
   int       retval = 0;
-  bool      glEnabled = false;
+  bool      glEnabled = true;
+  bool      glCanDoSingleBuf = false;
+  bool      glCanDoDoubleBuf = false;
   bool      configLoaded = false;
 
+#ifdef WIN32
+  timeBeginPeriod(1U);
+#endif
   try {
     // find out machine type to be emulated
     for (int i = 1; i < argc; i++) {
@@ -75,27 +90,35 @@ int main(int argc, char **argv)
       else if (std::strcmp(argv[i], "-h") == 0 ||
                std::strcmp(argv[i], "-help") == 0 ||
                std::strcmp(argv[i], "--help") == 0) {
-        std::cerr << "Usage: " << argv[0] << " [OPTIONS...]" << std::endl;
-        std::cerr << "The allowed options are:" << std::endl;
-        std::cerr << "    -h | -help | --help "
-                     "print this message" << std::endl;
-        std::cerr << "    -cfg <FILENAME>     "
-                     "load ASCII format configuration file" << std::endl;
-        std::cerr << "    -snapshot <FNAME>   "
-                     "load snapshot or demo file on startup" << std::endl;
-        std::cerr << "    -opengl             "
-                     "use OpenGL video driver" << std::endl;
-        std::cerr << "    -no-opengl          "
-                     "use software video driver (this is the default)"
-                  << std::endl;
-        std::cerr << "    -colorscheme <N>    "
-                     "use GUI color scheme N (0, 1, 2, or 3)" << std::endl;
-        std::cerr << "    OPTION=VALUE        "
-                     "set configuration variable 'OPTION' to 'VALUE'"
-                  << std::endl;
-        std::cerr << "    OPTION              "
-                     "set boolean configuration variable 'OPTION' to true"
-                  << std::endl;
+        std::fprintf(stderr, "Usage: %s [OPTIONS...]\n", argv[0]);
+        std::fprintf(stderr, "The allowed options are:\n");
+        std::fprintf(stderr,
+                     "    -h | -help | --help "
+                     "print this message\n");
+        std::fprintf(stderr,
+                     "    -cfg <FILENAME>     "
+                     "load ASCII format configuration file\n");
+        std::fprintf(stderr,
+                     "    -snapshot <FNAME>   "
+                     "load snapshot or demo file on startup\n");
+        std::fprintf(stderr,
+                     "    -opengl             "
+                     "use OpenGL video driver (this is the default)\n");
+        std::fprintf(stderr,
+                     "    -no-opengl          "
+                     "use software video driver\n");
+        std::fprintf(stderr,
+                     "    -colorscheme <N>    "
+                     "use GUI color scheme N (0, 1, 2, or 3)\n");
+        std::fprintf(stderr,
+                     "    OPTION=VALUE        "
+                     "set configuration variable 'OPTION' to 'VALUE'\n");
+        std::fprintf(stderr,
+                     "    OPTION              "
+                     "set boolean configuration variable 'OPTION' to true\n");
+#ifdef WIN32
+        timeEndPeriod(1U);
+#endif
         return 0;
       }
     }
@@ -103,9 +126,15 @@ int main(int argc, char **argv)
     Fl::lock();
     Ep128Emu::setGUIColorScheme(colorScheme);
     audioOutput = new Ep128Emu::AudioOutput_PortAudio();
-    if (glEnabled)
-      w = new Ep128Emu::OpenGLDisplay(32, 32, 384, 288, "");
-    else
+    if (glEnabled) {
+      glCanDoSingleBuf = bool(Fl_Gl_Window::can_do(FL_RGB | FL_SINGLE));
+      glCanDoDoubleBuf = bool(Fl_Gl_Window::can_do(FL_RGB | FL_DOUBLE));
+      if (glCanDoSingleBuf | glCanDoDoubleBuf)
+        w = new Ep128Emu::OpenGLDisplay(32, 32, 384, 288, "");
+      else
+        glEnabled = false;
+    }
+    if (!glEnabled)
       w = new Ep128Emu::FLTKDisplay(32, 32, 384, 288, "");
     w->end();
     vm = new Ep128::Ep128VM(*(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
@@ -188,6 +217,16 @@ int main(int argc, char **argv)
         }
       }
     }
+    if (glEnabled) {
+      if (config->display.bufferingMode == 0 && !glCanDoSingleBuf) {
+        config->display.bufferingMode = 1;
+        config->displaySettingsChanged = true;
+      }
+      if (config->display.bufferingMode != 0 && !glCanDoDoubleBuf) {
+        config->display.bufferingMode = 0;
+        config->displaySettingsChanged = true;
+      }
+    }
     config->applySettings();
     if (snapshotNameIndex > 0) {
       Ep128Emu::File  f(argv[snapshotNameIndex], false);
@@ -200,10 +239,17 @@ int main(int argc, char **argv)
     gui_->run();
   }
   catch (std::exception& e) {
-    if (gui_)
+    if (gui_) {
       gui_->errorMessage(e.what());
-    else
-      std::cerr << " *** error: " << e.what() << std::endl;
+    }
+    else {
+#ifndef WIN32
+      std::fprintf(stderr, " *** error: %s\n", e.what());
+#else
+      (void) MessageBoxA((HWND) 0, (LPCSTR) e.what(), (LPCSTR) "ep128emu error",
+                         MB_OK | MB_ICONWARNING);
+#endif
+    }
     retval = -1;
   }
   if (gui_)
@@ -228,6 +274,9 @@ int main(int argc, char **argv)
     delete w;
   if (audioOutput)
     delete audioOutput;
+#ifdef WIN32
+  timeEndPeriod(1U);
+#endif
   return retval;
 }
 
