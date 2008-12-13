@@ -21,13 +21,6 @@
 #include "guicolor.hpp"
 
 #ifdef WIN32
-#  undef WIN32
-#endif
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
-#  define WIN32 1
-#endif
-
-#ifdef WIN32
 #  define WIN32_LEAN_AND_MEAN   1
 #  include <windows.h>
 #else
@@ -109,10 +102,10 @@ void Ep128EmuGUI::init_()
 void Ep128EmuGUI::updateDisplay_windowTitle()
 {
   if (oldPauseFlag) {
-    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.6 beta (paused)");
+    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.6 (paused)");
   }
   else {
-    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.6 beta (%d%%)",
+    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.6 (%d%%)",
                  int(oldSpeedPercentage));
   }
   mainWindow->label(&(windowTitleBuf[0]));
@@ -221,6 +214,8 @@ void Ep128EmuGUI::updateDisplay(double t)
     windowToShow->show();
     windowToShow = (Fl_Window *) 0;
   }
+  if (flDisplay->haveFramesPending())
+    t = t * 0.5;
   if (updateDisplayEntered) {
     // if re-entering this function:
     Fl::wait(t);
