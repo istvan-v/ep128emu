@@ -111,7 +111,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
   gui.config.sound.latency = o->value() / 1000.0;
   gui.config.soundSettingsChanged = true;
 }}
-          tooltip {Audio output latency in milliseconds; smaller values improve the responsiveness of the emulator, but may cause the sound to skip} xywh {200 56 120 23} type Horizontal color 47 selection_color 52 align 8 minimum 5 maximum 500 step 1 value 100
+          tooltip {Audio output latency in milliseconds; smaller values improve the responsiveness of the emulator, but may cause the sound to skip} xywh {200 56 120 23} type Horizontal color 47 selection_color 52 align 8 minimum 5 maximum 500 step 1 value 70
         }
         Fl_Value_Input soundHWPeriodsValuator {
           label {Hardware buffers}
@@ -120,7 +120,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
   o->value(double(gui.config.sound.hwPeriods));
   gui.config.soundSettingsChanged = true;
 }}
-          tooltip {Number of sound card buffers; click and drag to change the value} xywh {200 90 35 25} align 8 when 4 minimum 2 maximum 16 step 1 value 4
+          tooltip {Number of sound card buffers; click and drag to change the value} xywh {200 90 35 25} align 8 when 4 minimum 2 maximum 16 step 1 value 16
           code0 {o->cursor_color(Fl_Color(3));}
         }
         Fl_Value_Input soundSWPeriodsValuator {
@@ -130,7 +130,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
   o->value(double(gui.config.sound.swPeriods));
   gui.config.soundSettingsChanged = true;
 }}
-          tooltip {Number of buffers in emulator ring buffer; click and drag to change the value} xywh {200 125 35 25} align 8 when 4 minimum 2 maximum 16 step 1 value 4
+          tooltip {Number of buffers in emulator ring buffer; click and drag to change the value} xywh {200 125 35 25} align 8 when 4 minimum 2 maximum 16 step 1 value 3
           code0 {o->cursor_color(Fl_Color(3));}
         }
       }
@@ -254,6 +254,29 @@ class Ep128EmuGUI_SoundConfigWindow {open
             xywh {160 361 50 23} color 47 selection_color 15 minimum 0.001 maximum 100 step 0.001 value 0.707 textsize 10
           }
         }
+      }
+      Fl_Button {} {
+        label {Reset default settings}
+        callback {{
+  gui.config.soundSettingsChanged = true;
+  gui.config.sound.enabled = true;
+  gui.config.sound.highQuality = false;
+  gui.config.sound.device = 0;
+  gui.config.sound.sampleRate = 48000.0;
+  gui.config.sound.latency = 0.07;
+  gui.config.sound.hwPeriods = 16;
+  gui.config.sound.swPeriods = 3;
+  gui.config.sound.file.clear();
+  gui.config.sound.volume = 0.7071;
+  gui.config.sound.dcBlockFilter1Freq = 10.0;
+  gui.config.sound.dcBlockFilter2Freq = 10.0;
+  gui.config.sound.equalizer.mode = -1;
+  gui.config.sound.equalizer.frequency = 1000.0;
+  gui.config.sound.equalizer.level = 1.0;
+  gui.config.sound.equalizer.q = 0.7071;
+  updateWindow();
+}}
+        xywh {15 415 170 25} selection_color 50
       }
       Fl_Button {} {
         label Apply
