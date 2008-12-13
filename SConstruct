@@ -6,8 +6,8 @@ win32CrossCompile = 0
 linux32CrossCompile = 0
 disableSDL = 0          # set this to 1 on Linux with SDL version >= 1.2.10
 disableLua = 0
-enableDebug = 1
-buildRelease = 0
+enableDebug = 0
+buildRelease = 1
 
 compilerFlags = ''
 if buildRelease:
@@ -47,8 +47,8 @@ if win32CrossCompile:
     ep128emuLibEnvironment['LINK'] = 'wine C:/MinGW/bin/g++-sjlj.exe'
     ep128emuLibEnvironment['RANLIB'] = 'wine C:/MinGW/bin/ranlib.exe'
     ep128emuLibEnvironment.Append(LIBS = ['comdlg32', 'ole32', 'uuid',
-                                          'ws2_32', 'gdi32', 'user32',
-                                          'kernel32'])
+                                          'ws2_32', 'winmm', 'gdi32',
+                                          'user32', 'kernel32'])
     ep128emuLibEnvironment.Prepend(CCFLAGS = ['-mthreads'])
     ep128emuLibEnvironment.Prepend(LINKFLAGS = ['-mthreads'])
 

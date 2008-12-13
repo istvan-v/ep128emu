@@ -43,10 +43,11 @@ Changes in version 2.0.6
     displayed at lower quality settings (1 and 2) in OpenGL mode
   * some NICK emulation fixes (note: the timing of demos recorded with
     older emulator versions may possibly be incorrect)
-  * software video mode is the default now if the emulator is started
-    without command line arguments
-  * screenshots are saved in 256 color RLE compressed BMP format instead
-    of TGA
+  * if there is an error initializing the display in OpenGL mode on
+    Linux, the emulator will automatically switch the buffering mode, or
+    fall back to software video to fix the problem
+  * screenshots are saved in 256 color RLE compressed BMP format now,
+    instead of TGA
   * a few minor user interface improvements in the display and disk
     configuration windows
   * the process priority of the emulator can be set in the menu (this is
