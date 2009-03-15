@@ -277,6 +277,7 @@ namespace Ep128 {
     if (R.BC.W != 0) {
       Z80_FLAGS_REG = Z80_FLAGS_REG | Z80_PARITY_FLAG;
     }
+    updateCycles(3);
   }
 
   void Z80::CPD()
@@ -296,6 +297,7 @@ namespace Ep128 {
     if (R.BC.W != 0) {
       Z80_FLAGS_REG = Z80_FLAGS_REG | Z80_PARITY_FLAG;
     }
+    updateCycles(3);
   }
 
   void Z80::OUTI()
