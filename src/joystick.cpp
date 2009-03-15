@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -22,8 +22,10 @@
 #include "cfg_db.hpp"
 #include "joystick.hpp"
 
-#include <SDL/SDL.h>
-#include <cmath>
+#ifdef HAVE_SDL_H
+#  include <SDL/SDL.h>
+#  include <cmath>
+#endif
 
 namespace Ep128Emu {
 
