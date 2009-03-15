@@ -6,8 +6,8 @@ win32CrossCompile = 0
 linux32CrossCompile = 0
 disableSDL = 0          # set this to 1 on Linux with SDL version >= 1.2.10
 disableLua = 0
-enableDebug = 0
-buildRelease = 1
+enableDebug = 1
+buildRelease = 0
 
 compilerFlags = ''
 if buildRelease:

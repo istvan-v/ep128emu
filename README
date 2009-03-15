@@ -1,5 +1,5 @@
-ep128emu 2.0.6
-==============
+ep128emu 2.0.7 beta
+===================
 
 ep128emu is an open source, portable emulator of the Enterprise 128
 computer, written in C++, and supporting Windows and POSIX platforms
@@ -640,7 +640,7 @@ passed to the EXOS call.
 Copyright
 =========
 
-ep128emu is copyright (C) 2003-2008 by Istvan Varga
+ep128emu is copyright (C) 2003-2009 by Istvan Varga
 <istvanv@users.sourceforge.net>. Z80 emulation copyright (C) 1999-2003
 by Kevin Thacker and Vincze Béla György.
 
