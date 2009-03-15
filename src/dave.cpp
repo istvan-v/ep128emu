@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -242,8 +242,8 @@ namespace Ep128 {
     // store final output signal in chn3_state
     chn3_state = chn3_state2;
     if (chn3_rm_1) {
-      // ring modulation: XOR by channel 1
-      chn3_state ^= chn1_state;
+      // ring modulation: XNOR by channel 1
+      chn3_state ^= (chn1_state ^ 1);
     }
     // ---- channel 2 ----
     chn2_prv = chn2_state;                      // save previous output
@@ -265,8 +265,8 @@ namespace Ep128 {
     // store final output signal in chn2_state
     chn2_state = chn2_state1;
     if (chn2_rm_0) {
-      // ring modulation: XOR by channel 0
-      chn2_state ^= chn0_state;
+      // ring modulation: XNOR by channel 0
+      chn2_state ^= (chn0_state ^ 1);
     }
     // ---- channel 1 ----
     chn1_prv = chn1_state;                      // save previous output
@@ -288,8 +288,8 @@ namespace Ep128 {
     // store final output signal in chn1_state
     chn1_state = chn1_state1;
     if (chn1_rm_3) {
-      // ring modulation: XOR by channel 3
-      chn1_state ^= chn3_state;
+      // ring modulation: XNOR by channel 3
+      chn1_state ^= (chn3_state ^ 1);
     }
     // ---- channel 0 ----
     chn0_prv = chn0_state;                      // save previous output
@@ -311,8 +311,8 @@ namespace Ep128 {
     // store final output signal in chn0_state
     chn0_state = chn0_state1;
     if (chn0_rm_2) {
-      // ring modulation: XOR by channel 2
-      chn0_state ^= chn2_state;
+      // ring modulation: XNOR by channel 2
+      chn0_state ^= (chn2_state ^ 1);
     }
 
     // and now the final DAC output (left/right) values
@@ -502,18 +502,21 @@ namespace Ep128 {
       // sound/interrupt control register
       if ((int) value & 0x01) {
         chn0_run = 0;                     // channel 0 sync
+        chn0_state1 = 0;
         chn0_phase = chn0_frqcode;        // reset phase
       }
       else
         chn0_run = 1;
       if ((int) value & 0x02) {
         chn1_run = 0;                     // channel 1 sync
+        chn1_state1 = 0;
         chn1_phase = chn1_frqcode;        // reset phase
       }
       else
         chn1_run = 1;
       if ((int) value & 0x04) {
         chn2_run = 0;                     // channel 2 sync
+        chn2_state1 = 0;
         chn2_phase = chn2_frqcode;        // reset phase
       }
       else
