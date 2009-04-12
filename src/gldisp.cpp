@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -865,7 +865,6 @@ namespace Ep128Emu {
           if ((lineNum & 1) == int(prvFrameWasOdd) &&
               lineBuffers[lineNum ^ 1] != (Message_LineData *) 0) {
             // non-interlaced mode: clear any old lines in the other field
-            linesChanged[lineNum >> 1] = true;
             deleteMessage(lineBuffers[lineNum ^ 1]);
             lineBuffers[lineNum ^ 1] = (Message_LineData *) 0;
           }
@@ -873,13 +872,16 @@ namespace Ep128Emu {
             if (!displayParameters.bufferingMode) {
               // check if this line has changed
               int     lineNum_ = (lineNum & (~(int(1)))) | int(prvFrameWasOdd);
-              if (lineBuffers[lineNum_]) {
-                if (*(lineBuffers[lineNum_]) == *msg) {
+              if (lineBuffers[lineNum_] != (Message_LineData *) 0 &&
+                  *(lineBuffers[lineNum_]) == *msg) {
+                if (lineNum == lineNum_) {
                   deleteMessage(m);
                   continue;
                 }
               }
-              linesChanged[lineNum >> 1] = true;
+              else {
+                linesChanged[lineNum >> 1] = true;
+              }
             }
           }
           if (lineBuffers[lineNum])
