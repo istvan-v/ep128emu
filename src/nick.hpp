@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -68,23 +68,32 @@ namespace Ep128 {
     static NickTables t;
     NickLPB&  lpb;
     const uint8_t *videoMemory;
-    inline void renderByte2ColorsL(uint8_t*& buf_, uint8_t b1,
-                                   uint8_t paletteOffset);
-    inline void renderByte4ColorsL(uint8_t*& buf_, uint8_t b1,
-                                   uint8_t paletteOffset);
-    inline void renderByte16ColorsL(uint8_t*& buf_, uint8_t b1);
-    inline void renderByte256ColorsL(uint8_t*& buf_, uint8_t b1);
-    inline void renderBytes2Colors(uint8_t*& buf_,
-                                   uint8_t b1, uint8_t b2,
-                                   uint8_t paletteOffset1,
-                                   uint8_t paletteOffset2);
-    inline void renderBytes4Colors(uint8_t*& buf_,
-                                   uint8_t b1, uint8_t b2,
-                                   uint8_t paletteOffset1,
-                                   uint8_t paletteOffset2);
-    inline void renderBytes16Colors(uint8_t*& buf_, uint8_t b1, uint8_t b2);
-    inline void renderBytes256Colors(uint8_t*& buf_, uint8_t b1, uint8_t b2);
-    inline void renderBytesAttribute(uint8_t*& buf_, uint8_t b1, uint8_t attr);
+    EP128EMU_INLINE void renderByte2ColorsL(uint8_t*& buf_, uint8_t b1,
+                                            uint8_t paletteOffset);
+    EP128EMU_INLINE void renderByte4ColorsL(uint8_t*& buf_, uint8_t b1,
+                                            uint8_t paletteOffset);
+    EP128EMU_INLINE void renderByte16ColorsL(uint8_t*& buf_, uint8_t b1);
+    EP128EMU_INLINE void renderByte16ColorsL(uint8_t*& buf_, uint8_t b1,
+                                             uint8_t paletteOffset);
+    EP128EMU_INLINE void renderByte256ColorsL(uint8_t*& buf_, uint8_t b1);
+    EP128EMU_INLINE void renderBytes2Colors(uint8_t*& buf_,
+                                            uint8_t b1, uint8_t b2,
+                                            uint8_t paletteOffset1,
+                                            uint8_t paletteOffset2);
+    EP128EMU_INLINE void renderBytes4Colors(uint8_t*& buf_,
+                                            uint8_t b1, uint8_t b2,
+                                            uint8_t paletteOffset1,
+                                            uint8_t paletteOffset2);
+    EP128EMU_INLINE void renderBytes16Colors(uint8_t*& buf_,
+                                             uint8_t b1, uint8_t b2);
+    EP128EMU_INLINE void renderBytes16Colors(uint8_t*& buf_,
+                                             uint8_t b1, uint8_t b2,
+                                             uint8_t paletteOffset1,
+                                             uint8_t paletteOffset2);
+    EP128EMU_INLINE void renderBytes256Colors(uint8_t*& buf_,
+                                              uint8_t b1, uint8_t b2);
+    EP128EMU_INLINE void renderBytesAttribute(uint8_t*& buf_,
+                                              uint8_t b1, uint8_t attr);
    public:
     NickRenderer(NickLPB& lpb_, const uint8_t *videoMemory_)
       : lpb(lpb_), videoMemory(videoMemory_)
@@ -94,7 +103,7 @@ namespace Ep128 {
     {
     }
     // render 16 pixels to 'buf'; called 46 times per line
-    virtual EP128EMU_REGPARM3 void doRender(uint8_t*& buf) = 0;
+    virtual EP128EMU_REGPARM2 void doRender(uint8_t*& buf) = 0;
   };
 
 #ifdef DECLARE_RENDERER
@@ -106,10 +115,11 @@ class x : public NickRenderer {                 \
   x(NickLPB& lpb_, const uint8_t *videoMemory_) \
     : NickRenderer(lpb_, videoMemory_) { }      \
   virtual ~x() { }                              \
-  virtual EP128EMU_REGPARM3 void doRender(uint8_t*& buf);   \
+  virtual EP128EMU_REGPARM2 void doRender(uint8_t*& buf);   \
 }
 
   DECLARE_RENDERER(NickRenderer_Blank);
+  DECLARE_RENDERER(NickRenderer_Generic);
   DECLARE_RENDERER(NickRenderer_PIXEL_2);
   DECLARE_RENDERER(NickRenderer_PIXEL_2_LSBALT);
   DECLARE_RENDERER(NickRenderer_PIXEL_2_MSBALT);
@@ -136,7 +146,6 @@ class x : public NickRenderer {                 \
   DECLARE_RENDERER(NickRenderer_CH64_4_ALTIND0);
   DECLARE_RENDERER(NickRenderer_CH64_16);
   DECLARE_RENDERER(NickRenderer_CH64_256);
-  DECLARE_RENDERER(NickRenderer_INVALID_MODE);
   DECLARE_RENDERER(NickRenderer_LPIXEL_2);
   DECLARE_RENDERER(NickRenderer_LPIXEL_2_LSBALT);
   DECLARE_RENDERER(NickRenderer_LPIXEL_2_MSBALT);
