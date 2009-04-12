@@ -1,5 +1,5 @@
 # data file for the Fltk User Interface Designer (fluid)
-version 1.0107 
+version 1.0109 
 do_not_include_H_from_C 
 header_name {.hpp} 
 code_name {.cpp}
@@ -13,6 +13,8 @@ decl {\#include "tapeio.hpp"} {}
 decl {\#include <FL/Fl_Hold_Browser.H>} {} 
 
 decl {\#include <FL/Fl_File_Chooser.H>} {} 
+
+decl {\#include <FL/Fl_Native_File_Chooser.H>} {} 
 
 decl {\#include <FL/Fl_Text_Buffer.H>} {} 
 
@@ -129,19 +131,15 @@ class TapeEditorGUI {open
     fname = "";
   if (!title)
     title = "Select file";
-  Fl_File_Chooser *w = new Fl_File_Chooser(fname, (char *) 0,
-                                           (createFlag ? Fl_File_Chooser::CREATE
-                                                         : Fl_File_Chooser::SINGLE),
-                                           title);
-  w->show();
-  if (createFlag)
-    w->value(fname);
-  do {
-    Fl::wait(0.05);
-  } while (w->shown());
+  Fl_Native_File_Chooser *w = new Fl_Native_File_Chooser();
+  w->type(createFlag ? Fl_Native_File_Chooser::BROWSE_SAVE_FILE
+                       : Fl_Native_File_Chooser::BROWSE_FILE);
+  w->title(title);
+  if (fname[0] != '\\0')
+    w->preset_file(fname);
   std::string retval("");
-  if (w->value() != (char *) 0) {
-    retval = w->value();
+  if (w->show() == 0) {
+    retval = w->filename();
     Ep128Emu::stripString(retval);
   }
   delete w;
@@ -161,7 +159,7 @@ class TapeEditorGUI {open
   soundFileMaxFreq = 3000.0f;
   copyrightText = new Fl_Text_Buffer;
   copyrightText->append("ep128emu -- portable Enterprise 128 emulator\\n");
-  copyrightText->append("Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>\\n");
+  copyrightText->append("Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>\\n");
   copyrightText->append("http://sourceforge.net/projects/ep128emu/\\n");
   copyrightText->append("Z80 emulation is based on ENTER emulator, Copyright (C) 1999-2001 by\\n");
   copyrightText->append("Kevin Thacker, and ep32 (C) by Vincze B\\351la Gy\\366rgy.\\n");
