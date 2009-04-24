@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -129,7 +129,6 @@ namespace Ep128 {
     int64_t   nickCyclesRemaining;      // in 2^-32 NICK cycle units
     int64_t   cpuCyclesPerNickCycle;    // in 2^-32 Z80 cycle units
     int64_t   cpuCyclesRemaining;       // in 2^-32 Z80 cycle units
-    int64_t   cpuSyncToNickCnt;         // in 2^-32 Z80 cycle units
     int64_t   daveCyclesPerNickCycle;   // in 2^-32 DAVE cycle units
     int64_t   daveCyclesRemaining;      // in 2^-32 DAVE cycle units
     uint8_t   memoryWaitMode;           // set on write to port 0xBF
@@ -144,6 +143,7 @@ namespace Ep128 {
     bool      isRemote2On;
     bool      videoCaptureHSyncFlag;
     uint32_t  soundOutputSignal;
+    uint32_t  externalDACOutput;
     Ep128Emu::File  *demoFile;
     // contains demo data, which is the emulator version number as a 32-bit
     // integer ((MAJOR << 16) + (MINOR << 8) + PATCHLEVEL), followed by a
@@ -185,10 +185,11 @@ namespace Ep128 {
     Ep128VMCallback   callbacks[16];
     Ep128VMCallback   *firstCallback;
     Ep128Emu::VideoCapture  *videoCapture;
+    uint8_t   externalDACIOPorts[4];
     // ----------------
     void updateTimingParameters();
     inline void updateCPUCycles(int cycles);
-    inline void videoMemoryWait();
+    EP128EMU_REGPARM1 void videoMemoryWait();
     static uint8_t davePortReadCallback(void *userData, uint16_t addr);
     static void davePortWriteCallback(void *userData,
                                       uint16_t addr, uint8_t value);
@@ -204,6 +205,9 @@ namespace Ep128 {
                                                   uint16_t addr);
     static void spectrumEmulatorIOWriteCallback(void *userData,
                                                 uint16_t addr, uint8_t value);
+    static uint8_t externalDACIOReadCallback(void *userData, uint16_t addr);
+    static void externalDACIOWriteCallback(void *userData,
+                                           uint16_t addr, uint8_t value);
     static uint8_t cmosMemoryIOReadCallback(void *userData, uint16_t addr);
     static void cmosMemoryIOWriteCallback(void *userData,
                                           uint16_t addr, uint8_t value);

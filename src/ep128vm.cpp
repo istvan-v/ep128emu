@@ -66,19 +66,28 @@ namespace Ep128 {
   inline void Ep128VM::updateCPUCycles(int cycles)
   {
     cpuCyclesRemaining -= (int64_t(cycles) << 32);
-    if (memoryTimingEnabled) {
-      while (cpuSyncToNickCnt >= cpuCyclesRemaining)
-        cpuSyncToNickCnt -= cpuCyclesPerNickCycle;
-    }
   }
 
-  inline void Ep128VM::videoMemoryWait()
+  EP128EMU_REGPARM1 void Ep128VM::videoMemoryWait()
   {
+    int64_t cpuSyncToNickCnt = 0L;
+    if (cpuCyclesRemaining > 0L) {
+      while (true) {
+        int64_t tmp = cpuSyncToNickCnt + cpuCyclesPerNickCycle;
+        if (tmp >= cpuCyclesRemaining)
+          break;
+        cpuSyncToNickCnt = tmp;
+      }
+    }
+    else {
+      do {
+        cpuSyncToNickCnt -= cpuCyclesPerNickCycle;
+      } while (cpuSyncToNickCnt >= cpuCyclesRemaining);
+    }
     // use a fixed latency setting of 0.5625 Z80 cycles
     cpuCyclesRemaining -= (((cpuCyclesRemaining - cpuSyncToNickCnt)
                             + (int64_t(0xC8000000UL) << 1))
                            & (int64_t(-1) - int64_t(0xFFFFFFFFUL)));
-    cpuSyncToNickCnt -= cpuCyclesPerNickCycle;
   }
 
   Ep128VM::Z80_::Z80_(Ep128VM& vm_)
@@ -284,9 +293,6 @@ namespace Ep128 {
   void Ep128VM::Z80_::updateCycle()
   {
     vm.cpuCyclesRemaining -= (int64_t(1) << 32);
-    // assume cpuFrequency > nickFrequency
-    if (vm.cpuSyncToNickCnt >= vm.cpuCyclesRemaining)
-      vm.cpuSyncToNickCnt -= vm.cpuCyclesPerNickCycle;
   }
 
   void Ep128VM::Z80_::updateCycles(int cycles)
@@ -711,7 +717,6 @@ namespace Ep128 {
     else
       tapeSamplesPerNickCycle = 0;
     cpuCyclesRemaining = 0;
-    cpuSyncToNickCnt = 0;
     if (videoCapture)
       videoCapture->setClockFrequency(nickFrequency);
   }
@@ -865,6 +870,9 @@ namespace Ep128 {
         vm.spectrumEmulatorIOPorts[3] = 0x3F;
         vm.z80.NMI_();
       }
+      else {
+        return vm.externalDACIOReadCallback(userData, addr);
+      }
       break;
     }
     return 0xFF;
@@ -894,7 +902,39 @@ namespace Ep128 {
         vm.spectrumEmulatorIOPorts[3] = 0x9F;
         vm.z80.NMI_();
       }
+      else {
+        vm.externalDACIOWriteCallback(userData, addr, value);
+      }
       break;
+    }
+  }
+
+  uint8_t Ep128VM::externalDACIOReadCallback(void *userData, uint16_t addr)
+  {
+#if 0
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    if (!vm.spectrumEmulatorEnabled)
+      return vm.externalDACIOPorts[addr & 3];
+#else
+    (void) userData;
+    (void) addr;
+#endif
+    return 0xFF;
+  }
+
+  void Ep128VM::externalDACIOWriteCallback(void *userData,
+                                           uint16_t addr, uint8_t value)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    if (!vm.spectrumEmulatorEnabled) {
+      if (value != vm.externalDACIOPorts[addr & 3]) {
+        vm.externalDACIOPorts[addr & 3] = value;
+        vm.externalDACOutput =
+            (uint32_t(vm.externalDACIOPorts[0])
+             + uint32_t(vm.externalDACIOPorts[1])
+             + ((uint32_t(vm.externalDACIOPorts[2])
+                 + uint32_t(vm.externalDACIOPorts[3])) << 16U)) * 45U;
+      }
     }
   }
 
@@ -1009,7 +1049,7 @@ namespace Ep128 {
       vm.videoCapture->horizontalSync();
     }
     vm.videoCapture->runOneCycle(vm.nick.getVideoOutput(),
-                                 vm.soundOutputSignal);
+                                 vm.soundOutputSignal + vm.externalDACOutput);
   }
 
   uint8_t Ep128VM::checkSingleStepModeBreak()
@@ -1219,7 +1259,6 @@ namespace Ep128 {
       nickCyclesRemaining(0),
       cpuCyclesPerNickCycle(0),
       cpuCyclesRemaining(0),
-      cpuSyncToNickCnt(0),
       daveCyclesPerNickCycle(0),
       daveCyclesRemaining(0),
       memoryWaitMode(1),
@@ -1233,6 +1272,7 @@ namespace Ep128 {
       isRemote2On(false),
       videoCaptureHSyncFlag(false),
       soundOutputSignal(0U),
+      externalDACOutput(0U),
       demoFile((Ep128Emu::File *) 0),
       demoBuffer(),
       isRecordingDemo(false),
@@ -1255,6 +1295,7 @@ namespace Ep128 {
     for (size_t i = 0; i < 4; i++) {
       pageTable[i] = 0x00;
       spectrumEmulatorIOPorts[i] = 0xFF;
+      externalDACIOPorts[i] = 0x00;
     }
     updateTimingParameters();
     // register I/O callbacks
@@ -1290,6 +1331,12 @@ namespace Ep128 {
       ioPorts.setDebugReadCallback(i, i,
                                    &exdosPortDebugReadCallback, this, i & 0x14);
     }
+    ioPorts.setReadCallback(0xFC, 0xFF,
+                            &externalDACIOReadCallback, this, 0xFC);
+    ioPorts.setDebugReadCallback(0xFC, 0xFF,
+                                 &externalDACIOReadCallback, this, 0xFC);
+    ioPorts.setWriteCallback(0xFC, 0xFF,
+                             &externalDACIOWriteCallback, this, 0xFC);
     ioPorts.setReadCallback(0x40, 0x43,
                             &spectrumEmulatorIOReadCallback, this, 0x00);
     ioPorts.setDebugReadCallback(0x40, 0x43,
@@ -1361,10 +1408,9 @@ namespace Ep128 {
       while (daveCyclesRemaining >= 0) {
         daveCyclesRemaining -= (int64_t(1) << 32);
         soundOutputSignal = dave.runOneCycle();
-        sendAudioOutput(soundOutputSignal);
+        sendAudioOutput(soundOutputSignal + externalDACOutput);
       }
       cpuCyclesRemaining += cpuCyclesPerNickCycle;
-      cpuSyncToNickCnt += cpuCyclesPerNickCycle;
       while (cpuCyclesRemaining > 0)
         z80.executeInstruction();
       nick.runOneSlot();
@@ -1389,8 +1435,11 @@ namespace Ep128 {
     floppyDrives[2].reset();
     floppyDrives[3].reset();
     ioPorts.writeDebug(0x44, 0x00);     // disable Spectrum emulator
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 4; i++) {
       spectrumEmulatorIOPorts[i] = 0xFF;
+      externalDACIOPorts[i] = 0x00;
+    }
+    externalDACOutput = 0U;
     cmosMemoryRegisterSelect = 0xFF;
     if (isColdReset) {
       nick.randomizeRegisters();
@@ -1518,7 +1567,6 @@ namespace Ep128 {
       stopDemoRecording(false); // any demo playback or recording
       memoryTimingEnabled = isEnabled;
       cpuCyclesRemaining = 0;
-      cpuSyncToNickCnt = 0;
     }
   }
 
@@ -1942,7 +1990,7 @@ namespace Ep128 {
     {
       Ep128Emu::File::Buffer  buf;
       buf.setPosition(0);
-      buf.writeUInt32(0x01000001);      // version number
+      buf.writeUInt32(0x01000002);      // version number
       buf.writeByte(memory.getPage(0));
       buf.writeByte(memory.getPage(1));
       buf.writeByte(memory.getPage(2));
@@ -1951,10 +1999,8 @@ namespace Ep128 {
       buf.writeUInt32(uint32_t(cpuFrequency));
       buf.writeUInt32(uint32_t(daveFrequency));
       buf.writeUInt32(uint32_t(nickFrequency));
-      buf.writeUInt32(62U);     // video memory latency for compatibility only
       buf.writeBoolean(memoryTimingEnabled);
       buf.writeInt64(cpuCyclesRemaining);
-      buf.writeInt64(cpuSyncToNickCnt);
       buf.writeInt64(daveCyclesRemaining + int64_t(1)); // +1 for compatibility
       buf.writeBoolean(spectrumEmulatorEnabled);
       for (int i = 0; i < 4; i++)
@@ -2034,9 +2080,9 @@ namespace Ep128 {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
-    if (version != 0x01000001 && version != 0x01000000) {
+    if (!(version >= 0x01000000 && version <= 0x01000002)) {
       buf.setPosition(buf.getDataSize());
-      throw Ep128Emu::Exception("incompatible ep128 snapshot format");
+      throw Ep128Emu::Exception("incompatible ep128 snapshot version");
     }
     isRemote1On = false;
     isRemote2On = false;
@@ -2068,24 +2114,23 @@ namespace Ep128 {
       uint32_t  tmpCPUFrequency = buf.readUInt32();
       uint32_t  tmpDaveFrequency = buf.readUInt32();
       uint32_t  tmpNickFrequency = buf.readUInt32();
-      uint32_t  tmpVideoMemoryLatency = buf.readUInt32();
-      (void) tmpVideoMemoryLatency;
+      if (version < 0x01000002)
+        (void) buf.readUInt32();                // was videoMemoryLatency
       bool      tmpMemoryTimingEnabled = buf.readBoolean();
-      int64_t   tmp[3];
+      int64_t   tmp[2];
       tmp[0] = buf.readInt64();
+      if (version < 0x01000002)
+        (void) buf.readInt64();                 // was cpuSyncToNickCnt
       tmp[1] = buf.readInt64();
-      tmp[2] = buf.readInt64();
       if (tmpCPUFrequency == cpuFrequency &&
           tmpDaveFrequency == daveFrequency &&
           tmpNickFrequency == nickFrequency &&
           tmpMemoryTimingEnabled == memoryTimingEnabled) {
         cpuCyclesRemaining = tmp[0];
-        cpuSyncToNickCnt = tmp[1];
-        daveCyclesRemaining = tmp[2] - int64_t(1);      // -1 for compatibility
+        daveCyclesRemaining = tmp[1] - int64_t(1);      // -1 for compatibility
       }
       else {
         cpuCyclesRemaining = 0;
-        cpuSyncToNickCnt = 0;
         daveCyclesRemaining = 0;
       }
       if (version == 0x01000001) {
