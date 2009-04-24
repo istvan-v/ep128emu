@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -220,7 +220,7 @@ namespace Ep128Emu {
     else if (ampScale_ > 0.99f)
       ampScale = 1.17f;
     else
-      ampScale = 0.017f;
+      ampScale = 0.0117f;
   }
 
   void AudioConverterLowQuality::sendInputSignal(uint32_t audioInput)
