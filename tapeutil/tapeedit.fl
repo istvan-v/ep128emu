@@ -124,23 +124,52 @@ class TapeEditorGUI {open
   updateFlag = false;
 }} {}
   }
-  Function {browseFile(bool createFlag = false, const char *title = (char *) 0, const char *fname = (char *) 0)} {open return_type {std::string}
+  Function {browseFile(std::string& fileName, std::string& dirName, const char *pattern = (char *) 0, bool createFlag = false, const char *title = (char *) 0)} {open return_type bool
   } {
     code {{
-  if (!fname)
-    fname = "";
+  bool    retval = false;
   if (!title)
     title = "Select file";
-  Fl_Native_File_Chooser *w = new Fl_Native_File_Chooser();
-  w->type(createFlag ? Fl_Native_File_Chooser::BROWSE_SAVE_FILE
-                       : Fl_Native_File_Chooser::BROWSE_FILE);
-  w->title(title);
-  if (fname[0] != '\\0')
-    w->preset_file(fname);
-  std::string retval("");
-  if (w->show() == 0) {
-    retval = w->filename();
-    Ep128Emu::stripString(retval);
+  Fl_Native_File_Chooser  *w = new Fl_Native_File_Chooser();
+  try {
+    w->type(createFlag ? Fl_Native_File_Chooser::BROWSE_SAVE_FILE
+                         : Fl_Native_File_Chooser::BROWSE_FILE);
+    w->title(title);
+    if (pattern)
+      w->filter(pattern);
+    w->directory(dirName.c_str());
+    {
+      std::string tmp;
+      std::string tmp2;
+      Ep128Emu::splitPath(fileName, tmp2, tmp);
+\#if !(defined(WIN32) || defined(__APPLE__))
+      if (dirName.length() > 0) {
+        tmp2 = dirName;
+        if (dirName[dirName.length() - 1] != '/' &&
+            dirName[dirName.length() - 1] != '\\\\') {
+          tmp2 += '/';
+        }
+        tmp2 += tmp;
+        tmp = tmp2;
+      }
+\#endif
+      w->preset_file(tmp.c_str());
+    }
+    fileName.clear();
+    if (w->show() == 0) {
+      const char  *s = w->filename();
+      if (s != (char *) 0) {
+        fileName = s;
+        Ep128Emu::stripString(fileName);
+        std::string tmp;
+        Ep128Emu::splitPath(fileName, dirName, tmp);
+        retval = true;
+      }
+    }
+  }
+  catch (...) {
+    delete w;
+    throw;
   }
   delete w;
   return retval;
@@ -157,6 +186,8 @@ class TapeEditorGUI {open
   soundFileChannel = 0;
   soundFileMinFreq = 600.0f;
   soundFileMaxFreq = 3000.0f;
+  tapeDir = ".";
+  fileDir = ".";
   copyrightText = new Fl_Text_Buffer;
   copyrightText->append("ep128emu -- portable Enterprise 128 emulator\\n");
   copyrightText->append("Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>\\n");
@@ -380,10 +411,8 @@ class TapeEditorGUI {open
         label {Load...}
         callback {if (!busyFlag) {
   busyFlag = true;
-  std::string fname = browseFile(false, "Select tape image file", tapeDir.c_str());
-  if (fname != "") {
-    std::string tmp;
-    Ep128Emu::splitPath(fname, tapeDir, tmp);
+  std::string fname;
+  if (browseFile(fname, tapeDir, (char *) 0, false, "Select tape image file")) {
     progressWindow->show();
     exitFlag = false;
     try {
@@ -412,12 +441,10 @@ class TapeEditorGUI {open
         label {Import...}
         callback {if (!busyFlag) {
   busyFlag = true;
-  std::string fname = browseFile(false, "Select file", fileDir.c_str());
-  if (fname != "") {
+  std::string fname;
+  if (browseFile(fname, fileDir, (char *) 0, false, "Select file")) {
     exitFlag = false;
     try {
-      std::string tmp;
-      Ep128Emu::splitPath(fname, fileDir, tmp);
       fileList.importFile(fname.c_str());
     }
     catch (std::exception& e) {
@@ -533,10 +560,8 @@ class TapeEditorGUI {open
   int   n = fileSelected;
   busyFlag = true;
   try {
-    std::string tmp = fileDir + fileList[n]->getFileName();
-    std::string fname = browseFile(true, "Select output file", tmp.c_str());
-    if (fname != "") {
-      Ep128Emu::splitPath(fname, fileDir, tmp);
+    std::string fname = fileList[n]->getFileName();
+    if (browseFile(fname, fileDir, (char *) 0, true, "Select output file")) {
       if (!fileList.exportFile(n, fname.c_str(), false)) {
         overwriteFlag = false;
         overwriteWindow->show();
@@ -566,11 +591,9 @@ class TapeEditorGUI {open
         label {Save...}
         callback {if (!busyFlag) {
   busyFlag = true;
-  std::string fname = browseFile(true, "Select tape image file", tapeDir.c_str());
-  if (fname != "") {
+  std::string fname;
+  if (browseFile(fname, tapeDir, (char *) 0, true, "Select tape image file")) {
     try {
-      std::string tmp;
-      Ep128Emu::splitPath(fname, tapeDir, tmp);
       if (!fileList.writeTapeImage(fname.c_str(), false)) {
         overwriteFlag = false;
         overwriteWindow->show();
