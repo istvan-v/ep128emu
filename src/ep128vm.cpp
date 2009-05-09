@@ -870,9 +870,6 @@ namespace Ep128 {
         vm.spectrumEmulatorIOPorts[3] = 0x3F;
         vm.z80.NMI_();
       }
-      else {
-        return vm.externalDACIOReadCallback(userData, addr);
-      }
       break;
     }
     return 0xFF;
@@ -902,9 +899,6 @@ namespace Ep128 {
         vm.spectrumEmulatorIOPorts[3] = 0x9F;
         vm.z80.NMI_();
       }
-      else {
-        vm.externalDACIOWriteCallback(userData, addr, value);
-      }
       break;
     }
   }
@@ -913,8 +907,7 @@ namespace Ep128 {
   {
 #if 0
     Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
-    if (!vm.spectrumEmulatorEnabled)
-      return vm.externalDACIOPorts[addr & 3];
+    return vm.externalDACIOPorts[addr & 3];
 #else
     (void) userData;
     (void) addr;
@@ -926,15 +919,13 @@ namespace Ep128 {
                                            uint16_t addr, uint8_t value)
   {
     Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
-    if (!vm.spectrumEmulatorEnabled) {
-      if (value != vm.externalDACIOPorts[addr & 3]) {
-        vm.externalDACIOPorts[addr & 3] = value;
-        vm.externalDACOutput =
-            (uint32_t(vm.externalDACIOPorts[0])
-             + uint32_t(vm.externalDACIOPorts[1])
-             + ((uint32_t(vm.externalDACIOPorts[2])
-                 + uint32_t(vm.externalDACIOPorts[3])) << 16U)) * 45U;
-      }
+    if (value != vm.externalDACIOPorts[addr & 3]) {
+      vm.externalDACIOPorts[addr & 3] = value;
+      vm.externalDACOutput =
+          (uint32_t(vm.externalDACIOPorts[0])
+           + uint32_t(vm.externalDACIOPorts[1])
+           + ((uint32_t(vm.externalDACIOPorts[2])
+               + uint32_t(vm.externalDACIOPorts[3])) << 16U)) * 45U;
     }
   }
 
@@ -1331,12 +1322,6 @@ namespace Ep128 {
       ioPorts.setDebugReadCallback(i, i,
                                    &exdosPortDebugReadCallback, this, i & 0x14);
     }
-    ioPorts.setReadCallback(0xFC, 0xFF,
-                            &externalDACIOReadCallback, this, 0xFC);
-    ioPorts.setDebugReadCallback(0xFC, 0xFF,
-                                 &externalDACIOReadCallback, this, 0xFC);
-    ioPorts.setWriteCallback(0xFC, 0xFF,
-                             &externalDACIOWriteCallback, this, 0xFC);
     ioPorts.setReadCallback(0x40, 0x43,
                             &spectrumEmulatorIOReadCallback, this, 0x00);
     ioPorts.setDebugReadCallback(0x40, 0x43,
@@ -1347,6 +1332,12 @@ namespace Ep128 {
                             &spectrumEmulatorIOReadCallback, this, 0x00);
     ioPorts.setWriteCallback(0xFE, 0xFE,
                              &spectrumEmulatorIOWriteCallback, this, 0x00);
+    ioPorts.setReadCallback(0xF0, 0xF3,
+                            &externalDACIOReadCallback, this, 0xF0);
+    ioPorts.setDebugReadCallback(0xF0, 0xF3,
+                                 &externalDACIOReadCallback, this, 0xF0);
+    ioPorts.setWriteCallback(0xF0, 0xF3,
+                             &externalDACIOWriteCallback, this, 0xF0);
     ioPorts.setReadCallback(0x7E, 0x7F, &cmosMemoryIOReadCallback, this, 0x7E);
     ioPorts.setDebugReadCallback(0x7E, 0x7F,
                                  &cmosMemoryIOReadCallback, this, 0x7E);
@@ -2133,7 +2124,7 @@ namespace Ep128 {
         cpuCyclesRemaining = 0;
         daveCyclesRemaining = 0;
       }
-      if (version == 0x01000001) {
+      if (version >= 0x01000001) {
         ioPorts.writeDebug(0x44, uint8_t(buf.readBoolean()) << 7);
         for (int i = 0; i < 4; i++)
           spectrumEmulatorIOPorts[i] = buf.readByte();
