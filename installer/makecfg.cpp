@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -252,8 +252,8 @@ class Ep128EmuMachineConfiguration {
 // bit 41:    genmon.rom at segments 42h..43h
 // bit 42:    heassekn.rom at segments 12h..13h
 // bit 43:    heass10uk.rom at segments 12h..13h
-// bit 44:    iview.rom at segment 30h
-// bit 45:    iview.rom at segment 40h
+// bit 44:    iview.rom at segments 30h..31h
+// bit 45:    iview.rom at segments 40h..41h
 // bit 46:    lisp.rom at segment 32h
 // bit 47:    pascal11.rom at segments 22h..23h
 // bit 48:    pasians.rom at segments 40h..43h
@@ -430,8 +430,8 @@ static const unsigned long romFileSegments[58] = {
   0x4243FFFFUL,         // genmon.rom
   0x1213FFFFUL,         // heassekn.rom
   0x1213FFFFUL,         // heass10uk.rom
-  0x30FFFFFFUL,         // iview.rom
-  0x40FFFFFFUL,         // iview.rom
+  0x3031FFFFUL,         // iview.rom
+  0x4041FFFFUL,         // iview.rom
   0x32FFFFFFUL,         // lisp.rom
   0x2223FFFFUL,         // pascal11.rom
   0x40414243UL,         // pasians.rom
