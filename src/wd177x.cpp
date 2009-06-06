@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -372,9 +372,10 @@ namespace Ep128Emu {
       bool    u = ((n & 0x10) != 0);    // update flag
       (void) r;
       (void) h;
-      // set busy flag; reset CRC, seek error, data request, and IRQ
+      // set motor on and busy flag
+      // reset CRC, seek error, data request, and IRQ
       dataRequestFlag = false;
-      statusRegister = 0x21;
+      statusRegister = 0xA1;
       ledStateCounter = ledStateCount1;
       if (interruptRequestFlag) {
         interruptRequestFlag = false;
@@ -434,10 +435,10 @@ namespace Ep128Emu {
       (void) a0;
       (void) e;
       (void) m;
-      // set busy flag; reset data request, lost data, record not found,
-      // and interrupt request
+      // set motor on and busy flag
+      // reset data request, lost data, record not found, and interrupt request
       dataRequestFlag = false;
-      statusRegister = 0x01;
+      statusRegister = 0x81;
       ledStateCounter = ledStateCount1;
       if (interruptRequestFlag) {
         interruptRequestFlag = false;
@@ -486,10 +487,10 @@ namespace Ep128Emu {
       (void) p;
       (void) e;
       (void) h;
-      // set busy flag; reset data request, lost data, record not found,
-      // and interrupt request
+      // set motor on and busy flag
+      // reset data request, lost data, record not found, and interrupt request
       dataRequestFlag = false;
-      statusRegister = 0x01;
+      statusRegister = 0x81;
       ledStateCounter = ledStateCount1;
       if (interruptRequestFlag) {
         interruptRequestFlag = false;
@@ -579,8 +580,6 @@ namespace Ep128Emu {
     uint8_t n = statusRegister;
     if (isWD1773)
       n = n & 0x7F;             // always ready
-    else
-      n = n | 0x80;             // motor is always on
     if (busyFlagHackEnabled) {
       busyFlagHack = !busyFlagHack;
       if (busyFlagHack)
@@ -856,8 +855,6 @@ namespace Ep128Emu {
     uint8_t n = statusRegister;
     if (isWD1773)
       n = n & 0x7F;             // always ready
-    else
-      n = n | 0x80;             // motor is always on
     return n;
   }
 
@@ -1026,6 +1023,8 @@ namespace Ep128Emu {
 
   uint8_t WD177x::getLEDState_()
   {
+    if (ledStateCounter == 0U)
+      return 0x00;
     if (ledStateCounter > ledStateCount1) {
       if (!trackDirtyFlag) {
         ledStateCounter = 0U;
@@ -1039,20 +1038,18 @@ namespace Ep128Emu {
       }
       return 0x01;
     }
-    if (ledStateCounter > 0U) {
-      if (statusRegister & 0x01) {
-        ledStateCounter = ledStateCount1;
-      }
-      else if (--ledStateCounter == 0U) {
-        if (trackDirtyFlag) {
-          ledStateCounter = ledStateCount2;
-          return 0x01;
-        }
-        return 0x00;
-      }
-      return 0x03;
+    if (statusRegister & 0x01) {
+      ledStateCounter = ledStateCount1;
     }
-    return 0x00;
+    else if (--ledStateCounter == 0U) {
+      statusRegister = statusRegister & 0x7F;   // reset motor on flag
+      if (trackDirtyFlag) {
+        ledStateCounter = ledStateCount2;
+        return 0x01;
+      }
+      return 0x00;
+    }
+    return 0x03;
   }
 
   uint16_t WD177x::calculateCRC(const uint8_t *buf, size_t nBytes, uint16_t n)
