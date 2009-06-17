@@ -187,6 +187,7 @@ class Ep128EmuMachineConfiguration {
     unsigned int  videoClockFrequency;
     unsigned int  soundClockFrequency;
     bool          enableMemoryTimingEmulation;
+    bool          enableFileIO;
   } vm;
   struct {
     struct {
@@ -204,6 +205,9 @@ class Ep128EmuMachineConfiguration {
     // ROM files can be loaded to segments 0x00 to 0x07, 0x10 to 0x13,
     // 0x20 to 0x23, 0x30 to 0x33, and 0x40 to 0x43
     ROMSegmentConfig  rom[68];
+    // epmemcfg format configuration file (if specified, the RAM/ROM settings
+    // above are ignored)
+    std::string       configFile;
   } memory;
  public:
   Ep128EmuMachineConfiguration(Ep128Emu::ConfigurationDB& config, int n,
@@ -690,9 +694,10 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
     Ep128Emu::ConfigurationDB& config, int n, const std::string& romDirectory)
 {
   vm.cpuClockFrequency = 4000000U;
-  vm.videoClockFrequency = 890625U;
+  vm.videoClockFrequency = 889846U;
   vm.soundClockFrequency = 500000U;
   vm.enableMemoryTimingEmulation = true;
+  vm.enableFileIO = bool(machineConfigs[n] & EP_ROM_EPFILEIO);
   memory.ram.size = int(machineConfigs[n] & uint64_t(0x3F)) << 6;
   for (int i = 0; i < 58; i++) {
     if (machineConfigs[n] & (uint64_t(1) << (i + 6))) {
@@ -704,11 +709,13 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
       }
     }
   }
+  memory.configFile = "";
   config.createKey("vm.cpuClockFrequency", vm.cpuClockFrequency);
   config.createKey("vm.videoClockFrequency", vm.videoClockFrequency);
   config.createKey("vm.soundClockFrequency", vm.soundClockFrequency);
   config.createKey("vm.enableMemoryTimingEmulation",
                    vm.enableMemoryTimingEmulation);
+  config.createKey("vm.enableFileIO", vm.enableFileIO);
   config.createKey("memory.ram.size", memory.ram.size);
   config.createKey("memory.rom.00.file", memory.rom[0x00].file);
   config.createKey("memory.rom.00.offset", memory.rom[0x00].offset);
@@ -758,6 +765,7 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
   config.createKey("memory.rom.42.offset", memory.rom[0x42].offset);
   config.createKey("memory.rom.43.file", memory.rom[0x43].file);
   config.createKey("memory.rom.43.offset", memory.rom[0x43].offset);
+  config.createKey("memory.configFile", memory.configFile);
 }
 
 class Ep128EmuDisplaySndConfiguration {
@@ -766,6 +774,7 @@ class Ep128EmuDisplaySndConfiguration {
       int         quality;
     } display;
     struct {
+      bool        highQuality;
       double      latency;
       int         hwPeriods;
     } sound;
@@ -773,9 +782,11 @@ class Ep128EmuDisplaySndConfiguration {
   Ep128EmuDisplaySndConfiguration(Ep128Emu::ConfigurationDB& config)
   {
     display.quality = 2;
+    sound.highQuality = true;
     sound.latency = 0.07;
     sound.hwPeriods = 16;
     config.createKey("display.quality", display.quality);
+    config.createKey("sound.highQuality", sound.highQuality);
     config.createKey("sound.latency", sound.latency);
     config.createKey("sound.hwPeriods", sound.hwPeriods);
   }
@@ -1253,6 +1264,8 @@ int main(int argc, char **argv)
     mkdir(tmp2.c_str(), 0755);
     tmp2 = tmp + "disk";
     mkdir(tmp2.c_str(), 0755);
+    tmp2 = tmp + "files";
+    mkdir(tmp2.c_str(), 0755);
     tmp2 = tmp + "roms";
     mkdir(tmp2.c_str(), 0755);
     tmp2 = tmp + "snapshot";
@@ -1287,6 +1300,8 @@ int main(int argc, char **argv)
     tmp2 = tmp + "demo";
     _mkdir(tmp2.c_str());
     tmp2 = tmp + "disk";
+    _mkdir(tmp2.c_str());
+    tmp2 = tmp + "files";
     _mkdir(tmp2.c_str());
     tmp2 = tmp + "roms";
     _mkdir(tmp2.c_str());
@@ -1358,6 +1373,8 @@ int main(int argc, char **argv)
       mCfg = new Ep128EmuMachineConfiguration(*config, 36, romDirectory);
       dsCfg = new Ep128EmuDisplaySndConfiguration(*config);
       setKeyboardConfiguration(*config, (gui->keyboardMapHU ? 1 : 0));
+      std::string fileIODir = installDirectory + "files";
+      config->createKey("fileio.workingDirectory", fileIODir);
       try {
         Ep128Emu::File  f;
         config->saveState(f);
