@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -122,6 +122,10 @@ namespace Ep128Emu {
      * Load ROM segment 'n' from the specified file, skipping 'offs' bytes.
      */
     virtual void loadROMSegment(uint8_t n, const char *fileName, size_t offs);
+    /*!
+     * Load epmemcfg format memory configuration file.
+     */
+    virtual void loadMemoryConfiguration(const std::string& fileName_);
     /*!
      * Set audio output quality.
      */

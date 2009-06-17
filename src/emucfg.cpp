@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -87,7 +87,7 @@ namespace Ep128Emu {
                                 vm.cpuClockFrequency, 4000000U,
                                 vmConfigurationChanged, 2000000.0, 250000000.0);
     defineConfigurationVariable(*this, "vm.videoClockFrequency",
-                                vm.videoClockFrequency, 890625U,
+                                vm.videoClockFrequency, 889846U,
                                 vmConfigurationChanged, 178125.0, 1781250.0);
     defineConfigurationVariable(*this, "vm.soundClockFrequency",
                                 vm.soundClockFrequency, 500000U,
@@ -130,6 +130,9 @@ namespace Ep128Emu {
                                   memory.rom[i].offset, int(0),
                                   memoryConfigurationChanged, 0.0, 16760832.0);
     }
+    defineConfigurationVariable(*this, "memory.configFile",
+                                memory.configFile, std::string(""),
+                                memoryConfigurationChanged);
     // ----------------
     defineConfigurationVariable(*this, "display.enabled",
                                 display.enabled, true,
@@ -139,7 +142,7 @@ namespace Ep128Emu {
                                 displaySettingsChanged, 0.0, 2.0);
     defineConfigurationVariable(*this, "display.quality",
                                 display.quality, int(2),
-                                displaySettingsChanged, 0.0, 3.0);
+                                displaySettingsChanged, 0.0, 4.0);
     defineConfigurationVariable(*this, "display.brightness",
                                 display.brightness, 0.0,
                                 displaySettingsChanged, -0.5, 0.5);
@@ -205,7 +208,7 @@ namespace Ep128Emu {
                                 sound.enabled, true,
                                 soundSettingsChanged);
     defineConfigurationVariable(*this, "sound.highQuality",
-                                sound.highQuality, false,
+                                sound.highQuality, true,
                                 soundSettingsChanged);
     defineConfigurationVariable(*this, "sound.device",
                                 sound.device, int(0),
@@ -382,23 +385,34 @@ namespace Ep128Emu {
       vmProcessPriorityChanged = false;
     }
     if (memoryConfigurationChanged) {
-      vm_.resetMemoryConfiguration(memory.ram.size);
-      for (size_t i = 0; i < 68; i++) {
-        if (i >= 8 && (i & 15) >= 4)
-          continue;
+      if (memory.configFile.length() > 0) {
         try {
-          vm_.loadROMSegment(uint8_t(i),
-                             memory.rom[i].file.c_str(),
-                             size_t(memory.rom[i].offset));
+          vm_.loadMemoryConfiguration(memory.configFile);
+          memoryConfigurationChanged = false;
         }
         catch (Exception& e) {
-          memory.rom[i].file = "";
-          memory.rom[i].offset = 0;
-          vm_.loadROMSegment(uint8_t(i), "", 0);
           errorCallback(errorCallbackUserData, e.what());
         }
       }
-      memoryConfigurationChanged = false;
+      else {
+        vm_.resetMemoryConfiguration(memory.ram.size);
+        for (size_t i = 0; i < 68; i++) {
+          if (i >= 8 && (i & 15) >= 4)
+            continue;
+          try {
+            vm_.loadROMSegment(uint8_t(i),
+                               memory.rom[i].file.c_str(),
+                               size_t(memory.rom[i].offset));
+          }
+          catch (Exception& e) {
+            memory.rom[i].file = "";
+            memory.rom[i].offset = 0;
+            vm_.loadROMSegment(uint8_t(i), "", 0);
+            errorCallback(errorCallbackUserData, e.what());
+          }
+        }
+        memoryConfigurationChanged = false;
+      }
     }
     if (displaySettingsChanged) {
       // assume that changing the display settings will not fail

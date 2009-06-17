@@ -415,6 +415,54 @@ Set working directory (Alt + F)
   Set the directory to be accessed by the optional file I/O ROM
   extension modules.
 
+Memory configuration files
+--------------------------
+
+While the GUI based memory configuration is easy to use, and is
+sufficient for creating the most commonly used configurations, it does
+have a number of limitations. Using a configuration file - which is a
+simple text file with a format described below - makes it possible to
+have RAM, ROM, or no memory at any segment, and image files can also be
+loaded to RAM (e.g. for emulating static RAM).
+NOTE: if a memory configuration file is specified, the RAM/ROM settings
+in the "Machine configuration" GUI are ignored.
+
+A memory configuration file may contain any number of segment range
+definitions, each being a line in one of the following formats for RAM
+or ROM:
+  0xNN RAM "fileName" nSegments
+  0xNN ROM "fileName" nSegments
+where 'NN' is the number of the first segment (hexadecimal), 'fileName'
+is the name of the file to be loaded (with full path; backslash or
+double quote characters in the name should be escaped with a backslash),
+and 'nSegments' is the number of segments to be defined as RAM or ROM
+(decimal). If 'nSegments' is not specified, then it defaults to 1 for an
+empty file name, otherwise it is determined by the size of the image
+file. If 'fileName' is also omitted, then it means a single empty
+segment.
+The configuration file may also include comments and empty lines.
+A comment can begin with the semicolon or '#' character, and the rest of
+the line is ignored.
+Unlike images loaded in the GUI ROM configuration, it is not necessary
+for the files to have a size that is an integer multiple of 16384 bytes:
+the last segment is padded with FFh bytes. An empty file name will
+initialize RAM segments to FFh bytes, while in the case of ROM, it means
+that the segments will be empty. If the file is longer than the size
+defined by 'nSegments', the data is truncated; if it is too short, then
+the segments are repeated.
+By default, segments 00h..FBh are empty, and FCh..FFh are RAM. The type
+of the last four segments (the video memory) cannot be changed to ROM.
+
+A simple example file, assuming that the emulator is installed to
+"C:\Program Files\ep128emu2":
+
+  ; EXOS 2.1 at segments 0, 1 (and repeated at segments 2, 3)
+  0x00 ROM "C:\\Program Files\\ep128emu2\\roms\\exos21.rom" 4
+  ; IS-BASIC 2.1 at segment 4
+  0x04 ROM "C:\\Program Files\\ep128emu2\\roms\\basic21.rom"
+  ; 128K RAM at segments F8h..FFh
+  0xF8 RAM "" 8
+
 Lua scripting
 -------------
 
@@ -657,4 +705,13 @@ General Public License for more details.
 You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+
+Credits
+-------
+
+Thanks to:
+
+Zozosoft    - hardware testing and information
+MrPrise     - ep128emu.enterpriseforever.org web site
+Attus       - Linux binary packages
 

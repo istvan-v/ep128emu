@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -68,6 +68,9 @@ namespace Ep128Emu {
       // ROM files can be loaded to segments 0x00 to 0x07, 0x10 to 0x13,
       // 0x20 to 0x23, 0x30 to 0x33, and 0x40 to 0x43
       ROMSegmentConfig  rom[68];
+      // epmemcfg format configuration file (if specified, the RAM/ROM settings
+      // above are ignored)
+      std::string       configFile;
     };
     MemoryConfiguration_  memory;
     bool          memoryConfigurationChanged;
