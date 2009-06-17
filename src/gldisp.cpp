@@ -21,6 +21,7 @@
 #include "system.hpp"
 
 #include <typeinfo>
+#include <cmath>
 
 #define GL_GLEXT_PROTOTYPES 1
 
@@ -43,6 +44,22 @@ typedef void (APIENTRY *PFNGLBLENDCOLORPROC)(GLclampf, GLclampf, GLclampf,
 
 #ifndef WIN32
 #  define   glBlendColor_         glBlendColor
+#  ifdef ENABLE_GL_SHADERS
+#    define glAttachShader_       glAttachShader
+#    define glCompileShader_      glCompileShader
+#    define glCreateProgram_      glCreateProgram
+#    define glCreateShader_       glCreateShader
+#    define glDeleteProgram_      glDeleteProgram
+#    define glDeleteShader_       glDeleteShader
+#    define glDetachShader_       glDetachShader
+#    define glGetShaderiv_        glGetShaderiv
+#    define glGetUniformLocation_ glGetUniformLocation
+#    define glLinkProgram_        glLinkProgram
+#    define glShaderSource_       glShaderSource
+#    define glUniform1f_          glUniform1f
+#    define glUniform1i_          glUniform1i
+#    define glUseProgram_         glUseProgram
+#  endif
 #else
 static PFNGLBLENDCOLORPROC      glBlendColor__ = (PFNGLBLENDCOLORPROC) 0;
 static inline void glBlendColor_(GLclampf r, GLclampf g, GLclampf b, GLclampf a)
@@ -52,7 +69,125 @@ static inline void glBlendColor_(GLclampf r, GLclampf g, GLclampf b, GLclampf a)
   else
     glDisable(GL_BLEND);
 }
+#  ifdef ENABLE_GL_SHADERS
+static volatile bool  haveGLShaderFuncs = false;
+static PFNGLATTACHSHADERPROC    glAttachShader_ = (PFNGLATTACHSHADERPROC) 0;
+static PFNGLCOMPILESHADERPROC   glCompileShader_ = (PFNGLCOMPILESHADERPROC) 0;
+static PFNGLCREATEPROGRAMPROC   glCreateProgram_ = (PFNGLCREATEPROGRAMPROC) 0;
+static PFNGLCREATESHADERPROC    glCreateShader_ = (PFNGLCREATESHADERPROC) 0;
+static PFNGLDELETEPROGRAMPROC   glDeleteProgram_ = (PFNGLDELETEPROGRAMPROC) 0;
+static PFNGLDELETESHADERPROC    glDeleteShader_ = (PFNGLDELETESHADERPROC) 0;
+static PFNGLDETACHSHADERPROC    glDetachShader_ = (PFNGLDETACHSHADERPROC) 0;
+static PFNGLGETSHADERIVPROC     glGetShaderiv_ = (PFNGLGETSHADERIVPROC) 0;
+static PFNGLGETUNIFORMLOCATIONPROC  glGetUniformLocation_ =
+                                        (PFNGLGETUNIFORMLOCATIONPROC) 0;
+static PFNGLLINKPROGRAMPROC     glLinkProgram_ = (PFNGLLINKPROGRAMPROC) 0;
+static PFNGLSHADERSOURCEPROC    glShaderSource_ = (PFNGLSHADERSOURCEPROC) 0;
+static PFNGLUNIFORM1FPROC       glUniform1f_ = (PFNGLUNIFORM1FPROC) 0;
+static PFNGLUNIFORM1IPROC       glUniform1i_ = (PFNGLUNIFORM1IPROC) 0;
+static PFNGLUSEPROGRAMPROC      glUseProgram_ = (PFNGLUSEPROGRAMPROC) 0;
+static bool queryGLShaderFunctions()
+{
+  if (!haveGLShaderFuncs) {
+    glAttachShader_ =
+        (PFNGLATTACHSHADERPROC) wglGetProcAddress("glAttachShader");
+    if (!glAttachShader_)
+      return false;
+    glCompileShader_ =
+        (PFNGLCOMPILESHADERPROC) wglGetProcAddress("glCompileShader");
+    if (!glCompileShader_)
+      return false;
+    glCreateProgram_ =
+        (PFNGLCREATEPROGRAMPROC) wglGetProcAddress("glCreateProgram");
+    if (!glCreateProgram_)
+      return false;
+    glCreateShader_ =
+        (PFNGLCREATESHADERPROC) wglGetProcAddress("glCreateShader");
+    if (!glCreateShader_)
+      return false;
+    glDeleteProgram_ =
+        (PFNGLDELETEPROGRAMPROC) wglGetProcAddress("glDeleteProgram");
+    if (!glDeleteProgram_)
+      return false;
+    glDeleteShader_ =
+        (PFNGLDELETESHADERPROC) wglGetProcAddress("glDeleteShader");
+    if (!glDeleteShader_)
+      return false;
+    glDetachShader_ =
+        (PFNGLDETACHSHADERPROC) wglGetProcAddress("glDetachShader");
+    if (!glDetachShader_)
+      return false;
+    glGetShaderiv_ =
+        (PFNGLGETSHADERIVPROC) wglGetProcAddress("glGetShaderiv");
+    if (!glGetShaderiv_)
+      return false;
+    glGetUniformLocation_ =
+        (PFNGLGETUNIFORMLOCATIONPROC) wglGetProcAddress("glGetUniformLocation");
+    if (!glGetUniformLocation_)
+      return false;
+    glLinkProgram_ =
+        (PFNGLLINKPROGRAMPROC) wglGetProcAddress("glLinkProgram");
+    if (!glLinkProgram_)
+      return false;
+    glShaderSource_ =
+        (PFNGLSHADERSOURCEPROC) wglGetProcAddress("glShaderSource");
+    if (!glShaderSource_)
+      return false;
+    glUniform1f_ =
+        (PFNGLUNIFORM1FPROC) wglGetProcAddress("glUniform1f");
+    if (!glUniform1f_)
+      return false;
+    glUniform1i_ =
+        (PFNGLUNIFORM1IPROC) wglGetProcAddress("glUniform1i");
+    if (!glUniform1i_)
+      return false;
+    glUseProgram_ =
+        (PFNGLUSEPROGRAMPROC) wglGetProcAddress("glUseProgram");
+    if (!glUseProgram_)
+      return false;
+    haveGLShaderFuncs = true;
+  }
+  return haveGLShaderFuncs;
+}
+#  endif
 #endif
+
+#ifdef ENABLE_GL_SHADERS
+
+static const char *shaderSourcePAL[1] = {
+  "uniform sampler2D textureHandle;\n"
+  "uniform float lineShade;\n"
+  "const mat4 yuv2rgbMatrix = mat4( 1.21433,  0.00000,  0.38046, -1.95146,\n"
+  "                                 1.21433, -0.09339, -0.19380,  0.59560,\n"
+  "                                 1.21433,  0.48087,  0.00000, -2.33451,\n"
+  "                                 0.00000,  0.00000,  0.00000,  0.00000);\n"
+  "void main()\n"
+  "{\n"
+  "  float txc = gl_TexCoord[0][0];\n"
+  "  float tyc = gl_TexCoord[0][1] + 0.015625;\n"
+  "  vec4 pm5 = texture2D(textureHandle, vec2(txc - 0.00488, tyc));\n"
+  "  vec4 pm4 = texture2D(textureHandle, vec2(txc - 0.00391, tyc));\n"
+  "  vec4 pm3 = texture2D(textureHandle, vec2(txc - 0.00293, tyc));\n"
+  "  vec4 pm2 = texture2D(textureHandle, vec2(txc - 0.00195, tyc));\n"
+  "  vec4 pm1 = texture2D(textureHandle, vec2(txc - 0.00098, tyc));\n"
+  "  vec4 p0  = texture2D(textureHandle, vec2(txc, tyc));\n"
+  "  vec4 pp1 = texture2D(textureHandle, vec2(txc + 0.00098, tyc));\n"
+  "  vec4 pp2 = texture2D(textureHandle, vec2(txc + 0.00195, tyc));\n"
+  "  vec4 pp3 = texture2D(textureHandle, vec2(txc + 0.00293, tyc));\n"
+  "  vec4 pp4 = texture2D(textureHandle, vec2(txc + 0.00391, tyc));\n"
+  "  float ytmp = (pp3.g * 0.0196) + (pp2.g * -0.2353) + (pp1.g * 0.3529)\n"
+  "               + p0.g + (pm1.g * 0.3333) + (pm2.g * 0.1373)\n"
+  "               + (pm3.g * 0.0392);\n"
+  "  vec2 ctmp = (pp4.br * 0.45) + (pp3.br * 0.68) + (pp2.br * 0.84)\n"
+  "              + (pp1.br * 0.92) + p0.br + (pm1.br * 1.04)\n"
+  "              + (pm2.br * 0.96) + (pm3.br * 0.80) + (pm4.br * 0.57)\n"
+  "              + (pm5.br * 0.37);\n"
+  "  float f = mix(cos(tyc * 100.531) * -0.5 + 0.5, 1.0, lineShade);\n"
+  "  gl_FragColor = (vec4(ytmp, ctmp[0], ctmp[1], 1.0) * yuv2rgbMatrix) * f;\n"
+  "}\n"
+};
+
+#endif  // ENABLE_GL_SHADERS
 
 static void setTextureParameters(int displayQuality)
 {
@@ -79,7 +214,7 @@ static void setTextureParameters(int displayQuality)
 
 static void initializeTexture(const Ep128Emu::VideoDisplay::DisplayParameters&
                                   dp,
-                              const uint16_t *textureBuffer)
+                              const unsigned char *textureBuffer)
 {
   GLsizei txtWidth = 1024;
   GLsizei txtHeight = 16;
@@ -91,11 +226,116 @@ static void initializeTexture(const Ep128Emu::VideoDisplay::DisplayParameters&
     txtWidth = 512;
     break;
   }
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, txtWidth, txtHeight, 0,
-               GL_RGB, GL_UNSIGNED_SHORT_5_6_5, (const GLvoid *) textureBuffer);
+  if (dp.displayQuality < 4) {
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, txtWidth, txtHeight, 0,
+                 GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
+                 (const GLvoid *) textureBuffer);
+  }
+  else {
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, txtWidth, txtHeight, 0,
+                 GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV,
+                 (const GLvoid *) textureBuffer);
+  }
 }
 
 namespace Ep128Emu {
+
+  bool OpenGLDisplay::compileShader(int shaderMode_)
+  {
+#ifdef ENABLE_GL_SHADERS
+    if (shaderMode_ == shaderMode)
+      return true;
+    if (shaderMode != 0)
+      deleteShader();
+    if (shaderMode_ == 0)
+      return true;
+#  ifdef WIN32
+    if (!queryGLShaderFunctions())
+      return false;
+#  endif
+    shaderHandle = glCreateShader_(GL_FRAGMENT_SHADER);
+    if (!shaderHandle)
+      return false;
+    programHandle = glCreateProgram_();
+    if (!programHandle) {
+      glDeleteShader_(GLuint(shaderHandle));
+      shaderHandle = 0UL;
+      return false;
+    }
+    glShaderSource_(GLuint(shaderHandle),
+                    GLsizei(1), &(shaderSourcePAL[0]), (GLint *) 0);
+    glAttachShader_(GLuint(programHandle), GLuint(shaderHandle));
+    shaderMode = shaderMode_;
+    glCompileShader_(GLuint(shaderHandle));
+    GLint   compileStatus = GL_FALSE;
+    glGetShaderiv_(GLuint(shaderHandle), GL_COMPILE_STATUS, &compileStatus);
+    if (compileStatus == GL_FALSE) {
+      deleteShader();
+      return false;
+    }
+    glLinkProgram_(GLuint(programHandle));
+    return true;
+#else
+    (void) shaderMode_;
+    shaderMode = 0;
+    return false;
+#endif  // ENABLE_GL_SHADERS
+  }
+
+  void OpenGLDisplay::deleteShader()
+  {
+#ifdef ENABLE_GL_SHADERS
+    if (shaderMode == 0)
+      return;
+    disableShader();
+#  ifdef WIN32
+    if (!queryGLShaderFunctions())
+      return;
+#  endif
+    shaderMode = 0;
+    glDetachShader_(GLuint(programHandle), GLuint(shaderHandle));
+    glDeleteProgram_(GLuint(programHandle));
+    programHandle = 0UL;
+    glDeleteShader_(GLuint(shaderHandle));
+    shaderHandle = 0UL;
+#endif  // ENABLE_GL_SHADERS
+  }
+
+  bool OpenGLDisplay::enableShader()
+  {
+#ifdef ENABLE_GL_SHADERS
+    if (shaderMode == 0)
+      return false;
+#  ifdef WIN32
+    if (!queryGLShaderFunctions())
+      return false;
+#  endif
+    glUseProgram_(GLuint(programHandle));
+    // FIXME: is it safe to use a constant texture ID of 0 here ?
+    glUniform1i_(glGetUniformLocation_(GLuint(programHandle), "textureHandle"),
+                 0);
+    glUniform1f_(glGetUniformLocation_(GLuint(programHandle), "lineShade"),
+                 displayParameters.lineShade * 0.998f + 0.001f);
+    return true;
+#else
+    return false;
+#endif  // ENABLE_GL_SHADERS
+  }
+
+  void OpenGLDisplay::disableShader()
+  {
+#ifdef ENABLE_GL_SHADERS
+    if (shaderMode == 0)
+      return;
+#  ifdef WIN32
+    if (!queryGLShaderFunctions())
+      return;
+#  endif
+    glUseProgram_(GLuint(0));
+#endif  // ENABLE_GL_SHADERS
+  }
+
+  // --------------------------------------------------------------------------
 
   OpenGLDisplay::Colormap::Colormap()
   {
@@ -149,14 +389,65 @@ namespace Ep128Emu {
 
   uint16_t OpenGLDisplay::Colormap::pixelConv(double r, double g, double b)
   {
-    int ri = int(r >= 0.0f ? (r < 1.0f ? (r * 248.0f + 4.0f) : 252.0f) : 4.0f);
-    int gi = int(g >= 0.0f ? (g < 1.0f ? (g * 504.0f + 4.0f) : 508.0f) : 4.0f);
-    int bi = int(b >= 0.0f ? (b < 1.0f ? (b * 248.0f + 4.0f) : 252.0f) : 4.0f);
+    int     ri = int(r >= 0.0 ? (r < 1.0 ? (r * 248.0 + 4.0) : 252.0) : 4.0);
+    int     gi = int(g >= 0.0 ? (g < 1.0 ? (g * 504.0 + 4.0) : 508.0) : 4.0);
+    int     bi = int(b >= 0.0 ? (b < 1.0 ? (b * 248.0 + 4.0) : 252.0) : 4.0);
     if (((ri | bi) & 7) < 2 && (gi & 7) >= 6)
       gi = gi + 4;
     if (((ri & bi) & 7) >= 6 && (gi & 7) < 2)
       gi = gi - 4;
     return uint16_t(((ri & 0x00F8) << 8) | ((gi & 0x01F8) << 2) | (bi >> 3));
+  }
+
+  // --------------------------------------------------------------------------
+
+  OpenGLDisplay::Colormap_YUV::Colormap_YUV()
+  {
+    palette0 = new uint32_t[512];
+    palette1 = &(palette0[256]);
+    DisplayParameters dp;
+    setParams(dp);
+  }
+
+  OpenGLDisplay::Colormap_YUV::~Colormap_YUV()
+  {
+    delete[] palette0;
+  }
+
+  void OpenGLDisplay::Colormap_YUV::setParams(const DisplayParameters& dp)
+  {
+    for (size_t i = 0; i < 256; i++) {
+      float   r = float(uint8_t(i)) / 255.0f;
+      float   g = float(uint8_t(i)) / 255.0f;
+      float   b = float(uint8_t(i)) / 255.0f;
+      if (dp.indexToRGBFunc)
+        dp.indexToRGBFunc(uint8_t(i), r, g, b);
+      dp.applyColorCorrection(r, g, b);
+      palette0[i] = pixelConv(r, g, b, 15.0);
+      palette1[i] = pixelConv(r, g, b, -15.0);
+    }
+  }
+
+  uint32_t OpenGLDisplay::Colormap_YUV::pixelConv(double r, double g, double b,
+                                                  double p)
+  {
+    double  y = (r * 0.299) + (g * 0.587) + (b * 0.114);
+    double  u = (b - y) * (1.0 / 0.886);
+    double  v = (r - y) * (1.0 / 0.701);
+    p = p * (3.14159265 / 180.0);
+    {
+      double  p_re = std::cos(p);
+      double  p_im = std::sin(p);
+      double  tmp = (u * p_re) - (v * p_im);
+      v = (u * p_im) + (v * p_re);
+      u = tmp;
+    }
+    y = (y > -0.5 ? (y < 1.5 ? y : 1.5) : -0.5);
+    u = (u > -2.0 ? (u < 2.0 ? u : 2.0) : -2.0);
+    v = (v > -2.0 ? (v < 2.0 ? v : 2.0) : -2.0);
+    return uint32_t(int32_t(v * 255.75 + 512.0)
+                    + (int32_t(y * 511.5 + 256.25) << 10)
+                    + (int32_t(u * 255.75 + 512.0) << 20));
   }
 
   // --------------------------------------------------------------------------
@@ -167,7 +458,7 @@ namespace Ep128Emu {
       FLTKDisplay_(),
       colormap(),
       linesChanged((bool *) 0),
-      textureBuffer((uint16_t *) 0),
+      textureBuffer16((uint16_t *) 0),
       textureID(0UL),
       forceUpdateLineCnt(0),
       forceUpdateLineMask(0),
@@ -177,7 +468,13 @@ namespace Ep128Emu {
       displayFrameRate(60.0),
       inputFrameRate(50.0),
       ringBufferReadPos(0.0),
-      ringBufferWritePos(2)
+      ringBufferWritePos(2),
+      shaderMode(0),
+      shaderHandle(0UL),
+      programHandle(0UL),
+      textureSpace((unsigned char *) 0),
+      textureBuffer32((uint32_t *) 0),
+      colormap32()
   {
     try {
       for (size_t n = 0; n < 4; n++)
@@ -185,8 +482,10 @@ namespace Ep128Emu {
       linesChanged = new bool[289];
       for (size_t n = 0; n < 289; n++)
         linesChanged[n] = false;
-      textureBuffer = new uint16_t[1024 * 16];  // max. texture size = 1024x16
-      std::memset(textureBuffer, 0, sizeof(uint16_t) * 1024 * 16);
+      textureBuffer32 = new uint32_t[1024 * 16];  // max texture size = 1024x16
+      textureSpace = reinterpret_cast< unsigned char * >(textureBuffer32);
+      textureBuffer16 = reinterpret_cast< uint16_t * >(textureSpace);
+      std::memset(textureSpace, 0, sizeof(uint32_t) * 1024 * 16);
       for (size_t n = 0; n < 4; n++) {
         frameRingBuffer[n] = new Message_LineData*[578];
         for (size_t yc = 0; yc < 578; yc++)
@@ -196,8 +495,8 @@ namespace Ep128Emu {
     catch (...) {
       if (linesChanged)
         delete[] linesChanged;
-      if (textureBuffer)
-        delete[] textureBuffer;
+      if (textureBuffer32)
+        delete[] textureBuffer32;
       for (size_t n = 0; n < 4; n++) {
         if (frameRingBuffer[n])
           delete[] frameRingBuffer[n];
@@ -212,12 +511,13 @@ namespace Ep128Emu {
   OpenGLDisplay::~OpenGLDisplay()
   {
     Fl::remove_idle(&fltkIdleCallback, (void *) this);
+    deleteShader();
     if (textureID) {
       GLuint  tmp = GLuint(textureID);
       textureID = 0UL;
       glDeleteTextures(1, &tmp);
     }
-    delete[] textureBuffer;
+    delete[] textureBuffer32;
     delete[] linesChanged;
     for (size_t n = 0; n < 4; n++) {
       for (size_t yc = 0; yc < 578; yc++) {
@@ -255,14 +555,14 @@ namespace Ep128Emu {
         }
         // build 16-bit texture:
         // full horizontal resolution, no interlace (768x8)
-        uint16_t  *txtp = &(textureBuffer[offs * 768]);
+        uint16_t  *txtp = &(textureBuffer16[offs * 768]);
         for (size_t xc = 0; xc < 768; xc++)
           txtp[xc] = colormap(curLine_[xc]);
       }
       // load texture
       glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 8,
                       GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
-                      (GLvoid *) textureBuffer);
+                      (GLvoid *) textureBuffer16);
       // update display
       double  ycf0 = y0 + ((double(int(yc << 1)) * (1.0 / 576.0))
                            * (y1 - y0));
@@ -300,26 +600,23 @@ namespace Ep128Emu {
         // decode video data
         const unsigned char *bufp = (unsigned char *) 0;
         size_t  nBytes = 0;
-        bool    haveLineData = false;
         if ((yc + offs) < 578) {
-          if (lineBuffers_[yc + offs]) {
+          if (lineBuffers_[yc + offs])
             lineBuffers_[yc + offs]->getLineData(bufp, nBytes);
-            haveLineData = true;
-          }
         }
-        if (haveLineData)
+        if (bufp)
           decodeLine(curLine_, bufp, nBytes);
         else
           std::memset(curLine_, 0, 768);
         // build 16-bit texture
-        uint16_t  *txtp = &(textureBuffer[(offs >> 1) * 384]);
+        uint16_t  *txtp = &(textureBuffer16[(offs >> 1) * 384]);
         for (size_t xc = 0; xc < 768; xc += 2)
           txtp[xc >> 1] = colormap(curLine_[xc], curLine_[xc + 1]);
       }
       // load texture
       glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 384, 16,
                       GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
-                      (GLvoid *) textureBuffer);
+                      (GLvoid *) textureBuffer16);
       // update display
       double  ycf0 = y0 + ((double(int(yc)) * (1.0 / 576.0)) * (y1 - y0));
       double  ycf1 = y0 + ((double(int(yc + 28)) * (1.0 / 576.0)) * (y1 - y0));
@@ -359,26 +656,23 @@ namespace Ep128Emu {
         // decode video data
         const unsigned char *bufp = (unsigned char *) 0;
         size_t  nBytes = 0;
-        bool    haveLineData = false;
         if ((yc + offs) < 578) {
-          if (lineBuffers_[yc + offs]) {
+          if (lineBuffers_[yc + offs])
             lineBuffers_[yc + offs]->getLineData(bufp, nBytes);
-            haveLineData = true;
-          }
         }
-        if (haveLineData)
+        if (bufp)
           decodeLine(curLine_, bufp, nBytes);
         else
           std::memset(curLine_, 0, 768);
         // build 16-bit texture
-        uint16_t  *txtp = &(textureBuffer[(offs >> 1) * 768]);
+        uint16_t  *txtp = &(textureBuffer16[(offs >> 1) * 768]);
         for (size_t xc = 0; xc < 768; xc++)
           txtp[xc] = colormap(curLine_[xc]);
       }
       // load texture
       glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 16,
                       GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
-                      (GLvoid *) textureBuffer);
+                      (GLvoid *) textureBuffer16);
       // update display
       double  ycf0 = y0 + ((double(int(yc)) * (1.0 / 576.0)) * (y1 - y0));
       double  ycf1 = y0 + ((double(int(yc + 28)) * (1.0 / 576.0)) * (y1 - y0));
@@ -441,7 +735,7 @@ namespace Ep128Emu {
         decodeLine(curLine_, bufp, nBytes);
       }
       // build 16-bit texture
-      uint16_t  *txtp = &(textureBuffer[(yc & 15) * 768]);
+      uint16_t  *txtp = &(textureBuffer16[(yc & 15) * 768]);
       if (haveLineDataInCurLine) {
         for (size_t xc = 0; xc < 768; xc++)
           txtp[xc] = colormap(curLine_[xc]);
@@ -463,7 +757,7 @@ namespace Ep128Emu {
         // load texture
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 16,
                         GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
-                        (GLvoid *) textureBuffer);
+                        (GLvoid *) textureBuffer16);
         // update display
         double  ycf0 = y0 + ((double(int(yc - 15)) * (1.0 / 576.0))
                              * (y1 - y0));
@@ -487,6 +781,114 @@ namespace Ep128Emu {
         glEnd();
       }
     }
+  }
+
+  void OpenGLDisplay::drawFrame_quality4(Message_LineData **lineBuffers_,
+                                         double x0, double y0,
+                                         double x1, double y1, bool oddFrame_)
+  {
+    if (shaderMode == 0) {
+      if (!compileShader(1)) {
+        displayParameters.displayQuality = 3;
+        drawFrame_quality3(lineBuffers_, x0, y0, x1, y1, oddFrame_);
+        return;
+      }
+    }
+    if (!enableShader()) {
+      deleteShader();
+      displayParameters.displayQuality = 3;
+      drawFrame_quality3(lineBuffers_, x0, y0, x1, y1, oddFrame_);
+      return;
+    }
+    double  yOffs = (y1 - y0) * (-1.0 / 576.0);
+    // interlace
+    if (!oddFrame_)
+      yOffs = yOffs * 2.0;
+    unsigned char lineBuf1[768];
+    unsigned char *curLine_ = &(lineBuf1[0]);
+    uint32_t  prvTextureLine[768];
+    for (int xc = 0; xc < 768; xc++)
+      prvTextureLine[xc] = 0x20000200U;
+    // full horizontal resolution, interlace (768x576), TV emulation
+    for (int yc = int(oddFrame_) - 4; yc < 594; yc += 26) {
+      if (yc > 0) {
+        std::memcpy(&(textureBuffer32[0]), &(textureBuffer32[13 * 768]),
+                    sizeof(uint32_t) * size_t(3 * 768));
+      }
+      for (int offs = (yc > 0 ? 6 : 0); offs < 32; offs += 2) {
+        // decode video data
+        const unsigned char *bufp = (unsigned char *) 0;
+        size_t  nBytes = 0;
+        if ((unsigned int) (yc + offs) < 578U) {
+          if (lineBuffers_[yc + offs])
+            lineBuffers_[yc + offs]->getLineData(bufp, nBytes);
+        }
+        if (bufp)
+          decodeLine(curLine_, bufp, nBytes);
+        else
+          std::memset(curLine_, 0, 768);
+        // build 32-bit texture
+        uint32_t  *txtp = &(textureBuffer32[(offs >> 1) * 768]);
+        const uint32_t  yMask = 0x000FFC00U;
+        const uint32_t  cMask = 0x3FF003FFU;
+        if ((yc + offs) & 2) {
+          for (size_t xc = 0; xc < 768; xc += 2) {
+            uint32_t  p = colormap32.getColor_1(curLine_[xc]);
+            uint32_t  c = p & cMask;
+            txtp[xc] = (p & yMask) | (((prvTextureLine[xc] + c) >> 1) & cMask);
+            prvTextureLine[xc] = c;
+            p = colormap32.getColor_1(curLine_[xc + 1]);
+            c = p & cMask;
+            txtp[xc + 1] =
+                (p & yMask) | (((prvTextureLine[xc + 1] + c) >> 1) & cMask);
+            prvTextureLine[xc + 1] = c;
+          }
+        }
+        else {
+          for (size_t xc = 0; xc < 768; xc += 2) {
+            uint32_t  p = colormap32.getColor_0(curLine_[xc]);
+            uint32_t  c = p & cMask;
+            txtp[xc] = (p & yMask) | (((prvTextureLine[xc] + c) >> 1) & cMask);
+            prvTextureLine[xc] = c;
+            p = colormap32.getColor_0(curLine_[xc + 1]);
+            c = p & cMask;
+            txtp[xc + 1] =
+                (p & yMask) | (((prvTextureLine[xc + 1] + c) >> 1) & cMask);
+            prvTextureLine[xc + 1] = c;
+          }
+        }
+      }
+      // load texture
+      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 16,
+                      GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV,
+                      (GLvoid *) textureBuffer32);
+      // update display
+      double  ycf0 =
+          y0 + ((double(yc + 4) * (1.0 / 576.0)) * (y1 - y0)) + yOffs;
+      double  ycf1 =
+          y0 + ((double(yc + 30) * (1.0 / 576.0)) * (y1 - y0)) + yOffs;
+      double  txtycf0 = 2.0 / 16.0;
+      double  txtycf1 = 15.0 / 16.0;
+      if (ycf0 < y0) {
+        txtycf0 -= ((ycf0 - y0) * (288.0 / 16.0) / (y1 - y0));
+        ycf0 = y0;
+      }
+      if (yc == 568) {
+        ycf1 -= ((y1 - y0) * (20.0 / 576.0));
+        txtycf1 -= (10.0 / 16.0);
+      }
+      glBegin(GL_QUADS);
+      glTexCoord2f(GLfloat(0.0), GLfloat(txtycf0));
+      glVertex2f(GLfloat(x0), GLfloat(ycf0));
+      glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(txtycf0));
+      glVertex2f(GLfloat(x1), GLfloat(ycf0));
+      glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(txtycf1));
+      glVertex2f(GLfloat(x1), GLfloat(ycf1));
+      glTexCoord2f(GLfloat(0.0), GLfloat(txtycf1));
+      glVertex2f(GLfloat(x0), GLfloat(ycf1));
+      glEnd();
+    }
+    disableShader();
   }
 
   void OpenGLDisplay::fltkIdleCallback(void *userData_)
@@ -599,14 +1001,14 @@ namespace Ep128Emu {
           }
           // build 16-bit texture:
           // full horizontal resolution, no interlace (768x8)
-          uint16_t  *txtp = &(textureBuffer[offs * 768]);
+          uint16_t  *txtp = &(textureBuffer16[offs * 768]);
           for (size_t xc = 0; xc < 768; xc++)
             txtp[xc] = colormap(curLine_[xc]);
         }
         // load texture
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 8,
                         GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
-                        (GLvoid *) textureBuffer);
+                        (GLvoid *) textureBuffer16);
         // update display
         double  ycf0 = y0 + ((double(int(yc << 1)) * (1.0 / 576.0))
                              * (y1 - y0));
@@ -661,6 +1063,10 @@ namespace Ep128Emu {
         // full horizontal resolution, interlace (768x576)
         drawFrame_quality3(lineBuffers, x0, y0, x1, y1, prvFrameWasOdd);
         break;
+      case 4:
+        // full horizontal resolution, interlace (768x576), TV emulation
+        drawFrame_quality4(lineBuffers, x0, y0, x1, y1, prvFrameWasOdd);
+        break;
       }
       // clean up
       glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
@@ -714,6 +1120,10 @@ namespace Ep128Emu {
           // full horizontal resolution, interlace (768x576)
           drawFrame_quality3(lineBuffers_, x0, y0, x1, y1, oddFrame_);
           break;
+        case 4:
+          // full horizontal resolution, interlace (768x576), TV emulation
+          drawFrame_quality4(lineBuffers_, x0, y0, x1, y1, oddFrame_);
+          break;
         }
       }
       if (readPosFrac >= 0.002) {
@@ -747,6 +1157,10 @@ namespace Ep128Emu {
           // full horizontal resolution, interlace (768x576)
           drawFrame_quality3(lineBuffers_, x0, y0, x1, y1, oddFrame_);
           break;
+        case 4:
+          // full horizontal resolution, interlace (768x576), TV emulation
+          drawFrame_quality4(lineBuffers_, x0, y0, x1, y1, oddFrame_);
+          break;
         }
       }
       // clean up
@@ -770,7 +1184,7 @@ namespace Ep128Emu {
     glGetIntegerv(GL_TEXTURE_BINDING_2D, &savedTextureID);
     glBindTexture(GL_TEXTURE_2D, tmp);
     setTextureParameters(displayParameters.displayQuality);
-    initializeTexture(displayParameters, textureBuffer);
+    initializeTexture(displayParameters, textureSpace);
     glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
     // clear display
     glDisable(GL_TEXTURE_2D);
@@ -935,12 +1349,18 @@ namespace Ep128Emu {
         if (displayParameters.displayQuality != msg->dp.displayQuality ||
             displayParameters.bufferingMode != msg->dp.bufferingMode) {
           Fl::remove_idle(&fltkIdleCallback, (void *) this);
-          if (displayParameters.bufferingMode != msg->dp.bufferingMode) {
+          if (displayParameters.bufferingMode != msg->dp.bufferingMode ||
+              displayParameters.displayQuality == 4 ||
+              msg->dp.displayQuality == 4) {
+            // if TV emulation (quality=4) or double buffering mode
+            // has changed, also need to generate a new texture ID
+            deleteShader();
 #ifdef WIN32
             glBlendColor__ = (PFNGLBLENDCOLORPROC) 0;
+#  ifdef ENABLE_GL_SHADERS
+            haveGLShaderFuncs = false;
+#  endif
 #endif
-            // if double buffering mode has changed, also need to generate
-            // a new texture ID
             GLuint  oldTextureID = GLuint(textureID);
             textureID = 0UL;
             if (oldTextureID)
@@ -974,18 +1394,27 @@ namespace Ep128Emu {
             }
           }
           // reset texture
-          std::memset(textureBuffer, 0, sizeof(uint16_t) * 1024 * 16);
+          if (msg->dp.displayQuality < 4) {
+            std::memset(textureSpace, 0, sizeof(uint16_t) * 1024 * 16);
+          }
+          else {
+            for (size_t n = 0; n < (1024 * 16); n++)
+              textureBuffer32[n] = 0x20000200U;
+          }
           glEnable(GL_TEXTURE_2D);
           GLint   savedTextureID;
           glGetIntegerv(GL_TEXTURE_BINDING_2D, &savedTextureID);
           glBindTexture(GL_TEXTURE_2D, GLuint(textureID));
           setTextureParameters(msg->dp.displayQuality);
-          initializeTexture(msg->dp, textureBuffer);
+          initializeTexture(msg->dp, textureSpace);
           glBindTexture(GL_TEXTURE_2D, GLuint(savedTextureID));
         }
         displayParameters = msg->dp;
-        if (displayParameters.displayQuality > 1)
+        if (displayParameters.displayQuality > 1) {
           colormap.setParams(displayParameters);
+          if (displayParameters.displayQuality > 3)
+            colormap32.setParams(displayParameters);
+        }
         else {
           DisplayParameters tmp_dp(displayParameters);
           tmp_dp.lineShade = 1.0f;
@@ -1017,6 +1446,16 @@ namespace Ep128Emu {
   {
     return fltkEventCallback(fltkEventCallbackUserData, event);
   }
+
+#ifndef ENABLE_GL_SHADERS
+  void OpenGLDisplay::setDisplayParameters(const DisplayParameters& dp)
+  {
+    DisplayParameters dp_(dp);
+    if (dp_.displayQuality >= 4)
+      dp_.displayQuality = 3;
+    FLTKDisplay_::setDisplayParameters(dp_);
+  }
+#endif
 
 }       // namespace Ep128Emu
 

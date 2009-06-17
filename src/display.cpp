@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -36,7 +36,7 @@ namespace Ep128Emu {
       const DisplayParameters& src)
   {
     displayQuality = (src.displayQuality > 0 ?
-                      (src.displayQuality < 3 ? src.displayQuality : 3)
+                      (src.displayQuality < 4 ? src.displayQuality : 4)
                       : 0);
     bufferingMode = (src.bufferingMode > 0 ?
                      (src.bufferingMode < 2 ? src.bufferingMode : 2) : 0);
@@ -143,24 +143,31 @@ namespace Ep128Emu {
     // R = (V / 0.877) + Y
     // B = (U / 0.492) + Y
     // G = (Y - ((R * 0.299) + (B * 0.114))) / 0.587
-    float   r = (tmpV / 0.877f) + y;
-    float   b = (tmpU / 0.492f) + y;
-    float   g = (y - ((r * 0.299f) + (b * 0.114f))) / 0.587f;
+    float   r = y + (tmpV * float(1.0 / 0.877));
+    float   g = y + (tmpU * float(-0.114 / (0.492 * 0.587)))
+                  + (tmpV * float(-0.299 / (0.877 * 0.587)));
+    float   b = y + (tmpU * float(1.0 / 0.492));
     r = (r - 0.5f) * (contrast * redContrast) + 0.5f;
     g = (g - 0.5f) * (contrast * greenContrast) + 0.5f;
     b = (b - 0.5f) * (contrast * blueContrast) + 0.5f;
     r = r + (brightness + redBrightness);
     g = g + (brightness + greenBrightness);
     b = b + (brightness + blueBrightness);
-    r = (r > 0.0f ? r : 0.0f);
-    g = (g > 0.0f ? g : 0.0f);
-    b = (b > 0.0f ? b : 0.0f);
-    r = float(std::pow(double(r), double(1.0f / (gamma * redGamma))));
-    g = float(std::pow(double(g), double(1.0f / (gamma * greenGamma))));
-    b = float(std::pow(double(b), double(1.0f / (gamma * blueGamma))));
-    red = (r < 1.0f ? r : 1.0f);
-    green = (g < 1.0f ? g : 1.0f);
-    blue = (b < 1.0f ? b : 1.0f);
+    if (std::fabs(double((gamma * redGamma) - 1.0f)) > 0.01) {
+      r = (r > 0.0f ? r : 0.0f);
+      r = float(std::pow(double(r), double(1.0f / (gamma * redGamma))));
+    }
+    if (std::fabs(double((gamma * greenGamma) - 1.0f)) > 0.01) {
+      g = (g > 0.0f ? g : 0.0f);
+      g = float(std::pow(double(g), double(1.0f / (gamma * greenGamma))));
+    }
+    if (std::fabs(double((gamma * blueGamma) - 1.0f)) > 0.01) {
+      b = (b > 0.0f ? b : 0.0f);
+      b = float(std::pow(double(b), double(1.0f / (gamma * blueGamma))));
+    }
+    red = r;
+    green = g;
+    blue = b;
   }
 
   VideoDisplay::~VideoDisplay()

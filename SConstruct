@@ -6,6 +6,7 @@ win32CrossCompile = 0
 linux32CrossCompile = 0
 disableSDL = 0          # set this to 1 on Linux with SDL version >= 1.2.10
 disableLua = 0
+enableGLShaders = 1
 enableDebug = 1
 buildRelease = 0
 
@@ -200,6 +201,11 @@ if not configure.CheckCXXHeader('FL/Fl.H'):
 if not configure.CheckCHeader('GL/gl.h'):
     print ' *** error: OpenGL is not found'
     Exit(-1)
+if enableGLShaders:
+    if not configure.CheckType('PFNGLCOMPILESHADERPROC',
+                               '#include <GL/gl.h>\n#include <GL/glext.h>'):
+        enableGLShaders = 0
+        print 'WARNING: disabling GL shader support'
 haveDotconf = configure.CheckCHeader('dotconf.h')
 if configure.CheckCHeader('stdint.h'):
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_STDINT_H'])
@@ -223,6 +229,8 @@ if haveSDL:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_SDL_H'])
 if haveLua:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_LUA_H'])
+if enableGLShaders:
+    ep128emuLibEnvironment.Append(CCFLAGS = ['-DENABLE_GL_SHADERS'])
 ep128emuLibEnvironment.Append(CCFLAGS = ['-DFLTK1'])
 
 ep128emuGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
@@ -275,14 +283,9 @@ ep128Lib = ep128LibEnvironment.StaticLibrary('ep128', Split('''
     src/ioports.cpp
     src/memory.cpp
     src/nick.cpp
-'''))
-
-z80LibEnvironment = ep128emuLibEnvironment.Clone()
-z80LibEnvironment.Append(CPPPATH = ['./z80'])
-
-z80Lib = z80LibEnvironment.StaticLibrary('z80', Split('''
     z80/z80.cpp
     z80/z80funcs2.cpp
+    src/epmemcfg.cpp
 '''))
 
 # -----------------------------------------------------------------------------
@@ -307,7 +310,7 @@ if not win32CrossCompile:
         ep128emuEnvironment.Append(LIBS = ['rt'])
 else:
     ep128emuEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
-ep128emuEnvironment.Prepend(LIBS = ['ep128', 'z80', 'ep128emu'])
+ep128emuEnvironment.Prepend(LIBS = ['ep128', 'ep128emu'])
 
 ep128emuSources = ['gui/gui.cpp']
 ep128emuSources += fluidCompile(['gui/gui.fl', 'gui/disk_cfg.fl',
@@ -325,7 +328,6 @@ if win32CrossCompile:
     ep128emuSources += [ep128emuResourceObject]
 ep128emu = ep128emuEnvironment.Program('ep128emu', ep128emuSources)
 Depends(ep128emu, ep128Lib)
-Depends(ep128emu, z80Lib)
 Depends(ep128emu, ep128emuLib)
 
 if sys.platform[:6] == 'darwin':

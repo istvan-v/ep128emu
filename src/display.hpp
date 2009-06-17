@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -34,6 +34,7 @@ namespace Ep128Emu {
        * 1: half horizontal resolution, no interlace (384x288)
        * 2: full horizontal resolution, no interlace (768x288)
        * 3: full horizontal resolution, interlace (768x576)
+       * 4: full horizontal resolution, interlace (768x576), TV emulation
        */
       int     displayQuality;
       /*!
