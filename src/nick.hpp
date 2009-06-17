@@ -180,13 +180,16 @@ class x : public NickRenderer {                 \
     uint8_t   currentSlot;      // 0 to 56
     uint8_t   borderColor;
     uint8_t   dataBusState;
-    bool      lptClockEnabled;
+    // bit 7: 1 until the end of line if port 83h bit 6 has changed to 1
+    // bit 6: 1 until the end of line if port 83h bit 7 is 0 and bit 6 is 1
+    uint8_t   lptFlags;
     uint8_t   *lineBuf;         // 57 slots = 912 pixels
     uint8_t   *lineBufPtr;
     uint8_t   *oldLineBufPtr;
     uint8_t   savedBorderColor;
     bool      vsyncFlag;
-    bool      forceReloadFlag;
+    uint8_t   port0Value;       // last value written to port 80h
+    uint8_t   port3Value;       // last value written to port 83h
     // --------
     void clearLineBuffer();
    protected:

@@ -1013,16 +1013,17 @@ namespace Ep128 {
       drawLine(lineBuf, size_t(lineBufPtr - lineBuf));
       break;
     case 56:
-      if (lptClockEnabled) {
-        if (--linesRemaining == 0) {
-          if (!(lpb.reloadFlag | forceReloadFlag))
+      linesRemaining--;
+      if (linesRemaining == 0 || (lptFlags & 0x80) != 0) {
+        if (port3Value & 0x40) {
+          if (!(uint8_t(lpb.reloadFlag) | (lptFlags & 0x40)))
             lptCurrentAddr = (lptCurrentAddr + 0x0010) & 0xFFF0;
           else
             lptCurrentAddr = lptBaseAddr;
         }
       }
-      currentSlot = 0;
-      currentSlot--;
+      lptFlags = (port3Value & ((~port3Value) >> 1)) & 0x40;
+      currentSlot = 0xFF;
       break;
     }
     oldLineBufPtr = lineBufPtr;
@@ -1070,10 +1071,11 @@ namespace Ep128 {
     currentSlot = 0;
     borderColor = 0;
     dataBusState = 0xFF;
-    lptClockEnabled = true;
+    lptFlags = 0x00;
     savedBorderColor = 0;
     vsyncFlag = false;
-    forceReloadFlag = false;
+    port0Value = 0x00;
+    port3Value = 0xF0;
     try {
       uint32_t  *p = new uint32_t[129];     // for 513 bytes (57 * 9)
       lineBuf = reinterpret_cast<uint8_t *>(p);
@@ -1131,6 +1133,7 @@ namespace Ep128 {
     dataBusState = value;
     switch (portNum & 3) {
     case 0:
+      port0Value = value;
       {
         uint8_t fixBias = (value & 0x1F) << 3;
         lpb.palette[8]  = fixBias | 0;
@@ -1154,13 +1157,18 @@ namespace Ep128 {
       break;
     case 3:
       lptBaseAddr = (lptBaseAddr & 0x0FF0) | (uint16_t(value & 0x0F) << 12);
-      lptClockEnabled = bool(value & 0x40);
-      forceReloadFlag = !(value & 0x80);
-      if (forceReloadFlag) {
-        if (lptClockEnabled)
-          lptCurrentAddr = lptBaseAddr;
-        else
-          linesRemaining = 1;
+      uint8_t flagBitsChanged = (value ^ port3Value) & 0xC0;
+      port3Value = value;
+      if (flagBitsChanged != 0) {
+        if (!(value & 0x40)) {
+          lptFlags = 0x00;
+        }
+        else {
+          if (flagBitsChanged & 0x40)
+            lptFlags = lptFlags | 0x80;
+          if (!(value & 0x80))
+            lptFlags = lptFlags | 0x40;
+        }
       }
       break;
     }
@@ -1170,15 +1178,13 @@ namespace Ep128 {
   {
     switch (portNum & 3) {
     case 0:
-      return uint8_t(lpb.palette[8] >> 3);
+      return port0Value;
     case 1:
       return savedBorderColor;
     case 2:
       return uint8_t((lptBaseAddr >> 4) & 0xFF);
     case 3:
-      return uint8_t(((lptBaseAddr >> 12) & 0x0F)
-                     | (lptClockEnabled ? 0x40 : 0x00)
-                     | (forceReloadFlag ? 0x30 : 0xB0));
+      return port3Value;
     }
     return 0x00;                // not reached
   }
@@ -1236,7 +1242,7 @@ namespace Ep128 {
   void Nick::saveState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
-    buf.writeUInt32(0x03000000U);       // version number
+    buf.writeUInt32(0x04000000U);       // version number
     buf.writeUInt32(uint32_t(lpb.nLines));
     buf.writeBoolean(lpb.interruptFlag);
     buf.writeBoolean(lpb.vresMode);
@@ -1263,8 +1269,9 @@ namespace Ep128 {
     buf.writeByte(currentSlot);
     buf.writeByte(savedBorderColor);
     buf.writeByte(dataBusState);
-    buf.writeBoolean(lptClockEnabled);
-    buf.writeBoolean(forceReloadFlag);
+    buf.writeByte(lptFlags);
+    buf.writeByte(port0Value);
+    buf.writeByte(port3Value);
   }
 
   void Nick::saveState(Ep128Emu::File& f)
@@ -1279,7 +1286,7 @@ namespace Ep128 {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
-    if (!(version >= 0x02000000U && version <= 0x03000000U)) {
+    if (!(version >= 0x02000000U && version <= 0x04000000U)) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible Nick snapshot format");
     }
@@ -1318,14 +1325,28 @@ namespace Ep128 {
       clearLineBuffer();
       lineBufPtr = &(lineBuf[(currentSlot >= 7 ?
                               (currentSlot - 7) : (currentSlot + 50)) << 1]);
-      lptClockEnabled = buf.readBoolean();
-      if (version >= 0x03000000U) {
-        forceReloadFlag = buf.readBoolean();
+      if (version >= 0x04000000U) {
+        lptFlags = buf.readByte() & 0xC0;
+        port0Value = buf.readByte();
+        port3Value = buf.readByte();
       }
       else {
-        forceReloadFlag = false;
-        if (currentSlot > 0 && currentSlot < 4 && linesRemaining == lpb.nLines)
-          linesRemaining = 0;
+        bool    lptClockEnabled = buf.readBoolean();
+        port0Value = (lpb.palette[8] >> 3) & 0x1F;
+        port3Value = uint8_t((lptBaseAddr >> 12) & 0x0F)
+                     | (uint8_t(lptClockEnabled) << 6)
+                     | 0xB0;
+        if (version >= 0x03000000U) {
+          bool    forceReloadFlag = buf.readBoolean();
+          port3Value = port3Value & uint8_t(0xFF ^ (int(forceReloadFlag) << 7));
+        }
+        else {
+          if (currentSlot > 0 && currentSlot < 4 &&
+              linesRemaining == lpb.nLines) {
+            linesRemaining = 0;
+          }
+        }
+        lptFlags = (port3Value & ((~port3Value) >> 1)) & 0x40;
       }
       if (buf.getPosition() != buf.getDataSize())
         throw Ep128Emu::Exception("trailing garbage at end of "
@@ -1335,6 +1356,7 @@ namespace Ep128 {
       // reset NICK
       for (uint16_t i = 0; i < 4; i++)
         writePort(i, 0x00);
+      lptFlags = 0x00;
       currentSlot = 0;
       clearLineBuffer();
       throw;
