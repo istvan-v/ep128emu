@@ -60,6 +60,7 @@ namespace Ep128 {
       virtual uint16_t readOpcodeWord(int offset);
       virtual void writeMemory(uint16_t addr, uint8_t value);
       virtual void writeMemoryWord(uint16_t addr, uint16_t value);
+      virtual void pushWord(uint16_t value);
       virtual void doOut(uint16_t addr, uint8_t value);
       virtual uint8_t doIn(uint16_t addr);
       virtual void updateCycle();
@@ -123,21 +124,18 @@ namespace Ep128 {
     Dave_     dave;
     Nick_     nick;
     uint8_t   pageTable[4];
-    size_t    cpuFrequency;             // defaults to 4000000 Hz
-    size_t    daveFrequency;            // for now, this is always 500000 Hz
-    size_t    nickFrequency;            // defaults to 15625 * 57 = 890625 Hz
     int64_t   nickCyclesRemaining;      // in 2^-32 NICK cycle units
     int64_t   cpuCyclesPerNickCycle;    // in 2^-32 Z80 cycle units
     int64_t   cpuCyclesRemaining;       // in 2^-32 Z80 cycle units
     int64_t   daveCyclesPerNickCycle;   // in 2^-32 DAVE cycle units
     int64_t   daveCyclesRemaining;      // in 2^-32 DAVE cycle units
+    int64_t   memoryWaitCycles_M1;      // in 2^-32 Z80 cycle units
+    int64_t   memoryWaitCycles;         // in 2^-32 Z80 cycle units
     uint8_t   memoryWaitMode;           // set on write to port 0xBF
     bool      memoryTimingEnabled;
     // 0: normal mode, 1: single step, 2: step over, 3: trace
     uint8_t   singleStepMode;
     int32_t   singleStepModeNextAddr;
-    int64_t   tapeSamplesPerNickCycle;
-    int64_t   tapeSamplesRemaining;
     bool      tapeCallbackFlag;
     bool      isRemote1On;
     bool      isRemote2On;
@@ -186,10 +184,27 @@ namespace Ep128 {
     Ep128VMCallback   *firstCallback;
     Ep128Emu::VideoCapture  *videoCapture;
     uint8_t   externalDACIOPorts[4];
+    uint32_t  nickCyclesPerCPUCycleD2;  // in 2^-31 NICK cycle units
+    uint32_t  videoMemoryWaitMult;      // (Z80 freq / NICK freq) * 16384
+    uint32_t  videoMemoryWaitCycles;    // in 2^-18 NICK cycle units
+    uint32_t  videoMemoryWaitCycles_M1; //            -"-
+    uint32_t  videoMemoryWaitCycles_IO; //            -"-
+    int64_t   tapeSamplesPerNickCycle;
+    int64_t   tapeSamplesRemaining;
+    size_t    cpuFrequency;             // defaults to 4000000 Hz
+    size_t    daveFrequency;            // defaults to 500000 Hz
+    size_t    nickFrequency;            // defaults to 889846 Hz
+    int       waitCycleCnt;             // 1 for Z80 <= 5000000 Hz, 2 otherwise
+    int       videoMemoryLatency;       // in picoseconds
+    int       videoMemoryLatency_M1;    //      -"-
+    int       videoMemoryLatency_IO;    //      -"-
     // ----------------
     void updateTimingParameters();
+    void setMemoryWaitTiming();
     inline void updateCPUCycles(int cycles);
     EP128EMU_REGPARM1 void videoMemoryWait();
+    EP128EMU_REGPARM1 void videoMemoryWait_M1();
+    EP128EMU_REGPARM1 void videoMemoryWait_IO();
     static uint8_t davePortReadCallback(void *userData, uint16_t addr);
     static void davePortWriteCallback(void *userData,
                                       uint16_t addr, uint8_t value);
@@ -246,11 +261,15 @@ namespace Ep128 {
      */
     virtual void loadROMSegment(uint8_t n, const char *fileName, size_t offs);
     /*!
+     * Load epmemcfg format memory configuration file.
+     */
+    virtual void loadMemoryConfiguration(const std::string& fileName_);
+    /*!
      * Set CPU clock frequency (in Hz); defaults to 4000000 Hz.
      */
     virtual void setCPUFrequency(size_t freq_);
     /*!
-     * Set the number of video 'slots' per second (defaults to 890625 Hz).
+     * Set the number of video 'slots' per second (defaults to 889846 Hz).
      */
     virtual void setVideoFrequency(size_t freq_);
     /*!
