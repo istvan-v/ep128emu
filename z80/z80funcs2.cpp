@@ -38,34 +38,24 @@ namespace Ep128 {
 
     ackInterruptFunction();
 
-    switch (R.IM) {
-    case 0x00:
-      // unsupported
-      break;
-    case 0x01:
-      {
-        // The number of cycles required to complete the instruction
-        // is two more than normal due to the two added wait states
-        updateCycles(7);
-        // push return address onto stack
-        PUSH(R.PC.W.l);
-        // set program counter address
-        R.PC.W.l = 0x0038;
-      }
-      break;
-    case 0x02:
-      {
-        Z80_WORD Vector;
-        Z80_WORD Address;
-        // 19 clock cycles for this mode. 8 for vector,
-        // six for program counter, six to obtain jump address
-        updateCycles(7);
-        PUSH(R.PC.W.l);
-        Vector = (R.I << 8) | (R.InterruptVectorBase);
-        Address = readMemoryWord(Vector);
-        R.PC.W.l = Address;
-      }
-      break;
+    if (R.IM < 0x02) {
+      // IM 0: assume that the byte read from the data bus is FFh (RST 38H)
+      // IM 1: the number of cycles required to complete the instruction
+      // is two more than normal due to the two added wait states
+      updateCycles(6);
+      // push return address onto stack
+      PUSH(R.PC.W.l);
+      // set program counter address
+      R.PC.W.l = 0x0038;
+    }
+    else {
+      // IM 2: 19 clock cycles for this mode. 7 for vector,
+      // six for program counter, six to obtain jump address
+      updateCycles(6);
+      PUSH(R.PC.W.l);
+      Z80_WORD Vector = (R.I << 8) | (R.InterruptVectorBase);
+      Z80_WORD Address = readMemoryWord(Vector);
+      R.PC.W.l = Address;
     }
   }
 
@@ -232,7 +222,7 @@ namespace Ep128 {
     R.IFF1 = 0;
     // NMI takes a total of 11 cycles to execute
     // (5 + 6 for pushing the return address)
-    updateCycles(5);
+    updateCycles(4);
     // push return address on stack
     PUSH(R.PC.W.l);
     // set program counter address
@@ -262,88 +252,72 @@ namespace Ep128 {
 
   void Z80::CPI()
   {
-    Z80_BYTE Result;
-
-    R.TempByte = readMemory(R.HL.W);
-    Result = R.AF.B.h - R.TempByte;
-
     Z80_FLAGS_REG = Z80_FLAGS_REG | Z80_SUBTRACT_FLAG;
-    SET_ZERO_SIGN(Result);
+    SET_ZERO_SIGN(R.AF.B.h - readMemory(R.HL.W));
 
     R.HL.W++;
     R.BC.W--;
 
     Z80_FLAGS_REG = Z80_FLAGS_REG & (~Z80_PARITY_FLAG);
-    if (R.BC.W != 0) {
+    if (R.BC.W != 0)
       Z80_FLAGS_REG = Z80_FLAGS_REG | Z80_PARITY_FLAG;
-    }
-    updateCycles(3);
+    updateCycles(5);
   }
 
   void Z80::CPD()
   {
-    Z80_BYTE Result;
-
-    R.TempByte = readMemory(R.HL.W);
-    Result = R.AF.B.h - R.TempByte;
-
     Z80_FLAGS_REG = Z80_FLAGS_REG | Z80_SUBTRACT_FLAG;
-    SET_ZERO_SIGN(Result);
+    SET_ZERO_SIGN(R.AF.B.h - readMemory(R.HL.W));
 
     R.HL.W--;
     R.BC.W--;
 
     Z80_FLAGS_REG = Z80_FLAGS_REG & (~Z80_PARITY_FLAG);
-    if (R.BC.W != 0) {
+    if (R.BC.W != 0)
       Z80_FLAGS_REG = Z80_FLAGS_REG | Z80_PARITY_FLAG;
-    }
-    updateCycles(3);
+    updateCycles(5);
   }
 
   void Z80::OUTI()
   {
+    updateCycle();
     R.BC.B.h--;
     SET_ZERO_FLAG(R.BC.B.h);
-    R.TempByte = readMemory(R.HL.W);
-    doOut(R.BC.W, R.TempByte);
+    doOut(R.BC.W, readMemory(R.HL.W));
     Z80_FLAGS_REG |= Z80_SUBTRACT_FLAG;
     R.HL.W++;
-    updateCycles(5);
   }
 
   /* B is pre-decremented before execution */
   void Z80::OUTD()
   {
+    updateCycle();
     R.BC.B.h--;
     SET_ZERO_FLAG(R.BC.B.h);
-    R.TempByte = readMemory(R.HL.W);
-    doOut(R.BC.W, R.TempByte);
+    doOut(R.BC.W, readMemory(R.HL.W));
     /* as per Zilog docs */
     Z80_FLAGS_REG |= Z80_SUBTRACT_FLAG;
     R.HL.W--;
-    updateCycles(5);
   }
 
   void Z80::INI()
   {
-    R.TempByte = doIn(R.BC.W);
-    writeMemory(R.HL.W, R.TempByte);
+    updateCycle();
+    writeMemory(R.HL.W, doIn(R.BC.W));
     R.HL.W++;
     R.BC.B.h--;
     SET_ZERO_FLAG(R.BC.B.h);
     Z80_FLAGS_REG |= Z80_SUBTRACT_FLAG;
-    updateCycles(5);
   }
 
   void Z80::IND()
   {
-    R.TempByte = doIn(R.BC.W);
-    writeMemory(R.HL.W, R.TempByte);
+    updateCycle();
+    writeMemory(R.HL.W, doIn(R.BC.W));
     R.HL.W--;
     R.BC.B.h--;
     SET_ZERO_FLAG(R.BC.B.h);
     Z80_FLAGS_REG |= Z80_SUBTRACT_FLAG;
-    updateCycles(5);
   }
 
   /* half carry not set */
@@ -396,15 +370,25 @@ namespace Ep128 {
     writeMemory((addr + 1) & 0xFFFF, uint8_t(value >> 8));
   }
 
+  void Z80::pushWord(uint16_t value)
+  {
+    updateCycle();
+    R.SP.W -= 2;
+    writeMemory((R.SP.W + 1) & 0xFFFF, uint8_t(value >> 8));
+    writeMemory(R.SP.W, uint8_t(value) & 0xFF);
+  }
+
   void Z80::doOut(uint16_t addr, uint8_t value)
   {
     (void) addr;
     (void) value;
+    updateCycles(4);
   }
 
   uint8_t Z80::doIn(uint16_t addr)
   {
     (void) addr;
+    updateCycles(4);
     return 0xFF;
   }
 
@@ -471,7 +455,7 @@ namespace Ep128 {
   void Z80::saveState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
-    buf.writeUInt32(0x01000001);        // version number
+    buf.writeUInt32(0x01000002);        // version number
     buf.writeByte(R.PC.B.h);            // PC high
     buf.writeByte(R.PC.B.l);            // PC low
     buf.writeByte(R.AF.B.h);            // A
@@ -503,7 +487,6 @@ namespace Ep128 {
     buf.writeByte(R.IFF2);
     buf.writeByte(R.RBit7);
     buf.writeByte(R.IM);
-    buf.writeByte(R.TempByte);
     buf.writeByte(R.InterruptVectorBase);
     buf.writeUInt32(uint32_t(R.Flags));
     buf.writeInt32(newPCAddress);
@@ -521,7 +504,7 @@ namespace Ep128 {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
-    if (!(version >= 0x01000000 && version <= 0x01000001)) {
+    if (!(version >= 0x01000000 && version <= 0x01000002)) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible Z80 snapshot format");
     }
@@ -560,7 +543,8 @@ namespace Ep128 {
       R.IFF2 = buf.readByte();
       R.RBit7 = buf.readByte();
       R.IM = buf.readByte();
-      R.TempByte = buf.readByte();
+      if (version < 0x01000002)
+        (void) buf.readByte();          // was R.TempByte
       R.InterruptVectorBase = buf.readByte();
       R.Flags = buf.readUInt32() & Z80_FLAGS_MASK;
       if (version >= 0x01000001) {
