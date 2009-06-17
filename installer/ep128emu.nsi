@@ -89,6 +89,8 @@ Section "ep128emu2" SecMain
 
   File "..\disk\disk.zip"
 
+  SetOutPath "$INSTDIR\files"
+
   SetOutPath "$INSTDIR\roms"
 
   File "..\roms\epfileio.rom"
@@ -413,6 +415,7 @@ Section "Uninstall"
   RMDir "$INSTDIR\demo"
   Delete "$INSTDIR\disk\disk.zip"
   RMDir "$INSTDIR\disk"
+  RMDir "$INSTDIR\files"
   RMDir "$INSTDIR\progs"
   Delete "$INSTDIR\roms\asmen15.rom"
   Delete "$INSTDIR\roms\asmon15.rom"
