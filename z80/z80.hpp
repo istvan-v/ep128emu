@@ -154,14 +154,13 @@ namespace Ep128 {
 
     /*! interrupt mode 0,1,2 */
     Z80_BYTE IM;
-    Z80_BYTE TempByte;
     Z80_BYTE InterruptVectorBase;
     unsigned long Flags;
   };
 
 #define GET_R   (R.RBit7 | (R.R & 0x07f))
 
-#define Z80_FLAGS_REG                       R.AF.B.l
+#define Z80_FLAGS_REG               R.AF.B.l
 
 #define Z80_TEST_CARRY_SET          ((Z80_FLAGS_REG & Z80_CARRY_FLAG)!=0)
 #define Z80_TEST_CARRY_NOT_SET      (Z80_FLAGS_REG & Z80_CARRY_FLAG)==0
@@ -190,14 +189,13 @@ namespace Ep128 {
     Z80_REGISTERS   R;
     int32_t newPCAddress;
    private:
-    EP128EMU_INLINE void FD_CB_ExecuteInstruction();
+    EP128EMU_INLINE void Index_CB_ExecuteInstruction();
     EP128EMU_INLINE void FD_ExecuteInstruction();
-    EP128EMU_INLINE void DD_CB_ExecuteInstruction();
     EP128EMU_INLINE void DD_ExecuteInstruction();
     EP128EMU_INLINE void ED_ExecuteInstruction();
     EP128EMU_INLINE void CB_ExecuteInstruction();
-    EP128EMU_INLINE Z80_BYTE RD_BYTE_INDEX(Z80_WORD Index);
-    EP128EMU_INLINE void WR_BYTE_INDEX_OLD(Z80_WORD Index, Z80_BYTE Data);
+    EP128EMU_INLINE Z80_BYTE RD_BYTE_INDEX_(Z80_WORD Index);
+    EP128EMU_INLINE void WR_BYTE_INDEX_(Z80_WORD Index, Z80_BYTE Data);
     EP128EMU_INLINE void LD_HL_n();
     EP128EMU_INLINE Z80_WORD POP();
     EP128EMU_INLINE void ADD_A_HL();
@@ -295,11 +293,15 @@ namespace Ep128 {
      */
     virtual void writeMemoryWord(uint16_t addr, uint16_t value);
     /*!
-     * Write a byte to an I/O port.
+     * Write a 16-bit word to the stack (7 cycles).
+     */
+    virtual void pushWord(uint16_t value);
+    /*!
+     * Write a byte to an I/O port (4 cycles).
      */
     virtual void doOut(uint16_t addr, uint8_t value);
     /*!
-     * Read a byte from an I/O port.
+     * Read a byte from an I/O port (4 cycles).
      */
     virtual uint8_t doIn(uint16_t addr);
     /*!
