@@ -21,7 +21,6 @@
 #include "system.hpp"
 
 #include <typeinfo>
-#include <cmath>
 
 #define GL_GLEXT_PROTOTYPES 1
 
@@ -416,32 +415,30 @@ namespace Ep128Emu {
 
   void OpenGLDisplay::Colormap_YUV::setParams(const DisplayParameters& dp)
   {
+    DisplayParameters dp_(dp);
     for (size_t i = 0; i < 256; i++) {
-      float   r = float(uint8_t(i)) / 255.0f;
-      float   g = float(uint8_t(i)) / 255.0f;
-      float   b = float(uint8_t(i)) / 255.0f;
-      if (dp.indexToRGBFunc)
-        dp.indexToRGBFunc(uint8_t(i), r, g, b);
-      dp.applyColorCorrection(r, g, b);
-      palette0[i] = pixelConv(r, g, b, 15.0);
-      palette1[i] = pixelConv(r, g, b, -15.0);
+      float   r0 = float(uint8_t(i)) / 255.0f;
+      float   g0 = r0;
+      float   b0 = r0;
+      if (dp_.indexToRGBFunc)
+        dp_.indexToRGBFunc(uint8_t(i), r0, g0, b0);
+      float   r1 = r0;
+      float   g1 = g0;
+      float   b1 = b0;
+      dp_.hueShift = dp.hueShift + 15.0f;
+      dp_.applyColorCorrection(r0, g0, b0);
+      palette0[i] = pixelConv(r0, g0, b0);
+      dp_.hueShift = dp.hueShift - 15.0f;
+      dp_.applyColorCorrection(r1, g1, b1);
+      palette1[i] = pixelConv(r1, g1, b1);
     }
   }
 
-  uint32_t OpenGLDisplay::Colormap_YUV::pixelConv(double r, double g, double b,
-                                                  double p)
+  uint32_t OpenGLDisplay::Colormap_YUV::pixelConv(double r, double g, double b)
   {
     double  y = (r * 0.299) + (g * 0.587) + (b * 0.114);
     double  u = (b - y) * (1.0 / 0.886);
     double  v = (r - y) * (1.0 / 0.701);
-    p = p * (3.14159265 / 180.0);
-    {
-      double  p_re = std::cos(p);
-      double  p_im = std::sin(p);
-      double  tmp = (u * p_re) - (v * p_im);
-      v = (u * p_im) + (v * p_re);
-      u = tmp;
-    }
     y = (y > -0.5 ? (y < 1.5 ? y : 1.5) : -0.5);
     u = (u > -2.0 ? (u < 2.0 ? u : 2.0) : -2.0);
     v = (v > -2.0 ? (v < 2.0 ? v : 2.0) : -2.0);

@@ -53,7 +53,7 @@ namespace Ep128Emu {
      private:
       uint32_t  *palette0;
       uint32_t  *palette1;
-      static uint32_t pixelConv(double r, double g, double b, double p = 0.0);
+      static uint32_t pixelConv(double r, double g, double b);
      public:
       Colormap_YUV();
       ~Colormap_YUV();
