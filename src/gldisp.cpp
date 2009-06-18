@@ -800,10 +800,7 @@ namespace Ep128Emu {
       drawFrame_quality3(lineBuffers_, x0, y0, x1, y1, oddFrame_);
       return;
     }
-    double  yOffs = (y1 - y0) * (-1.0 / 576.0);
-    // interlace
-    if (!oddFrame_)
-      yOffs = yOffs * 2.0;
+    double  yOffs = (y1 - y0) * (-2.0 / 576.0);
     unsigned char lineBuf1[768];
     unsigned char *curLine_ = &(lineBuf1[0]);
     uint32_t  prvTextureLine[768];
@@ -873,7 +870,7 @@ namespace Ep128Emu {
         txtycf0 -= ((ycf0 - y0) * (288.0 / 16.0) / (y1 - y0));
         ycf0 = y0;
       }
-      if (yc == 568) {
+      if (yc >= 568) {
         ycf1 -= ((y1 - y0) * (20.0 / 576.0));
         txtycf1 -= (10.0 / 16.0);
       }
