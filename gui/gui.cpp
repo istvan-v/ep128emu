@@ -324,16 +324,19 @@ void Ep128EmuGUI::updateDisplay(double t)
   uint32_t  newFloppyDriveLEDState = vmThreadStatus.floppyDriveLEDState;
   if (newFloppyDriveLEDState != oldFloppyDriveLEDState) {
     oldFloppyDriveLEDState = newFloppyDriveLEDState;
-    Fl_Color  ledColors_[4] = {
-      FL_BLACK, Fl_Color(92), FL_GREEN, Fl_Color(87)
+    Fl_Color  ledColors_[16] = {
+      FL_BLACK,      Fl_Color(92),  FL_GREEN,      Fl_Color(87),
+      Fl_Color(128), Fl_Color(92),  FL_GREEN,      Fl_Color(87),
+      FL_BLACK,      Fl_Color(92),  FL_GREEN,      Fl_Color(87),
+      Fl_Color(128), Fl_Color(128), Fl_Color(128), Fl_Color(128)
     };
-    driveALEDDisplay->color(ledColors_[newFloppyDriveLEDState & 0x03U]);
+    driveALEDDisplay->color(ledColors_[newFloppyDriveLEDState & 0x0FU]);
     driveALEDDisplay->redraw();
-    driveBLEDDisplay->color(ledColors_[(newFloppyDriveLEDState >> 8) & 0x03U]);
+    driveBLEDDisplay->color(ledColors_[(newFloppyDriveLEDState >> 8) & 0x0FU]);
     driveBLEDDisplay->redraw();
-    driveCLEDDisplay->color(ledColors_[(newFloppyDriveLEDState >> 16) & 0x03U]);
+    driveCLEDDisplay->color(ledColors_[(newFloppyDriveLEDState >> 16) & 0x0FU]);
     driveCLEDDisplay->redraw();
-    driveDLEDDisplay->color(ledColors_[(newFloppyDriveLEDState >> 24) & 0x03U]);
+    driveDLEDDisplay->color(ledColors_[(newFloppyDriveLEDState >> 24) & 0x0FU]);
     driveDLEDDisplay->redraw();
   }
   if (statsTimer.getRealTime() >= 0.5) {
@@ -548,27 +551,27 @@ void Ep128EmuGUI::createMenus()
                    (char *) 0, &menuCallback_Options_SndDecVol, (void *) this);
   mainMenuBar->add("Options/Sound/Configure... (Alt+U)",
                    (char *) 0, &menuCallback_Options_SndConfig, (void *) this);
-  mainMenuBar->add("Options/Floppy/Remove disk/Drive A",
+  mainMenuBar->add("Options/Disk/Remove floppy/Drive A",
                    (char *) 0, &menuCallback_Options_FloppyRmA, (void *) this);
-  mainMenuBar->add("Options/Floppy/Remove disk/Drive B",
+  mainMenuBar->add("Options/Disk/Remove floppy/Drive B",
                    (char *) 0, &menuCallback_Options_FloppyRmB, (void *) this);
-  mainMenuBar->add("Options/Floppy/Remove disk/Drive C",
+  mainMenuBar->add("Options/Disk/Remove floppy/Drive C",
                    (char *) 0, &menuCallback_Options_FloppyRmC, (void *) this);
-  mainMenuBar->add("Options/Floppy/Remove disk/Drive D",
+  mainMenuBar->add("Options/Disk/Remove floppy/Drive D",
                    (char *) 0, &menuCallback_Options_FloppyRmD, (void *) this);
-  mainMenuBar->add("Options/Floppy/Remove disk/All drives",
+  mainMenuBar->add("Options/Disk/Remove floppy/All drives",
                    (char *) 0, &menuCallback_Options_FloppyRmv, (void *) this);
-  mainMenuBar->add("Options/Floppy/Replace disk/Drive A (Alt+H)",
+  mainMenuBar->add("Options/Disk/Replace floppy/Drive A (Alt+H)",
                    (char *) 0, &menuCallback_Options_FloppyRpA, (void *) this);
-  mainMenuBar->add("Options/Floppy/Replace disk/Drive B",
+  mainMenuBar->add("Options/Disk/Replace floppy/Drive B",
                    (char *) 0, &menuCallback_Options_FloppyRpB, (void *) this);
-  mainMenuBar->add("Options/Floppy/Replace disk/Drive C",
+  mainMenuBar->add("Options/Disk/Replace floppy/Drive C",
                    (char *) 0, &menuCallback_Options_FloppyRpC, (void *) this);
-  mainMenuBar->add("Options/Floppy/Replace disk/Drive D",
+  mainMenuBar->add("Options/Disk/Replace floppy/Drive D",
                    (char *) 0, &menuCallback_Options_FloppyRpD, (void *) this);
-  mainMenuBar->add("Options/Floppy/Replace disk/All drives",
+  mainMenuBar->add("Options/Disk/Replace floppy/All drives",
                    (char *) 0, &menuCallback_Options_FloppyRpl, (void *) this);
-  mainMenuBar->add("Options/Floppy/Configure... (Alt+D)",
+  mainMenuBar->add("Options/Disk/Configure... (Alt+D)",
                    (char *) 0, &menuCallback_Options_FloppyCfg, (void *) this);
   mainMenuBar->add("Options/Process priority/Idle",
                    (char *) 0, &menuCallback_Options_PPriority, (void *) this);

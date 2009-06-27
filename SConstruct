@@ -286,6 +286,7 @@ ep128Lib = ep128LibEnvironment.StaticLibrary('ep128', Split('''
     z80/z80.cpp
     z80/z80funcs2.cpp
     src/epmemcfg.cpp
+    src/ide.cpp
 '''))
 
 # -----------------------------------------------------------------------------

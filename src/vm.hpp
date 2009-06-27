@@ -77,15 +77,23 @@ namespace Ep128Emu {
       double    tapeLength;
       long      tapeSampleRate;
       int       tapeSampleSize;
-      // floppy drive LED state is the sum of any of the following values:
-      //   0x00000001: drive 0 red LED is on
-      //   0x00000002: drive 0 green LED is on
-      //   0x00000100: drive 1 red LED is on
-      //   0x00000200: drive 1 green LED is on
-      //   0x00010000: drive 2 red LED is on
-      //   0x00020000: drive 2 green LED is on
-      //   0x01000000: drive 3 red LED is on
-      //   0x02000000: drive 3 green LED is on
+      // disk drive LED state is the sum of any of the following values:
+      //   0x00000001: floppy drive 0 red LED is on
+      //   0x00000002: floppy drive 0 green LED is on
+      //   0x00000004: IDE drive 0 red LED is on (low priority)
+      //   0x0000000C: IDE drive 0 red LED is on (high priority)
+      //   0x00000100: floppy drive 1 red LED is on
+      //   0x00000200: floppy drive 1 green LED is on
+      //   0x00000400: IDE drive 1 red LED is on (low priority)
+      //   0x00000C00: IDE drive 1 red LED is on (high priority)
+      //   0x00010000: floppy drive 2 red LED is on
+      //   0x00020000: floppy drive 2 green LED is on
+      //   0x00040000: IDE drive 2 red LED is on (low priority)
+      //   0x000C0000: IDE drive 2 red LED is on (high priority)
+      //   0x01000000: floppy drive 3 red LED is on
+      //   0x02000000: floppy drive 3 green LED is on
+      //   0x04000000: IDE drive 3 red LED is on (low priority)
+      //   0x0C000000: IDE drive 3 red LED is on (high priority)
       uint32_t  floppyDriveLEDState;
     };
     // --------
@@ -208,23 +216,31 @@ namespace Ep128Emu {
     virtual void closeVideoCapture();
     // -------------------------- DISK AND FILE I/O ---------------------------
     /*!
-     * Load disk image for drive 'n' (counting from zero); an empty file
-     * name means no disk.
+     * Load disk image for drive 'n' (counting from zero; 0 to 3 are floppy
+     * drives, and 4 to 7 are IDE drives); an empty file name means no disk.
      */
     virtual void setDiskImageFile(int n, const std::string& fileName_,
                                   int nTracks_ = -1, int nSides_ = 2,
                                   int nSectorsPerTrack_ = 9);
     /*!
-     * Returns the current state of the floppy drive LEDs, which is the sum
+     * Returns the current state of the disk drive LEDs, which is the sum
      * of any of the following values:
-     *   0x00000001: drive 0 red LED is on
-     *   0x00000002: drive 0 green LED is on
-     *   0x00000100: drive 1 red LED is on
-     *   0x00000200: drive 1 green LED is on
-     *   0x00010000: drive 2 red LED is on
-     *   0x00020000: drive 2 green LED is on
-     *   0x01000000: drive 3 red LED is on
-     *   0x02000000: drive 3 green LED is on
+     *   0x00000001: floppy drive 0 red LED is on
+     *   0x00000002: floppy drive 0 green LED is on
+     *   0x00000004: IDE drive 0 red LED is on (low priority)
+     *   0x0000000C: IDE drive 0 red LED is on (high priority)
+     *   0x00000100: floppy drive 1 red LED is on
+     *   0x00000200: floppy drive 1 green LED is on
+     *   0x00000400: IDE drive 1 red LED is on (low priority)
+     *   0x00000C00: IDE drive 1 red LED is on (high priority)
+     *   0x00010000: floppy drive 2 red LED is on
+     *   0x00020000: floppy drive 2 green LED is on
+     *   0x00040000: IDE drive 2 red LED is on (low priority)
+     *   0x000C0000: IDE drive 2 red LED is on (high priority)
+     *   0x01000000: floppy drive 3 red LED is on
+     *   0x02000000: floppy drive 3 green LED is on
+     *   0x04000000: IDE drive 3 red LED is on (low priority)
+     *   0x0C000000: IDE drive 3 red LED is on (high priority)
      */
     virtual uint32_t getFloppyDriveLEDState();
     /*!

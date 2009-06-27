@@ -378,7 +378,7 @@ Sound / Decrease volume
 
   Decrease sound output volume by about 2 dB.
 
-Floppy / Configure... (Alt + D)
+Disk / Configure... (Alt + D)
 
   Opens a dialog for setting up floppy emulation. For each drive, an
   image file can be selected, and disk geometry parameters can be
@@ -390,20 +390,20 @@ Floppy / Configure... (Alt + D)
   value calculated automatically from the others (if available), the
   image file size, and the file system header.
 
-Floppy / Remove disk / Drive A
-Floppy / Remove disk / Drive B
-Floppy / Remove disk / Drive C
-Floppy / Remove disk / Drive D
-Floppy / Remove disk / All drives
+Disk / Remove floppy / Drive A
+Disk / Remove floppy / Drive B
+Disk / Remove floppy / Drive C
+Disk / Remove floppy / Drive D
+Disk / Remove floppy / All drives
 
   These are just shortcuts for setting the image file name for a
   specific floppy drive to an empty string.
 
-Floppy / Replace disk / Drive A (Alt + H)
-Floppy / Replace disk / Drive B
-Floppy / Replace disk / Drive C
-Floppy / Replace disk / Drive D
-Floppy / Replace disk / All drives
+Disk / Replace floppy / Drive A (Alt + H)
+Disk / Replace floppy / Drive B
+Disk / Replace floppy / Drive C
+Disk / Replace floppy / Drive D
+Disk / Replace floppy / All drives
 
   Set the image file name for a specific (or all) floppy drive to an
   empty string, and then set the original file name again. This is

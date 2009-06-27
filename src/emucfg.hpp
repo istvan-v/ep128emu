@@ -161,6 +161,18 @@ namespace Ep128Emu {
     bool          floppyCChanged;
     bool          floppyDChanged;
     // --------
+    struct IDEConfiguration_ {
+      std::string imageFile0;
+      std::string imageFile1;
+      std::string imageFile2;
+      std::string imageFile3;
+    };
+    IDEConfiguration_     ide;
+    bool          ideDisk0Changed;
+    bool          ideDisk1Changed;
+    bool          ideDisk2Changed;
+    bool          ideDisk3Changed;
+    // --------
     struct TapeConfiguration_ {
       std::string imageFile;
       int         defaultSampleRate;

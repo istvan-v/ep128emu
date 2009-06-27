@@ -320,6 +320,19 @@ namespace Ep128Emu {
                                   *floppyChanged_, -1.0, 240.0);
     }
     // ----------------
+    defineConfigurationVariable(*this, "ide.imageFile0",
+                                ide.imageFile0, std::string(""),
+                                ideDisk0Changed);
+    defineConfigurationVariable(*this, "ide.imageFile1",
+                                ide.imageFile1, std::string(""),
+                                ideDisk1Changed);
+    defineConfigurationVariable(*this, "ide.imageFile2",
+                                ide.imageFile2, std::string(""),
+                                ideDisk2Changed);
+    defineConfigurationVariable(*this, "ide.imageFile3",
+                                ide.imageFile3, std::string(""),
+                                ideDisk3Changed);
+    // ----------------
     defineConfigurationVariable(*this, "tape.imageFile",
                                 tape.imageFile, std::string(""),
                                 tapeFileChanged);
@@ -405,7 +418,7 @@ namespace Ep128Emu {
                                size_t(memory.rom[i].offset));
           }
           catch (Exception& e) {
-            memory.rom[i].file = "";
+            memory.rom[i].file.clear();
             memory.rom[i].offset = 0;
             vm_.loadROMSegment(uint8_t(i), "", 0);
             errorCallback(errorCallbackUserData, e.what());
@@ -473,7 +486,7 @@ namespace Ep128Emu {
         audioOutput.setOutputFile(sound.file);
       }
       catch (Exception& e) {
-        sound.file = "";
+        sound.file.clear();
         audioOutput.setOutputFile(sound.file);
         errorCallback(errorCallbackUserData, e.what());
       }
@@ -496,7 +509,7 @@ namespace Ep128Emu {
                              floppy.a.sectorsPerTrack);
       }
       catch (Exception& e) {
-        floppy.a.imageFile = "";
+        floppy.a.imageFile.clear();
         vm_.setDiskImageFile(0, floppy.a.imageFile,
                              floppy.a.tracks, floppy.a.sides,
                              floppy.a.sectorsPerTrack);
@@ -511,7 +524,7 @@ namespace Ep128Emu {
                              floppy.b.sectorsPerTrack);
       }
       catch (Exception& e) {
-        floppy.b.imageFile = "";
+        floppy.b.imageFile.clear();
         vm_.setDiskImageFile(1, floppy.b.imageFile,
                              floppy.b.tracks, floppy.b.sides,
                              floppy.b.sectorsPerTrack);
@@ -526,7 +539,7 @@ namespace Ep128Emu {
                              floppy.c.sectorsPerTrack);
       }
       catch (Exception& e) {
-        floppy.c.imageFile = "";
+        floppy.c.imageFile.clear();
         vm_.setDiskImageFile(2, floppy.c.imageFile,
                              floppy.c.tracks, floppy.c.sides,
                              floppy.c.sectorsPerTrack);
@@ -541,13 +554,57 @@ namespace Ep128Emu {
                              floppy.d.sectorsPerTrack);
       }
       catch (Exception& e) {
-        floppy.d.imageFile = "";
+        floppy.d.imageFile.clear();
         vm_.setDiskImageFile(3, floppy.d.imageFile,
                              floppy.d.tracks, floppy.d.sides,
                              floppy.d.sectorsPerTrack);
         errorCallback(errorCallbackUserData, e.what());
       }
       floppyDChanged = false;
+    }
+    if (ideDisk0Changed) {
+      try {
+        vm_.setDiskImageFile(4, ide.imageFile0, -1, -1, -1);
+      }
+      catch (Exception& e) {
+        ide.imageFile0.clear();
+        vm_.setDiskImageFile(4, ide.imageFile0, -1, -1, -1);
+        errorCallback(errorCallbackUserData, e.what());
+      }
+      ideDisk0Changed = false;
+    }
+    if (ideDisk1Changed) {
+      try {
+        vm_.setDiskImageFile(5, ide.imageFile1, -1, -1, -1);
+      }
+      catch (Exception& e) {
+        ide.imageFile1.clear();
+        vm_.setDiskImageFile(5, ide.imageFile1, -1, -1, -1);
+        errorCallback(errorCallbackUserData, e.what());
+      }
+      ideDisk1Changed = false;
+    }
+    if (ideDisk2Changed) {
+      try {
+        vm_.setDiskImageFile(6, ide.imageFile2, -1, -1, -1);
+      }
+      catch (Exception& e) {
+        ide.imageFile2.clear();
+        vm_.setDiskImageFile(6, ide.imageFile2, -1, -1, -1);
+        errorCallback(errorCallbackUserData, e.what());
+      }
+      ideDisk2Changed = false;
+    }
+    if (ideDisk3Changed) {
+      try {
+        vm_.setDiskImageFile(7, ide.imageFile3, -1, -1, -1);
+      }
+      catch (Exception& e) {
+        ide.imageFile3.clear();
+        vm_.setDiskImageFile(7, ide.imageFile3, -1, -1, -1);
+        errorCallback(errorCallbackUserData, e.what());
+      }
+      ideDisk3Changed = false;
     }
     if (tapeSettingsChanged) {
       vm_.setDefaultTapeSampleRate(tape.defaultSampleRate);
@@ -558,7 +615,7 @@ namespace Ep128Emu {
         vm_.setTapeFileName(tape.imageFile);
       }
       catch (Exception& e) {
-        tape.imageFile = "";
+        tape.imageFile.clear();
         vm_.setTapeFileName(tape.imageFile);
         errorCallback(errorCallbackUserData, e.what());
       }

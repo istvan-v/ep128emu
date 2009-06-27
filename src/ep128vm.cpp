@@ -29,6 +29,7 @@
 #include "ep128vm.hpp"
 #include "debuglib.hpp"
 #include "videorec.hpp"
+#include "ide.hpp"
 
 #include <vector>
 #include <ctime>
@@ -1044,6 +1045,24 @@ namespace Ep128 {
     }
   }
 
+  uint8_t Ep128VM::ideDriveIOReadCallback(void *userData, uint16_t addr)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    // IDE emulation is disabled while recording or playing demo
+    if (!(vm.isRecordingDemo | vm.isPlayingDemo))
+      return vm.ideInterface->readPort(addr);
+    return 0xFF;
+  }
+
+  void Ep128VM::ideDriveIOWriteCallback(void *userData,
+                                        uint16_t addr, uint8_t value)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    // IDE emulation is disabled while recording or playing demo
+    if (!(vm.isRecordingDemo | vm.isPlayingDemo))
+      vm.ideInterface->writePort(addr, value);
+  }
+
   void Ep128VM::tapeCallback(void *userData)
   {
     Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
@@ -1359,7 +1378,8 @@ namespace Ep128 {
       waitCycleCnt(1),
       videoMemoryLatency(357016),
       videoMemoryLatency_M1(354555),
-      videoMemoryLatency_IO(359477)
+      videoMemoryLatency_IO(359477),
+      ideInterface((IDEInterface *) 0)
   {
     for (size_t i = 0; i < (sizeof(callbacks) / sizeof(Ep128VMCallback)); i++) {
       callbacks[i].func = (void (*)(void *)) 0;
@@ -1399,6 +1419,7 @@ namespace Ep128 {
     floppyDrives[1].setIsWD1773(false);
     floppyDrives[2].setIsWD1773(false);
     floppyDrives[3].setIsWD1773(false);
+    ideInterface = new IDEInterface();
     for (uint16_t i = 0x0010; i <= 0x001F; i++) {
       ioPorts.setReadCallback(i, i, &exdosPortReadCallback, this, i & 0x14);
       ioPorts.setWriteCallback(i, i, &exdosPortWriteCallback, this, i & 0x14);
@@ -1424,6 +1445,10 @@ namespace Ep128 {
                                  &cmosMemoryIOReadCallback, this, 0x7E);
     ioPorts.setWriteCallback(0x7E, 0x7F,
                              &cmosMemoryIOWriteCallback, this, 0x7E);
+    ioPorts.setReadCallback(0xEC, 0xEF, &ideDriveIOReadCallback, this, 0xEC);
+    ioPorts.setDebugReadCallback(0xEC, 0xEF,
+                                 &ideDriveIOReadCallback, this, 0xEC);
+    ioPorts.setWriteCallback(0xEC, 0xEF, &ideDriveIOWriteCallback, this, 0xEC);
     // reset
     this->reset(true);
   }
@@ -1440,6 +1465,7 @@ namespace Ep128 {
     }
     catch (...) {
     }
+    delete ideInterface;
   }
 
   void Ep128VM::run(size_t microseconds)
@@ -1505,6 +1531,7 @@ namespace Ep128 {
     currentFloppyDrive = 0xFF;
     for (int i = 0; i < 4; i++)
       floppyDrives[i].reset();
+    ideInterface->reset(true);
     ioPorts.writeDebug(0x44, 0x00);     // disable Spectrum emulator
     for (int i = 0; i < 4; i++) {
       spectrumEmulatorIOPorts[i] = 0xFF;
@@ -1610,7 +1637,7 @@ namespace Ep128 {
       n = n << 8;
       n |= uint32_t(floppyDrives[i].getLEDState());
     }
-    vmStatus_.floppyDriveLEDState = n;
+    vmStatus_.floppyDriveLEDState = n | ideInterface->getLEDState();
     vmStatus_.isPlayingDemo = isPlayingDemo;
     if (demoFile != (Ep128Emu::File *) 0 && !isRecordingDemo)
       stopDemoRecording(true);
@@ -1662,10 +1689,15 @@ namespace Ep128 {
                                  int nTracks_, int nSides_,
                                  int nSectorsPerTrack_)
   {
-    if (n < 0 || n > 3)
-      throw Ep128Emu::Exception("invalid floppy drive number");
-    floppyDrives[n].setDiskImageFile(fileName_,
-                                     nTracks_, nSides_, nSectorsPerTrack_);
+    if (n < 0 || n > 7)
+      throw Ep128Emu::Exception("invalid disk drive number");
+    if (n < 4) {
+      floppyDrives[n].setDiskImageFile(fileName_,
+                                       nTracks_, nSides_, nSectorsPerTrack_);
+    }
+    else {
+      ideInterface->setImageFile(n & 3, fileName_.c_str());
+    }
   }
 
   uint32_t Ep128VM::getFloppyDriveLEDState()
@@ -1675,7 +1707,7 @@ namespace Ep128 {
       n = n << 8;
       n |= uint32_t(floppyDrives[i].getLEDState());
     }
-    return n;
+    return (n | ideInterface->getLEDState());
   }
 
   void Ep128VM::setTapeFileName(const std::string& fileName)
@@ -2055,12 +2087,13 @@ namespace Ep128 {
     stopDemo();
     for (int i = 0; i < 128; i++)
       dave.setKeyboardState(i, 0);
-    // floppy emulation is disabled while recording or playing demo
+    // floppy and IDE emulation are disabled while recording or playing demo
     currentFloppyDrive = 0xFF;
     floppyDrives[0].reset();
     floppyDrives[1].reset();
     floppyDrives[2].reset();
     floppyDrives[3].reset();
+    ideInterface->reset(false);
     z80.closeAllFiles();
     // save full snapshot, including timing and clock frequency settings
     saveMachineConfiguration(f);
@@ -2107,12 +2140,13 @@ namespace Ep128 {
     setTapeMotorState(false);
     stopDemo();
     snapshotLoadFlag = true;
-    // reset floppy emulation, as its state is not saved
+    // reset floppy and IDE emulation, as the state of these is not saved
     currentFloppyDrive = 0xFF;
     floppyDrives[0].reset();
     floppyDrives[1].reset();
     floppyDrives[2].reset();
     floppyDrives[3].reset();
+    ideInterface->reset(true);
     z80.closeAllFiles();
     try {
       uint8_t   p0, p1, p2, p3;
@@ -2251,12 +2285,13 @@ namespace Ep128 {
     stopDemo();
     for (int i = 0; i < 128; i++)
       dave.setKeyboardState(i, 0);
-    // floppy emulation is disabled while recording or playing demo
+    // floppy and IDE emulation are disabled while recording or playing demo
     currentFloppyDrive = 0xFF;
     floppyDrives[0].reset();
     floppyDrives[1].reset();
     floppyDrives[2].reset();
     floppyDrives[3].reset();
+    ideInterface->reset(true);
     // initialize time counter with first delta time
     demoTimeCnt = readDemoTimeCnt(buf);
     isPlayingDemo = true;
