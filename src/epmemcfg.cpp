@@ -40,10 +40,8 @@ namespace Ep128 {
       if (memory.isSegmentRAM(uint8_t(i)))
         memory.deleteSegment(uint8_t(i));
     }
-    for (int i = 0xFF; i > (0xFF - int(nSegments)); i--) {
-      if (!memory.isSegmentRAM(uint8_t(i)))
-        memory.loadSegment(uint8_t(i), false, (uint8_t *) 0, 0);
-    }
+    for (int i = 0xFF; i > (0xFF - int(nSegments)); i--)
+      memory.loadSegment(uint8_t(i), false, (uint8_t *) 0, 0);
     // cold reset
     this->reset(true);
   }
