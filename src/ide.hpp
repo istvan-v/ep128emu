@@ -32,7 +32,7 @@ namespace Ep128 {
        protected:
         IDEController&  ideController;
         std::FILE *imageFile;
-        uint8_t   *buf;         // 512 bytes
+        uint8_t   *buf;         // 65536 bytes, pointer is set by ideController
         uint32_t  nSectors;
         uint16_t  nCylinders;
         uint16_t  nHeads;
@@ -50,15 +50,17 @@ namespace Ep128 {
         bool      interruptFlag;
        protected:
         bool      readOnlyMode;
+        bool      diskChangeFlag;
+        uint16_t  bufPos;
         bool      vhdFormat;
         // --------
         bool calculateCHS(uint16_t& c, uint16_t& h, uint16_t& s);
         bool convertCHSToLBA(uint32_t& b, uint16_t c, uint16_t h, uint16_t s);
         bool convertLBAToCHS(uint16_t& c, uint16_t& h, uint16_t& s, uint32_t b);
-        void commandDone(uint8_t errorCode);
         void readBlock();
         void writeBlockDone();
-        void softwareReset();
+        void ackMediaChangeCommand();
+        void getMediaStatusCommand();
         void identifyDeviceCommand();
         void initDeviceParametersCommand();
         void readMultipleCommand();
@@ -75,11 +77,17 @@ namespace Ep128 {
        public:
         IDEDrive(IDEController& ideController_);
         virtual ~IDEDrive();
-        void reset(bool resetParameters);
+        void reset(int resetType);
         void setImageFile(const char *fileName);
         uint16_t readWord();
         void writeWord();
         void processCommand();
+        void commandDone(uint8_t errorCode);
+        // set pointer to 64K I/O buffer
+        inline void setBuffer(uint8_t *buf_)
+        {
+          this->buf = buf_;
+        }
         inline bool getIsBusy() const
         {
           return ((ideController.statusRegister & 0x80) != 0 &&
@@ -101,6 +109,7 @@ namespace Ep128 {
       // --------
       IDEDrive  ideDrive0;
       IDEDrive  ideDrive1;
+      uint8_t   *buf;           // 65536 bytes, pointer is passed to drives
       uint16_t  dataPort;
       uint8_t   commandPort;
      protected:
@@ -126,7 +135,7 @@ namespace Ep128 {
      public:
       IDEController();
       virtual ~IDEController();
-      void reset(bool resetParameters);
+      void reset(int resetType);
       void setImageFile(int n, const char *fileName);
       void readRegister();
       void writeRegister();
@@ -139,6 +148,13 @@ namespace Ep128 {
         if ((deviceControlRegister & 0x02) == 0)
           return currentDevice->interruptFlag;
         return false;
+      }
+      inline void checkBSYFlag()
+      {
+        if ((statusRegister & 0x80) != 0) {
+          if ((commandRegister & 0xFE) == 0x40)     // READ VERIFY SECTORS
+            currentDevice->commandDone(errorRegister);
+        }
       }
       inline bool checkDRQFlag()
       {
@@ -159,7 +175,11 @@ namespace Ep128 {
    public:
     IDEInterface();
     virtual ~IDEInterface();
-    void reset(bool resetParameters);
+    // 0: reset interface registers only
+    // 1: reset interface and parameters (logical CHS and MULTIPLE count)
+    // 2: reset interface and parameters, and clear disk change flag
+    // 3: reset interface and parameters, and set disk change flag
+    void reset(int resetType);
     void setImageFile(int n, const char *fileName);
     uint8_t readPort(uint16_t addr);
     void writePort(uint16_t addr, uint8_t value);

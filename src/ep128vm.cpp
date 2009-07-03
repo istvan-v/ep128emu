@@ -1531,7 +1531,7 @@ namespace Ep128 {
     currentFloppyDrive = 0xFF;
     for (int i = 0; i < 4; i++)
       floppyDrives[i].reset();
-    ideInterface->reset(true);
+    ideInterface->reset(int(isColdReset) + 1);
     ioPorts.writeDebug(0x44, 0x00);     // disable Spectrum emulator
     for (int i = 0; i < 4; i++) {
       spectrumEmulatorIOPorts[i] = 0xFF;
@@ -2093,7 +2093,7 @@ namespace Ep128 {
     floppyDrives[1].reset();
     floppyDrives[2].reset();
     floppyDrives[3].reset();
-    ideInterface->reset(false);
+    ideInterface->reset(0);
     z80.closeAllFiles();
     // save full snapshot, including timing and clock frequency settings
     saveMachineConfiguration(f);
@@ -2146,7 +2146,7 @@ namespace Ep128 {
     floppyDrives[1].reset();
     floppyDrives[2].reset();
     floppyDrives[3].reset();
-    ideInterface->reset(true);
+    ideInterface->reset(3);
     z80.closeAllFiles();
     try {
       uint8_t   p0, p1, p2, p3;
@@ -2291,7 +2291,7 @@ namespace Ep128 {
     floppyDrives[1].reset();
     floppyDrives[2].reset();
     floppyDrives[3].reset();
-    ideInterface->reset(true);
+    ideInterface->reset(0);
     // initialize time counter with first delta time
     demoTimeCnt = readDemoTimeCnt(buf);
     isPlayingDemo = true;

@@ -29,15 +29,52 @@ namespace Ep128 {
     h = 0;
     s = 0;
     uint32_t  nCylinders_ = nSectors;
-    uint32_t  nHeads_ = 16U;
-    uint32_t  nSectorsPerTrack_ = 63U;
-    while ((nCylinders_ % nSectorsPerTrack_) != 0U)
-      nSectorsPerTrack_--;
-    nCylinders_ = nCylinders_ / nSectorsPerTrack_;
-    while ((nCylinders_ % nHeads_) != 0U)
-      nHeads_--;
-    nCylinders_ = nCylinders_ / nHeads_;
-    if (nCylinders_ < 1U || nCylinders_ > 65535U)
+    uint32_t  nHeads_ = 1U;
+    uint32_t  nSectorsPerTrack_ = 1U;
+    uint32_t  bestScore = 0U;
+    for (uint32_t s_ = 1U; s_ <= 255U; s_++) {
+      if ((nSectors % s_) != 0U)
+        continue;
+      for (uint32_t h_ = 1U; h_ <= 16U; h_++) {
+        if ((nSectors % (h_ * s_)) != 0U)
+          continue;
+        uint32_t  c_ = nSectors / (h_ * s_);
+        if (c_ < 1U || c_ > 65535U)
+          continue;
+        uint32_t  tmp = 0U;
+        if (c_ >= 16384U)
+          tmp = 128U;
+        else if (c_ >= 1024U)
+          tmp = 256U;
+        else if (c_ >= 256U)
+          tmp = 1024U;
+        else
+          tmp = 512U;
+        if (s_ < 64U)
+          tmp |= 2048U;
+        if (s_ == 17U || s_ == 31U || s_ == 63U)
+          tmp |= 64U;
+        if (h_ >= 2U && (h_ & (h_ - 1U)) == 0U)
+          tmp |= 32U;
+        if (s_ > h_)
+          tmp |= 16U;
+        if (h_ == 16U)
+          tmp |= 8U;
+        if (c_ >= 512U)
+          tmp |= 4U;
+        if ((h_ & 1U) == 0U)
+          tmp |= 2U;
+        if ((s_ & 1U) != 0U)
+          tmp |= 1U;
+        if (tmp > bestScore) {
+          bestScore = tmp;
+          nCylinders_ = c_;
+          nHeads_ = h_;
+          nSectorsPerTrack_ = s_;
+        }
+      }
+    }
+    if (bestScore < 1U)
       return false;
     c = uint16_t(nCylinders_);
     h = uint16_t(nHeads_);
@@ -73,143 +110,148 @@ namespace Ep128 {
     return true;
   }
 
-  void IDEInterface::IDEController::IDEDrive::commandDone(uint8_t errorCode)
-  {
-    errorCode = errorCode & 0x7F;
-    switch (ideController.commandRegister) {
-    case 0x20:                  // READ SECTORS
-    case 0x21:
-    case 0x30:                  // WRITE SECTORS
-    case 0x31:
-    case 0x3C:                  // WRITE VERIFY
-    case 0x40:                  // READ VERIFY SECTORS
-    case 0x41:
-    case 0xC4:                  // READ MULTIPLE
-    case 0xC5:                  // WRITE MULTIPLE
-      ideController.sectorCountRegister =
-          (ideController.sectorCountRegister - uint8_t(sectorCnt & 0xFF))
-          & 0xFF;
-      if (ideController.lbaMode) {
-        ideController.sectorRegister = uint8_t(currentSector & 0xFFU);
-        ideController.cylinderRegister =
-            uint16_t((currentSector >> 8) & 0xFFFFU);
-        ideController.headRegister = (ideController.headRegister & 0xF0)
-                                     | uint8_t((currentSector >> 24) & 0x0FU);
-      }
-      else {
-        uint16_t  h, s;
-        convertLBAToCHS(ideController.cylinderRegister, h, s, currentSector);
-        ideController.sectorRegister = uint8_t(s);
-        ideController.headRegister = (ideController.headRegister & 0xF0)
-                                     | (uint8_t(h) & 0x0F);
-      }
-      break;
-    }
-    readWordCnt = 0;
-    writeWordCnt = 0;
-    sectorCnt = 0;
-    ideController.errorRegister = errorCode;
-    ideController.statusRegister =
-        (ideController.statusRegister & 0x50) | uint8_t(bool(errorCode));
-    interruptFlag = true;
-  }
-
   void IDEInterface::IDEController::IDEDrive::readBlock()
   {
-    if (ideController.commandRegister == 0xEC) {    // IDENTIFY DEVICE
-      commandDone(0x00);
+    if ((sectorCnt != 0 &&
+         ((sectorCnt ^ ideController.sectorCountRegister) & 0xFF) == 0) ||
+        ideController.errorRegister != 0x00) {
+      // command is complete, or there was an error in the previous block
+      if (((sectorCnt ^ ideController.sectorCountRegister) & 0xFF) != 0)
+        ideController.errorRegister |= uint8_t(0x04);   // command aborted
+      commandDone(ideController.errorRegister);
       return;
     }
-    if (ideController.commandRegister != 0xC4 ||    // READ MULTIPLE
-        (sectorCnt & (multSectCnt - 1)) == 0) {
-      interruptFlag = true;     // end of block: set interrupt flag
-    }
-    if (sectorCnt != 0 &&
-        ((sectorCnt ^ ideController.sectorCountRegister) & 0xFF) == 0) {
-      commandDone(0x00);
-      return;
-    }
-    // read sector from disk: set BUSY flag, clear DRQ
+    // read sector(s) from disk: set BUSY flag, clear DRQ
     ideController.statusRegister = (ideController.statusRegister & 0x77) | 0x80;
     ledStateCounter = uint8_t(haveImageFile() ? 50 : 0);    // 100 ms
-    if (currentSector >= nSectors) {
-      commandDone(0x14);        // IDNF
-      return;
+    size_t  blockSize = (ideController.commandRegister == 0xC4 ?
+                         size_t(multSectCnt) : size_t(1));
+    size_t  sectorsRemaining =
+        size_t((ideController.sectorCountRegister + 0xFF) & 0xFF) + 1
+        - size_t(sectorCnt);
+    blockSize = (blockSize < sectorsRemaining ? blockSize : sectorsRemaining);
+    readWordCnt = uint16_t(blockSize << 8);
+    bufPos = 0;
+    size_t  bytesRead = 0;
+    if ((currentSector + uint32_t(blockSize)) > nSectors) {
+      ideController.errorRegister |= uint8_t(0x10);     // IDNF
+      size_t  tmp = size_t(nSectors - currentSector);
+      std::memset(buf + (tmp << 9), 0x00, (blockSize - tmp) << 9);
+      blockSize = tmp;
     }
-    if (std::fseek(imageFile, long(currentSector << 9), SEEK_SET) < 0) {
-      commandDone(0x14);        // error seeking disk image
-      return;
+    if (blockSize > 0) {
+      if (std::fseek(imageFile, long(currentSector << 9), SEEK_SET) < 0) {
+        // error seeking disk image
+        ideController.errorRegister |= uint8_t(0x10);
+      }
+      else {
+        bytesRead = std::fread(buf, sizeof(uint8_t), blockSize << 9, imageFile);
+        if (bytesRead < (blockSize << 9)) {
+          // read error
+          ideController.errorRegister |= uint8_t(0x40);
+        }
+      }
     }
-    if (std::fread(buf, sizeof(uint8_t), 512, imageFile) != 512) {
-      commandDone(0x44);        // read error
-      return;
-    }
-    currentSector++;
-    sectorCnt++;
-    // buffer is full, set DRQ flag
-    readWordCnt = 256;
+    if (bytesRead < (blockSize << 9))
+      std::memset(buf + bytesRead, 0x00, (blockSize << 9) - bytesRead);
+    currentSector += uint32_t(bytesRead >> 9);
+    sectorCnt += uint16_t(bytesRead >> 9);
+    // buffer is full, set interrupt and DRQ flag
     ideController.statusRegister |= uint8_t(0x88);
+    interruptFlag = true;
   }
 
   void IDEInterface::IDEController::IDEDrive::writeBlockDone()
   {
-    // write sector to disk: set BUSY flag, clear DRQ
+    // write sector(s) to disk: set BUSY flag, clear DRQ
     ideController.statusRegister = (ideController.statusRegister & 0x77) | 0x80;
     ledStateCounter = uint8_t(haveImageFile() ? 50 : 0);    // 100 ms
-    if (readOnlyMode) {
-      commandDone(0x04);        // read-only disk image: abort
-      return;
+    size_t  blockSize = (ideController.commandRegister == 0xC5 ?
+                         size_t(multSectCnt) : size_t(1));
+    size_t  sectorsRemaining =
+        size_t((ideController.sectorCountRegister + 0xFF) & 0xFF) + 1
+        - size_t(sectorCnt);
+    blockSize = (blockSize < sectorsRemaining ? blockSize : sectorsRemaining);
+    writeWordCnt = uint16_t(blockSize << 8);
+    bufPos = 0;
+    size_t  bytesWritten = 0;
+    if ((currentSector + uint32_t(blockSize)) > nSectors) {
+      ideController.errorRegister |= uint8_t(0x10);     // IDNF
+      blockSize = size_t(nSectors - currentSector);
     }
-    if (currentSector >= nSectors) {
-      commandDone(0x14);        // IDNF
-      return;
-    }
-    if (std::fseek(imageFile, long(currentSector << 9), SEEK_SET) < 0) {
-      commandDone(0x14);        // error seeking disk image
-      return;
-    }
-    if (std::fwrite(buf, sizeof(uint8_t), 512, imageFile) != 512) {
-      std::fflush(imageFile);
-      commandDone(0x44);        // write error
-      return;
-    }
-    if (std::fflush(imageFile) != 0) {
-      commandDone(0x44);        // write error
-      return;
-    }
-    if (ideController.commandRegister == 0x3C) {    // if WRITE VERIFY command:
+    if (blockSize > 0) {
       if (std::fseek(imageFile, long(currentSector << 9), SEEK_SET) < 0) {
-        commandDone(0x14);      // error seeking disk image
-        return;
+        // error seeking disk image
+        ideController.errorRegister |= uint8_t(0x10);
       }
-      uint8_t tmpBuf[512];
-      if (std::fread(&(tmpBuf[0]), sizeof(uint8_t), 512, imageFile) != 512) {
-        commandDone(0x44);      // read error
-        return;
-      }
-      if (std::memcmp(&(tmpBuf[0]), buf, 512) != 0) {
-        commandDone(0x44);      // read error
-        return;
+      else {
+        bytesWritten = std::fwrite(buf, sizeof(uint8_t), blockSize << 9,
+                                   imageFile);
+        if (bytesWritten < (blockSize << 9)) {
+          // write error
+          ideController.errorRegister |= uint8_t(0x40);
+        }
+        else if (ideController.commandRegister == 0x3C) {   // WRITE VERIFY
+          if (std::fseek(imageFile, long(currentSector << 9), SEEK_SET) < 0) {
+            // error seeking disk image
+            ideController.errorRegister |= uint8_t(0x50);
+          }
+          else {
+            uint8_t tmpBuf[512];
+            for (size_t i = 0; i < blockSize; i++) {
+              if (std::fread(&(tmpBuf[0]), sizeof(uint8_t), 512, imageFile)
+                  != 512) {
+                // read error
+                ideController.errorRegister |= uint8_t(0x40);
+                break;
+              }
+              if (std::memcmp(&(tmpBuf[0]), buf, 512) != 0) {
+                // read error
+                ideController.errorRegister |= uint8_t(0x40);
+                break;
+              }
+            }
+          }
+        }
       }
     }
-    currentSector++;
-    sectorCnt++;
-    if (ideController.commandRegister != 0xC5 ||    // WRITE MULTIPLE
-        (sectorCnt & (multSectCnt - 1)) == 0) {
-      interruptFlag = true;     // end of block: set interrupt flag
-    }
-    if (((sectorCnt ^ ideController.sectorCountRegister) & 0xFF) == 0) {
-      commandDone(0x00);
+    currentSector += uint32_t(bytesWritten >> 9);
+    sectorCnt += uint16_t(bytesWritten >> 9);
+    if ((sectorCnt != 0 &&
+         ((sectorCnt ^ ideController.sectorCountRegister) & 0xFF) == 0) ||
+        ideController.errorRegister != 0x00) {
+      // command is complete, or there was an error in the previous block
+      if (((sectorCnt ^ ideController.sectorCountRegister) & 0xFF) != 0)
+        ideController.errorRegister |= uint8_t(0x04);   // command aborted
+      commandDone(ideController.errorRegister);
       return;
     }
-    // buffer is empty, set DRQ flag
-    writeWordCnt = 256;
+    // buffer is empty, set interrupt and DRQ flag
     ideController.statusRegister |= uint8_t(0x88);
+    interruptFlag = true;
   }
 
-  void IDEInterface::IDEController::IDEDrive::softwareReset()
+  void IDEInterface::IDEController::IDEDrive::ackMediaChangeCommand()
   {
-    this->reset(true);
+    if (!(ideController.statusRegister & 0x40)) {
+      commandDone(0x04);        // drive not ready: abort
+      return;
+    }
+    diskChangeFlag = false;
+    commandDone(0x00);
+  }
+
+  void IDEInterface::IDEController::IDEDrive::getMediaStatusCommand()
+  {
+    if (!haveImageFile())
+      ideController.errorRegister |= uint8_t(0x02);     // NM
+    if (diskChangeFlag) {
+      ideController.errorRegister |= uint8_t(0x20);     // MC
+      diskChangeFlag = false;
+    }
+    if (readOnlyMode && haveImageFile())
+      ideController.errorRegister |= uint8_t(0x40);     // WP
+    commandDone(ideController.errorRegister);
   }
 
   void IDEInterface::IDEController::IDEDrive::identifyDeviceCommand()
@@ -220,10 +262,10 @@ namespace Ep128 {
     }
     for (int i = 0; i < 512; i++)
       buf[i] = 0x00;
-    if (defaultCylinders != 72)
-      buf[0] = 0x48;            // not removable device, not MFM
+    if (defaultCylinders != 136)
+      buf[0] = 0x88;            // removable device, not MFM
     else
-      buf[0] = 0x40;            // hack to avoid error in IDE.ROM
+      buf[0] = 0x80;            // hack to avoid error in IDE.ROM
     buf[2] = uint8_t(defaultCylinders & 0x00FF);
     buf[3] = uint8_t(defaultCylinders >> 8);
     buf[6] = uint8_t(defaultHeads & 0x00FF);
@@ -251,12 +293,21 @@ namespace Ep128 {
       buf[i ^ 1] = uint8_t(c);
     }
     s = &(tmpBuf[0]);           // model number
-    std::sprintf(s, "ep128emu IDE disk%s %u%s",
-                 (vhdFormat ? " (VHD)" : ""),
-                 (nSectors < 19999U ?
-                  (unsigned int) ((nSectors + 1U) >> 1)
-                  : (unsigned int) ((nSectors + 1024U) >> 11)),
-                 (nSectors < 19999U ? "KB" : "MB"));
+    {
+      int     n =
+          std::sprintf(s, "ep128emu IDE disk%s %u%s",
+                       (vhdFormat ? " (VHD)" : ""),
+                       (nSectors < 19999U ?
+                        (unsigned int) ((nSectors + 1U) >> 1)
+                        : (unsigned int) ((nSectors + 1024U) >> 11)),
+                       (nSectors < 19999U ? "KB" : "MB"));
+      if (!vhdFormat) {
+        std::sprintf(s + n, " %u/%u/%u",
+                     (unsigned int) defaultCylinders,
+                     (unsigned int) defaultHeads,
+                     (unsigned int) defaultSectorsPerTrack);
+      }
+    }
     for (int i = 54; i < 94; i++) {
       char    c = ' ';
       if ((*s) != '\0')
@@ -264,7 +315,9 @@ namespace Ep128 {
       buf[i ^ 1] = uint8_t(c);
     }
     buf[94] = 0x80;             // maximum number of MULTIPLE sectors
+    buf[95] = 0x80;
     buf[99] = 0x02;             // LBA is supported (DMA is not)
+    buf[101] = 0x40;
     buf[106] = 0x01;            // current geometry and size below are valid
     buf[108] = uint8_t(nCylinders & 0x00FF);
     buf[109] = uint8_t(nCylinders >> 8);
@@ -283,9 +336,22 @@ namespace Ep128 {
     buf[122] = uint8_t((nSectors >> 16) & 0xFFU);
     buf[123] = uint8_t((nSectors >> 24) & 0xFFU);
     buf[160] = 0x03;            // supports ATA-1 and ATA-2
-    sectorCnt = 0;
+    buf[166] = 0x10;            // supports removable media status notification
+    buf[167] = 0x40;
+    buf[172] = 0x10;            // removable media status notification enabled
+    buf[175] = 0x40;
+    buf[254] = 0x01;            // supports removable media status notification
+    buf[510] = 0xA5;            // signature
+    {
+      uint8_t tmp = 0x00;
+      for (int i = 0; i < 511; i++)
+        tmp = (tmp - buf[i]) & 0xFF;
+      buf[511] = tmp;           // checksum
+    }
+    sectorCnt = uint16_t((ideController.sectorCountRegister + 0xFF) & 0xFF) + 1;
     // buffer is full, set DRQ flag
     readWordCnt = 256;
+    bufPos = 0;
     ideController.statusRegister |= uint8_t(0x88);
   }
 
@@ -297,6 +363,7 @@ namespace Ep128 {
       if ((nSectors % (uint32_t(nSectorsPerTrack) * uint32_t(nHeads))) == 0U) {
         nCylinders = uint16_t(nSectors / (uint32_t(nSectorsPerTrack)
                                           * uint32_t(nHeads)));
+        diskChangeFlag = false;
         commandDone(0x00);
         return;
       }
@@ -328,14 +395,19 @@ namespace Ep128 {
       return;
     do {
       readBlock();
-    } while ((ideController.statusRegister & 0x08) != 0);
-    commandDone(ideController.errorRegister);
+    } while (((sectorCnt ^ ideController.sectorCountRegister) & 0xFF) != 0 &&
+             ideController.errorRegister == 0x00);
+    ideController.statusRegister = (ideController.statusRegister & 0x77) | 0x80;
   }
 
   bool IDEInterface::IDEController::IDEDrive::seekCommand()
   {
     if (!(ideController.statusRegister & 0x40)) {
       commandDone(0x04);        // drive not ready: abort
+      return false;
+    }
+    if (diskChangeFlag) {
+      commandDone(0x24);        // media changed
       return false;
     }
     if (ideController.lbaMode) {
@@ -390,7 +462,8 @@ namespace Ep128 {
     if (!seekCommand())
       return;
     // buffer is empty, set DRQ flag
-    writeWordCnt = 256;
+    writeWordCnt = multSectCnt << 8;
+    bufPos = 0;
     ideController.statusRegister |= uint8_t(0x88);
   }
 
@@ -404,6 +477,7 @@ namespace Ep128 {
       return;
     // buffer is empty, set DRQ flag
     writeWordCnt = 256;
+    bufPos = 0;
     ideController.statusRegister |= uint8_t(0x88);
   }
 
@@ -417,6 +491,7 @@ namespace Ep128 {
       return;
     // buffer is empty, set DRQ flag
     writeWordCnt = 256;
+    bufPos = 0;
     ideController.statusRegister |= uint8_t(0x88);
   }
 
@@ -439,27 +514,27 @@ namespace Ep128 {
       ledStateCounter(0),
       interruptFlag(false),
       readOnlyMode(true),
+      diskChangeFlag(false),
+      bufPos(0),
       vhdFormat(false)
   {
-    buf = new uint8_t[512];
-    for (int i = 0; i < 512; i++)
-      buf[i] = 0x00;
-    this->reset(true);
+    this->reset(3);
   }
 
   IDEInterface::IDEController::IDEDrive::~IDEDrive()
   {
     setImageFile((char *) 0);
-    delete[] buf;
   }
 
-  void IDEInterface::IDEController::IDEDrive::reset(bool resetParameters)
+  void IDEInterface::IDEController::IDEDrive::reset(int resetType)
   {
-    if (resetParameters) {
+    if (resetType > 0) {
       nCylinders = defaultCylinders;
       nHeads = defaultHeads;
       nSectorsPerTrack = defaultSectorsPerTrack;
       multSectCnt = 128;
+      diskChangeFlag = ((diskChangeFlag || resetType == 3) &&
+                        (haveImageFile() && resetType != 2));
     }
     currentSector = 0U;
     readWordCnt = 0;
@@ -467,6 +542,7 @@ namespace Ep128 {
     sectorCnt = 0;
     ledStateCounter = uint8_t(haveImageFile() ? 50 : 0);
     interruptFlag = false;
+    bufPos = 0;
   }
 
   void IDEInterface::IDEController::IDEDrive::setImageFile(const char *fileName)
@@ -477,15 +553,12 @@ namespace Ep128 {
         imageFile = (std::FILE *) 0;
       }
       nSectors = 0U;
-      nCylinders = 0;
-      nHeads = 0;
-      nSectorsPerTrack = 0;
       defaultCylinders = 0;
       defaultHeads = 0;
       defaultSectorsPerTrack = 0;
       readOnlyMode = true;
       vhdFormat = false;
-      this->reset(true);
+      this->reset(3);
       return;
     }
     setImageFile((char *) 0);   // close any previously opened image file first
@@ -499,6 +572,19 @@ namespace Ep128 {
       else {
         readOnlyMode = false;
       }
+      (void) std::setvbuf(imageFile, (char *) 0, _IONBF, 0);
+      bool    vhdFormatRequired = false;
+      {
+        size_t  nameLen = std::strlen(fileName);
+        if (nameLen >= 4) {
+          if (fileName[nameLen - 4] == '.' &&
+              (fileName[nameLen - 3] | char(0x20)) == 'v' &&
+              (fileName[nameLen - 2] | char(0x20)) == 'h' &&
+              (fileName[nameLen - 1] | char(0x20)) == 'd') {
+            vhdFormatRequired = true;
+          }
+        }
+      }
       if (std::fseek(imageFile, 0L, SEEK_END) < 0)
         throw Ep128Emu::Exception("error seeking IDE disk image");
       size_t  fileSize = size_t(std::ftell(imageFile));
@@ -506,16 +592,14 @@ namespace Ep128 {
         throw Ep128Emu::Exception("error seeking IDE disk image");
       if (fileSize < 512UL || fileSize > 0x7FFFFE00UL)
         throw Ep128Emu::Exception("IDE disk image size is out of range");
-      bool    vhdFormatRequired = false;
       if ((fileSize & 0x01FF) != 0) {
-        vhdFormatRequired = true;
-        if (((fileSize + 1) & 0x01FF) != 0) {
+        if (((fileSize + 1) & 0x01FF) != 0 || !vhdFormatRequired) {
           throw Ep128Emu::Exception("invalid IDE disk image size "
                                     "- must be an integer multiple of 512");
         }
       }
-      nSectors = uint32_t((fileSize + size_t(vhdFormatRequired)) >> 9);
-      if (nSectors > 1U) {
+      nSectors = uint32_t((fileSize + 511UL) >> 9);
+      if (vhdFormatRequired && nSectors > 1U) {
         // check if the image file is in VHD format
         if (std::fseek(imageFile, long((nSectors - 1U) << 9), SEEK_SET) < 0)
           throw Ep128Emu::Exception("error seeking IDE disk image");
@@ -592,10 +676,8 @@ namespace Ep128 {
         } while (false);
       }
       if (!vhdFormat) {
-        if (vhdFormatRequired) {
-          throw Ep128Emu::Exception("invalid IDE disk image size "
-                                    "- must be an integer multiple of 512");
-        }
+        if (vhdFormatRequired)
+          throw Ep128Emu::Exception("invalid or unsupported VHD file footer");
         if (!calculateCHS(defaultCylinders,
                           defaultHeads, defaultSectorsPerTrack)) {
           throw Ep128Emu::Exception("invalid IDE disk image size "
@@ -605,7 +687,7 @@ namespace Ep128 {
       nCylinders = defaultCylinders;
       nHeads = defaultHeads;
       nSectorsPerTrack = defaultSectorsPerTrack;
-      this->reset(true);
+      this->reset(3);
     }
     catch (...) {
       setImageFile((char *) 0);
@@ -615,8 +697,8 @@ namespace Ep128 {
 
   uint16_t IDEInterface::IDEController::IDEDrive::readWord()
   {
-    size_t    bufPos = (((size_t(readWordCnt) ^ 0xFF) + 1) & 0xFF) << 1;
     uint16_t  retval = uint16_t(buf[bufPos]) | (uint16_t(buf[bufPos + 1]) << 8);
+    bufPos = bufPos + 2;
     if (--readWordCnt < 1)
       readBlock();
     ideController.dataRegister = retval;
@@ -625,10 +707,10 @@ namespace Ep128 {
 
   void IDEInterface::IDEController::IDEDrive::writeWord()
   {
-    size_t    bufPos = (((size_t(writeWordCnt) ^ 0xFF) + 1) & 0xFF) << 1;
     uint16_t  n = ideController.dataRegister;
     buf[bufPos] = uint8_t(n & 0x00FF);
     buf[bufPos + 1] = uint8_t(n >> 8);
+    bufPos = bufPos + 2;
     if (--writeWordCnt < 1)
       writeBlockDone();
   }
@@ -645,6 +727,7 @@ namespace Ep128 {
     sectorCnt = 0;
     ledStateCounter = uint8_t(haveImageFile() ? 50 : 0);    // 100 ms
     interruptFlag = false;
+    bufPos = 0;
     switch (ideController.commandRegister) {
     case 0x20:                  // READ SECTORS
     case 0x21:
@@ -676,6 +759,12 @@ namespace Ep128 {
     case 0xC6:                  // SET MULTIPLE MODE
       setMultipleModeCommand();
       break;
+    case 0xDA:                  // GET MEDIA STATUS
+      getMediaStatusCommand();
+      break;
+    case 0xDB:                  // ACKNOWLEDGE MEDIA CHANGE
+      ackMediaChangeCommand();
+      break;
     case 0xEC:                  // IDENTIFY DEVICE
       identifyDeviceCommand();
       break;
@@ -688,16 +777,59 @@ namespace Ep128 {
     }
   }
 
+  void IDEInterface::IDEController::IDEDrive::commandDone(uint8_t errorCode)
+  {
+    errorCode = errorCode & 0x7F;
+    switch (ideController.commandRegister) {
+    case 0x20:                  // READ SECTORS
+    case 0x21:
+    case 0x30:                  // WRITE SECTORS
+    case 0x31:
+    case 0x3C:                  // WRITE VERIFY
+    case 0x40:                  // READ VERIFY SECTORS
+    case 0x41:
+    case 0xC4:                  // READ MULTIPLE
+    case 0xC5:                  // WRITE MULTIPLE
+      ideController.sectorCountRegister =
+          (ideController.sectorCountRegister - uint8_t(sectorCnt & 0xFF))
+          & 0xFF;
+      if (ideController.lbaMode) {
+        ideController.sectorRegister = uint8_t(currentSector & 0xFFU);
+        ideController.cylinderRegister =
+            uint16_t((currentSector >> 8) & 0xFFFFU);
+        ideController.headRegister = (ideController.headRegister & 0xF0)
+                                     | uint8_t((currentSector >> 24) & 0x0FU);
+      }
+      else {
+        uint16_t  h, s;
+        convertLBAToCHS(ideController.cylinderRegister, h, s, currentSector);
+        ideController.sectorRegister = uint8_t(s);
+        ideController.headRegister = (ideController.headRegister & 0xF0)
+                                     | (uint8_t(h) & 0x0F);
+      }
+      break;
+    }
+    readWordCnt = 0;
+    writeWordCnt = 0;
+    sectorCnt = 0;
+    interruptFlag = interruptFlag | (!(ideController.statusRegister & 0x08));
+    bufPos = 0;
+    ideController.errorRegister = errorCode;
+    ideController.statusRegister =
+        (ideController.statusRegister & 0x50) | uint8_t(bool(errorCode));
+  }
+
   // --------------------------------------------------------------------------
 
   void IDEInterface::IDEController::softwareReset()
   {
-    this->reset(true);
+    this->reset(2);
   }
 
   IDEInterface::IDEController::IDEController()
     : ideDrive0(*this),
       ideDrive1(*this),
+      buf((uint8_t *) 0),
       dataPort(0x0000),
       commandPort(0x30),
       statusRegister(0x00),
@@ -713,16 +845,23 @@ namespace Ep128 {
       deviceControlRegister(0x00),
       currentDevice(&ideDrive0)
   {
+    buf = new uint8_t[65536];
+    std::memset(buf, 0x00, 65536);
+    ideDrive0.setBuffer(buf);
+    ideDrive1.setBuffer(buf);
   }
 
   IDEInterface::IDEController::~IDEController()
   {
+    ideDrive0.setBuffer((uint8_t *) 0);
+    ideDrive1.setBuffer((uint8_t *) 0);
+    delete[] buf;
   }
 
-  void IDEInterface::IDEController::reset(bool resetParameters)
+  void IDEInterface::IDEController::reset(int resetType)
   {
-    ideDrive0.reset(resetParameters);
-    ideDrive1.reset(resetParameters);
+    ideDrive0.reset(resetType);
+    ideDrive1.reset(resetType);
     dataPort = 0x0000;
     commandPort = 0x30;
     statusRegister = uint8_t(ideDrive0.haveImageFile() ? 0x50 : 0x00);
@@ -749,11 +888,11 @@ namespace Ep128 {
     }
     catch (...) {
       if (int((headRegister & 0x10) >> 4) == (n & 1))
-        this->reset(true);
+        this->reset(3);
       throw;
     }
     if (int((headRegister & 0x10) >> 4) == (n & 1))
-      this->reset(true);
+      this->reset(3);
   }
 
   void IDEInterface::IDEController::readRegister()
@@ -806,6 +945,11 @@ namespace Ep128 {
     int     n = commandPort & 0x0F;
     if ((n & 8) == 0 && (statusRegister & 0x80) != 0)
       return;           // ignore writes to command block if BUSY flag is set
+    if (n >= 1 && n <= 6 && (statusRegister & 0x08) != 0) {
+      // if DRQ is set, and writing to command block
+      // registers (other than DATA), abort the command
+      currentDevice->commandDone(errorRegister | 0x04); // ABRT
+    }
     uint8_t value = uint8_t(dataPort & 0x00FF);         // for 8-bit registers
     switch (n) {
     case 0:             // data
@@ -888,11 +1032,11 @@ namespace Ep128 {
   {
   }
 
-  void IDEInterface::reset(bool resetParameters)
+  void IDEInterface::reset(int resetType)
   {
     dataPort = 0x0000;
-    idePort0.reset(resetParameters);
-    idePort1.reset(resetParameters);
+    idePort0.reset(resetType);
+    idePort1.reset(resetType);
   }
 
   void IDEInterface::setImageFile(int n, const char *fileName)
@@ -963,6 +1107,7 @@ namespace Ep128 {
         }
       }
       else if (registerRead == 7 || registerRead == 14) {
+        idePort.checkBSYFlag();
         (void) idePort.checkDRQFlag();
         if (registerRead == 7) {
           // clear interrupt on reading the status register
