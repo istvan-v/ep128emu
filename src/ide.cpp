@@ -112,11 +112,9 @@ namespace Ep128 {
 
   void IDEInterface::IDEController::IDEDrive::readBlock()
   {
-    if ((sectorCnt != 0 &&
-         ((sectorCnt ^ ideController.sectorCountRegister) & 0xFF) == 0) ||
-        ideController.errorRegister != 0x00) {
+    if (sectorCnt < 1 || ideController.errorRegister != 0x00) {
       // command is complete, or there was an error in the previous block
-      if (((sectorCnt ^ ideController.sectorCountRegister) & 0xFF) != 0)
+      if (sectorCnt > 0)
         ideController.errorRegister |= uint8_t(0x04);   // command aborted
       commandDone(ideController.errorRegister);
       return;
@@ -126,10 +124,7 @@ namespace Ep128 {
     ledStateCounter = uint8_t(haveImageFile() ? 50 : 0);    // 100 ms
     size_t  blockSize = (ideController.commandRegister == 0xC4 ?
                          size_t(multSectCnt) : size_t(1));
-    size_t  sectorsRemaining =
-        size_t((ideController.sectorCountRegister + 0xFF) & 0xFF) + 1
-        - size_t(sectorCnt);
-    blockSize = (blockSize < sectorsRemaining ? blockSize : sectorsRemaining);
+    blockSize = (blockSize < size_t(sectorCnt) ? blockSize : size_t(sectorCnt));
     readWordCnt = uint16_t(blockSize << 8);
     bufPos = 0;
     size_t  bytesRead = 0;
@@ -155,7 +150,9 @@ namespace Ep128 {
     if (bytesRead < (blockSize << 9))
       std::memset(buf + bytesRead, 0x00, (blockSize << 9) - bytesRead);
     currentSector += uint32_t(bytesRead >> 9);
-    sectorCnt += uint16_t(bytesRead >> 9);
+    sectorCnt -= uint16_t(bytesRead >> 9);
+    if (sectorCnt < 1)
+      currentSector--;
     // buffer is full, set interrupt and DRQ flag
     ideController.statusRegister |= uint8_t(0x88);
     interruptFlag = true;
@@ -168,10 +165,7 @@ namespace Ep128 {
     ledStateCounter = uint8_t(haveImageFile() ? 50 : 0);    // 100 ms
     size_t  blockSize = (ideController.commandRegister == 0xC5 ?
                          size_t(multSectCnt) : size_t(1));
-    size_t  sectorsRemaining =
-        size_t((ideController.sectorCountRegister + 0xFF) & 0xFF) + 1
-        - size_t(sectorCnt);
-    blockSize = (blockSize < sectorsRemaining ? blockSize : sectorsRemaining);
+    blockSize = (blockSize < size_t(sectorCnt) ? blockSize : size_t(sectorCnt));
     writeWordCnt = uint16_t(blockSize << 8);
     bufPos = 0;
     size_t  bytesWritten = 0;
@@ -216,13 +210,13 @@ namespace Ep128 {
       }
     }
     currentSector += uint32_t(bytesWritten >> 9);
-    sectorCnt += uint16_t(bytesWritten >> 9);
-    if ((sectorCnt != 0 &&
-         ((sectorCnt ^ ideController.sectorCountRegister) & 0xFF) == 0) ||
-        ideController.errorRegister != 0x00) {
+    sectorCnt -= uint16_t(bytesWritten >> 9);
+    if (sectorCnt < 1 || ideController.errorRegister != 0x00) {
       // command is complete, or there was an error in the previous block
-      if (((sectorCnt ^ ideController.sectorCountRegister) & 0xFF) != 0)
+      if (sectorCnt > 0)
         ideController.errorRegister |= uint8_t(0x04);   // command aborted
+      else
+        currentSector--;
       commandDone(ideController.errorRegister);
       return;
     }
@@ -348,7 +342,7 @@ namespace Ep128 {
         tmp = (tmp - buf[i]) & 0xFF;
       buf[511] = tmp;           // checksum
     }
-    sectorCnt = uint16_t((ideController.sectorCountRegister + 0xFF) & 0xFF) + 1;
+    sectorCnt = 0;
     // buffer is full, set DRQ flag
     readWordCnt = 256;
     bufPos = 0;
@@ -395,8 +389,7 @@ namespace Ep128 {
       return;
     do {
       readBlock();
-    } while (((sectorCnt ^ ideController.sectorCountRegister) & 0xFF) != 0 &&
-             ideController.errorRegister == 0x00);
+    } while (sectorCnt > 0 && ideController.errorRegister == 0x00);
     ideController.statusRegister = (ideController.statusRegister & 0x77) | 0x80;
   }
 
@@ -724,7 +717,7 @@ namespace Ep128 {
     ideController.errorRegister = 0x00;
     readWordCnt = 0;
     writeWordCnt = 0;
-    sectorCnt = 0;
+    sectorCnt = uint16_t((ideController.sectorCountRegister + 0xFF) & 0xFF) + 1;
     ledStateCounter = uint8_t(haveImageFile() ? 50 : 0);    // 100 ms
     interruptFlag = false;
     bufPos = 0;
@@ -790,9 +783,7 @@ namespace Ep128 {
     case 0x41:
     case 0xC4:                  // READ MULTIPLE
     case 0xC5:                  // WRITE MULTIPLE
-      ideController.sectorCountRegister =
-          (ideController.sectorCountRegister - uint8_t(sectorCnt & 0xFF))
-          & 0xFF;
+      ideController.sectorCountRegister = uint8_t(sectorCnt & 0x00FF);
       if (ideController.lbaMode) {
         ideController.sectorRegister = uint8_t(currentSector & 0xFFU);
         ideController.cylinderRegister =
@@ -932,12 +923,15 @@ namespace Ep128 {
     case 14:                    // alternate status (does not clear INTRQ)
       dataPort = statusRegister;
       break;
+    case 15:                    // device address (obsolete)
+      dataPort = uint16_t((headRegister & 0x10) == 0 ? 0x7E : 0x7D);
+      break;
     default:                    // anything else is invalid
-      dataPort = 0xFFFF;
+      dataPort = 0x0000;
       break;
     }
     if (n != 0)                 // all registers other than DATA are 8-bit
-      dataPort = dataPort | 0xFF00;
+      dataPort = dataPort & 0x00FF;
   }
 
   void IDEInterface::IDEController::writeRegister()
@@ -1103,8 +1097,11 @@ namespace Ep128 {
         if (ideDrive.isReadCommand() && idePort.checkDRQFlag()) {
           // read block
           idePort.dataPort = ideDrive.readWord();
-          dataPort = idePort.dataPort;
         }
+        else {
+          idePort.dataPort = 0x0000;    // invalid read of data register
+        }
+        dataPort = idePort.dataPort;
       }
       else if (registerRead == 7 || registerRead == 14) {
         idePort.checkBSYFlag();
