@@ -891,9 +891,8 @@
 /* EX (SP), HL */
 #define EX_SP_rr(Register)                                              \
 {                                                                       \
-        Z80_WORD  temp = readMemoryWord(R.SP.W);                        \
-        updateCycle();                                                  \
-        writeMemoryWord(R.SP.W, Register);                              \
+        Z80_WORD  temp = POP();                                         \
+        PUSH(Register);                                                 \
         Register = temp;                                                \
         updateCycles(2);                                                \
 }
