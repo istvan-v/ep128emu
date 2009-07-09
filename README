@@ -65,7 +65,8 @@ Enterprise emulation
   * RAM size can be set in 16 kilobyte steps in the range 64 to 3712
   * ROM can be loaded from external image files to segments 0 to 7,
     16 to 19 (decimal), 32 to 35, and 48 to 51
-  * NICK chip emulation, supporting all documented video modes
+  * NICK chip emulation, supporting all documented and undocumented
+    video modes
   * DAVE emulation, including timers, interrupts, external ports for
     tape and keyboard/joystick, memory paging, and sound output (all
     effects are supported, and the polynomial counters generate the same
@@ -79,11 +80,14 @@ Enterprise emulation
     files, as well as read-write (although without markers) support for
     sound files like WAV, AIFF, etc.
   * WD177x (floppy disk controller) emulation for EXDOS
+  * IDE hard disk emulation; supports up to 4 2 GB disks, image files
+    can be in raw or VHD format
   * optional extension ROM (epfileio.rom) that implements a FILE: device
     for direct access to files on the host system in a single user
     selectable directory
   * Spectrum emulator card emulation
   * real time clock (at ports 7E, 7F)
+  * external 4-channel 8-bit DAC at ports F0 to F3
 
 Installation
 ============
