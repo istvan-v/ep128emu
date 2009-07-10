@@ -322,20 +322,20 @@ namespace Ep128 {
   void Ep128VM::Z80_::tapePatch()
   {
     if ((R.PC.W.l & 0x3FFF) > 0x3FFC ||
-        !(vm.fileIOEnabled &&
-          vm.memory.isSegmentROM(vm.getMemoryPage(int(R.PC.W.l >> 14)))))
+        !((vm.fileIOEnabled | vm.isRecordingDemo | vm.isPlayingDemo) &&
+          vm.memory.isSegmentROM(vm.getMemoryPage(int(R.PC.W.l >> 14))))) {
       return;
+    }
     if (vm.readMemory((uint16_t(R.PC.W.l) + 2) & 0xFFFF, true) != 0xFE)
       return;
     uint8_t n = vm.readMemory((uint16_t(R.PC.W.l) + 3) & 0xFFFF, true);
     if (n > 0x0F)
       return;
     if (vm.isRecordingDemo | vm.isPlayingDemo) {
-      if (n >= 0x01 && n <= 0x0B) {
-        // file I/O is disabled while recording or playing demo
-        R.AF.B.h = 0xE7;
-        return;
-      }
+      // file I/O is disabled while recording or playing demo
+      if (n != 0x0F)
+        R.AF.B.h = uint8_t((n >= 0x01 && n <= 0x0B) ? 0xE7 : 0x00);
+      return;
     }
     std::map< uint8_t, std::FILE * >::iterator  i_;
     i_ = fileChannels.find(uint8_t(R.AF.B.h));
@@ -519,13 +519,10 @@ namespace Ep128 {
       R.AF.B.h = 0x00;
       break;
     case 0x0E:                          // get if default device is 'FILE:'
-      R.AF.B.h = uint8_t(defaultDeviceIsFILE &&
-                         !(vm.isRecordingDemo | vm.isPlayingDemo) ?
-                         0x01 : 0x00);
+      R.AF.B.h = uint8_t(defaultDeviceIsFILE);
       break;
     case 0x0F:                          // set if default device is 'FILE:'
-      if (!(vm.isRecordingDemo | vm.isPlayingDemo))
-        defaultDeviceIsFILE = (R.AF.B.h != 0x00);
+      defaultDeviceIsFILE = (R.AF.B.h != 0x00);
       break;
     default:
       R.AF.B.h = 0xE7;
