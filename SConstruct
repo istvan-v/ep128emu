@@ -26,6 +26,13 @@ fltkConfig = 'fltk-config'
 
 # -----------------------------------------------------------------------------
 
+oldSConsVersion = 0
+try:
+    EnsureSConsVersion(0, 97)
+except:
+    print 'WARNING: using old SCons version'
+    oldSConsVersion = 1
+
 ep128emuLibEnvironment = Environment()
 if linux32CrossCompile:
     compilerFlags = ' -m32 ' + compilerFlags
@@ -53,7 +60,10 @@ if win32CrossCompile:
     ep128emuLibEnvironment.Prepend(CCFLAGS = ['-mthreads'])
     ep128emuLibEnvironment.Prepend(LINKFLAGS = ['-mthreads'])
 
-ep128emuGUIEnvironment = ep128emuLibEnvironment.Clone()
+if not oldSConsVersion:
+    ep128emuGUIEnvironment = ep128emuLibEnvironment.Clone()
+else:
+    ep128emuGUIEnvironment = ep128emuLibEnvironment.Copy()
 if win32CrossCompile:
     ep128emuGUIEnvironment.Prepend(LIBS = ['fltk'])
 else:
@@ -64,10 +74,15 @@ else:
     except:
         print 'WARNING: could not run fltk-config'
         ep128emuGUIEnvironment.Append(LIBS = ['fltk_images', 'fltk'])
-        ep128emuGUIEnvironment.Append(LIBS = ['fltk_jpeg', 'fltk_png'])
-        ep128emuGUIEnvironment.Append(LIBS = ['fltk_z', 'X11'])
+        if not oldSConsVersion:
+            ep128emuGUIEnvironment.Append(LIBS = ['fltk_jpeg', 'fltk_png',
+                                                  'fltk_z'])
+        ep128emuGUIEnvironment.Append(LIBS = ['X11'])
 
-ep128emuGLGUIEnvironment = ep128emuLibEnvironment.Clone()
+if not oldSConsVersion:
+    ep128emuGLGUIEnvironment = ep128emuLibEnvironment.Clone()
+else:
+    ep128emuGLGUIEnvironment = ep128emuLibEnvironment.Copy()
 if win32CrossCompile:
     ep128emuGLGUIEnvironment.Prepend(LIBS = ['fltk_gl', 'fltk',
                                              'glu32', 'opengl32'])
@@ -79,9 +94,11 @@ else:
     except:
         print 'WARNING: could not run fltk-config'
         ep128emuGLGUIEnvironment.Append(LIBS = ['fltk_images', 'fltk_gl'])
-        ep128emuGLGUIEnvironment.Append(LIBS = ['fltk', 'fltk_jpeg'])
-        ep128emuGLGUIEnvironment.Append(LIBS = ['fltk_png', 'fltk_z', 'GL'])
-        ep128emuGLGUIEnvironment.Append(LIBS = ['X11'])
+        ep128emuGLGUIEnvironment.Append(LIBS = ['fltk'])
+        if not oldSConsVersion:
+            ep128emuGLGUIEnvironment.Append(LIBS = ['fltk_jpeg', 'fltk_png',
+                                                    'fltk_z'])
+        ep128emuGLGUIEnvironment.Append(LIBS = ['GL', 'X11'])
 
 ep128emuLibEnvironment['CPPPATH'] = ep128emuGLGUIEnvironment['CPPPATH']
 
@@ -113,7 +130,10 @@ def imageLibTest(env):
     usingPNGLib = 'png' in env['LIBS']
     usingZLib = 'z' in env['LIBS']
     if usingJPEGLib or usingPNGLib or usingZLib:
-        tmpEnv = env.Clone()
+        if not oldSConsVersion:
+            tmpEnv = env.Clone()
+        else:
+            tmpEnv = env.Copy()
         if usingJPEGLib:
             tmpEnv['LIBS'].remove('jpeg')
         if usingPNGLib:
@@ -147,7 +167,10 @@ def imageLibTest(env):
             tmpConfig2.Finish()
 
 def portAudioLibTest(env, libNames):
-    tmpEnv = env.Clone()
+    if not oldSConsVersion:
+        tmpEnv = env.Clone()
+    else:
+        tmpEnv = env.Copy()
     if libNames.__len__() > 0:
         tmpEnv.Append(LIBS = libNames)
     tmpEnv.Append(LIBS = ['pthread'])
@@ -177,8 +200,9 @@ def checkPortAudioLib(env):
     if alsaLibNeeded:
         env.Append(LIBS = ['asound'])
 
-imageLibTest(ep128emuGUIEnvironment)
-imageLibTest(ep128emuGLGUIEnvironment)
+if not oldSConsVersion:
+    imageLibTest(ep128emuGUIEnvironment)
+    imageLibTest(ep128emuGLGUIEnvironment)
 
 configure = ep128emuLibEnvironment.Configure()
 if not configure.CheckCHeader('sndfile.h'):
@@ -274,7 +298,10 @@ ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
 
 # -----------------------------------------------------------------------------
 
-ep128LibEnvironment = ep128emuLibEnvironment.Clone()
+if not oldSConsVersion:
+    ep128LibEnvironment = ep128emuLibEnvironment.Clone()
+else:
+    ep128LibEnvironment = ep128emuLibEnvironment.Copy()
 ep128LibEnvironment.Append(CPPPATH = ['./z80'])
 
 ep128Lib = ep128LibEnvironment.StaticLibrary('ep128', Split('''
@@ -291,7 +318,10 @@ ep128Lib = ep128LibEnvironment.StaticLibrary('ep128', Split('''
 
 # -----------------------------------------------------------------------------
 
-ep128emuEnvironment = ep128emuGLGUIEnvironment.Clone()
+if not oldSConsVersion:
+    ep128emuEnvironment = ep128emuGLGUIEnvironment.Clone()
+else:
+    ep128emuEnvironment = ep128emuGLGUIEnvironment.Copy()
 ep128emuEnvironment.Append(CPPPATH = ['./z80', './gui'])
 if haveDotconf:
     if win32CrossCompile:
@@ -305,7 +335,8 @@ if haveSDL:
     ep128emuEnvironment.Append(LIBS = ['SDL'])
 ep128emuEnvironment.Append(LIBS = ['portaudio', 'sndfile'])
 if not win32CrossCompile:
-    checkPortAudioLib(ep128emuEnvironment)
+    if not oldSConsVersion:
+        checkPortAudioLib(ep128emuEnvironment)
     ep128emuEnvironment.Append(LIBS = ['pthread'])
     if sys.platform[:5] == 'linux':
         ep128emuEnvironment.Append(LIBS = ['rt'])
@@ -337,7 +368,10 @@ if sys.platform[:6] == 'darwin':
 
 # -----------------------------------------------------------------------------
 
-tapeeditEnvironment = ep128emuGUIEnvironment.Clone()
+if not oldSConsVersion:
+    tapeeditEnvironment = ep128emuGUIEnvironment.Clone()
+else:
+    tapeeditEnvironment = ep128emuGUIEnvironment.Copy()
 tapeeditEnvironment.Append(CPPPATH = ['./tapeutil'])
 tapeeditEnvironment.Prepend(LIBS = ['ep128emu'])
 if haveDotconf:
@@ -364,7 +398,10 @@ if sys.platform[:6] == 'darwin':
 
 # -----------------------------------------------------------------------------
 
-makecfgEnvironment = ep128emuGUIEnvironment.Clone()
+if not oldSConsVersion:
+    makecfgEnvironment = ep128emuGUIEnvironment.Clone()
+else:
+    makecfgEnvironment = ep128emuGUIEnvironment.Copy()
 makecfgEnvironment.Append(CPPPATH = ['./installer'])
 makecfgEnvironment.Prepend(LIBS = ['ep128emu'])
 if haveDotconf:
