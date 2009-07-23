@@ -228,7 +228,6 @@ namespace Ep128Emu {
   void FLTKDisplay_::deleteMessage(Message *m)
   {
     m->~Message();
-    m->prv = (Message *) 0;
     messageQueueMutex.lock();
     m->nxt = freeMessageStack;
     freeMessageStack = m;
@@ -244,7 +243,6 @@ namespace Ep128Emu {
       std::free(m);
       return;
     }
-    m->prv = lastMessage;
     m->nxt = (Message *) 0;
     if (lastMessage)
       lastMessage->nxt = m;
@@ -306,15 +304,11 @@ namespace Ep128Emu {
     while (freeMessageStack) {
       Message *m = freeMessageStack;
       freeMessageStack = m->nxt;
-      if (freeMessageStack)
-        freeMessageStack->prv = (Message *) 0;
       std::free(m);
     }
     while (messageQueue) {
       Message *m = messageQueue;
       messageQueue = m->nxt;
-      if (messageQueue)
-        messageQueue->prv = (Message *) 0;
       m->~Message();
       std::free(m);
     }
@@ -905,7 +899,6 @@ namespace Ep128Emu {
       if (m) {
         messageQueue = m->nxt;
         if (messageQueue) {
-          messageQueue->prv = (Message *) 0;
           if (!messageQueue->nxt)
             lastMessage = messageQueue;
         }

@@ -1254,7 +1254,6 @@ namespace Ep128Emu {
       if (m) {
         messageQueue = m->nxt;
         if (messageQueue) {
-          messageQueue->prv = (Message *) 0;
           if (!messageQueue->nxt)
             lastMessage = messageQueue;
         }

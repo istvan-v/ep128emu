@@ -32,13 +32,11 @@ namespace Ep128Emu {
    protected:
     class Message {
      public:
-      Message *prv;
       Message *nxt;
       // --------
       Message()
+        : nxt((Message *) 0)
       {
-        prv = (Message *) 0;
-        nxt = (Message *) 0;
       }
       virtual ~Message();
     };
