@@ -7,8 +7,8 @@ linux32CrossCompile = 0
 disableSDL = 0          # set this to 1 on Linux with SDL version >= 1.2.10
 disableLua = 0
 enableGLShaders = 1
-enableDebug = 1
-buildRelease = 0
+enableDebug = 0
+buildRelease = 1
 
 compilerFlags = ''
 if buildRelease:
@@ -237,10 +237,16 @@ if not disableSDL:
     haveSDL = configure.CheckCHeader('SDL/SDL.h')
 else:
     haveSDL = 0
+oldLuaVersion = 0
 if not disableLua:
     haveLua = configure.CheckCHeader('lua.h')
     haveLua = haveLua and configure.CheckCHeader('lauxlib.h')
     haveLua = haveLua and configure.CheckCHeader('lualib.h')
+    if haveLua:
+        if not configure.CheckType('lua_Integer',
+                                   '#include <lua.h>\n#include <lauxlib.h>'):
+            oldLuaVersion = 1
+            print 'WARNING: using old Lua 5.0.x API'
 else:
     haveLua = 0
 configure.Finish()
@@ -253,6 +259,8 @@ if haveSDL:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_SDL_H'])
 if haveLua:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_LUA_H'])
+    if oldLuaVersion:
+        ep128emuLibEnvironment.Append(CCFLAGS = ['-DUSING_OLD_LUA_API'])
 if enableGLShaders:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DENABLE_GL_SHADERS'])
 ep128emuLibEnvironment.Append(CCFLAGS = ['-DFLTK1'])
@@ -331,6 +339,8 @@ if haveDotconf:
     ep128emuEnvironment.Append(LIBS = ['dotconf'])
 if haveLua:
     ep128emuEnvironment.Append(LIBS = ['lua'])
+    if oldLuaVersion:
+        ep128emuEnvironment.Append(LIBS = ['lualib'])
 if haveSDL:
     ep128emuEnvironment.Append(LIBS = ['SDL'])
 ep128emuEnvironment.Append(LIBS = ['portaudio', 'sndfile'])
