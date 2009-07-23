@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -30,7 +30,58 @@ extern "C" {
 #  include "lauxlib.h"
 #  include "lualib.h"
 }
-#endif  // HAVE_LUA_H
+#  ifdef USING_OLD_LUA_API
+// if using old Lua 5.0.x API:
+typedef intptr_t lua_Integer;
+typedef void *(*lua_Alloc)(void *, void *, size_t, size_t);
+static inline lua_State *lua_newstate(lua_Alloc f, void *ud)
+{
+  (void) f;
+  (void) ud;
+  return lua_open();
+}
+static inline lua_Integer lua_tointeger(lua_State *L, int idx)
+{
+  return lua_Integer(lua_tonumber(L, idx));
+}
+static inline void lua_pushinteger(lua_State *L, lua_Integer n)
+{
+  lua_pushnumber(L, lua_Number(n));
+}
+static inline const char *lua_tolstring(lua_State *L, int idx, size_t *len)
+{
+  const char  *s = lua_tostring(L, idx);
+  if (len) {
+    if (s)
+      (*len) = std::strlen(s);
+    else
+      (*len) = 0;
+  }
+  return s;
+}
+static inline void lua_setfield(lua_State *L, int idx, const char *k)
+{
+  lua_pushstring(L, k);
+  lua_insert(L, -2);
+  lua_settable(L, idx);
+}
+static inline void lua_getfield(lua_State *L, int idx, const char *k)
+{
+  lua_pushstring(L, k);
+  lua_gettable(L, idx);
+}
+static inline void luaL_openlibs(lua_State *L)
+{
+  luaopen_base(L);
+  luaopen_table(L);
+  luaopen_io(L);
+  luaopen_string(L);
+  luaopen_math(L);
+  luaopen_debug(L);
+  luaopen_loadlib(L);
+}
+#  endif    // USING_OLD_LUA_API
+#endif      // HAVE_LUA_H
 
 namespace Ep128Emu {
 
@@ -1305,6 +1356,7 @@ namespace Ep128Emu {
     lua_pushinteger(luaState, lua_Integer(value));
     int     err = lua_pcall(luaState, 3, 1, 0);
     if (err != 0) {
+      messageCallback(lua_tolstring(luaState, -1, (size_t *) 0));
       closeScript();
       if (errorMessage) {
         const char  *msg = errorMessage;
@@ -1354,8 +1406,9 @@ namespace Ep128Emu {
       return;
     }
     luaL_openlibs(luaState);
-    int     err = luaL_loadstring(luaState, s);
+    int     err = luaL_loadbuffer(luaState, s, std::strlen(s), "");
     if (err != 0) {
+      messageCallback(lua_tolstring(luaState, -1, (size_t *) 0));
       closeScript();
       if (err == LUA_ERRSYNTAX)
         errorCallback("syntax error in Lua script");
@@ -1431,6 +1484,7 @@ namespace Ep128Emu {
     registerLuaFunction(&luaFunc_mprint, "mprint");
     err = lua_pcall(luaState, 0, 0, 0);
     if (err != 0) {
+      messageCallback(lua_tolstring(luaState, -1, (size_t *) 0));
       closeScript();
       if (errorMessage) {
         const char  *msg = errorMessage;
