@@ -1373,9 +1373,9 @@ namespace Ep128 {
       daveFrequency(500000),
       nickFrequency(889846),
       waitCycleCnt(1),
-      videoMemoryLatency(357016),
-      videoMemoryLatency_M1(354555),
-      videoMemoryLatency_IO(359477),
+      videoMemoryLatency(359455),
+      videoMemoryLatency_M1(355589),
+      videoMemoryLatency_IO(362928),
       ideInterface((IDEInterface *) 0)
   {
     for (size_t i = 0; i < (sizeof(callbacks) / sizeof(Ep128VMCallback)); i++) {
@@ -1566,13 +1566,13 @@ namespace Ep128 {
     size_t  freq;
     // allow refresh rates in the range 10 Hz to 100 Hz
     freq = (freq_ > 178125 ? (freq_ < 1781250 ? freq_ : 1781250) : 178125);
-    // calculate 5/16 NICK cycles + 5.832 ns in picoseconds
+    // calculate 5/16 NICK cycles + 8.271 ns in picoseconds
     int     videoMemoryLatency_ =
         int(((int64_t(1220703125L) << 8) + int64_t(freq >> 1))  // 10^12 * 5/16
             / int32_t(freq))
-        + 5832;
-    int     videoMemoryLatency_M1_ = videoMemoryLatency_ - 2461;
-    int     videoMemoryLatency_IO_ = videoMemoryLatency_ + 2461;
+        + 8271;
+    int     videoMemoryLatency_M1_ = videoMemoryLatency_ - 3866;
+    int     videoMemoryLatency_IO_ = videoMemoryLatency_ + 3473;
     if (nickFrequency != freq ||
         videoMemoryLatency != videoMemoryLatency_ ||
         videoMemoryLatency_M1 != videoMemoryLatency_M1_ ||
