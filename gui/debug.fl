@@ -574,6 +574,21 @@ class Ep128EmuGUI_DebugWindow {open
               xywh {780 470 145 25} color 50 selection_color 51
             }
             Fl_Button {} {
+              label {Insert callback}
+              callback {{
+  try {
+    scriptEditBuffer->insert(luaScriptEditor->insert_position(),
+                             "\\nfunction breakPointCallback(t, a, v)\\n"
+                             "  return true\\n"
+                             "end\\n");
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+              tooltip {Insert breakpoint callback function template} xywh {780 530 145 25} color 50 selection_color 51
+            }
+            Fl_Button {} {
               label Run
               callback {{
   const char  *buf = (char *) 0;
