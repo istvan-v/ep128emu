@@ -16,11 +16,12 @@ General
 
   * graphical user interface using the FLTK library
   * software (FLTK based) or OpenGL video, with resizable emulator
-    window, fullscreen mode, brightness/contrast/gamma can be set
-    globally or separately for red/green/blue channels, color
+    window, fullscreen mode, brightness, contrast, gamma, hue, and color
     saturation control; additional features in OpenGL mode only: single
     or double buffered (with synchronization to vertical refresh) mode,
-    linear texture filtering, and some display effects
+    linear texture filtering, resampling video output to the monitor
+    refresh rate, and some display effects: motion blur, scanline
+    shading, and (if OpenGL 2.0 shaders are available) PAL TV emulation
   * real time audio output uses the PortAudio library (v18 or v19), with
     support for many native audio APIs (MME/DirectSound/ASIO on Windows,
     OSS/ALSA/JACK on Linux, and CoreAudio on MacOS X); high quality
@@ -64,7 +65,9 @@ Enterprise emulation
     synchronization with the NICK chip when accessing video memory)
   * RAM size can be set in 16 kilobyte steps in the range 64 to 3712
   * ROM can be loaded from external image files to segments 0 to 7,
-    16 to 19 (decimal), 32 to 35, and 48 to 51
+    16 to 19 (decimal), 32 to 35, 48 to 51, and 64 to 67
+  * using external configuration files, it is also possible to define
+    any memory configuration without the above limitations
   * NICK chip emulation, supporting all documented and undocumented
     video modes
   * DAVE emulation, including timers, interrupts, external ports for
@@ -124,7 +127,8 @@ GNU C/C++ compiler, binutils, etc.), you need the following packages:
   * SDL (http://www.libsdl.org/) 1.2 for joystick input (optional);
     NOTE: on Linux, version 1.2.10 and newer do not work, so using 1.2.9
     is recommended
-  * Lua (http://www.lua.org/) for scripting in the debugger (optional)
+  * Lua (http://www.lua.org/) for scripting in the debugger (optional);
+    version 5.1 is recommended, but 5.0 is also supported
 
 Once these are installed, you can edit the file 'SConstruct' in the top
 level source directory for setting compiler flags etc., and run the
@@ -231,7 +235,7 @@ Save snapshot (Alt + S)
   configuration and ROM images, but clock frequency and timing settings
   are not restored when loading a snapshot. The file format may be
   subject to changes between different releases of the emulator. Note
-  that the state of any floppy drives is currently not saved, and the
+  that the state of any disk drives is currently not saved, and the
   drives are reset on loading a snapshot.
 
 Load snapshot (Alt + L)
@@ -384,15 +388,31 @@ Sound / Decrease volume
 
 Disk / Configure... (Alt + D)
 
-  Opens a dialog for setting up floppy emulation. For each drive, an
-  image file can be selected, and disk geometry parameters can be
-  specified. If the file name is left empty, that means having no disk
-  in that particular drive. It may also be possible to directly access a
-  real disk by using the /dev/fd* devices (on Linux) or \\.\A: (on
-  Windows) as the image file.
+  Opens a dialog for setting up floppy and IDE emulation.
+
+  For each floppy drive, an image file can be selected, and disk
+  geometry parameters can be specified. If the file name is left empty,
+  that means having no disk in that particular drive. It may also be
+  possible to directly access a real disk by using the /dev/fd* devices
+  (on Linux) or \\.\A: (on Windows) as the image file.
   Any of the geometry parameters can be zero or negative to have the
   value calculated automatically from the others (if available), the
   image file size, and the file system header.
+
+  The IDE emulation supports image files in raw and VHD format (the
+  latter must have a .vhd extension), with a file size of up to 2 GB.
+  In the case of VHD files, the disk geometry is determined by the VHD
+  footer, while the geometry of raw images is calculated from the file
+  size. Depending on the image format, the model number string of the
+  emulated drive will include "(VHD)" or the automatically assigned
+  geometry.
+  The emulator package includes a 126 MB VHD format IDE disk image in
+  disk/ide126m.vhd.bz2, with 4 FAT12 formatted 31.5 MB partitions.
+  Note that with the current version of IDE.ROM, after changing IDE disk
+  images, a cold reset is required for the changes to be detected, and
+  the disk change flag is also set on snapshot or demo loading.
+
+  Floppy and IDE drives are disabled while recording or playing a demo.
 
 Disk / Remove floppy / Drive A
 Disk / Remove floppy / Drive B
