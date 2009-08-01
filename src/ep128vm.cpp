@@ -2096,7 +2096,7 @@ namespace Ep128 {
     saveMachineConfiguration(f);
     saveState(f);
     demoBuffer.clear();
-    demoBuffer.writeUInt32(0x00020007); // version 2.0.7
+    demoBuffer.writeUInt32(0x00020008); // version 2.0.8
     demoFile = &f;
     isRecordingDemo = true;
     setCallback(&demoRecordCallback, this, true);
@@ -2267,7 +2267,7 @@ namespace Ep128 {
     // check version number
     unsigned int  version = buf.readUInt32();
 #if 0
-    if (version != 0x00020007) {
+    if (version != 0x00020008) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible ep128 demo format");
     }
