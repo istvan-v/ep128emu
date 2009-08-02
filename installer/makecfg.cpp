@@ -1398,7 +1398,7 @@ int main(int argc, char **argv)
       }
       delete config;
       config = new Ep128Emu::ConfigurationDB();
-      mCfg = new Ep128EmuMachineConfiguration(*config, 36, romDirectory);
+      mCfg = new Ep128EmuMachineConfiguration(*config, 39, romDirectory);
       dsCfg = new Ep128EmuDisplaySndConfiguration(*config);
       setKeyboardConfiguration(*config, (gui->keyboardMapHU ? 1 : 0));
       std::string fileIODir = installDirectory + "files";
