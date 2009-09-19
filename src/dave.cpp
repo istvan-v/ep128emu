@@ -155,8 +155,6 @@ namespace Ep128 {
 
   uint32_t Dave::runOneCycle_()
   {
-    unsigned int  lval, rval;
-
     // update polynomial counters
     if (--polycnt4_phase < 0)                   // 4-bit
       polycnt4_phase = 14;
@@ -317,15 +315,9 @@ namespace Ep128 {
 
     // and now the final DAC output (left/right) values
     // total output range (not including tape feedback): 0 to 252
-    if (tape_feedback && tape_input) {
-      // tape feedback (if enabled)
-      lval = 0x3F;
-      rval = 0x3F;
-    }
-    else {
-      lval = 0;
-      rval = 0;
-    }
+    unsigned int  lval =
+        ((tape_feedback & tape_input) == 0 ? 0U : 0x3FU);   // tape feedback
+    unsigned int  rval = lval;
     if (dac_mode_left) {
       lval += (chn0_left << 2);
       if (dac_mode_right) {
@@ -623,8 +615,7 @@ namespace Ep128 {
     case 0x15:
       // select keyboard row
       keyboardRow = int(value & 0x0F);
-      if (value & 0x20)                         // tape control
-        tape_feedback = (tape_feedback & 1) ^ 1;
+      tape_feedback = int(!(value & 0x20));     // tape control
       setRemote1State(value & 0x40 ? 1 : 0);
       setRemote2State(value & 0x80 ? 1 : 0);
       break;
