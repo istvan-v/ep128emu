@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -24,6 +24,7 @@
 #include <sndfile.h>
 
 static const char *epteFileMagic = "ENTERPRISE 128K TAPE FILE       ";
+static const char *tzxFileMagic = "ZXTape!\032\001";
 
 static int cuePointCmpFunc(const void *p1, const void *p2)
 {
@@ -760,6 +761,713 @@ namespace Ep128Emu {
 
   // --------------------------------------------------------------------------
 
+  Tape_TZX::Tape_TZX(const char *fileName, int bitsPerSample)
+    : Tape(bitsPerSample),
+      f((std::FILE *) 0)
+  {
+    tapeReset();
+    if (fileName == (char *) 0 || fileName[0] == '\0')
+      throw Exception("invalid tape file name");
+    f = std::fopen(fileName, "rb");
+    if (!f)
+      throw Exception("error opening tape file");
+    bool    isTZXFile = false;
+    isTAPFile = false;
+    if (std::fseek(f, 0L, SEEK_END) >= 0) {
+      long    fileSize = std::ftell(f);
+      if (fileSize >= 11L) {
+        std::fseek(f, 0L, SEEK_SET);
+        int     c = std::fgetc(f);
+        if (c == int(tzxFileMagic[0])) {
+          for (int i = 1; true; i++) {
+            if (std::fgetc(f) != int(tzxFileMagic[i]))
+              break;
+            if (i == 8) {
+              isTZXFile = true;
+              break;
+            }
+          }
+        }
+        else if (c == 0x13 && fileSize >= 21L) {
+          if (std::fgetc(f) == 0x00) {
+            if (std::fgetc(f) == 0x00) {
+              uint8_t tmp = 0x00;
+              for (int i = 1; i < 19; i++) {
+                c = std::fgetc(f);
+                if (c == EOF) {
+                  tmp = 0xFF;
+                  break;
+                }
+                tmp = tmp ^ uint8_t(c & 0xFF);
+              }
+              isTAPFile = (tmp == 0x00);
+            }
+          }
+        }
+      }
+    }
+    if (!(isTZXFile | isTAPFile)) {
+      std::fclose(f);
+      throw Exception("invalid tape file header");
+    }
+    sampleRate = (isTAPFile ? 53030L : 109375L);        // 3500000 / 66 or 32
+    this->seek(0.0);
+  }
+
+  Tape_TZX::~Tape_TZX()
+  {
+    if (f)
+      std::fclose(f);
+  }
+
+  void Tape_TZX::tapeReset()
+  {
+    if (tapeLength < 1)
+      tapeLength = 1;
+    else if (tapeLength > (tapePosition + (size_t(sampleRate) << 1)))
+      tapeLength = tapePosition + (size_t(sampleRate) << 1);
+    currentBlockType = 0x00;
+    currentMode = 0x04;
+    endOfTape = true;
+    shiftReg = 0x00;
+    pulseTimer = 0U;
+    pulseLength = 0U;
+    pulseCnt = 0U;
+    pilotPulseLength = 0;
+    syncPulseLength1 = 0;
+    syncPulseLength2 = 0;
+    bit0PulseLength = 0;
+    bit1PulseLength = 0;
+    bit0PulseCnt = 0;
+    bit1PulseCnt = 0;
+    pilotPulseCnt = 0;
+    lastByteBits = 8;
+    pulseSequencePulsesLeft = 0;
+    pauseLength = 0U;
+    clockFrequency = 3500000U;
+    dataBlockBytesLeft = 0U;
+    directRecordingSampleRate = 0U;
+    directRecordingTimer = 0U;
+    loopFilePos = 0U;
+    loopStartTime = 0;
+    loopRepeatCnt = 0;
+  }
+
+  bool Tape_TZX::readByte(uint8_t& n)
+  {
+    int     c = std::fgetc(f);
+    if (c == EOF) {
+      n = 0x00;
+      tapeReset();
+      return false;
+    }
+    n = uint8_t(c & 0xFF);
+    return true;
+  }
+
+  bool Tape_TZX::readUInt16(uint16_t& n)
+  {
+    int     c = std::fgetc(f);
+    if (c != EOF) {
+      n = uint16_t(c & 0xFF);
+      c = std::fgetc(f);
+      if (c != EOF) {
+        n = n | (uint16_t(c & 0xFF) << 8);
+        return true;
+      }
+    }
+    n = 0x0000;
+    tapeReset();
+    return false;
+  }
+
+  bool Tape_TZX::readUInt24(uint32_t& n)
+  {
+    int     c = std::fgetc(f);
+    if (c != EOF) {
+      n = uint32_t(c & 0xFF);
+      c = std::fgetc(f);
+      if (c != EOF) {
+        n = n | (uint32_t(c & 0xFF) << 8);
+        c = std::fgetc(f);
+        if (c != EOF) {
+          n = n | (uint32_t(c & 0xFF) << 16);
+          return true;
+        }
+      }
+    }
+    n = 0U;
+    tapeReset();
+    return false;
+  }
+
+  bool Tape_TZX::readUInt32(uint32_t& n)
+  {
+    int     c = std::fgetc(f);
+    if (c != EOF) {
+      n = uint32_t(c & 0xFF);
+      c = std::fgetc(f);
+      if (c != EOF) {
+        n = n | (uint32_t(c & 0xFF) << 8);
+        c = std::fgetc(f);
+        if (c != EOF) {
+          n = n | (uint32_t(c & 0xFF) << 16);
+          c = std::fgetc(f);
+          if (c != EOF) {
+            n = n | (uint32_t(c & 0xFF) << 24);
+            return true;
+          }
+        }
+      }
+    }
+    n = 0U;
+    tapeReset();
+    return false;
+  }
+
+  uint32_t Tape_TZX::convertPulseLength(uint32_t n, uint32_t clockFreq_)
+  {
+    if (clockFreq_ == 0U)
+      clockFreq_ = clockFrequency;
+    return uint32_t(((uint64_t(n) * uint32_t(sampleRate)) + (clockFreq_ >> 1))
+                    / clockFreq_);
+  }
+
+  void Tape_TZX::readNextTZXBlock()
+  {
+    if (isTAPFile) {
+      pilotPulseLength = uint16_t(convertPulseLength(2168));
+      syncPulseLength1 = uint16_t(convertPulseLength(667));
+      syncPulseLength2 = uint16_t(convertPulseLength(735));
+      bit0PulseLength = uint16_t(convertPulseLength(855));
+      bit1PulseLength = uint16_t(convertPulseLength(1710));
+      bit0PulseCnt = 2;
+      bit1PulseCnt = 2;
+      pilotPulseCnt = 5643;
+      lastByteBits = 8;
+      pauseLength = convertPulseLength(1500U, 1000U);
+      {
+        uint16_t  tmp = 0;
+        if (!readUInt16(tmp))
+          return;
+        dataBlockBytesLeft = tmp;
+      }
+      currentMode = 0x00;
+      pulseTimer = pilotPulseLength;
+      pulseLength = pilotPulseLength;
+      pulseCnt = pilotPulseCnt;
+      return;
+    }
+    while (true) {
+      {
+        int     tmp = std::fgetc(f);
+        if (tmp == EOF) {
+          tapeReset();
+          return;
+        }
+        currentBlockType = uint8_t(tmp & 0xFF);
+      }
+      switch (currentBlockType) {
+      case 0x10:                        // standard speed data block
+      case 0x11:                        // turbo speed data block
+        if (currentBlockType == 0x10) {
+          pilotPulseLength = 2168;
+          syncPulseLength1 = 667;
+          syncPulseLength2 = 735;
+          bit0PulseLength = 855;
+          bit1PulseLength = 1710;
+          pilotPulseCnt = 5643;
+          lastByteBits = 8;
+        }
+        else {
+          if (!readUInt16(pilotPulseLength))
+            return;
+          if (!readUInt16(syncPulseLength1))
+            return;
+          if (!readUInt16(syncPulseLength2))
+            return;
+          if (!readUInt16(bit0PulseLength))
+            return;
+          if (!readUInt16(bit1PulseLength))
+            return;
+          if (!readUInt16(pilotPulseCnt))
+            return;
+          if (!readByte(lastByteBits))
+            return;
+        }
+        pilotPulseLength = uint16_t(convertPulseLength(pilotPulseLength));
+        syncPulseLength1 = uint16_t(convertPulseLength(syncPulseLength1));
+        syncPulseLength2 = uint16_t(convertPulseLength(syncPulseLength2));
+        bit0PulseLength = uint16_t(convertPulseLength(bit0PulseLength));
+        bit1PulseLength = uint16_t(convertPulseLength(bit1PulseLength));
+        bit0PulseCnt = 2;
+        bit1PulseCnt = 2;
+        lastByteBits = ((lastByteBits + 7) & 7) + 1;
+        {
+          uint16_t  tmp = 0;
+          if (!readUInt16(tmp))
+            return;
+          pauseLength = convertPulseLength(tmp, 1000U);
+        }
+        if (currentBlockType == 0x10) {
+          uint16_t  tmp = 0;
+          if (!readUInt16(tmp))
+            return;
+          dataBlockBytesLeft = tmp;
+        }
+        else {
+          if (!readUInt24(dataBlockBytesLeft))
+            return;
+        }
+        currentMode = 0x00;
+        pulseTimer = pilotPulseLength;
+        pulseLength = pilotPulseLength;
+        pulseCnt = pilotPulseCnt;
+        break;
+      case 0x12:                        // pure tone
+        {
+          uint16_t  tmp = 0;
+          if (!readUInt16(tmp))
+            return;
+          currentMode = 0x04;
+          pulseLength = convertPulseLength(tmp);
+          pulseTimer = pulseLength;
+          if (!readUInt16(tmp))
+            return;
+          pulseCnt = tmp;
+        }
+        break;
+      case 0x13:                        // pulse sequence
+        if (!readByte(pulseSequencePulsesLeft))
+          return;
+        if (pulseSequencePulsesLeft > 0) {
+          pulseSequencePulsesLeft--;
+          uint16_t  tmp = 0;
+          if (!readUInt16(tmp))
+            return;
+          currentMode = 0x05;
+          pulseLength = convertPulseLength(tmp);
+          pulseTimer = pulseLength;
+          pulseCnt = 1U;
+        }
+        else {
+          continue;
+        }
+        break;
+      case 0x14:                        // pure data block
+        if (!readUInt16(bit0PulseLength))
+          return;
+        if (!readUInt16(bit1PulseLength))
+          return;
+        if (!readByte(lastByteBits))
+          return;
+        bit0PulseLength = uint16_t(convertPulseLength(bit0PulseLength));
+        bit1PulseLength = uint16_t(convertPulseLength(bit1PulseLength));
+        bit0PulseCnt = 2;
+        bit1PulseCnt = 2;
+        lastByteBits = ((lastByteBits + 7) & 7) + 1;
+        {
+          uint16_t  tmp = 0;
+          if (!readUInt16(tmp))
+            return;
+          pauseLength = convertPulseLength(tmp, 1000U);
+        }
+        if (!readUInt24(dataBlockBytesLeft))
+          return;
+        if (dataBlockBytesLeft < 1U && pauseLength < 1U)
+          continue;
+        currentMode = 0x03;
+        shiftReg = 0x80;
+        dataBlockNextBit();
+        break;
+      case 0x15:                        // direct recording
+        {
+          uint16_t  tmp = 0;
+          if (!readUInt16(tmp))
+            return;
+          if (tmp < 32) {
+            tapeReset();                // invalid sample rate
+            return;
+          }
+          directRecordingSampleRate = (clockFrequency + (uint32_t(tmp) >> 1))
+                                      / uint32_t(tmp);
+          directRecordingTimer = directRecordingSampleRate >> 1;
+          if (!readUInt16(tmp))
+            return;
+          pauseLength = convertPulseLength(tmp, 1000U);
+        }
+        if (!readByte(lastByteBits))
+          return;
+        lastByteBits = ((lastByteBits + 7) & 7) + 1;
+        if (!readUInt24(dataBlockBytesLeft))
+          return;
+        if (dataBlockBytesLeft < 1U && pauseLength < 1U)
+          continue;
+        currentMode = 0x06;
+        shiftReg = 0x80;
+        directRecordingNextBit();
+        break;
+      case 0x20:                        // pause or stop tape
+        {
+          uint16_t  tmp = 0;
+          if (!readUInt16(tmp))
+            return;
+          if (tmp == 0) {
+            this->stop();
+            continue;
+          }
+          outputState = 0;
+          currentMode = 0x04;
+          pauseLength = convertPulseLength(tmp, 1000U);
+          pulseTimer = pauseLength;
+          pulseLength = pauseLength;
+          pulseCnt = 1U;
+          return;
+        }
+        break;
+      case 0x21:                        // group start (ignored)
+        {
+          uint8_t tmp = 0;
+          if (!readByte(tmp))
+            return;
+          while (tmp > 0) {
+            uint8_t tmp2 = 0x00;
+            if (!readByte(tmp2))
+              return;
+            tmp--;
+          }
+        }
+        continue;
+      case 0x22:                        // group end (ignored)
+        continue;
+      case 0x24:                        // loop start
+        {
+          if (!readUInt16(loopRepeatCnt))
+            return;
+          long    tmp = std::ftell(f);
+          if (tmp > 0L) {
+            loopFilePos = uint32_t(tmp);
+            loopStartTime = tapePosition;
+          }
+          else {
+            tapeReset();
+            return;
+          }
+        }
+        continue;
+      case 0x25:                        // loop end
+        if (loopRepeatCnt > 0) {
+          loopRepeatCnt--;
+          if (loopRepeatCnt > 0) {
+            if (tapePosition <= loopStartTime) {
+              tapeReset();
+              return;
+            }
+            if (std::fseek(f, long(loopFilePos), SEEK_SET) < 0) {
+              tapeReset();
+              return;
+            }
+          }
+        }
+        continue;
+      case 0x2A:                        // stop the tape in 48K mode (ignored)
+        {
+          uint32_t  tmp = 0U;
+          if (!readUInt32(tmp))
+            return;
+          if (tmp != 0U) {
+            tapeReset();
+            return;
+          }
+        }
+        continue;
+      case 0x2B:                        // set signal level
+        {
+          uint32_t  tmp = 0U;
+          if (!readUInt32(tmp))
+            return;
+          if (tmp != 1U) {
+            tapeReset();
+            return;
+          }
+          uint8_t   tmp2 = 0x00;
+          if (!readByte(tmp2))
+            return;
+          outputState = int(tmp2 != 0x00);
+        }
+        continue;
+      case 0x30:                        // text description (ignored)
+        {
+          uint8_t tmp = 0;
+          if (!readByte(tmp))
+            return;
+          while (tmp > 0) {
+            uint8_t tmp2 = 0x00;
+            if (!readByte(tmp2))
+              return;
+            tmp--;
+          }
+        }
+        continue;
+      case 0x31:                        // message block (ignored)
+        {
+          uint8_t tmp = 0;
+          if (!readByte(tmp))
+            return;
+          if (!readByte(tmp))
+            return;
+          while (tmp > 0) {
+            uint8_t tmp2 = 0x00;
+            if (!readByte(tmp2))
+              return;
+            tmp--;
+          }
+        }
+        continue;
+      case 0x32:                        // archive info (ignored)
+        {
+          uint16_t  tmp = 0;
+          if (!readUInt16(tmp))
+            return;
+          while (tmp > 0) {
+            uint8_t tmp2 = 0x00;
+            if (!readByte(tmp2))
+              return;
+            tmp--;
+          }
+        }
+        continue;
+      case 0x33:                        // hardware type (ignored)
+        {
+          uint8_t tmp = 0;
+          if (!readByte(tmp))
+            return;
+          for (int i = int(tmp) * 3; i > 0; i--) {
+            uint8_t tmp2 = 0x00;
+            if (!readByte(tmp2))
+              return;
+          }
+        }
+        continue;
+      case 0x35:                        // custom info block (ignored)
+        {
+          uint32_t  tmp = 0U;
+          uint8_t   tmp2 = 0x00;
+          for (int i = 0; i < 10; i++) {
+            if (!readByte(tmp2))
+              return;
+          }
+          if (!readUInt32(tmp))
+            return;
+          while (tmp > 0U) {
+            if (!readByte(tmp2))
+              return;
+            tmp--;
+          }
+        }
+        continue;
+      case 0x5A:                        // glue block
+        for (int i = 1; i <= 9; i++) {
+          uint8_t tmp = 0x00;
+          if (!readByte(tmp))
+            return;
+          if (i < 9 && tmp != uint8_t(tzxFileMagic[i])) {
+            tapeReset();
+            return;
+          }
+        }
+        continue;
+      default:                          // anything else is invalid/unsupported
+        tapeReset();
+        return;
+      }
+      break;
+    }
+  }
+
+  void Tape_TZX::directRecordingNextBit()
+  {
+    uint8_t bitVal = shiftReg & 0x80;
+    shiftReg = (shiftReg & 0x7F) << 1;
+    if (shiftReg == 0x00) {
+      if (dataBlockBytesLeft > 0U) {
+        dataBlockBytesLeft--;
+        if (!readByte(shiftReg))
+          return;
+        bitVal = shiftReg & 0x80;
+        shiftReg = ((shiftReg & 0x7F) << 1) | 0x01;
+        if (dataBlockBytesLeft == 0U) {
+          shiftReg = (shiftReg & uint8_t(256 - (1 << (8 - lastByteBits))))
+                     | uint8_t(1 << (8 - lastByteBits));
+        }
+      }
+      else if (pauseLength > 0U) {
+        outputState = 0;
+        currentMode = 0x04;
+        pulseTimer = pauseLength;
+        pulseLength = pauseLength;
+        pulseCnt = 1U;
+        return;
+      }
+      else {
+        readNextTZXBlock();
+        return;
+      }
+    }
+    outputState = (bitVal == 0 ? 0 : (1 << (requestedBitsPerSample - 1)));
+    directRecordingTimer = directRecordingTimer + uint32_t(sampleRate);
+    pulseLength = directRecordingTimer / directRecordingSampleRate;
+    directRecordingTimer = directRecordingTimer % directRecordingSampleRate;
+    pulseTimer = pulseLength;
+    pulseCnt = 1U;
+  }
+
+  void Tape_TZX::dataBlockNextBit()
+  {
+    uint8_t bitVal = shiftReg & 0x80;
+    shiftReg = (shiftReg & 0x7F) << 1;
+    if (shiftReg == 0x00) {
+      if (dataBlockBytesLeft > 0U) {
+        dataBlockBytesLeft--;
+        if (!readByte(shiftReg))
+          return;
+        bitVal = shiftReg & 0x80;
+        shiftReg = ((shiftReg & 0x7F) << 1) | 0x01;
+        if (dataBlockBytesLeft == 0U) {
+          shiftReg = (shiftReg & uint8_t(256 - (1 << (8 - lastByteBits))))
+                     | uint8_t(1 << (8 - lastByteBits));
+        }
+      }
+      else if (pauseLength > 0U) {
+        currentMode = 0x04;
+        pulseTimer = pauseLength;
+        pulseLength = pauseLength;
+        pulseCnt = 1U;
+        return;
+      }
+      else {
+        readNextTZXBlock();
+        return;
+      }
+    }
+    if (bitVal == 0) {
+      pulseLength = bit0PulseLength;
+      pulseCnt = bit0PulseCnt;
+    }
+    else {
+      pulseLength = bit1PulseLength;
+      pulseCnt = bit1PulseCnt;
+    }
+    pulseTimer = pulseLength;
+  }
+
+  void Tape_TZX::runOneSample_()
+  {
+    if (endOfTape) {
+      if (tapePosition < tapeLength)
+        tapePosition++;
+      else
+        outputState = 0;
+      return;
+    }
+    tapePosition++;
+    tapeLength = (tapeLength >= (tapePosition + (size_t(sampleRate) << 1)) ?
+                  tapeLength : (tapePosition + (size_t(sampleRate) << 1)));
+    if (pulseTimer > 1U) {
+      pulseTimer--;
+      return;
+    }
+    outputState = (outputState == 0 ? (1 << (requestedBitsPerSample - 1)) : 0);
+    pulseTimer = pulseLength;
+    if (pulseCnt > 1U) {
+      pulseCnt--;
+      return;
+    }
+    switch (currentMode) {
+    case 0x00:                          // data block pilot tone
+      pulseLength = syncPulseLength1;
+      pulseCnt = 1U;
+      currentMode++;
+      break;
+    case 0x01:                          // data block sync pulse 1
+      pulseLength = syncPulseLength2;
+      pulseCnt = 1U;
+      currentMode++;
+      break;
+    case 0x02:                          // data block sync pulse 2
+      shiftReg = 0x80;
+      currentMode++;
+    case 0x03:                          // data block bytes
+      dataBlockNextBit();
+      break;
+    case 0x04:                          // pause after data block
+      readNextTZXBlock();
+      break;
+    case 0x05:                          // pulse sequence
+      if (pulseSequencePulsesLeft > 0) {
+        pulseSequencePulsesLeft--;
+        uint16_t  tmp = 0;
+        if (!readUInt16(tmp))
+          return;
+        pulseLength = convertPulseLength(tmp);
+        pulseCnt = 1U;
+      }
+      else {
+        readNextTZXBlock();
+      }
+      break;
+    case 0x06:                          // direct recording
+      directRecordingNextBit();
+      break;
+    }
+    pulseTimer = pulseLength;
+  }
+
+  void Tape_TZX::setIsMotorOn(bool newState)
+  {
+    isMotorOn = newState;
+  }
+
+  void Tape_TZX::stop()
+  {
+    isPlaybackOn = false;
+    isRecordOn = false;
+  }
+
+  void Tape_TZX::seek(double t)
+  {
+    if (t <= 0.0) {
+      tapeReset();
+      tapePosition = 0;
+      if (std::fseek(f, (isTAPFile ? 0L : 10L), SEEK_SET) >= 0) {
+        endOfTape = false;
+        outputState = 1 << (requestedBitsPerSample - 1);
+        readNextTZXBlock();
+      }
+    }
+  }
+
+  void Tape_TZX::seekToCuePoint(bool isForward, double t)
+  {
+    (void) t;
+    if (!isForward)
+      this->seek(0.0);
+  }
+
+  void Tape_TZX::addCuePoint()
+  {
+  }
+
+  void Tape_TZX::deleteNearestCuePoint()
+  {
+  }
+
+  void Tape_TZX::deleteAllCuePoints()
+  {
+  }
+
+  // --------------------------------------------------------------------------
+
   Tape_SoundFile::TapeFilter::TapeFilter(size_t irSamples)
   {
     if (irSamples < 16 || irSamples > 32768 ||
@@ -1149,7 +1857,7 @@ namespace Ep128Emu {
     int   n = int(sf_readf_short(sf, &(buf.front()), sf_count_t(1024)));
     n = (n >= 0 ? n : 0) * nChannels;
     for ( ; n < int(buf.size()); n++)
-      buf[n] = 0;
+      buf[n] = short(-1);
     if (err)
       throw Exception("error writing tape file - is the disk full ?");
   }
@@ -1217,19 +1925,25 @@ namespace Ep128Emu {
     Tape    *t = (Tape *) 0;
     if (mode != 3) {
       try {
-        t = new Tape_EPTE(fileName, bitsPerSample);
+        t = new Tape_TZX(fileName, bitsPerSample);
       }
       catch (...) {
         try {
-          t = new Tape_SoundFile(fileName, mode, bitsPerSample);
+          t = new Tape_EPTE(fileName, bitsPerSample);
         }
         catch (...) {
-          t = new Tape_Ep128Emu(fileName, mode, sampleRate_, bitsPerSample);
+          try {
+            t = new Tape_SoundFile(fileName, mode, bitsPerSample);
+          }
+          catch (...) {
+            t = new Tape_Ep128Emu(fileName, mode, sampleRate_, bitsPerSample);
+          }
         }
       }
     }
-    else
+    else {
       t = new Tape_Ep128Emu(fileName, mode, sampleRate_, bitsPerSample);
+    }
     return t;
   }
 
