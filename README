@@ -622,25 +622,35 @@ scripts:
     space; the most significant 8 bits of 'addr' select the segment
     number.
 
+  readWord(addr)
+  writeWord(addr, value)
+  readWordRaw(addr)
+  writeWordRaw(addr, value)
+
+    These are similar to the memory read/write functions above, but read
+    and write 16-bit LSB-first words instead of single bytes.
+
   readIOPort(addr)
 
-    Read a byte from I/O port 'addr' (0 to 0xFF).
+    Read a byte from I/O port 'addr' (0 to 0xFFFF).
 
   writeIOPort(addr, value)
 
-    Write 'value' to I/O port 'addr' (0 to 0xFF).
+    Write 'value' to I/O port 'addr' (0 to 0xFFFF).
 
   getPC()    getA()     getF()     getAF()    getB()     getC()
   getBC()    getD()     getE()     getDE()    getH()     getL()
   getHL()    getSP()    getIX()    getIY()    getAF_()   getBC_()
-  getDE_()   getHL_()   getIM()    getI()     getR()
+  getDE_()   getHL_()   getIM()    getI()     getR()     getIFF1()
+  getIFF2()
 
     These functions return the registers of the CPU.
 
   setPC(n)   setA(n)    setF(n)    setAF(n)   setB(n)    setC(n)
   setBC(n)   setD(n)    setE(n)    setDE(n)   setH(n)    setL(n)
   setHL(n)   setSP(n)   setIX(n)   setIY(n)   setAF_(n)  setBC_(n)
-  setDE_(n)  setHL_(n)  setIM(n)   setI(n)    setR(n)
+  setDE_(n)  setHL_(n)  setIM(n)   setI(n)    setR(n)    setIFF1(n)
+  setIFF2(n)
 
     Set CPU registers. Note that changing the program counter only takes
     effect after the execution of one instruction is completed.
@@ -651,6 +661,26 @@ scripts:
     instruction at 'addr'. 'cpuAddressMode' selects the use of 16 bit
     CPU (if true or not specified) or 22 bit physical (if false)
     addresses.
+
+  getVideoPosition()
+
+    Returns the current video position as two values (horizontal and
+    vertical).
+
+    In the case of Spectrum emulation, both values are in pixels, in the
+    range 0 to 447 and 0 to 311 for the Spectrum 48, or 0 to 455 and 0
+    to 310 for the Spectrum 128.
+    The upper left corner of the screen is at 0,0 (it is the cycle when
+    the byte read from 4000H appears on the floating bus), and the lower
+    right corner is at 255,191.
+    The line number is incremented 64 pixels before X=0 (X=384 or X=392
+    in 48K or 128K mode, respectively), but this may possibly change in
+    future versions.
+
+    For the Enterprise, the horizontal position is in characters, in the
+    range 0 to 56. The vertical position is the sum of the 8-bit line
+    counter within the current line parameter block (LPB), which counts
+    up to 255, and the video memory address of the LPB multiplied by 16.
 
   loadMemory(fname, asciiMode, cpuAddressMode, startAddr[, endAddr])
 
@@ -684,7 +714,7 @@ Example:
 
   mprint("Running Lua script example...")
   clearBreakPoints()
-  setBreakPoint(1, 0x0040, 2)   -- break on reading memory at 0x0040
+  setBreakPoint(4, 0x0040, 2)   -- break on reading Z80 opcode at 0x0040
   function breakPointCallback(t, a, v)
     if t == 3 then              -- allow stepping
       return true
