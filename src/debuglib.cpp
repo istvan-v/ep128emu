@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -33,7 +33,8 @@ namespace Ep128 {
     " LDD  LDDR LDI  LDIR NEG  NOP  OR   OTDR OTIR OUT "        // 30
     " OUTD OUTI POP  PUSH RES  RET  RETI RETN RL   RLA "        // 40
     " RLC  RLCA RLD  RR   RRA  RRC  RRCA RRD  RST  SBC "        // 50
-    " SCF  SET  SLA  SLL  SRA  SRL  SUB  XOR  EXOS";            // 60
+    " SCF  SET  SLA  SLL  SRA  SRL  SUB  XOR  EXOS*NOP "        // 60
+    "*IM  *IN  *NEG *OUT *RETI*RETN";                           // 70
 
   const char * Z80Disassembler::operandTypes[75] = {
     (char *) 0,         //  0: <none>
@@ -635,70 +636,70 @@ namespace Ep128 {
 
   const unsigned char Z80Disassembler::opcodeTableED[768] = {
     // name, operand1, operand2
-    255,   0,   0,      // 00: ???
-    255,   0,   0,      // 01: ???
-    255,   0,   0,      // 02: ???
-    255,   0,   0,      // 03: ???
-    255,   0,   0,      // 04: ???
-    255,   0,   0,      // 05: ???
-    255,   0,   0,      // 06: ???
-    255,   0,   0,      // 07: ???
-    255,   0,   0,      // 08: ???
-    255,   0,   0,      // 09: ???
-    255,   0,   0,      // 0A: ???
-    255,   0,   0,      // 0B: ???
-    255,   0,   0,      // 0C: ???
-    255,   0,   0,      // 0D: ???
-    255,   0,   0,      // 0E: ???
-    255,   0,   0,      // 0F: ???
-    255,   0,   0,      // 10: ???
-    255,   0,   0,      // 11: ???
-    255,   0,   0,      // 12: ???
-    255,   0,   0,      // 13: ???
-    255,   0,   0,      // 14: ???
-    255,   0,   0,      // 15: ???
-    255,   0,   0,      // 16: ???
-    255,   0,   0,      // 17: ???
-    255,   0,   0,      // 18: ???
-    255,   0,   0,      // 19: ???
-    255,   0,   0,      // 1A: ???
-    255,   0,   0,      // 1B: ???
-    255,   0,   0,      // 1C: ???
-    255,   0,   0,      // 1D: ???
-    255,   0,   0,      // 1E: ???
-    255,   0,   0,      // 1F: ???
-    255,   0,   0,      // 20: ???
-    255,   0,   0,      // 21: ???
-    255,   0,   0,      // 22: ???
-    255,   0,   0,      // 23: ???
-    255,   0,   0,      // 24: ???
-    255,   0,   0,      // 25: ???
-    255,   0,   0,      // 26: ???
-    255,   0,   0,      // 27: ???
-    255,   0,   0,      // 28: ???
-    255,   0,   0,      // 29: ???
-    255,   0,   0,      // 2A: ???
-    255,   0,   0,      // 2B: ???
-    255,   0,   0,      // 2C: ???
-    255,   0,   0,      // 2D: ???
-    255,   0,   0,      // 2E: ???
-    255,   0,   0,      // 2F: ???
-    255,   0,   0,      // 30: ???
-    255,   0,   0,      // 31: ???
-    255,   0,   0,      // 32: ???
-    255,   0,   0,      // 33: ???
-    255,   0,   0,      // 34: ???
-    255,   0,   0,      // 35: ???
-    255,   0,   0,      // 36: ???
-    255,   0,   0,      // 37: ???
-    255,   0,   0,      // 38: ???
-    255,   0,   0,      // 39: ???
-    255,   0,   0,      // 3A: ???
-    255,   0,   0,      // 3B: ???
-    255,   0,   0,      // 3C: ???
-    255,   0,   0,      // 3D: ???
-    255,   0,   0,      // 3E: ???
-    255,   0,   0,      // 3F: ???
+     69,   0,   0,      // 00: NOP*
+     69,   0,   0,      // 01: NOP*
+     69,   0,   0,      // 02: NOP*
+     69,   0,   0,      // 03: NOP*
+     69,   0,   0,      // 04: NOP*
+     69,   0,   0,      // 05: NOP*
+     69,   0,   0,      // 06: NOP*
+     69,   0,   0,      // 07: NOP*
+     69,   0,   0,      // 08: NOP*
+     69,   0,   0,      // 09: NOP*
+     69,   0,   0,      // 0A: NOP*
+     69,   0,   0,      // 0B: NOP*
+     69,   0,   0,      // 0C: NOP*
+     69,   0,   0,      // 0D: NOP*
+     69,   0,   0,      // 0E: NOP*
+     69,   0,   0,      // 0F: NOP*
+     69,   0,   0,      // 10: NOP*
+     69,   0,   0,      // 11: NOP*
+     69,   0,   0,      // 12: NOP*
+     69,   0,   0,      // 13: NOP*
+     69,   0,   0,      // 14: NOP*
+     69,   0,   0,      // 15: NOP*
+     69,   0,   0,      // 16: NOP*
+     69,   0,   0,      // 17: NOP*
+     69,   0,   0,      // 18: NOP*
+     69,   0,   0,      // 19: NOP*
+     69,   0,   0,      // 1A: NOP*
+     69,   0,   0,      // 1B: NOP*
+     69,   0,   0,      // 1C: NOP*
+     69,   0,   0,      // 1D: NOP*
+     69,   0,   0,      // 1E: NOP*
+     69,   0,   0,      // 1F: NOP*
+     69,   0,   0,      // 20: NOP*
+     69,   0,   0,      // 21: NOP*
+     69,   0,   0,      // 22: NOP*
+     69,   0,   0,      // 23: NOP*
+     69,   0,   0,      // 24: NOP*
+     69,   0,   0,      // 25: NOP*
+     69,   0,   0,      // 26: NOP*
+     69,   0,   0,      // 27: NOP*
+     69,   0,   0,      // 28: NOP*
+     69,   0,   0,      // 29: NOP*
+     69,   0,   0,      // 2A: NOP*
+     69,   0,   0,      // 2B: NOP*
+     69,   0,   0,      // 2C: NOP*
+     69,   0,   0,      // 2D: NOP*
+     69,   0,   0,      // 2E: NOP*
+     69,   0,   0,      // 2F: NOP*
+     69,   0,   0,      // 30: NOP*
+     69,   0,   0,      // 31: NOP*
+     69,   0,   0,      // 32: NOP*
+     69,   0,   0,      // 33: NOP*
+     69,   0,   0,      // 34: NOP*
+     69,   0,   0,      // 35: NOP*
+     69,   0,   0,      // 36: NOP*
+     69,   0,   0,      // 37: NOP*
+     69,   0,   0,      // 38: NOP*
+     69,   0,   0,      // 39: NOP*
+     69,   0,   0,      // 3A: NOP*
+     69,   0,   0,      // 3B: NOP*
+     69,   0,   0,      // 3C: NOP*
+     69,   0,   0,      // 3D: NOP*
+     69,   0,   0,      // 3E: NOP*
+     69,   0,   0,      // 3F: NOP*
      21,  22,  62,      // 40: IN B, (C)
      39,  62,  22,      // 41: OUT (C), B
      59,  52,  50,      // 42: SBC HL, BC
@@ -711,186 +712,186 @@ namespace Ep128 {
      39,  62,  23,      // 49: OUT (C), C
       0,  52,  50,      // 4A: ADC HL, BC
      29,  50,  21,      // 4B: LD BC, (nnnn)
-    255,   0,   0,      // 4C: ???
+     72,   0,   0,      // 4C: NEG*
      46,   0,   0,      // 4D: RETI
-    255,   0,   0,      // 4E: ???
+     70,   1,   0,      // 4E: IM 0*
      29,  64,  29,      // 4F: LD R, A
      21,  24,  62,      // 50: IN D, (C)
      39,  62,  24,      // 51: OUT (C), D
      59,  52,  51,      // 52: SBC HL, DE
      29,  21,  51,      // 53: LD (nnnn), DE
-    255,   0,   0,      // 54: ???
-    255,   0,   0,      // 55: ???
+     72,   0,   0,      // 54: NEG*
+     75,   0,   0,      // 55: RETN*
      20,   2,   0,      // 56: IM 1
      29,  29,  63,      // 57: LD A, I
      21,  25,  62,      // 58: IN E, (C)
      39,  62,  25,      // 59: OUT (C), E
       0,  52,  51,      // 5A: ADC HL, DE
      29,  51,  21,      // 5B: LD DE, (nnnn)
-    255,   0,   0,      // 5C: ???
-    255,   0,   0,      // 5D: ???
+     72,   0,   0,      // 5C: NEG*
+     74,   0,   0,      // 5D: RETI*
      20,   3,   0,      // 5E: IM 2
      29,  29,  64,      // 5F: LD A, R
      21,  26,  62,      // 60: IN H, (C)
      39,  62,  26,      // 61: OUT (C), H
      59,  52,  52,      // 62: SBC HL, HL
      29,  21,  52,      // 63: LD (nnnn), HL
-    255,   0,   0,      // 64: ???
-    255,   0,   0,      // 65: ???
-    255,   0,   0,      // 66: ???
+     72,   0,   0,      // 64: NEG*
+     75,   0,   0,      // 65: RETN*
+     70,   1,   0,      // 66: IM 0*
      57,   0,   0,      // 67: RRD
      21,  27,  62,      // 68: IN L, (C)
      39,  62,  27,      // 69: OUT (C), L
       0,  52,  52,      // 6A: ADC HL, HL
      29,  52,  21,      // 6B: LD HL, (nnnn)
-    255,   0,   0,      // 6C: ???
-    255,   0,   0,      // 6D: ???
-    255,   0,   0,      // 6E: ???
+     72,   0,   0,      // 6C: NEG*
+     74,   0,   0,      // 6D: RETI*
+     70,   1,   0,      // 6E: IM 0*
      52,   0,   0,      // 6F: RLD
-    255,   0,   0,      // 70: ???
-    255,   0,   0,      // 71: ???
+     71,  62,   0,      // 70: IN (C)*
+     73,  62,   1,      // 71: OUT (C), 0*
      59,  52,  53,      // 72: SBC HL, SP
      29,  21,  53,      // 73: LD (nnnn), SP
-    255,   0,   0,      // 74: ???
-    255,   0,   0,      // 75: ???
-    255,   0,   0,      // 76: ???
-    255,   0,   0,      // 77: ???
+     72,   0,   0,      // 74: NEG*
+     75,   0,   0,      // 75: RETN*
+     70,   2,   0,      // 76: IM 1*
+     69,   0,   0,      // 77: NOP*
      21,  29,  62,      // 78: IN A, (C)
      39,  62,  29,      // 79: OUT (C), A
       0,  52,  53,      // 7A: ADC HL, SP
      29,  53,  21,      // 7B: LD SP, (nnnn)
-    255,   0,   0,      // 7C: ???
-    255,   0,   0,      // 7D: ???
-    255,   0,   0,      // 7E: ???
-    255,   0,   0,      // 7F: ???
-    255,   0,   0,      // 80: ???
-    255,   0,   0,      // 81: ???
-    255,   0,   0,      // 82: ???
-    255,   0,   0,      // 83: ???
-    255,   0,   0,      // 84: ???
-    255,   0,   0,      // 85: ???
-    255,   0,   0,      // 86: ???
-    255,   0,   0,      // 87: ???
-    255,   0,   0,      // 88: ???
-    255,   0,   0,      // 89: ???
-    255,   0,   0,      // 8A: ???
-    255,   0,   0,      // 8B: ???
-    255,   0,   0,      // 8C: ???
-    255,   0,   0,      // 8D: ???
-    255,   0,   0,      // 8E: ???
-    255,   0,   0,      // 8F: ???
-    255,   0,   0,      // 90: ???
-    255,   0,   0,      // 91: ???
-    255,   0,   0,      // 92: ???
-    255,   0,   0,      // 93: ???
-    255,   0,   0,      // 94: ???
-    255,   0,   0,      // 95: ???
-    255,   0,   0,      // 96: ???
-    255,   0,   0,      // 97: ???
-    255,   0,   0,      // 98: ???
-    255,   0,   0,      // 99: ???
-    255,   0,   0,      // 9A: ???
-    255,   0,   0,      // 9B: ???
-    255,   0,   0,      // 9C: ???
-    255,   0,   0,      // 9D: ???
-    255,   0,   0,      // 9E: ???
-    255,   0,   0,      // 9F: ???
+     72,   0,   0,      // 7C: NEG*
+     74,   0,   0,      // 7D: RETI*
+     70,   3,   0,      // 7E: IM 2*
+     69,   0,   0,      // 7F: NOP*
+     69,   0,   0,      // 80: NOP*
+     69,   0,   0,      // 81: NOP*
+     69,   0,   0,      // 82: NOP*
+     69,   0,   0,      // 83: NOP*
+     69,   0,   0,      // 84: NOP*
+     69,   0,   0,      // 85: NOP*
+     69,   0,   0,      // 86: NOP*
+     69,   0,   0,      // 87: NOP*
+     69,   0,   0,      // 88: NOP*
+     69,   0,   0,      // 89: NOP*
+     69,   0,   0,      // 8A: NOP*
+     69,   0,   0,      // 8B: NOP*
+     69,   0,   0,      // 8C: NOP*
+     69,   0,   0,      // 8D: NOP*
+     69,   0,   0,      // 8E: NOP*
+     69,   0,   0,      // 8F: NOP*
+     69,   0,   0,      // 90: NOP*
+     69,   0,   0,      // 91: NOP*
+     69,   0,   0,      // 92: NOP*
+     69,   0,   0,      // 93: NOP*
+     69,   0,   0,      // 94: NOP*
+     69,   0,   0,      // 95: NOP*
+     69,   0,   0,      // 96: NOP*
+     69,   0,   0,      // 97: NOP*
+     69,   0,   0,      // 98: NOP*
+     69,   0,   0,      // 99: NOP*
+     69,   0,   0,      // 9A: NOP*
+     69,   0,   0,      // 9B: NOP*
+     69,   0,   0,      // 9C: NOP*
+     69,   0,   0,      // 9D: NOP*
+     69,   0,   0,      // 9E: NOP*
+     69,   0,   0,      // 9F: NOP*
      32,   0,   0,      // A0: LDI
       9,   0,   0,      // A1: CPI
      25,   0,   0,      // A2: INI
      41,   0,   0,      // A3: OUTI
-    255,   0,   0,      // A4: ???
-    255,   0,   0,      // A5: ???
-    255,   0,   0,      // A6: ???
-    255,   0,   0,      // A7: ???
+     69,   0,   0,      // A4: NOP*
+     69,   0,   0,      // A5: NOP*
+     69,   0,   0,      // A6: NOP*
+     69,   0,   0,      // A7: NOP*
      30,   0,   0,      // A8: LDD
       7,   0,   0,      // A9: CPD
      23,   0,   0,      // AA: IND
      40,   0,   0,      // AB: OUTD
-    255,   0,   0,      // AC: ???
-    255,   0,   0,      // AD: ???
-    255,   0,   0,      // AE: ???
-    255,   0,   0,      // AF: ???
+     69,   0,   0,      // AC: NOP*
+     69,   0,   0,      // AD: NOP*
+     69,   0,   0,      // AE: NOP*
+     69,   0,   0,      // AF: NOP*
      33,   0,   0,      // B0: LDIR
      10,   0,   0,      // B1: CPIR
      26,   0,   0,      // B2: INIR
      38,   0,   0,      // B3: OTIR
-    255,   0,   0,      // B4: ???
-    255,   0,   0,      // B5: ???
-    255,   0,   0,      // B6: ???
-    255,   0,   0,      // B7: ???
+     69,   0,   0,      // B4: NOP*
+     69,   0,   0,      // B5: NOP*
+     69,   0,   0,      // B6: NOP*
+     69,   0,   0,      // B7: NOP*
      31,   0,   0,      // B8: LDDR
       8,   0,   0,      // B9: CPDR
      24,   0,   0,      // BA: INDR
      37,   0,   0,      // BB: OTDR
-    255,   0,   0,      // BC: ???
-    255,   0,   0,      // BD: ???
-    255,   0,   0,      // BE: ???
-    255,   0,   0,      // BF: ???
-    255,   0,   0,      // C0: ???
-    255,   0,   0,      // C1: ???
-    255,   0,   0,      // C2: ???
-    255,   0,   0,      // C3: ???
-    255,   0,   0,      // C4: ???
-    255,   0,   0,      // C5: ???
-    255,   0,   0,      // C6: ???
-    255,   0,   0,      // C7: ???
-    255,   0,   0,      // C8: ???
-    255,   0,   0,      // C9: ???
-    255,   0,   0,      // CA: ???
-    255,   0,   0,      // CB: ???
-    255,   0,   0,      // CC: ???
-    255,   0,   0,      // CD: ???
-    255,   0,   0,      // CE: ???
-    255,   0,   0,      // CF: ???
-    255,   0,   0,      // D0: ???
-    255,   0,   0,      // D1: ???
-    255,   0,   0,      // D2: ???
-    255,   0,   0,      // D3: ???
-    255,   0,   0,      // D4: ???
-    255,   0,   0,      // D5: ???
-    255,   0,   0,      // D6: ???
-    255,   0,   0,      // D7: ???
-    255,   0,   0,      // D8: ???
-    255,   0,   0,      // D9: ???
-    255,   0,   0,      // DA: ???
-    255,   0,   0,      // DB: ???
-    255,   0,   0,      // DC: ???
-    255,   0,   0,      // DD: ???
-    255,   0,   0,      // DE: ???
-    255,   0,   0,      // DF: ???
-    255,   0,   0,      // E0: ???
-    255,   0,   0,      // E1: ???
-    255,   0,   0,      // E2: ???
-    255,   0,   0,      // E3: ???
-    255,   0,   0,      // E4: ???
-    255,   0,   0,      // E5: ???
-    255,   0,   0,      // E6: ???
-    255,   0,   0,      // E7: ???
-    255,   0,   0,      // E8: ???
-    255,   0,   0,      // E9: ???
-    255,   0,   0,      // EA: ???
-    255,   0,   0,      // EB: ???
-    255,   0,   0,      // EC: ???
-    255,   0,   0,      // ED: ???
-    255,   0,   0,      // EE: ???
-    255,   0,   0,      // EF: ???
-    255,   0,   0,      // F0: ???
-    255,   0,   0,      // F1: ???
-    255,   0,   0,      // F2: ???
-    255,   0,   0,      // F3: ???
-    255,   0,   0,      // F4: ???
-    255,   0,   0,      // F5: ???
-    255,   0,   0,      // F6: ???
-    255,   0,   0,      // F7: ???
-    255,   0,   0,      // F8: ???
-    255,   0,   0,      // F9: ???
-    255,   0,   0,      // FA: ???
-    255,   0,   0,      // FB: ???
-    255,   0,   0,      // FC: ???
-    255,   0,   0,      // FD: ???
-    255,   0,   0,      // FE: ???
-    255,   0,   0       // FF: ???
+     69,   0,   0,      // BC: NOP*
+     69,   0,   0,      // BD: NOP*
+     69,   0,   0,      // BE: NOP*
+     69,   0,   0,      // BF: NOP*
+     69,   0,   0,      // C0: NOP*
+     69,   0,   0,      // C1: NOP*
+     69,   0,   0,      // C2: NOP*
+     69,   0,   0,      // C3: NOP*
+     69,   0,   0,      // C4: NOP*
+     69,   0,   0,      // C5: NOP*
+     69,   0,   0,      // C6: NOP*
+     69,   0,   0,      // C7: NOP*
+     69,   0,   0,      // C8: NOP*
+     69,   0,   0,      // C9: NOP*
+     69,   0,   0,      // CA: NOP*
+     69,   0,   0,      // CB: NOP*
+     69,   0,   0,      // CC: NOP*
+     69,   0,   0,      // CD: NOP*
+     69,   0,   0,      // CE: NOP*
+     69,   0,   0,      // CF: NOP*
+     69,   0,   0,      // D0: NOP*
+     69,   0,   0,      // D1: NOP*
+     69,   0,   0,      // D2: NOP*
+     69,   0,   0,      // D3: NOP*
+     69,   0,   0,      // D4: NOP*
+     69,   0,   0,      // D5: NOP*
+     69,   0,   0,      // D6: NOP*
+     69,   0,   0,      // D7: NOP*
+     69,   0,   0,      // D8: NOP*
+     69,   0,   0,      // D9: NOP*
+     69,   0,   0,      // DA: NOP*
+     69,   0,   0,      // DB: NOP*
+     69,   0,   0,      // DC: NOP*
+     69,   0,   0,      // DD: NOP*
+     69,   0,   0,      // DE: NOP*
+     69,   0,   0,      // DF: NOP*
+     69,   0,   0,      // E0: NOP*
+     69,   0,   0,      // E1: NOP*
+     69,   0,   0,      // E2: NOP*
+     69,   0,   0,      // E3: NOP*
+     69,   0,   0,      // E4: NOP*
+     69,   0,   0,      // E5: NOP*
+     69,   0,   0,      // E6: NOP*
+     69,   0,   0,      // E7: NOP*
+     69,   0,   0,      // E8: NOP*
+     69,   0,   0,      // E9: NOP*
+     69,   0,   0,      // EA: NOP*
+     69,   0,   0,      // EB: NOP*
+     69,   0,   0,      // EC: NOP*
+     69,   0,   0,      // ED: NOP*
+     69,   0,   0,      // EE: NOP*
+     69,   0,   0,      // EF: NOP*
+     69,   0,   0,      // F0: NOP*
+     69,   0,   0,      // F1: NOP*
+     69,   0,   0,      // F2: NOP*
+     69,   0,   0,      // F3: NOP*
+     69,   0,   0,      // F4: NOP*
+     69,   0,   0,      // F5: NOP*
+     69,   0,   0,      // F6: NOP*
+     69,   0,   0,      // F7: NOP*
+     69,   0,   0,      // F8: NOP*
+     69,   0,   0,      // F9: NOP*
+     69,   0,   0,      // FA: NOP*
+     69,   0,   0,      // FB: NOP*
+     69,   0,   0,      // FC: NOP*
+     69,   0,   0,      // FD: NOP*
+     69,   0,   0,      // FE: NOP*
+     69,   0,   0       // FF: NOP*
   };
 
   const unsigned char Z80Disassembler::alternateOperandTypeTable[75] = {
@@ -940,14 +941,14 @@ namespace Ep128 {
       useIX = true;
     else if (opNum == 0xFD)
       useIY = true;
-    if (useIX || useIY) {
+    if (useIX | useIY) {
       opNum = vm.readMemory(addr, isCPUAddress) & 0xFF;
       opcodeBuf[opcodeBytes++] = opNum;
       addr = (addr + 1U) & addrMask;
     }
     if (opNum == 0xCB) {
       opcodeTablePtr = &(opcodeTableCB[0]);
-      useIndexOffset = (useIX || useIY);
+      useIndexOffset = (useIX | useIY);
       if (useIndexOffset) {
         indexOffset = vm.readMemory(addr, isCPUAddress) & 0xFF;
         opcodeBuf[opcodeBytes++] = uint8_t(indexOffset);
@@ -960,39 +961,54 @@ namespace Ep128 {
     }
     else if (opNum == 0xED) {
       opcodeTablePtr = &(opcodeTableED[0]);
-      invalidOpcode = (useIX || useIY);
-      opNum = vm.readMemory(addr, isCPUAddress) & 0xFF;
-      opcodeBuf[opcodeBytes++] = opNum;
-      addr = (addr + 1U) & addrMask;
+      if (!(useIX | useIY)) {
+        opNum = vm.readMemory(addr, isCPUAddress) & 0xFF;
+        opcodeBuf[opcodeBytes++] = opNum;
+        addr = (addr + 1U) & addrMask;
+      }
+      else {
+        invalidOpcode = true;
+      }
     }
     opcodeTablePtr = (opcodeTablePtr + (size_t(opNum) * 3));
-    if (opcodeTablePtr[0] > 68)
+    if (opcodeTablePtr[0] > 75)
       invalidOpcode = true;
     unsigned char operand1Type = opcodeTablePtr[1];
     unsigned char operand2Type = opcodeTablePtr[2];
     if (useIndexOffset && !(operand1Type == 28 || operand2Type == 28))
       invalidOpcode = true;
-    if ((useIX || useIY) && !invalidOpcode) {
-      if (operand1Type == 28 || operand1Type == 40 ||
-          operand2Type == 28 || operand2Type == 40) {
-        if (operand1Type == 28 || operand2Type == 28)
-          useIndexOffset = true;
-        if (operand1Type == 28 || operand1Type == 40)
-          operand1Type += (unsigned char) (useIX ? 4 : 8);
-        if (operand2Type == 28 || operand2Type == 40)
-          operand2Type += (unsigned char) (useIX ? 4 : 8);
+    if (useIX | useIY) {
+      if (!invalidOpcode) {
+        if (operand1Type == 28 || operand1Type == 40 ||
+            operand2Type == 28 || operand2Type == 40) {
+          if (operand1Type == 28 || operand2Type == 28)
+            useIndexOffset = true;
+          if (operand1Type == 28 || operand1Type == 40)
+            operand1Type += (unsigned char) (useIX ? 4 : 8);
+          if (operand2Type == 28 || operand2Type == 40)
+            operand2Type += (unsigned char) (useIX ? 4 : 8);
+        }
+        else if (operand1Type == 26 || operand1Type == 27 ||
+                 operand1Type == 52 ||
+                 operand2Type == 26 || operand2Type == 27 ||
+                 operand2Type == 52) {
+          if (operand1Type == 26 || operand1Type == 27 || operand1Type == 52)
+            operand1Type += (unsigned char) (useIX ? 4 : 8);
+          if (operand2Type == 26 || operand2Type == 27 || operand2Type == 52)
+            operand2Type += (unsigned char) (useIX ? 4 : 8);
+        }
+        else {
+          invalidOpcode = true;
+        }
       }
-      else if (operand1Type == 26 || operand1Type == 27 ||
-               operand1Type == 52 ||
-               operand2Type == 26 || operand2Type == 27 ||
-               operand2Type == 52) {
-        if (operand1Type == 26 || operand1Type == 27 || operand1Type == 52)
-          operand1Type += (unsigned char) (useIX ? 4 : 8);
-        if (operand2Type == 26 || operand2Type == 27 || operand2Type == 52)
-          operand2Type += (unsigned char) (useIX ? 4 : 8);
+      if (invalidOpcode && !useIndexOffset) {
+        addr = (addr - 1U) & addrMask;
+        opcodeBytes = 1;
+        invalidOpcode = false;
+        opcodeTablePtr = &(opcodeTableED[0]);   // print ignored DD/FD as NOP*
+        operand1Type = 0;
+        operand2Type = 0;
       }
-      else
-        invalidOpcode = true;
     }
     if (useIndexOffset && !haveIndexOffset) {
       indexOffset = vm.readMemory(addr, isCPUAddress) & 0xFF;
@@ -1035,23 +1051,16 @@ namespace Ep128 {
       }
     }
     char  *bufp = &(tmpBuf[0]);
-    int   n = 0;
-    if (isCPUAddress)
-      n = std::sprintf(bufp, "  %04X ", (unsigned int) baseAddr);
-    else
-      n = std::sprintf(bufp, "%06X ", (unsigned int) baseAddr);
-    bufp = bufp + n;
-    for (int i = 0; i < opcodeBytes && i < 4; i++) {
-      n = std::sprintf(bufp, " %02X", opcodeBuf[i]);
-      bufp = bufp + n;
-    }
-    for (int i = opcodeBytes; i < 4; i++) {
-      n = std::sprintf(bufp, "   ");
-      bufp = bufp + n;
-    }
+    bufp = Ep128Emu::printHexNumber(bufp, baseAddr, (isCPUAddress ? 2 : 0),
+                                    (isCPUAddress ? 4 : 6), 1);
+    opcodeBytes = (opcodeBytes < 4 ? opcodeBytes : 4);
+    for (int i = 0; i < opcodeBytes; i++)
+      bufp = Ep128Emu::printHexNumber(bufp, opcodeBuf[i], 1, 2, 0);
+    bufp = Ep128Emu::printHexNumber(bufp, 0U,
+                                    0, 0, size_t((4 - opcodeBytes) * 3));
     if (!invalidOpcode) {
-      n = std::sprintf(bufp, " %.5s",
-                       &(opcodeNames[size_t(opcodeTablePtr[0]) * 5]));
+      int     n = std::sprintf(bufp, " %.5s",
+                               &(opcodeNames[size_t(opcodeTablePtr[0]) * 5]));
       bufp = bufp + n;
       if (operand1Type != 0 || operand2Type != 0)
         *(bufp++) = ' ';
@@ -1101,8 +1110,7 @@ namespace Ep128 {
       }
     }
     else {
-      n = std::sprintf(bufp, "  ???");
-      bufp = bufp + n;
+      std::strcpy(bufp, "  ???");
     }
     buf = &(tmpBuf[0]);
     return addr;
@@ -1125,13 +1133,13 @@ namespace Ep128 {
       useIX = true;
     else if (opNum == 0xFD)
       useIY = true;
-    if (useIX || useIY) {
+    if (useIX | useIY) {
       opNum = vm.readMemory(addr, isCPUAddress) & 0xFF;
       addr = (addr + 1U) & addrMask;
     }
     if (opNum == 0xCB) {
       opcodeTablePtr = &(opcodeTableCB[0]);
-      useIndexOffset = (useIX || useIY);
+      useIndexOffset = (useIX | useIY);
       if (useIndexOffset) {
         addr = (addr + 1U) & addrMask;
         haveIndexOffset = true;
@@ -1141,20 +1149,38 @@ namespace Ep128 {
     }
     else if (opNum == 0xED) {
       opcodeTablePtr = &(opcodeTableED[0]);
-      invalidOpcode = (useIX || useIY);
-      opNum = vm.readMemory(addr, isCPUAddress) & 0xFF;
-      addr = (addr + 1U) & addrMask;
+      if (!(useIX | useIY)) {
+        opNum = vm.readMemory(addr, isCPUAddress) & 0xFF;
+        addr = (addr + 1U) & addrMask;
+      }
+      else {
+        invalidOpcode = true;
+      }
     }
     opcodeTablePtr = (opcodeTablePtr + (size_t(opNum) * 3));
-    if (opcodeTablePtr[0] > 68)
+    if (opcodeTablePtr[0] > 75)
       invalidOpcode = true;
     unsigned char operand1Type = opcodeTablePtr[1];
     unsigned char operand2Type = opcodeTablePtr[2];
     if (useIndexOffset && !(operand1Type == 28 || operand2Type == 28))
       invalidOpcode = true;
-    if ((useIX || useIY) && !invalidOpcode) {
-      if (operand1Type == 28 || operand2Type == 28)
-        useIndexOffset = true;
+    if (useIX | useIY) {
+      if (!invalidOpcode) {
+        if ((operand1Type >= 26 && operand1Type <= 28) ||
+            operand1Type == 40 || operand1Type == 52 ||
+            (operand2Type >= 26 && operand2Type <= 28) ||
+            operand2Type == 40 || operand2Type == 52) {
+          if (operand1Type == 28 || operand2Type == 28)
+            useIndexOffset = true;
+        }
+        else {
+          invalidOpcode = true;
+        }
+      }
+      if (invalidOpcode && !useIndexOffset) {
+        addr = (addr - 1U) & addrMask;
+        return addr;
+      }
     }
     if (useIndexOffset && !haveIndexOffset) {
       addr = (addr + 1U) & addrMask;
@@ -1663,6 +1689,32 @@ namespace Ep128Emu {
     if (!parseHexNumber(n, s))
       throw Ep128Emu::Exception("invalid number format");
     return (n & mask_);
+  }
+
+  char * printHexNumber(char *bufp, uint32_t n,
+                        size_t spaceCnt1, size_t nDigits, size_t spaceCnt2)
+  {
+    char    *s = bufp + (spaceCnt1 + nDigits);
+    bufp = s;
+    while (spaceCnt2-- > 0)
+      *(bufp++) = ' ';
+    *bufp = '\0';
+    while (nDigits-- > 0) {
+      char    c = char(n & 0x0FU);
+      *(--s) = c + (c < char(10) ? '0' : ('A' - char(10)));
+      n = n >> 4;
+    }
+    while (spaceCnt1-- > 0) {
+      if (n > 0U) {
+        char    c = char(n & 0x0FU);
+        *(--s) = c + (c < char(10) ? '0' : ('A' - char(10)));
+        n = n >> 4;
+      }
+      else {
+        *(--s) = ' ';
+      }
+    }
+    return bufp;
   }
 
 }       // namespace Ep128Emu

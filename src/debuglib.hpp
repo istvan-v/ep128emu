@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -80,6 +80,8 @@ namespace Ep128Emu {
   void tokenizeString(std::vector<std::string>& args, const char *s);
   bool parseHexNumber(uint32_t& n, const char *s);
   uint32_t parseHexNumberEx(const char *s, uint32_t mask_ = 0xFFFFFFFFU);
+  char * printHexNumber(char *bufp, uint32_t n,
+                        size_t spaceCnt1, size_t nDigits, size_t spaceCnt2);
 
 }       // namespace Ep128Emu
 
