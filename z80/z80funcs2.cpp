@@ -26,7 +26,7 @@ namespace Ep128 {
 
   Z80Tables Z80::t;
 
-  void Z80::executeInterrupt()
+  EP128EMU_REGPARM1 void Z80::executeInterrupt()
   {
     R.IFF1 = 0;
     R.IFF2 = 0;
@@ -36,13 +36,11 @@ namespace Ep128 {
       R.Flags &= ~Z80_EXECUTING_HALT_FLAG;
     }
 
-    ackInterruptFunction();
-
     if (R.IM < 0x02) {
       // IM 0: assume that the byte read from the data bus is FFh (RST 38H)
       // IM 1: the number of cycles required to complete the instruction
       // is two more than normal due to the two added wait states
-      updateCycles(6);
+      updateCycles(7, 0);
       // push return address onto stack
       PUSH(R.PC.W.l);
       // set program counter address
@@ -51,7 +49,7 @@ namespace Ep128 {
     else {
       // IM 2: 19 clock cycles for this mode. 7 for vector,
       // six for program counter, six to obtain jump address
-      updateCycles(6);
+      updateCycles(7, 0);
       PUSH(R.PC.W.l);
       Z80_WORD Vector = (R.I << 8) | (R.InterruptVectorBase);
       Z80_WORD Address = readMemoryWord(Vector);
@@ -116,9 +114,9 @@ namespace Ep128 {
     // calculate DAA table
 
     for (i = 0; i < 2048; i++) {
-      bool    carry = !!(i & 256);
-      bool    halfCarry = !!(i & 512);
-      bool    subtractFlag = !!(i & 1024);
+      bool    carry = bool(i & 256);
+      bool    halfCarry = bool(i & 512);
+      bool    subtractFlag = bool(i & 1024);
       uint8_t l = uint8_t(i) & 0x0F;
       uint8_t h = uint8_t(i >> 4) & 0x0F;
       if (l > 9 || halfCarry) {
@@ -222,7 +220,7 @@ namespace Ep128 {
     R.IFF1 = 0;
     // NMI takes a total of 11 cycles to execute
     // (5 + 6 for pushing the return address)
-    updateCycles(4);
+    updateCycles(5, 0);
     // push return address on stack
     PUSH(R.PC.W.l);
     // set program counter address
@@ -246,78 +244,93 @@ namespace Ep128 {
     R.Flags &= ~Z80_EXECUTE_INTERRUPT_HANDLER_FLAG;
   }
 
-  void Z80::test()
-  {
-  }
-
   void Z80::CPI()
   {
     Z80_FLAGS_REG = Z80_FLAGS_REG | Z80_SUBTRACT_FLAG;
-    SET_ZERO_SIGN(R.AF.B.h - readMemory(R.HL.W));
-
+    Z80_BYTE  tmp = readMemory(R.HL.W);
     R.HL.W++;
     R.BC.W--;
-
-    Z80_FLAGS_REG = Z80_FLAGS_REG & (~Z80_PARITY_FLAG);
-    if (R.BC.W != 0)
-      Z80_FLAGS_REG = Z80_FLAGS_REG | Z80_PARITY_FLAG;
-    updateCycles(5);
+    Z80_BYTE  tmp2 = R.AF.B.h - tmp;
+    Z80_FLAGS_REG = (Z80_FLAGS_REG & (Z80_SUBTRACT_FLAG | Z80_CARRY_FLAG))
+                    | (R.BC.W == 0 ? 0x00 : Z80_PARITY_FLAG)
+                    | t.zeroSignTable[tmp2];
+    SET_HALFCARRY(tmp, tmp2);
+    tmp = tmp2 - ((Z80_FLAGS_REG & Z80_HALFCARRY_FLAG)
+                  >> Z80_HALFCARRY_FLAG_BIT);
+    Z80_FLAGS_REG =
+        Z80_FLAGS_REG | (tmp & Z80_UNUSED_FLAG2) | ((tmp & 0x02) << 4);
   }
 
   void Z80::CPD()
   {
     Z80_FLAGS_REG = Z80_FLAGS_REG | Z80_SUBTRACT_FLAG;
-    SET_ZERO_SIGN(R.AF.B.h - readMemory(R.HL.W));
-
+    Z80_BYTE  tmp = readMemory(R.HL.W);
     R.HL.W--;
     R.BC.W--;
-
-    Z80_FLAGS_REG = Z80_FLAGS_REG & (~Z80_PARITY_FLAG);
-    if (R.BC.W != 0)
-      Z80_FLAGS_REG = Z80_FLAGS_REG | Z80_PARITY_FLAG;
-    updateCycles(5);
+    Z80_BYTE  tmp2 = R.AF.B.h - tmp;
+    Z80_FLAGS_REG = (Z80_FLAGS_REG & (Z80_SUBTRACT_FLAG | Z80_CARRY_FLAG))
+                    | (R.BC.W == 0 ? 0x00 : Z80_PARITY_FLAG)
+                    | t.zeroSignTable[tmp2];
+    SET_HALFCARRY(tmp, tmp2);
+    tmp = tmp2 - ((Z80_FLAGS_REG & Z80_HALFCARRY_FLAG)
+                  >> Z80_HALFCARRY_FLAG_BIT);
+    Z80_FLAGS_REG =
+        Z80_FLAGS_REG | (tmp & Z80_UNUSED_FLAG2) | ((tmp & 0x02) << 4);
   }
 
   void Z80::OUTI()
   {
-    updateCycle();
-    R.BC.B.h--;
-    SET_ZERO_FLAG(R.BC.B.h);
-    doOut(R.BC.W, readMemory(R.HL.W));
-    Z80_FLAGS_REG |= Z80_SUBTRACT_FLAG;
+    updateCycle(uint16_t(R.I) << 8);
+    Z80_BYTE  tmp = readMemory(R.HL.W);
     R.HL.W++;
+    R.BC.B.h--;
+    Z80_FLAGS_REG = t.zeroSignTable2[R.BC.B.h] | ((tmp & 0x80) >> 6)
+                    | ((Z80_WORD(tmp) + Z80_WORD(R.HL.B.l)) < 0x0100 ?
+                       0x00 : (Z80_HALFCARRY_FLAG | Z80_CARRY_FLAG))
+                    | t.parityTable[((tmp + R.HL.B.l) & 0x07) ^ R.BC.B.h];
+    doOut(R.BC.W, tmp);
   }
 
   /* B is pre-decremented before execution */
   void Z80::OUTD()
   {
-    updateCycle();
-    R.BC.B.h--;
-    SET_ZERO_FLAG(R.BC.B.h);
-    doOut(R.BC.W, readMemory(R.HL.W));
-    /* as per Zilog docs */
-    Z80_FLAGS_REG |= Z80_SUBTRACT_FLAG;
+    updateCycle(uint16_t(R.I) << 8);
+    Z80_BYTE  tmp = readMemory(R.HL.W);
     R.HL.W--;
+    R.BC.B.h--;
+    Z80_FLAGS_REG = t.zeroSignTable2[R.BC.B.h] | ((tmp & 0x80) >> 6)
+                    | ((Z80_WORD(tmp) + Z80_WORD(R.HL.B.l)) < 0x0100 ?
+                       0x00 : (Z80_HALFCARRY_FLAG | Z80_CARRY_FLAG))
+                    | t.parityTable[((tmp + R.HL.B.l) & 0x07) ^ R.BC.B.h];
+    doOut(R.BC.W, tmp);
   }
 
   void Z80::INI()
   {
-    updateCycle();
-    writeMemory(R.HL.W, doIn(R.BC.W));
+    updateCycle(uint16_t(R.I) << 8);
+    Z80_BYTE  tmp = doIn(R.BC.W);
+    writeMemory(R.HL.W, tmp);
     R.HL.W++;
     R.BC.B.h--;
-    SET_ZERO_FLAG(R.BC.B.h);
-    Z80_FLAGS_REG |= Z80_SUBTRACT_FLAG;
+    Z80_WORD  tmp2 = Z80_WORD(tmp) + Z80_WORD((R.BC.B.l + 1) & 0xFF);
+    Z80_FLAGS_REG = t.zeroSignTable2[R.BC.B.h] | ((tmp & 0x80) >> 6)
+                    | (tmp2 < 0x0100 ?
+                       0x00 : (Z80_HALFCARRY_FLAG | Z80_CARRY_FLAG))
+                    | t.parityTable[(tmp2 & 0x07) ^ R.BC.B.h];
   }
 
   void Z80::IND()
   {
-    updateCycle();
-    writeMemory(R.HL.W, doIn(R.BC.W));
+    updateCycle(uint16_t(R.I) << 8);
+    Z80_BYTE  tmp = doIn(R.BC.W);
+    writeMemory(R.HL.W, tmp);
     R.HL.W--;
     R.BC.B.h--;
-    SET_ZERO_FLAG(R.BC.B.h);
-    Z80_FLAGS_REG |= Z80_SUBTRACT_FLAG;
+    Z80_WORD  tmp2 = Z80_WORD(tmp) + Z80_WORD((R.BC.B.l - 1) & 0xFF);
+    Z80_FLAGS_REG = t.zeroSignTable2[R.BC.B.h] | ((tmp & 0x80) >> 6)
+                    | (tmp2 < 0x0100 ?
+                       0x00 : (Z80_HALFCARRY_FLAG | Z80_CARRY_FLAG))
+                    | t.parityTable[(tmp2 & 0x07) ^ R.BC.B.h];
   }
 
   /* half carry not set */
@@ -340,91 +353,87 @@ namespace Ep128 {
   {
   }
 
-  void Z80::ackInterruptFunction()
-  {
-  }
-
-  uint8_t Z80::readMemory(uint16_t addr)
+  EP128EMU_REGPARM2 uint8_t Z80::readMemory(uint16_t addr)
   {
     (void) addr;
-    updateCycles(3);
+    updateCycles(3, 0);
     return 0;
   }
 
-  void Z80::writeMemory(uint16_t addr, uint8_t value)
+  EP128EMU_REGPARM3 void Z80::writeMemory(uint16_t addr, uint8_t value)
   {
     (void) addr;
     (void) value;
-    updateCycles(3);
+    updateCycles(3, 0);
   }
 
-  uint16_t Z80::readMemoryWord(uint16_t addr)
+  EP128EMU_REGPARM2 uint16_t Z80::readMemoryWord(uint16_t addr)
   {
     return (uint16_t(readMemory(addr))
             + (uint16_t(readMemory((addr + 1) & 0xFFFF)) << 8));
   }
 
-  void Z80::writeMemoryWord(uint16_t addr, uint16_t value)
+  EP128EMU_REGPARM3 void Z80::writeMemoryWord(uint16_t addr, uint16_t value)
   {
     writeMemory(addr, uint8_t(value) & 0xFF);
     writeMemory((addr + 1) & 0xFFFF, uint8_t(value >> 8));
   }
 
-  void Z80::pushWord(uint16_t value)
+  EP128EMU_REGPARM2 void Z80::pushWord(uint16_t value)
   {
-    updateCycle();
     R.SP.W -= 2;
     writeMemory((R.SP.W + 1) & 0xFFFF, uint8_t(value >> 8));
     writeMemory(R.SP.W, uint8_t(value) & 0xFF);
   }
 
-  void Z80::doOut(uint16_t addr, uint8_t value)
+  EP128EMU_REGPARM3 void Z80::doOut(uint16_t addr, uint8_t value)
   {
     (void) addr;
     (void) value;
-    updateCycles(4);
+    updateCycles(4, 0);
   }
 
-  uint8_t Z80::doIn(uint16_t addr)
+  EP128EMU_REGPARM2 uint8_t Z80::doIn(uint16_t addr)
   {
     (void) addr;
-    updateCycles(4);
+    updateCycles(4, 0);
     return 0xFF;
   }
 
-  uint8_t Z80::readOpcodeFirstByte()
+  EP128EMU_REGPARM1 uint8_t Z80::readOpcodeFirstByte()
   {
-    updateCycle();
+    updateCycle(0);
     return readMemory(uint16_t(R.PC.W.l));
   }
 
-  uint8_t Z80::readOpcodeSecondByte()
+  EP128EMU_REGPARM1 uint8_t Z80::readOpcodeSecondByte()
   {
-    updateCycle();
+    updateCycle(0);
     return readMemory((uint16_t(R.PC.W.l) + uint16_t(1)) & 0xFFFF);
   }
 
-  uint8_t Z80::readOpcodeByte(int offset)
+  EP128EMU_REGPARM2 uint8_t Z80::readOpcodeByte(int offset)
   {
     return readMemory((uint16_t(R.PC.W.l) + uint16_t(offset)) & 0xFFFF);
   }
 
-  uint16_t Z80::readOpcodeWord(int offset)
+  EP128EMU_REGPARM2 uint16_t Z80::readOpcodeWord(int offset)
   {
     return readMemoryWord((uint16_t(R.PC.W.l) + uint16_t(offset)) & 0xFFFF);
   }
 
-  void Z80::updateCycle()
+  EP128EMU_REGPARM2 void Z80::updateCycle(uint16_t addr)
   {
-    updateCycles(1);
+    updateCycles(1, addr);
   }
 
-  void Z80::updateCycles(int cycles)
+  EP128EMU_REGPARM3 void Z80::updateCycles(int cycles, uint16_t addr)
   {
     (void) cycles;
+    (void) addr;
   }
 
-  void Z80::tapePatch()
+  EP128EMU_REGPARM1 void Z80::tapePatch()
   {
   }
 
@@ -456,30 +465,18 @@ namespace Ep128 {
   {
     buf.setPosition(0);
     buf.writeUInt32(0x01000002);        // version number
-    buf.writeByte(R.PC.B.h);            // PC high
-    buf.writeByte(R.PC.B.l);            // PC low
-    buf.writeByte(R.AF.B.h);            // A
-    buf.writeByte(R.AF.B.l);            // F
-    buf.writeByte(R.BC.B.h);            // B
-    buf.writeByte(R.BC.B.l);            // C
-    buf.writeByte(R.DE.B.h);            // D
-    buf.writeByte(R.DE.B.l);            // E
-    buf.writeByte(R.HL.B.h);            // H
-    buf.writeByte(R.HL.B.l);            // L
-    buf.writeByte(R.SP.B.h);            // SP high
-    buf.writeByte(R.SP.B.l);            // SP low
-    buf.writeByte(R.IX.B.h);            // IX high
-    buf.writeByte(R.IX.B.l);            // IX low
-    buf.writeByte(R.IY.B.h);            // IY high
-    buf.writeByte(R.IY.B.l);            // IY low
-    buf.writeByte(R.altAF.B.h);         // A'
-    buf.writeByte(R.altAF.B.l);         // F'
-    buf.writeByte(R.altBC.B.h);         // B'
-    buf.writeByte(R.altBC.B.l);         // C'
-    buf.writeByte(R.altDE.B.h);         // D'
-    buf.writeByte(R.altDE.B.l);         // E'
-    buf.writeByte(R.altHL.B.h);         // H'
-    buf.writeByte(R.altHL.B.l);         // L'
+    buf.writeUInt16(R.PC.W.l);          // PC
+    buf.writeUInt16(R.AF.W);            // AF
+    buf.writeUInt16(R.BC.W);            // BC
+    buf.writeUInt16(R.DE.W);            // DE
+    buf.writeUInt16(R.HL.W);            // HL
+    buf.writeUInt16(R.SP.W);            // SP
+    buf.writeUInt16(R.IX.W);            // IX
+    buf.writeUInt16(R.IY.W);            // IY
+    buf.writeUInt16(R.altAF.W);         // AF'
+    buf.writeUInt16(R.altBC.W);         // BC'
+    buf.writeUInt16(R.altDE.W);         // DE'
+    buf.writeUInt16(R.altHL.W);         // HL'
     buf.writeByte(R.I);                 // I
     buf.writeByte(R.R);                 // R
     buf.writeUInt32(R.IndexPlusOffset);
@@ -512,30 +509,18 @@ namespace Ep128 {
       std::memset(&R, 0, sizeof(Z80_REGISTERS));
       this->reset();
       // load saved state
-      R.PC.B.h = buf.readByte();        // PC high
-      R.PC.B.l = buf.readByte();        // PC low
-      R.AF.B.h = buf.readByte();        // A
-      R.AF.B.l = buf.readByte();        // F
-      R.BC.B.h = buf.readByte();        // B
-      R.BC.B.l = buf.readByte();        // C
-      R.DE.B.h = buf.readByte();        // D
-      R.DE.B.l = buf.readByte();        // E
-      R.HL.B.h = buf.readByte();        // H
-      R.HL.B.l = buf.readByte();        // L
-      R.SP.B.h = buf.readByte();        // SP high
-      R.SP.B.l = buf.readByte();        // SP low
-      R.IX.B.h = buf.readByte();        // IX high
-      R.IX.B.l = buf.readByte();        // IX low
-      R.IY.B.h = buf.readByte();        // IY high
-      R.IY.B.l = buf.readByte();        // IY low
-      R.altAF.B.h = buf.readByte();     // A'
-      R.altAF.B.l = buf.readByte();     // F'
-      R.altBC.B.h = buf.readByte();     // B'
-      R.altBC.B.l = buf.readByte();     // C'
-      R.altDE.B.h = buf.readByte();     // D'
-      R.altDE.B.l = buf.readByte();     // E'
-      R.altHL.B.h = buf.readByte();     // H'
-      R.altHL.B.l = buf.readByte();     // L'
+      R.PC.W.l = buf.readUInt16();      // PC
+      R.AF.W = buf.readUInt16();        // AF
+      R.BC.W = buf.readUInt16();        // BC
+      R.DE.W = buf.readUInt16();        // DE
+      R.HL.W = buf.readUInt16();        // HL
+      R.SP.W = buf.readUInt16();        // SP
+      R.IX.W = buf.readUInt16();        // IX
+      R.IY.W = buf.readUInt16();        // IY
+      R.altAF.W = buf.readUInt16();     // AF'
+      R.altBC.W = buf.readUInt16();     // BC'
+      R.altDE.W = buf.readUInt16();     // DE'
+      R.altHL.W = buf.readUInt16();     // HL'
       R.I = buf.readByte();             // I
       R.R = buf.readByte();             // R
       R.IndexPlusOffset = uint16_t(buf.readUInt32()) & 0xFFFF;

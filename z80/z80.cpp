@@ -32,7 +32,7 @@ namespace Ep128 {
   EP128EMU_INLINE void Z80::Index_CB_ExecuteInstruction()
   {
     uint8_t Opcode = readOpcodeByte(3);
-    updateCycles(2);
+    updateCycles(2, R.PC.W.l + 3);
     switch (Opcode) {
     case 0x000:
       {
@@ -2172,6 +2172,7 @@ namespace Ep128 {
       break;
     case 0x0e5:
       {
+        updateCycle(uint16_t(R.I) << 8);
         PUSH(R.IY.W);
         INC_REFRESH(2);
         ADD_PC(2);
@@ -3048,6 +3049,7 @@ namespace Ep128 {
       break;
     case 0x0e5:
       {
+        updateCycle(uint16_t(R.I) << 8);
         PUSH(R.IX.W);
         INC_REFRESH(2);
         ADD_PC(2);
@@ -3280,14 +3282,16 @@ namespace Ep128 {
 
     case 0x040:
       {
-        _IN(R.BC.B.h);
+        R.BC.B.h = doIn(R.BC.W);
+        R.AF.B.l =
+            (R.AF.B.l & Z80_CARRY_FLAG) | t.zeroSignParityTable[R.BC.B.h];
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
     case 0x041:
       {
-        _OUT(R.BC.B.h);
+        doOut(R.BC.W, R.BC.B.h);
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
@@ -3330,20 +3334,22 @@ namespace Ep128 {
       {
         LD_I_A();
         ADD_PC(2);
-        updateCycle();
+        updateCycle(uint16_t(R.I) << 8);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
     case 0x048:
       {
-        _IN(R.BC.B.l);
+        R.BC.B.l = doIn(R.BC.W);
+        R.AF.B.l =
+            (R.AF.B.l & Z80_CARRY_FLAG) | t.zeroSignParityTable[R.BC.B.l];
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
     case 0x049:
       {
-        _OUT(R.BC.B.l);
+        doOut(R.BC.W, R.BC.B.l);
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
@@ -3386,20 +3392,22 @@ namespace Ep128 {
       {
         LD_R_A();
         ADD_PC(2);
-        updateCycle();
+        updateCycle(uint16_t(R.I) << 8);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
     case 0x050:
       {
-        _IN(R.DE.B.h);
+        R.DE.B.h = doIn(R.BC.W);
+        R.AF.B.l =
+            (R.AF.B.l & Z80_CARRY_FLAG) | t.zeroSignParityTable[R.DE.B.h];
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
     case 0x051:
       {
-        _OUT(R.DE.B.h);
+        doOut(R.BC.W, R.DE.B.h);
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
@@ -3442,20 +3450,22 @@ namespace Ep128 {
       {
         LD_A_I();
         ADD_PC(2);
-        updateCycle();
+        updateCycle(uint16_t(R.I) << 8);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
     case 0x058:
       {
-        _IN(R.DE.B.l);
+        R.DE.B.l = doIn(R.BC.W);
+        R.AF.B.l =
+            (R.AF.B.l & Z80_CARRY_FLAG) | t.zeroSignParityTable[R.DE.B.l];
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
     case 0x059:
       {
-        _OUT(R.DE.B.l);
+        doOut(R.BC.W, R.DE.B.l);
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
@@ -3498,20 +3508,22 @@ namespace Ep128 {
       {
         LD_A_R();
         ADD_PC(2);
-        updateCycle();
+        updateCycle(uint16_t(R.I) << 8);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
     case 0x060:
       {
-        _IN(R.HL.B.h);
+        R.HL.B.h = doIn(R.BC.W);
+        R.AF.B.l =
+            (R.AF.B.l & Z80_CARRY_FLAG) | t.zeroSignParityTable[R.HL.B.h];
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
     case 0x061:
       {
-        _OUT(R.HL.B.h);
+        doOut(R.BC.W, R.HL.B.h);
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
@@ -3559,14 +3571,16 @@ namespace Ep128 {
       break;
     case 0x068:
       {
-        _IN(R.HL.B.l);
+        R.HL.B.l = doIn(R.BC.W);
+        R.AF.B.l =
+            (R.AF.B.l & Z80_CARRY_FLAG) | t.zeroSignParityTable[R.HL.B.l];
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
     case 0x069:
       {
-        _OUT(R.HL.B.l);
+        doOut(R.BC.W, R.HL.B.l);
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
@@ -3614,15 +3628,16 @@ namespace Ep128 {
       break;
     case 0x070:
       {
-        Z80_BYTE  tempByte;
-        _IN(tempByte);
+        Z80_BYTE  tempByte = doIn(R.BC.W);
+        R.AF.B.l =
+            (R.AF.B.l & Z80_CARRY_FLAG) | t.zeroSignParityTable[tempByte];
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
     case 0x071:
       {
-        _OUT(0);
+        doOut(R.BC.W, 0);
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
@@ -3669,14 +3684,16 @@ namespace Ep128 {
       break;
     case 0x078:
       {
-        _IN(R.AF.B.h);
+        R.AF.B.h = doIn(R.BC.W);
+        R.AF.B.l =
+            (R.AF.B.l & Z80_CARRY_FLAG) | t.zeroSignParityTable[R.AF.B.h];
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
     case 0x079:
       {
-        _OUT(R.AF.B.h);
+        doOut(R.BC.W, R.AF.B.h);
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
@@ -3725,7 +3742,7 @@ namespace Ep128 {
       {
         LDI();
         ADD_PC(2);
-        updateCycles(2);
+        updateCycles(2, R.DE.W - 1);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
@@ -3733,6 +3750,7 @@ namespace Ep128 {
       {
         CPI();
         ADD_PC(2);
+        updateCycles(5, R.HL.W - 1);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
@@ -3754,7 +3772,7 @@ namespace Ep128 {
       {
         LDD();
         ADD_PC(2);
-        updateCycles(2);
+        updateCycles(2, R.DE.W + 1);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
@@ -3762,6 +3780,7 @@ namespace Ep128 {
       {
         CPD();
         ADD_PC(2);
+        updateCycles(5, R.HL.W + 1);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
@@ -3783,11 +3802,11 @@ namespace Ep128 {
       {
         LDI();
         if (Z80_TEST_PARITY_EVEN) {
-          updateCycles(7);
+          updateCycles(7, R.DE.W - 1);
         }
         else {
           ADD_PC(2);
-          updateCycles(2);
+          updateCycles(2, R.DE.W - 1);
         }
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
@@ -3797,10 +3816,11 @@ namespace Ep128 {
         CPI();
         if ((Z80_FLAGS_REG & (Z80_PARITY_FLAG | Z80_ZERO_FLAG))
             == Z80_PARITY_FLAG) {
-          updateCycles(5);
+          updateCycles(10, R.HL.W - 1);
         }
         else {
           ADD_PC(2);
+          updateCycles(5, R.HL.W - 1);
         }
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
@@ -3808,24 +3828,20 @@ namespace Ep128 {
     case 0x0b2:
       {
         INI();
-        if (Z80_FLAGS_REG & Z80_ZERO_FLAG) {
+        if (Z80_FLAGS_REG & Z80_ZERO_FLAG)
           ADD_PC(2);
-        }
-        else {
-          updateCycles(5);
-        }
+        else
+          updateCycles(5, R.HL.W - 1);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
     case 0x0b3:
       {
         OUTI();
-        if (Z80_FLAGS_REG & Z80_ZERO_FLAG) {
+        if (Z80_FLAGS_REG & Z80_ZERO_FLAG)
           ADD_PC(2);
-        }
-        else {
-          updateCycles(5);
-        }
+        else
+          updateCycles(5, R.BC.W);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
@@ -3833,11 +3849,11 @@ namespace Ep128 {
       {
         LDD();
         if (Z80_FLAGS_REG & Z80_PARITY_FLAG) {
-          updateCycles(7);
+          updateCycles(7, R.DE.W + 1);
         }
         else {
           ADD_PC(2);
-          updateCycles(2);
+          updateCycles(2, R.DE.W + 1);
         }
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
@@ -3847,10 +3863,11 @@ namespace Ep128 {
         CPD();
         if ((Z80_FLAGS_REG & (Z80_PARITY_FLAG | Z80_ZERO_FLAG))
             == Z80_PARITY_FLAG) {
-          updateCycles(5);
+          updateCycles(10, R.HL.W + 1);
         }
         else {
           ADD_PC(2);
+          updateCycles(5, R.HL.W + 1);
         }
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
@@ -3858,24 +3875,20 @@ namespace Ep128 {
     case 0x0ba:
       {
         IND();
-        if (Z80_FLAGS_REG & Z80_ZERO_FLAG) {
+        if (Z80_FLAGS_REG & Z80_ZERO_FLAG)
           ADD_PC(2);
-        }
-        else {
-          updateCycles(5);
-        }
+        else
+          updateCycles(5, R.HL.W + 1);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
     case 0x0bb:
       {
         OUTD();
-        if (Z80_FLAGS_REG & Z80_ZERO_FLAG) {
+        if (Z80_FLAGS_REG & Z80_ZERO_FLAG)
           ADD_PC(2);
-        }
-        else {
-          updateCycles(5);
-        }
+        else
+          updateCycles(5, R.BC.W);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
       break;
@@ -6763,7 +6776,7 @@ namespace Ep128 {
       break;
     case 0x0c0:
       {
-        updateCycle();
+        updateCycle(uint16_t(R.I) << 8);
         if (Z80_TEST_ZERO_NOT_SET) {
           RETURN();
         }
@@ -6817,6 +6830,7 @@ namespace Ep128 {
       break;
     case 0x0c5:
       {
+        updateCycle(uint16_t(R.I) << 8);
         PUSH(R.BC.W);
         INC_REFRESH(1);
         ADD_PC(1);
@@ -6840,7 +6854,7 @@ namespace Ep128 {
       break;
     case 0x0c8:
       {
-        updateCycle();
+        updateCycle(uint16_t(R.I) << 8);
         if (Z80_TEST_ZERO_SET) {
           RETURN();
         }
@@ -6913,7 +6927,7 @@ namespace Ep128 {
       break;
     case 0x0d0:
       {
-        updateCycle();
+        updateCycle(uint16_t(R.I) << 8);
         if (Z80_TEST_CARRY_NOT_SET) {
           RETURN();
         }
@@ -6968,6 +6982,7 @@ namespace Ep128 {
       break;
     case 0x0d5:
       {
+        updateCycle(uint16_t(R.I) << 8);
         PUSH(R.DE.W);
         INC_REFRESH(1);
         ADD_PC(1);
@@ -6991,7 +7006,7 @@ namespace Ep128 {
       break;
     case 0x0d8:
       {
-        updateCycle();
+        updateCycle(uint16_t(R.I) << 8);
         if (Z80_TEST_CARRY_SET) {
           RETURN();
         }
@@ -7068,7 +7083,7 @@ namespace Ep128 {
       break;
     case 0x0e0:
       {
-        updateCycle();
+        updateCycle(uint16_t(R.I) << 8);
         if (Z80_TEST_PARITY_ODD) {
           RETURN();
         }
@@ -7123,6 +7138,7 @@ namespace Ep128 {
       break;
     case 0x0e5:
       {
+        updateCycle(uint16_t(R.I) << 8);
         PUSH(R.HL.W);
         INC_REFRESH(1);
         ADD_PC(1);
@@ -7146,7 +7162,7 @@ namespace Ep128 {
       break;
     case 0x0e8:
       {
-        updateCycle();
+        updateCycle(uint16_t(R.I) << 8);
         if (Z80_TEST_PARITY_EVEN) {
           RETURN();
         }
@@ -7220,7 +7236,7 @@ namespace Ep128 {
       break;
     case 0x0f0:
       {
-        updateCycle();
+        updateCycle(uint16_t(R.I) << 8);
         if (Z80_TEST_POSITIVE) {
           RETURN();
         }
@@ -7274,6 +7290,7 @@ namespace Ep128 {
       break;
     case 0x0f5:
       {
+        updateCycle(uint16_t(R.I) << 8);
         PUSH(R.AF.W);
         INC_REFRESH(1);
         ADD_PC(1);
@@ -7297,7 +7314,7 @@ namespace Ep128 {
       break;
     case 0x0f8:
       {
-        updateCycle();
+        updateCycle(uint16_t(R.I) << 8);
         if (Z80_TEST_MINUS) {
           RETURN();
         }

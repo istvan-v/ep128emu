@@ -230,7 +230,6 @@ namespace Ep128 {
     void INI();
     void IND();
     void DAA();
-    void executeInterrupt();
    public:
     Z80();
     virtual ~Z80();
@@ -263,7 +262,6 @@ namespace Ep128 {
     void clearInterrupt();
     void setVectorBase(int);
     void executeInstruction();
-    void test();
     /*!
      * Save snapshot.
      */
@@ -275,54 +273,59 @@ namespace Ep128 {
     void loadState(Ep128Emu::File::Buffer&);
     void registerChunkType(Ep128Emu::File&);
    protected:
-    virtual void ackInterruptFunction();
+    /*!
+     * Called when a maskable interrupt is to be executed. Subclasses should
+     * call Z80::executeInterrupt(), or just return to skip the interrupt.
+     */
+    virtual EP128EMU_REGPARM1 void executeInterrupt();
     /*!
      * Read a byte from memory (3 cycles).
      */
-    virtual uint8_t readMemory(uint16_t addr);
+    virtual EP128EMU_REGPARM2 uint8_t readMemory(uint16_t addr);
     /*!
      * Write a byte to memory (3 cycles).
      */
-    virtual void writeMemory(uint16_t addr, uint8_t value);
+    virtual EP128EMU_REGPARM3 void writeMemory(uint16_t addr, uint8_t value);
     /*!
      * Read a 16-bit word from memory (6 cycles).
      */
-    virtual uint16_t readMemoryWord(uint16_t addr);
+    virtual EP128EMU_REGPARM2 uint16_t readMemoryWord(uint16_t addr);
     /*!
      * Write a 16-bit word to memory (6 cycles).
      */
-    virtual void writeMemoryWord(uint16_t addr, uint16_t value);
+    virtual EP128EMU_REGPARM3 void writeMemoryWord(uint16_t addr,
+                                                   uint16_t value);
     /*!
-     * Write a 16-bit word to the stack (7 cycles).
+     * Write a 16-bit word to the stack (6 cycles).
      */
-    virtual void pushWord(uint16_t value);
+    virtual EP128EMU_REGPARM2 void pushWord(uint16_t value);
     /*!
      * Write a byte to an I/O port (4 cycles).
      */
-    virtual void doOut(uint16_t addr, uint8_t value);
+    virtual EP128EMU_REGPARM3 void doOut(uint16_t addr, uint8_t value);
     /*!
      * Read a byte from an I/O port (4 cycles).
      */
-    virtual uint8_t doIn(uint16_t addr);
+    virtual EP128EMU_REGPARM2 uint8_t doIn(uint16_t addr);
     /*!
      * Read the first byte of an opcode (4 cycles).
      */
-    virtual uint8_t readOpcodeFirstByte();
+    virtual EP128EMU_REGPARM1 uint8_t readOpcodeFirstByte();
     /*!
      * Read the second byte of an opcode (4 cycles).
      */
-    virtual uint8_t readOpcodeSecondByte();
+    virtual EP128EMU_REGPARM1 uint8_t readOpcodeSecondByte();
     /*!
      * Read an opcode byte (3 cycles; 'Offset' should not be zero).
      */
-    virtual uint8_t readOpcodeByte(int offset);
+    virtual EP128EMU_REGPARM2 uint8_t readOpcodeByte(int offset);
     /*!
      * Read an opcode word (6 cycles; 'Offset' should not be zero).
      */
-    virtual uint16_t readOpcodeWord(int offset);
-    virtual void updateCycle();
-    virtual void updateCycles(int cycles);
-    virtual void tapePatch();
+    virtual EP128EMU_REGPARM2 uint16_t readOpcodeWord(int offset);
+    virtual EP128EMU_REGPARM2 void updateCycle(uint16_t addr);
+    virtual EP128EMU_REGPARM3 void updateCycles(int cycles, uint16_t addr);
+    virtual EP128EMU_REGPARM1 void tapePatch();
   };
 
 }       // namespace Ep128

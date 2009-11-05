@@ -125,18 +125,9 @@
 /* set zero, sign and parity flag */
 #define SET_ZERO_SIGN_PARITY(Register)                                  \
 {                                                                       \
-    Z80_FLAGS_REG = Z80_FLAGS_REG & (0xFF ^ (Z80_ZERO_FLAG | Z80_SIGN_FLAG \
-                                             | Z80_PARITY_FLAG));       \
-    Z80_FLAGS_REG = Z80_FLAGS_REG | t.zeroSignParityTable[(Register) & 0xFF]; \
-}
-
-#define _OUT(Register)          doOut(R.BC.W, (Register))
-
-#define _IN(Register)                                                   \
-{                                                                       \
-        Register = doIn(R.BC.W);                                        \
-        Z80_FLAGS_REG = (Z80_FLAGS_REG & Z80_CARRY_FLAG)                \
-                        | t.zeroSignParityTable[Register];              \
+    Z80_FLAGS_REG = (Z80_FLAGS_REG & (Z80_HALFCARRY_FLAG                \
+                                      | Z80_SUBTRACT_FLAG | Z80_CARRY_FLAG)) \
+                    | t.zeroSignParityTable[(Register) & 0xFF];         \
 }
 
 #define LD_R_n(Register)        Register = readOpcodeByte(1)
@@ -159,7 +150,7 @@
 {                                                                       \
         SETUP_INDEXED_ADDRESS(Index);                                   \
         Z80_BYTE  tempByte = readOpcodeByte(3);                         \
-        updateCycles(2);                                                \
+        updateCycles(2, R.PC.W.l + 3);                                  \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -174,7 +165,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = readMemory(R.HL.W);                        \
         RES(AndMask, tempByte);                                         \
-        updateCycle();                                                  \
+        updateCycle(R.HL.W);                                            \
         writeMemory(R.HL.W, tempByte);                                  \
 }
 
@@ -182,7 +173,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         RES(AndMask, tempByte);                                         \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -196,7 +187,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = readMemory(R.HL.W);                        \
         SET(OrMask, tempByte);                                          \
-        updateCycle();                                                  \
+        updateCycle(R.HL.W);                                            \
         writeMemory(R.HL.W, tempByte);                                  \
 }
 
@@ -204,22 +195,19 @@
 {                                                                       \
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         SET(OrMask, tempByte);                                          \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
 /* BIT */
 #define BIT(BitIndex,Register)                                          \
 {                                                                       \
-    Z80_BYTE  Flags = Z80_FLAGS_REG;                                    \
-    Z80_BYTE  Reg753 = (uint8_t) (Register);                            \
-    Z80_BYTE  RegShift = Reg753;                                        \
+    Z80_BYTE  Reg753 = Z80_BYTE(Register) & Z80_BYTE(1 << (BitIndex));  \
+    Z80_BYTE  RegShift = (Z80_BYTE(bool(Reg753)) - 1)                   \
+                         & (Z80_ZERO_FLAG | Z80_PARITY_FLAG);           \
     Reg753 = Reg753 & (Z80_SIGN_FLAG | Z80_UNUSED_FLAG1 | Z80_UNUSED_FLAG2); \
-    RegShift = (uint8_t)(((((uint8_t)(~RegShift)) & (1 << (uint8_t)BitIndex))>> (uint8_t)BitIndex) << Z80_ZERO_FLAG_BIT); \
-    Flags = Flags & Z80_CARRY_FLAG;                                     \
-    Flags = Flags | RegShift;                                           \
-    Flags = Flags | Reg753;                                             \
-    Z80_FLAGS_REG = Flags | Z80_HALFCARRY_FLAG;                         \
+    Z80_FLAGS_REG = (Z80_FLAGS_REG & Z80_CARRY_FLAG)                    \
+                    | Reg753 | RegShift | Z80_HALFCARRY_FLAG;           \
 }
 
 #define BIT_REG(BitIndex, Register)     BIT(BitIndex, (Register))
@@ -227,20 +215,24 @@
 #define BIT_HL(BitIndex)                                                \
 {                                                                       \
         BIT(BitIndex, readMemory(R.HL.W));                              \
-        updateCycle();                                                  \
+        updateCycle(R.HL.W);                                            \
 }
 
 #define BIT_INDEX(BitIndex)                                             \
 {                                                                       \
         BIT(BitIndex, RD_BYTE_INDEX());                                 \
-        updateCycle();                                                  \
+        Z80_FLAGS_REG = (Z80_FLAGS_REG                                  \
+                         & (~(Z80_UNUSED_FLAG1 | Z80_UNUSED_FLAG2)))    \
+                        | (Z80_BYTE(R.IndexPlusOffset >> 8)             \
+                           & (Z80_UNUSED_FLAG1 | Z80_UNUSED_FLAG2));    \
+        updateCycle(R.IndexPlusOffset);                                 \
 }
 
 /*------------------*/
 
 #define SHIFTING_FLAGS(Register)                                        \
         SET_ZERO_SIGN_PARITY(Register)                                  \
-        Z80_FLAGS_REG &= Z80_SIGN_FLAG | Z80_ZERO_FLAG | Z80_PARITY_FLAG | Z80_CARRY_FLAG
+        Z80_FLAGS_REG &= (~(Z80_HALFCARRY_FLAG | Z80_SUBTRACT_FLAG))
 
 #define SET_CARRY_LEFT_SHIFT(Register)                                  \
         Z80_FLAGS_REG = Z80_FLAGS_REG & (0xFF ^ Z80_CARRY_FLAG);        \
@@ -269,7 +261,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = readMemory(R.HL.W);                        \
         RL_WITH_FLAGS(tempByte);                                        \
-        updateCycle();                                                  \
+        updateCycle(R.HL.W);                                            \
         writeMemory(R.HL.W, tempByte);                                  \
 }
 
@@ -277,7 +269,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         RL_WITH_FLAGS(tempByte);                                        \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -300,7 +292,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = readMemory(R.HL.W);                        \
         RR_WITH_FLAGS(tempByte);                                        \
-        updateCycle();                                                  \
+        updateCycle(R.HL.W);                                            \
         writeMemory(R.HL.W, tempByte);                                  \
 }
 
@@ -308,7 +300,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         RR_WITH_FLAGS(tempByte);                                        \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -332,7 +324,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = readMemory(R.HL.W);                        \
         RLC_WITH_FLAGS(tempByte);                                       \
-        updateCycle();                                                  \
+        updateCycle(R.HL.W);                                            \
         writeMemory(R.HL.W, tempByte);                                  \
 }
 
@@ -340,7 +332,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         RLC_WITH_FLAGS(tempByte);                                       \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -362,7 +354,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = readMemory(R.HL.W);                        \
         RRC_WITH_FLAGS(tempByte);                                       \
-        updateCycle();                                                  \
+        updateCycle(R.HL.W);                                            \
         writeMemory(R.HL.W, tempByte);                                  \
 }
 
@@ -370,7 +362,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         RRC_WITH_FLAGS(tempByte);                                       \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -392,7 +384,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = readMemory(R.HL.W);                        \
         SLA_WITH_FLAGS(tempByte);                                       \
-        updateCycle();                                                  \
+        updateCycle(R.HL.W);                                            \
         writeMemory(R.HL.W, tempByte);                                  \
 }
 
@@ -400,7 +392,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         SLA_WITH_FLAGS(tempByte);                                       \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -422,7 +414,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = readMemory(R.HL.W);                        \
         SRA_WITH_FLAGS(tempByte);                                       \
-        updateCycle();                                                  \
+        updateCycle(R.HL.W);                                            \
         writeMemory(R.HL.W, tempByte);                                  \
 }
 
@@ -430,7 +422,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         SRA_WITH_FLAGS(tempByte);                                       \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -452,7 +444,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = readMemory(R.HL.W);                        \
         SRL_WITH_FLAGS(tempByte);                                       \
-        updateCycle();                                                  \
+        updateCycle(R.HL.W);                                            \
         writeMemory(R.HL.W, tempByte);                                  \
 }
 
@@ -460,7 +452,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         SRL_WITH_FLAGS(tempByte);                                       \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -482,7 +474,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = readMemory(R.HL.W);                        \
         SLL_WITH_FLAGS(tempByte);                                       \
-        updateCycle();                                                  \
+        updateCycle(R.HL.W);                                            \
         writeMemory(R.HL.W, tempByte);                                  \
 }
 
@@ -490,14 +482,9 @@
 {                                                                       \
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         SLL_WITH_FLAGS(tempByte);                                       \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
-
-/*---------------*/
-
-#define A_SHIFTING_FLAGS                                                \
-        Z80_FLAGS_REG = Z80_FLAGS_REG & (Z80_SIGN_FLAG | Z80_ZERO_FLAG | Z80_PARITY_FLAG | Z80_CARRY_FLAG)
 
 /*---------------*/
 
@@ -559,7 +546,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = readMemory(R.HL.W);                        \
         INC_X(tempByte);                                                \
-        updateCycle();                                                  \
+        updateCycle(R.HL.W);                                            \
         writeMemory(R.HL.W, tempByte);                                  \
 }
 
@@ -567,7 +554,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = RD_BYTE_INDEX_(Index);                     \
         INC_X(tempByte);                                                \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -594,7 +581,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = readMemory(R.HL.W);                        \
         DEC_X(tempByte);                                                \
-        updateCycle();                                                  \
+        updateCycle(R.HL.W);                                            \
         writeMemory(R.HL.W, tempByte);                                  \
 }
 
@@ -602,7 +589,7 @@
 {                                                                       \
         Z80_BYTE  tempByte = RD_BYTE_INDEX_(Index);                     \
         DEC_X(tempByte);                                                \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -626,13 +613,14 @@
 #define ADD_A_X(Register2)                                              \
 {                                                                       \
         Z80_BYTE  Reg2 = (Register2);                                   \
-        Z80_WORD  Result = (Z80_WORD) R.AF.B.h + (Z80_WORD) Reg2;       \
+        Z80_WORD  Result = Z80_WORD(R.AF.B.h) + Z80_WORD(Reg2);         \
         SET_OVERFLOW_FLAG_A_ADD(Reg2, Result);                          \
         SET_CARRY_FLAG_ADD(Result);                                     \
         SET_HALFCARRY(Reg2, Result);                                    \
-        R.AF.B.h = (Z80_BYTE) Result;                                   \
-        SET_ZERO_SIGN(R.AF.B.h);                                        \
-        Z80_FLAGS_REG = Z80_FLAGS_REG & (~Z80_SUBTRACT_FLAG);           \
+        R.AF.B.h = Z80_BYTE(Result);                                    \
+        R.AF.B.l = (R.AF.B.l & (Z80_HALFCARRY_FLAG | Z80_OVERFLOW_FLAG  \
+                                | Z80_CARRY_FLAG))                      \
+                   | t.zeroSignTable2[R.AF.B.h];                        \
 }
 
 #define ADD_A_R(Register)       ADD_A_X(Register)
@@ -640,14 +628,15 @@
 #define ADC_A_X(Register)                                               \
 {                                                                       \
         Z80_BYTE  Reg = (Register);                                     \
-        Z80_WORD  Result = (Z80_WORD) R.AF.B.h + (Z80_WORD) Reg         \
-                           + (Z80_WORD) (Z80_FLAGS_REG & Z80_CARRY_FLAG); \
+        Z80_WORD  Result = Z80_WORD(R.AF.B.h) + Z80_WORD(Reg)           \
+                           + Z80_WORD(Z80_FLAGS_REG & Z80_CARRY_FLAG);  \
         SET_OVERFLOW_FLAG_A_ADD(Reg, Result);                           \
         SET_CARRY_FLAG_ADD(Result);                                     \
         SET_HALFCARRY(Reg, Result);                                     \
-        R.AF.B.h = (Z80_BYTE) Result;                                   \
-        SET_ZERO_SIGN(R.AF.B.h);                                        \
-        Z80_FLAGS_REG = Z80_FLAGS_REG & (~Z80_SUBTRACT_FLAG);           \
+        R.AF.B.h = Z80_BYTE(Result);                                    \
+        R.AF.B.l = (R.AF.B.l & (Z80_HALFCARRY_FLAG | Z80_OVERFLOW_FLAG  \
+                                | Z80_CARRY_FLAG))                      \
+                   | t.zeroSignTable2[R.AF.B.h];                        \
 }
 
 #define ADC_A_R(Register)       ADC_A_X(Register)
@@ -655,13 +644,14 @@
 #define SUB_A_X(Register)                                               \
 {                                                                       \
         Z80_BYTE  Reg = (Register);                                     \
-        Z80_WORD  Result = (Z80_WORD) R.AF.B.h - (Z80_WORD) Reg;        \
+        Z80_WORD  Result = Z80_WORD(R.AF.B.h) - Z80_WORD(Reg);          \
         SET_OVERFLOW_FLAG_A_SUB(Reg, Result);                           \
         SET_CARRY_FLAG_SUB(Result);                                     \
         SET_HALFCARRY(Reg, Result);                                     \
-        R.AF.B.h = (Z80_BYTE) Result;                                   \
-        SET_ZERO_SIGN(R.AF.B.h);                                        \
-        Z80_FLAGS_REG = Z80_FLAGS_REG | Z80_SUBTRACT_FLAG;              \
+        R.AF.B.h = Z80_BYTE(Result);                                    \
+        R.AF.B.l = (R.AF.B.l & (Z80_HALFCARRY_FLAG | Z80_OVERFLOW_FLAG  \
+                                | Z80_CARRY_FLAG))                      \
+                   | Z80_SUBTRACT_FLAG | t.zeroSignTable2[R.AF.B.h];    \
 }
 
 #define SUB_A_R(Register)       SUB_A_X(Register)
@@ -669,12 +659,14 @@
 #define CP_A_X(Register)                                                \
 {                                                                       \
         Z80_BYTE  Reg = (Register);                                     \
-        Z80_WORD  Result = (Z80_WORD) R.AF.B.h - (Z80_WORD) Reg;        \
+        Z80_WORD  Result = Z80_WORD(R.AF.B.h) - Z80_WORD(Reg);          \
         SET_OVERFLOW_FLAG_A_SUB(Reg, Result);                           \
         SET_CARRY_FLAG_SUB(Result);                                     \
         SET_HALFCARRY(Reg, Result);                                     \
-        SET_ZERO_SIGN(Result);                                          \
-        Z80_FLAGS_REG = Z80_FLAGS_REG | Z80_SUBTRACT_FLAG;              \
+        R.AF.B.l = (R.AF.B.l & (Z80_HALFCARRY_FLAG | Z80_OVERFLOW_FLAG  \
+                                | Z80_CARRY_FLAG))                      \
+                   | Z80_SUBTRACT_FLAG | t.zeroSignTable[Result & 0xFF] \
+                   | (Reg & (Z80_UNUSED_FLAG1 | Z80_UNUSED_FLAG2));     \
 }
 
 #define CP_A_R(Register)        CP_A_X(Register)
@@ -682,54 +674,56 @@
 #define SBC_A_X(Register)                                               \
 {                                                                       \
         Z80_BYTE  Reg = (Register);                                     \
-        Z80_WORD  Result = (Z80_WORD) R.AF.B.h - (Z80_WORD) Reg         \
-                           - (Z80_WORD) (Z80_FLAGS_REG & Z80_CARRY_FLAG); \
+        Z80_WORD  Result = Z80_WORD(R.AF.B.h) - Z80_WORD(Reg)           \
+                           - Z80_WORD(Z80_FLAGS_REG & Z80_CARRY_FLAG);  \
         SET_OVERFLOW_FLAG_A_SUB(Reg, Result);                           \
         SET_CARRY_FLAG_SUB(Result);                                     \
         SET_HALFCARRY(Reg, Result);                                     \
-        R.AF.B.h = (Z80_BYTE) Result;                                   \
-        SET_ZERO_SIGN(R.AF.B.h);                                        \
-        Z80_FLAGS_REG = Z80_FLAGS_REG | Z80_SUBTRACT_FLAG;              \
+        R.AF.B.h = Z80_BYTE(Result);                                    \
+        R.AF.B.l = (R.AF.B.l & (Z80_HALFCARRY_FLAG | Z80_OVERFLOW_FLAG  \
+                                | Z80_CARRY_FLAG))                      \
+                   | Z80_SUBTRACT_FLAG | t.zeroSignTable2[R.AF.B.h];    \
 }
 
 #define SBC_A_R(Register)       SBC_A_X(Register)
 
 #define ADD_RR_rr(Register1, Register2)                                 \
 {                                                                       \
-        Z80_LONG  Result = (Z80_LONG) Register1 + (Z80_LONG) Register2; \
+        Z80_LONG  Result = Z80_LONG(Register1) + Z80_LONG(Register2);   \
         SET_CARRY_FLAG_ADD16(Result);                                   \
         SET_HALFCARRY_16(Register1, Register2, Result);                 \
-        Register1 = (Z80_WORD) Result;                                  \
-        Z80_FLAGS_REG = Z80_FLAGS_REG & (0xD7 ^ Z80_SUBTRACT_FLAG);     \
-        updateCycles(7);                                                \
+        Register1 = Z80_WORD(Result);                                   \
+        Z80_FLAGS_REG = (Z80_FLAGS_REG & (0xD7 ^ Z80_SUBTRACT_FLAG))    \
+                        | (Z80_BYTE(Result >> 8) & 0x28);               \
+        updateCycles(7, uint16_t(R.I) << 8);                            \
 }
 
 #define ADC_HL_rr(Register)                                             \
 {                                                                       \
-        Z80_LONG  Result = (Z80_LONG) R.HL.W + (Z80_LONG) Register      \
-                           + (Z80_LONG) (Z80_FLAGS_REG & Z80_CARRY_FLAG); \
+        Z80_LONG  Result = Z80_LONG(R.HL.W) + Z80_LONG(Register)        \
+                           + Z80_LONG(Z80_FLAGS_REG & Z80_CARRY_FLAG);  \
         SET_OVERFLOW_FLAG_HL_ADD(Register, Result);                     \
         SET_CARRY_FLAG_ADD16(Result);                                   \
         SET_HALFCARRY_16(R.HL.W, Register, Result);                     \
-        R.HL.W = (Z80_WORD) Result;                                     \
-        SET_SIGN_FLAG16(R.HL.W);                                        \
+        R.HL.W = Z80_WORD(Result);                                      \
         SET_ZERO_FLAG16(R.HL.W);                                        \
-        Z80_FLAGS_REG = Z80_FLAGS_REG & (0xD7 ^ Z80_SUBTRACT_FLAG);     \
-        updateCycles(7);                                                \
+        Z80_FLAGS_REG = (Z80_FLAGS_REG & 0x55)                          \
+                        | (Z80_BYTE(Result >> 8) & 0xA8);               \
+        updateCycles(7, uint16_t(R.I) << 8);                            \
 }
 
 #define SBC_HL_rr(Register)                                             \
 {                                                                       \
-        Z80_LONG  Result = (Z80_LONG) R.HL.W - (Z80_LONG) Register      \
-                           - (Z80_LONG) (Z80_FLAGS_REG & Z80_CARRY_FLAG); \
+        Z80_LONG  Result = Z80_LONG(R.HL.W) - Z80_LONG(Register)        \
+                           - Z80_LONG(Z80_FLAGS_REG & Z80_CARRY_FLAG);  \
         SET_OVERFLOW_FLAG_HL_SUB(Register, Result);                     \
         SET_CARRY_FLAG_SUB16(Result);                                   \
         SET_HALFCARRY_16(R.HL.W, Register, Result);                     \
-        R.HL.W = (Z80_WORD) Result;                                     \
-        SET_SIGN_FLAG16(R.HL.W);                                        \
+        R.HL.W = Z80_WORD(Result);                                      \
         SET_ZERO_FLAG16(R.HL.W);                                        \
-        Z80_FLAGS_REG = (Z80_FLAGS_REG & 0xD7) | Z80_SUBTRACT_FLAG;     \
-        updateCycles(7);                                                \
+        Z80_FLAGS_REG = (Z80_FLAGS_REG & 0x55) | Z80_SUBTRACT_FLAG      \
+                        | (Z80_BYTE(Result >> 8) & 0xA8);               \
+        updateCycles(7, uint16_t(R.I) << 8);                            \
 }
 
 /* do a SLA of index and copy into reg specified */
@@ -738,7 +732,7 @@
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         SLA_WITH_FLAGS(tempByte);                                       \
         Reg = tempByte;                                                 \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -748,7 +742,7 @@
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         SRA_WITH_FLAGS(tempByte);                                       \
         Reg = tempByte;                                                 \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -758,7 +752,7 @@
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         SLL_WITH_FLAGS(tempByte);                                       \
         Reg = tempByte;                                                 \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -768,7 +762,7 @@
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         SRL_WITH_FLAGS(tempByte);                                       \
         Reg = tempByte;                                                 \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -777,7 +771,7 @@
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         RLC_WITH_FLAGS(tempByte);                                       \
         Reg = tempByte;                                                 \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -786,7 +780,7 @@
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         RRC_WITH_FLAGS(tempByte);                                       \
         Reg = tempByte;                                                 \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -795,7 +789,7 @@
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         RR_WITH_FLAGS(tempByte);                                        \
         Reg = tempByte;                                                 \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -804,7 +798,7 @@
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         RL_WITH_FLAGS(tempByte);                                        \
         Reg = tempByte;                                                 \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -813,7 +807,7 @@
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         SET(OrMask, tempByte);                                          \
         Reg = tempByte;                                                 \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -822,7 +816,7 @@
         Z80_BYTE  tempByte = RD_BYTE_INDEX();                           \
         RES(AndMask, tempByte);                                         \
         Reg = tempByte;                                                 \
-        updateCycle();                                                  \
+        updateCycle(R.IndexPlusOffset);                                 \
         WR_BYTE_INDEX(tempByte);                                        \
 }
 
@@ -845,7 +839,8 @@
 #define RST(Addr)                                                       \
 {                                                                       \
         /* push return address on stack */                              \
-        PUSH((Z80_WORD) (R.PC.W.l + 1));                                \
+        updateCycle(uint16_t(R.I) << 8);                                \
+        PUSH(Z80_WORD(R.PC.W.l + 1));                                   \
         /* set program counter to address */                            \
         R.PC.W.l = Addr;                                                \
 }
@@ -862,14 +857,14 @@
 #define INC_rp(x)                                                       \
 {                                                                       \
         x++;                                                            \
-        updateCycles(2);                                                \
+        updateCycles(2, uint16_t(R.I) << 8);                            \
 }
 
 /* decrement register pair */
 #define DEC_rp(x)                                                       \
 {                                                                       \
         x--;                                                            \
-        updateCycles(2);                                                \
+        updateCycles(2, uint16_t(R.I) << 8);                            \
 }
 
 /* swap two words */
@@ -885,16 +880,17 @@
 #define LD_SP_rp(x)                                                     \
 {                                                                       \
         R.SP.W = (x);                                                   \
-        updateCycles(2);                                                \
+        updateCycles(2, uint16_t(R.I) << 8);                            \
 }
 
 /* EX (SP), HL */
 #define EX_SP_rr(Register)                                              \
 {                                                                       \
         Z80_WORD  temp = POP();                                         \
+        updateCycle(R.SP.W - 1);                                        \
         PUSH(Register);                                                 \
         Register = temp;                                                \
-        updateCycles(2);                                                \
+        updateCycles(2, R.SP.W);                                        \
 }
 
 #define ADD_PC(x)               (R.PC.W.l += (x))
@@ -947,19 +943,13 @@
 
 #define RLA()                                                           \
 {                                                                       \
-        Z80_BYTE        OrByte;                                         \
-        Z80_BYTE        Flags;                                          \
-        OrByte = Z80_FLAGS_REG & 0x01;                                  \
-        Flags = Z80_FLAGS_REG;                                          \
+        Z80_BYTE    Flags = Z80_FLAGS_REG;                              \
+        Z80_BYTE    OrByte = Flags & 0x01;                              \
         Flags = Flags & (Z80_SIGN_FLAG | Z80_ZERO_FLAG | Z80_PARITY_FLAG); \
-        Flags |= ((R.AF.B.h>>7) & 0x01);                                \
-        Z80_BYTE        Reg;                                            \
-        Reg = R.AF.B.h;                                                 \
-        Reg = Reg<<1;                                                   \
-        Reg = Reg|OrByte;                                               \
+        Flags = Flags | ((R.AF.B.h >> 7) & 0x01);                       \
+        Z80_BYTE    Reg = (R.AF.B.h << 1) | OrByte;                     \
         R.AF.B.h = Reg;                                                 \
-        Reg &= (Z80_UNUSED_FLAG1 | Z80_UNUSED_FLAG2);                   \
-        Flags = Flags | Reg;                                            \
+        Flags = Flags | (Reg & (Z80_UNUSED_FLAG1 | Z80_UNUSED_FLAG2));  \
         Z80_FLAGS_REG = Flags;                                          \
 }
 
@@ -1081,38 +1071,33 @@
 /* LDI */
 #define LDI()                                                           \
 {                                                                       \
-        Z80_BYTE    Data;                                               \
-        Z80_BYTE    Flags;                                              \
-        Data = readMemory(R.HL.W);                                      \
-        writeMemory(R.DE.W,Data);                                       \
+        Z80_BYTE  Data = readMemory(R.HL.W);                            \
+        writeMemory(R.DE.W, Data);                                      \
         R.HL.W++;                                                       \
         R.DE.W++;                                                       \
         R.BC.W--;                                                       \
-        Flags = Z80_FLAGS_REG & (Z80_CARRY_FLAG | Z80_ZERO_FLAG | Z80_SIGN_FLAG); \
         /* if BC == 0, then PV = 0, else PV = 1 */                      \
-        if (R.BC.W!=0)                                                  \
-        {                                                               \
-                Flags |= Z80_PARITY_FLAG;                               \
-        }                                                               \
-        Z80_FLAGS_REG = Flags;                                          \
+        Data = Data + R.AF.B.h;                                         \
+        Z80_FLAGS_REG =                                                 \
+            (Z80_FLAGS_REG & (Z80_CARRY_FLAG | Z80_ZERO_FLAG | Z80_SIGN_FLAG)) \
+            | (Data & Z80_UNUSED_FLAG2) | ((Data & 0x02) << 4)          \
+            | (R.BC.W == 0 ? 0x00 : Z80_PARITY_FLAG);                   \
 }
 
 /* LDD */
 #define LDD()                                                           \
 {                                                                       \
-        Z80_BYTE    Data,Flags;                                         \
-        Data = readMemory(R.HL.W);                                      \
-        writeMemory(R.DE.W,Data);                                       \
+        Z80_BYTE  Data = readMemory(R.HL.W);                            \
+        writeMemory(R.DE.W, Data);                                      \
         R.HL.W--;                                                       \
         R.DE.W--;                                                       \
         R.BC.W--;                                                       \
-        Flags = Z80_FLAGS_REG & (Z80_CARRY_FLAG | Z80_ZERO_FLAG | Z80_SIGN_FLAG); \
         /* if BC == 0, then PV = 0, else PV = 1 */                      \
-        if (R.BC.W!=0)                                                  \
-        {                                                               \
-                Flags |= Z80_PARITY_FLAG;                               \
-        }                                                               \
-        Z80_FLAGS_REG = Flags;                                          \
+        Data = Data + R.AF.B.h;                                         \
+        Z80_FLAGS_REG =                                                 \
+            (Z80_FLAGS_REG & (Z80_CARRY_FLAG | Z80_ZERO_FLAG | Z80_SIGN_FLAG)) \
+            | (Data & Z80_UNUSED_FLAG2) | ((Data & 0x02) << 4)          \
+            | (R.BC.W == 0 ? 0x00 : Z80_PARITY_FLAG);                   \
 }
 
 #define LD_HL_nnnn()                                                    \
