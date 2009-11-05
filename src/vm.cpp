@@ -133,7 +133,6 @@ namespace Ep128Emu {
       tapeRecordOn(false),
       tapeMotorOn(false),
       tape((Tape *) 0),
-      tapeFileName(""),
       defaultTapeSampleRate(24000L),
       tapeSoundFileChannel(0),
       tapeEnableSoundFileFilter(false),
@@ -691,6 +690,22 @@ namespace Ep128Emu {
     return addr;
   }
 
+  Ep128::Z80_REGISTERS& VirtualMachine::getZ80Registers()
+  {
+    return *((Ep128::Z80_REGISTERS *) 0);
+  }
+
+  const Ep128::Z80_REGISTERS& VirtualMachine::getZ80Registers() const
+  {
+    return *((Ep128::Z80_REGISTERS *) 0);
+  }
+
+  void VirtualMachine::getVideoPosition(int& xPos, int& yPos) const
+  {
+    xPos = 0;
+    yPos = 0;
+  }
+
   void VirtualMachine::saveState(File& f)
   {
     (void) f;
@@ -744,19 +759,13 @@ namespace Ep128Emu {
                                        int bitsPerSample)
   {
     if (tape) {
-      if (fileName == tapeFileName) {
-        tape->seek(0.0);
-        return;
-      }
       delete tape;
       tape = (Tape *) 0;
-      tapeFileName = "";
     }
     if (fileName.length() == 0)
       return;
     tape = openTapeFile(fileName.c_str(), 0,
                         defaultTapeSampleRate, bitsPerSample);
-    tapeFileName = fileName;
     if (typeid(*tape) == typeid(Tape_SoundFile)) {
       Tape_SoundFile& tape_ = *(dynamic_cast<Tape_SoundFile *>(tape));
       tape_.setParameters(tapeSoundFileChannel,

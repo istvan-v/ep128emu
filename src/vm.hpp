@@ -28,6 +28,10 @@
 #include "soundio.hpp"
 #include "tape.hpp"
 
+namespace Ep128 {
+  struct Z80_REGISTERS;
+}
+
 namespace Ep128Emu {
 
   class VirtualMachine {
@@ -53,7 +57,6 @@ namespace Ep128Emu {
     bool            tapeRecordOn;
     bool            tapeMotorOn;
     Tape            *tape;
-    std::string     tapeFileName;
     long            defaultTapeSampleRate;
     int             tapeSoundFileChannel;
     bool            tapeEnableSoundFileFilter;
@@ -463,6 +466,18 @@ namespace Ep128Emu {
     virtual uint32_t disassembleInstruction(std::string& buf, uint32_t addr,
                                             bool isCPUAddress = false,
                                             int32_t offs = 0) const;
+    /*!
+     * Returns a reference to a structure containing all Z80 registers;
+     * see z80/z80.hpp for more information.
+     * NOTE: getting a non-const reference will stop any demo recording or
+     * playback.
+     */
+    virtual Ep128::Z80_REGISTERS& getZ80Registers();
+    virtual const Ep128::Z80_REGISTERS& getZ80Registers() const;
+    /*!
+     * Returns the current horizontal and vertical video position.
+     */
+    virtual void getVideoPosition(int& xPos, int& yPos) const;
     /*!
      * Open 'fileName' with openFileInWorkingDirectory(), and load it to the
      * memory area defined by 'startAddr' and 'endAddr', which may be 16-bit
