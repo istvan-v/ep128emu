@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -108,6 +108,20 @@ namespace Ep128Emu {
     return (c == 0 ? false : true);
   }
 
+  int16_t File::Buffer::readInt16()
+  {
+    uint16_t  n = readByte();
+    n = (n << 8) | readByte();
+    return int16_t(n);
+  }
+
+  uint16_t File::Buffer::readUInt16()
+  {
+    uint16_t  n = readByte();
+    n = (n << 8) | readByte();
+    return n;
+  }
+
   int32_t File::Buffer::readInt32()
   {
     uint32_t  n = readByte();
@@ -195,6 +209,18 @@ namespace Ep128Emu {
   void File::Buffer::writeBoolean(bool n)
   {
     writeByte(n ? 1 : 0);
+  }
+
+  void File::Buffer::writeInt16(int16_t n)
+  {
+    writeByte(uint8_t(uint16_t(n) >> 8));
+    writeByte(uint8_t(uint16_t(n)));
+  }
+
+  void File::Buffer::writeUInt16(uint16_t n)
+  {
+    writeByte(uint8_t(n >> 8));
+    writeByte(uint8_t(n));
   }
 
   void File::Buffer::writeInt32(int32_t n)
@@ -343,6 +369,59 @@ namespace Ep128Emu {
 
   // --------------------------------------------------------------------------
 
+  void File::loadZXSnapshotFile(std::FILE *f, const char *fileName)
+  {
+    size_t  nameLen = std::strlen(fileName);
+    bool    isSNAFile = false;
+    bool    isZ80File = false;
+    if (nameLen >= 5) {
+      if (fileName[nameLen - 4] == '.' &&
+          (fileName[nameLen - 3] | char(0x20)) == 's' &&
+          (fileName[nameLen - 2] | char(0x20)) == 'n' &&
+          (fileName[nameLen - 1] | char(0x20)) == 'a') {
+        isSNAFile = true;
+      }
+      else if (fileName[nameLen - 4] == '.' &&
+               (fileName[nameLen - 3] | char(0x20)) == 'z' &&
+               fileName[nameLen - 2] == '8' && fileName[nameLen - 1] == '0') {
+        isZ80File = true;
+      }
+    }
+    if (!(isSNAFile || isZ80File))
+      throw Exception("invalid file header");
+    size_t  fileSize = 0;
+    if (std::fseek(f, 0L, SEEK_END) >= 0) {
+      long    tmp = std::ftell(f);
+      if (tmp >= 0L) {
+        if (std::fseek(f, 0L, SEEK_SET) >= 0)
+          fileSize = size_t(tmp);
+      }
+    }
+    if (fileSize < 1)
+      throw Exception("empty file or error seeking file");
+    if (!((isSNAFile && (fileSize == 49179 || fileSize == 131103 ||
+                         fileSize == 147487)) ||
+          (isZ80File && fileSize >= 1054 && fileSize < 262256))) {
+      throw Exception("invalid file header");
+    }
+    buf.setPosition(fileSize + 24);
+    buf.setPosition(0);
+    buf.writeUInt32(uint32_t(isSNAFile ? EP128EMU_CHUNKTYPE_ZX_SNA_FILE
+                                         : EP128EMU_CHUNKTYPE_ZX_Z80_FILE));
+    buf.writeUInt32(uint32_t(fileSize));
+    for (size_t i = 0; i < fileSize; i++) {
+      int     c = std::fgetc(f);
+      if (c == EOF)
+        throw Exception("error reading ZX snapshot file");
+      buf.writeByte((unsigned char) (c & 0xFF));
+    }
+    buf.writeUInt32(hash_32(buf.getData(), fileSize + 8));
+    buf.writeUInt32(uint32_t(EP128EMU_CHUNKTYPE_END_OF_FILE));
+    buf.writeUInt32(0U);
+    buf.writeUInt32(hash_32(buf.getData() + (fileSize + 12), 8));
+    buf.setPosition(0);
+  }
+
   File::File()
   {
   }
@@ -363,8 +442,12 @@ namespace Ep128Emu {
           int     c;
           for (int i = 0; i < 16; i++) {
             c = std::fgetc(f);
-            if (c == EOF || (unsigned char) (c & 0xFF) != ep128EmuFile_Magic[i])
-              throw Exception("invalid file header");
+            if (c == EOF ||
+                (unsigned char) (c & 0xFF) != ep128EmuFile_Magic[i]) {
+              loadZXSnapshotFile(f, fileName);
+              std::fclose(f);
+              return;
+            }
           }
           while ((c = std::fgetc(f)) != EOF)
             buf.writeByte((unsigned char) (c & 0xFF));

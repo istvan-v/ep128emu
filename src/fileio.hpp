@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -34,6 +34,8 @@ namespace Ep128Emu {
      public:
       unsigned char readByte();
       bool readBoolean();
+      int16_t readInt16();
+      uint16_t readUInt16();
       int32_t readInt32();
       uint32_t readUInt32();
       int64_t readInt64();
@@ -42,6 +44,8 @@ namespace Ep128Emu {
       std::string readString();
       void writeByte(unsigned char n);
       void writeBoolean(bool n);
+      void writeInt16(int16_t n);
+      void writeUInt16(uint16_t n);
       void writeInt32(int32_t n);
       void writeUInt32(uint32_t n);
       void writeInt64(int64_t n);
@@ -86,7 +90,16 @@ namespace Ep128Emu {
       EP128EMU_CHUNKTYPE_P4VM_STATE =     0x4550800E,
       EP128EMU_CHUNKTYPE_PLUS4_DEMO =     0x4550800F,
       EP128EMU_CHUNKTYPE_PLUS4_PRG =      0x45508010,
-      EP128EMU_CHUNKTYPE_SID_STATE =      0x45508011
+      EP128EMU_CHUNKTYPE_SID_STATE =      0x45508011,
+      EP128EMU_CHUNKTYPE_ZXMEM_STATE =    0x45508020,
+      EP128EMU_CHUNKTYPE_ZXIO_STATE =     0x45508021,
+      EP128EMU_CHUNKTYPE_ZXAY3_STATE =    0x45508022,
+      EP128EMU_CHUNKTYPE_ZXULA_STATE =    0x45508023,
+      EP128EMU_CHUNKTYPE_ZXVM_CONFIG =    0x45508024,
+      EP128EMU_CHUNKTYPE_ZXVM_STATE =     0x45508025,
+      EP128EMU_CHUNKTYPE_ZX_DEMO =        0x45508026,
+      EP128EMU_CHUNKTYPE_ZX_SNA_FILE =    0x45508027,
+      EP128EMU_CHUNKTYPE_ZX_Z80_FILE =    0x45508028
     } ChunkType;
     // ----------------
     class ChunkTypeHandler {
@@ -101,6 +114,7 @@ namespace Ep128Emu {
    private:
     Buffer  buf;
     std::map< int, ChunkTypeHandler * > chunkTypeDB;
+    void loadZXSnapshotFile(std::FILE *f, const char *fileName);
    public:
     void addChunk(ChunkType type, const Buffer& buf_);
     void processAllChunks();
