@@ -378,6 +378,86 @@ namespace Ep128Emu {
     return 0;
   }
 
+  int LuaScript::luaFunc_readWord(lua_State *lst)
+  {
+    LuaScript&  this_ =
+        *(reinterpret_cast<LuaScript *>(lua_touserdata(lst,
+                                                       lua_upvalueindex(1))));
+    if (lua_gettop(lst) != 1) {
+      this_.luaError("invalid number of arguments for readWord()");
+      return 0;
+    }
+    if (!lua_isnumber(lst, 1)) {
+      this_.luaError("invalid argument type for readWord()");
+      return 0;
+    }
+    uint32_t  addr = uint32_t(lua_tointeger(lst, 1) & 0xFFFF);
+    uint16_t  n = this_.vm.readMemory(addr, true);
+    n = n | (uint16_t(this_.vm.readMemory(addr + 1U, true)) << 8);
+    lua_pushinteger(lst, lua_Integer(n));
+    return 1;
+  }
+
+  int LuaScript::luaFunc_writeWord(lua_State *lst)
+  {
+    LuaScript&  this_ =
+        *(reinterpret_cast<LuaScript *>(lua_touserdata(lst,
+                                                       lua_upvalueindex(1))));
+    if (lua_gettop(lst) != 2) {
+      this_.luaError("invalid number of arguments for writeWord()");
+      return 0;
+    }
+    if (!(lua_isnumber(lst, 1) && lua_isnumber(lst, 2))) {
+      this_.luaError("invalid argument type for writeWord()");
+      return 0;
+    }
+    uint32_t  addr = uint32_t(lua_tointeger(lst, 1) & 0xFFFF);
+    uint16_t  n = uint16_t(lua_tointeger(lst, 2) & 0xFFFF);
+    this_.vm.writeMemory(addr, uint8_t(n & 0xFF), true);
+    this_.vm.writeMemory(addr + 1U, uint8_t(n >> 8), true);
+    return 0;
+  }
+
+  int LuaScript::luaFunc_readWordRaw(lua_State *lst)
+  {
+    LuaScript&  this_ =
+        *(reinterpret_cast<LuaScript *>(lua_touserdata(lst,
+                                                       lua_upvalueindex(1))));
+    if (lua_gettop(lst) != 1) {
+      this_.luaError("invalid number of arguments for readWordRaw()");
+      return 0;
+    }
+    if (!lua_isnumber(lst, 1)) {
+      this_.luaError("invalid argument type for readWordRaw()");
+      return 0;
+    }
+    uint32_t  addr = uint32_t(lua_tointeger(lst, 1) & 0x3FFFFF);
+    uint16_t  n = this_.vm.readMemory(addr, false);
+    n = n | (uint16_t(this_.vm.readMemory(addr + 1U, false)) << 8);
+    lua_pushinteger(lst, lua_Integer(n));
+    return 1;
+  }
+
+  int LuaScript::luaFunc_writeWordRaw(lua_State *lst)
+  {
+    LuaScript&  this_ =
+        *(reinterpret_cast<LuaScript *>(lua_touserdata(lst,
+                                                       lua_upvalueindex(1))));
+    if (lua_gettop(lst) != 2) {
+      this_.luaError("invalid number of arguments for writeWordRaw()");
+      return 0;
+    }
+    if (!(lua_isnumber(lst, 1) && lua_isnumber(lst, 2))) {
+      this_.luaError("invalid argument type for writeWordRaw()");
+      return 0;
+    }
+    uint32_t  addr = uint32_t(lua_tointeger(lst, 1) & 0x3FFFFF);
+    uint16_t  n = uint16_t(lua_tointeger(lst, 2) & 0xFFFF);
+    this_.vm.writeMemory(addr, uint8_t(n & 0xFF), false);
+    this_.vm.writeMemory(addr + 1U, uint8_t(n >> 8), false);
+    return 0;
+  }
+
   int LuaScript::luaFunc_readIOPort(lua_State *lst)
   {
     LuaScript&  this_ =
@@ -436,9 +516,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getA()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.AF.B.h));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.AF.B.h));
     return 1;
   }
 
@@ -451,9 +529,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getF()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.AF.B.l));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.AF.B.l));
     return 1;
   }
 
@@ -466,9 +542,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getAF()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.AF.W));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.AF.W));
     return 1;
   }
 
@@ -481,9 +555,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getB()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.BC.B.h));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.BC.B.h));
     return 1;
   }
 
@@ -496,9 +568,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getC()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.BC.B.l));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.BC.B.l));
     return 1;
   }
 
@@ -511,9 +581,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getBC()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.BC.W));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.BC.W));
     return 1;
   }
 
@@ -526,9 +594,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getD()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.DE.B.h));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.DE.B.h));
     return 1;
   }
 
@@ -541,9 +607,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getE()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.DE.B.l));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.DE.B.l));
     return 1;
   }
 
@@ -556,9 +620,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getDE()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.DE.W));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.DE.W));
     return 1;
   }
 
@@ -571,9 +633,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getH()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.HL.B.h));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.HL.B.h));
     return 1;
   }
 
@@ -586,9 +646,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getL()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.HL.B.l));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.HL.B.l));
     return 1;
   }
 
@@ -601,9 +659,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getHL()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.HL.W));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.HL.W));
     return 1;
   }
 
@@ -616,9 +672,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getAF_()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.altAF.W));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.altAF.W));
     return 1;
   }
 
@@ -631,9 +685,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getBC_()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.altBC.W));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.altBC.W));
     return 1;
   }
 
@@ -646,9 +698,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getDE_()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.altDE.W));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.altDE.W));
     return 1;
   }
 
@@ -661,9 +711,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getHL_()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.altHL.W));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.altHL.W));
     return 1;
   }
 
@@ -676,9 +724,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getSP()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.SP.W));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.SP.W));
     return 1;
   }
 
@@ -691,9 +737,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getIX()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.IX.W));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.IX.W));
     return 1;
   }
 
@@ -706,9 +750,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getIY()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.IY.W));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.IY.W));
     return 1;
   }
 
@@ -721,9 +763,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getIM()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.IM));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.IM));
     return 1;
   }
 
@@ -736,9 +776,7 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getI()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.I));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.I));
     return 1;
   }
 
@@ -751,9 +789,33 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getR()");
       return 0;
     }
-    const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                        &(this_.vm))->getZ80Registers();
-    lua_pushinteger(lst, lua_Integer(r.R));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.R));
+    return 1;
+  }
+
+  int LuaScript::luaFunc_getIFF1(lua_State *lst)
+  {
+    LuaScript&  this_ =
+        *(reinterpret_cast<LuaScript *>(lua_touserdata(lst,
+                                                       lua_upvalueindex(1))));
+    if (lua_gettop(lst) != 0) {
+      this_.luaError("invalid number of arguments for getIFF1()");
+      return 0;
+    }
+    lua_pushinteger(lst, lua_Integer(bool(this_.z80Registers.IFF1)));
+    return 1;
+  }
+
+  int LuaScript::luaFunc_getIFF2(lua_State *lst)
+  {
+    LuaScript&  this_ =
+        *(reinterpret_cast<LuaScript *>(lua_touserdata(lst,
+                                                       lua_upvalueindex(1))));
+    if (lua_gettop(lst) != 0) {
+      this_.luaError("invalid number of arguments for getIFF2()");
+      return 0;
+    }
+    lua_pushinteger(lst, lua_Integer(bool(this_.z80Registers.IFF2)));
     return 1;
   }
 
@@ -787,8 +849,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setA()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.AF.B.h = Ep128::Z80_BYTE(lua_tointeger(lst, 1) & 0xFF);
     return 0;
   }
@@ -806,8 +867,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setF()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.AF.B.l = Ep128::Z80_BYTE(lua_tointeger(lst, 1) & 0xFF);
     return 0;
   }
@@ -825,8 +885,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setAF()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.AF.W = Ep128::Z80_WORD(lua_tointeger(lst, 1) & 0xFFFF);
     return 0;
   }
@@ -844,8 +903,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setB()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.BC.B.h = Ep128::Z80_BYTE(lua_tointeger(lst, 1) & 0xFF);
     return 0;
   }
@@ -863,8 +921,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setC()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.BC.B.l = Ep128::Z80_BYTE(lua_tointeger(lst, 1) & 0xFF);
     return 0;
   }
@@ -882,8 +939,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setBC()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.BC.W = Ep128::Z80_WORD(lua_tointeger(lst, 1) & 0xFFFF);
     return 0;
   }
@@ -901,8 +957,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setD()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.DE.B.h = Ep128::Z80_BYTE(lua_tointeger(lst, 1) & 0xFF);
     return 0;
   }
@@ -920,8 +975,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setE()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.DE.B.l = Ep128::Z80_BYTE(lua_tointeger(lst, 1) & 0xFF);
     return 0;
   }
@@ -939,8 +993,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setDE()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.DE.W = Ep128::Z80_WORD(lua_tointeger(lst, 1) & 0xFFFF);
     return 0;
   }
@@ -958,8 +1011,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setH()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.HL.B.h = Ep128::Z80_BYTE(lua_tointeger(lst, 1) & 0xFF);
     return 0;
   }
@@ -977,8 +1029,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setL()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.HL.B.l = Ep128::Z80_BYTE(lua_tointeger(lst, 1) & 0xFF);
     return 0;
   }
@@ -996,8 +1047,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setHL()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.HL.W = Ep128::Z80_WORD(lua_tointeger(lst, 1) & 0xFFFF);
     return 0;
   }
@@ -1015,8 +1065,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setAF_()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.altAF.W = Ep128::Z80_WORD(lua_tointeger(lst, 1) & 0xFFFF);
     return 0;
   }
@@ -1034,8 +1083,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setBC_()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.altBC.W = Ep128::Z80_WORD(lua_tointeger(lst, 1) & 0xFFFF);
     return 0;
   }
@@ -1053,8 +1101,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setDE_()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.altDE.W = Ep128::Z80_WORD(lua_tointeger(lst, 1) & 0xFFFF);
     return 0;
   }
@@ -1072,8 +1119,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setHL_()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.altHL.W = Ep128::Z80_WORD(lua_tointeger(lst, 1) & 0xFFFF);
     return 0;
   }
@@ -1091,8 +1137,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setSP()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.SP.W = Ep128::Z80_WORD(lua_tointeger(lst, 1) & 0xFFFF);
     return 0;
   }
@@ -1110,8 +1155,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setIX()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.IX.W = Ep128::Z80_WORD(lua_tointeger(lst, 1) & 0xFFFF);
     return 0;
   }
@@ -1129,8 +1173,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setIY()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.IY.W = Ep128::Z80_WORD(lua_tointeger(lst, 1) & 0xFFFF);
     return 0;
   }
@@ -1153,8 +1196,7 @@ namespace Ep128Emu {
       this_.luaError("invalid interrupt mode value for setIM()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.IM = Ep128::Z80_BYTE(tmp);
     return 0;
   }
@@ -1172,8 +1214,7 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setI()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.I = Ep128::Z80_BYTE(lua_tointeger(lst, 1) & 0xFF);
     return 0;
   }
@@ -1191,9 +1232,44 @@ namespace Ep128Emu {
       this_.luaError("invalid argument type for setR()");
       return 0;
     }
-    Ep128::Z80_REGISTERS& r =
-        reinterpret_cast<Ep128::Ep128VM *>(&(this_.vm))->getZ80Registers();
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
     r.R = Ep128::Z80_BYTE(lua_tointeger(lst, 1) & 0xFF);
+    return 0;
+  }
+
+  int LuaScript::luaFunc_setIFF1(lua_State *lst)
+  {
+    LuaScript&  this_ =
+        *(reinterpret_cast<LuaScript *>(lua_touserdata(lst,
+                                                       lua_upvalueindex(1))));
+    if (lua_gettop(lst) != 1) {
+      this_.luaError("invalid number of arguments for setIFF1()");
+      return 0;
+    }
+    if (!lua_isnumber(lst, 1)) {
+      this_.luaError("invalid argument type for setIFF1()");
+      return 0;
+    }
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
+    r.IFF1 = Ep128::Z80_BYTE(bool(lua_tointeger(lst, 1)));
+    return 0;
+  }
+
+  int LuaScript::luaFunc_setIFF2(lua_State *lst)
+  {
+    LuaScript&  this_ =
+        *(reinterpret_cast<LuaScript *>(lua_touserdata(lst,
+                                                       lua_upvalueindex(1))));
+    if (lua_gettop(lst) != 1) {
+      this_.luaError("invalid number of arguments for setIFF2()");
+      return 0;
+    }
+    if (!lua_isnumber(lst, 1)) {
+      this_.luaError("invalid argument type for setIFF2()");
+      return 0;
+    }
+    Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
+    r.IFF2 = Ep128::Z80_BYTE(bool(lua_tointeger(lst, 1)));
     return 0;
   }
 
@@ -1224,6 +1300,23 @@ namespace Ep128Emu {
                             this_.vm, addr, cpuAddressMode);
     lua_pushinteger(lst, lua_Integer(nxtAddr));
     return 1;
+  }
+
+  int LuaScript::luaFunc_getVideoPosition(lua_State *lst)
+  {
+    LuaScript&  this_ =
+        *(reinterpret_cast<LuaScript *>(lua_touserdata(lst,
+                                                       lua_upvalueindex(1))));
+    if (lua_gettop(lst) != 0) {
+      this_.luaError("invalid number of arguments for getVideoPosition()");
+      return 0;
+    }
+    int     tmpX = 0;
+    int     tmpY = 0;
+    this_.vm.getVideoPosition(tmpX, tmpY);
+    lua_pushinteger(lst, lua_Integer(tmpX));
+    lua_pushinteger(lst, lua_Integer(tmpY));
+    return 2;
   }
 
   int LuaScript::luaFunc_loadMemory(lua_State *lst)
@@ -1326,6 +1419,7 @@ namespace Ep128Emu {
   LuaScript::LuaScript(VirtualMachine& vm_)
     : vm(vm_),
       luaState((lua_State *) 0),
+      z80Registers(((const VirtualMachine *) &vm_)->getZ80Registers()),
       errorMessage((char *) 0),
       haveBreakPointCallback(false)
   {
@@ -1388,8 +1482,7 @@ namespace Ep128Emu {
     if (!msg)
       msg = "unknown error in Lua script";
     errorMessage = msg;
-    lua_pushstring(luaState, msg);
-    lua_error(luaState);
+    (void) luaL_error(luaState, "%s", msg);
   }
 
 #endif  // HAVE_LUA_H
@@ -1430,6 +1523,10 @@ namespace Ep128Emu {
     registerLuaFunction(&luaFunc_writeMemory, "writeMemory");
     registerLuaFunction(&luaFunc_readMemoryRaw, "readMemoryRaw");
     registerLuaFunction(&luaFunc_writeMemoryRaw, "writeMemoryRaw");
+    registerLuaFunction(&luaFunc_readWord, "readWord");
+    registerLuaFunction(&luaFunc_writeWord, "writeWord");
+    registerLuaFunction(&luaFunc_readWordRaw, "readWordRaw");
+    registerLuaFunction(&luaFunc_writeWordRaw, "writeWordRaw");
     registerLuaFunction(&luaFunc_readIOPort, "readIOPort");
     registerLuaFunction(&luaFunc_writeIOPort, "writeIOPort");
     registerLuaFunction(&luaFunc_getPC, "getPC");
@@ -1455,6 +1552,8 @@ namespace Ep128Emu {
     registerLuaFunction(&luaFunc_getIM, "getIM");
     registerLuaFunction(&luaFunc_getI, "getI");
     registerLuaFunction(&luaFunc_getR, "getR");
+    registerLuaFunction(&luaFunc_getIFF1, "getIFF1");
+    registerLuaFunction(&luaFunc_getIFF2, "getIFF2");
     registerLuaFunction(&luaFunc_setPC, "setPC");
     registerLuaFunction(&luaFunc_setA, "setA");
     registerLuaFunction(&luaFunc_setF, "setF");
@@ -1478,7 +1577,10 @@ namespace Ep128Emu {
     registerLuaFunction(&luaFunc_setIM, "setIM");
     registerLuaFunction(&luaFunc_setI, "setI");
     registerLuaFunction(&luaFunc_setR, "setR");
+    registerLuaFunction(&luaFunc_setIFF1, "setIFF1");
+    registerLuaFunction(&luaFunc_setIFF2, "setIFF2");
     registerLuaFunction(&luaFunc_getNextOpcodeAddr, "getNextOpcodeAddr");
+    registerLuaFunction(&luaFunc_getVideoPosition, "getVideoPosition");
     registerLuaFunction(&luaFunc_loadMemory, "loadMemory");
     registerLuaFunction(&luaFunc_saveMemory, "saveMemory");
     registerLuaFunction(&luaFunc_mprint, "mprint");

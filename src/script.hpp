@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -40,6 +40,7 @@ namespace Ep128Emu {
    protected:
     VirtualMachine& vm;
     lua_State   *luaState;
+    const Ep128::Z80_REGISTERS& z80Registers;
     const char  *errorMessage;
     bool        haveBreakPointCallback;
     // --------
@@ -58,6 +59,10 @@ namespace Ep128Emu {
     static int luaFunc_writeMemory(lua_State *lst);
     static int luaFunc_readMemoryRaw(lua_State *lst);
     static int luaFunc_writeMemoryRaw(lua_State *lst);
+    static int luaFunc_readWord(lua_State *lst);
+    static int luaFunc_writeWord(lua_State *lst);
+    static int luaFunc_readWordRaw(lua_State *lst);
+    static int luaFunc_writeWordRaw(lua_State *lst);
     static int luaFunc_readIOPort(lua_State *lst);
     static int luaFunc_writeIOPort(lua_State *lst);
     static int luaFunc_getPC(lua_State *lst);
@@ -83,6 +88,8 @@ namespace Ep128Emu {
     static int luaFunc_getIM(lua_State *lst);
     static int luaFunc_getI(lua_State *lst);
     static int luaFunc_getR(lua_State *lst);
+    static int luaFunc_getIFF1(lua_State *lst);
+    static int luaFunc_getIFF2(lua_State *lst);
     static int luaFunc_setPC(lua_State *lst);
     static int luaFunc_setA(lua_State *lst);
     static int luaFunc_setF(lua_State *lst);
@@ -106,7 +113,10 @@ namespace Ep128Emu {
     static int luaFunc_setIM(lua_State *lst);
     static int luaFunc_setI(lua_State *lst);
     static int luaFunc_setR(lua_State *lst);
+    static int luaFunc_setIFF1(lua_State *lst);
+    static int luaFunc_setIFF2(lua_State *lst);
     static int luaFunc_getNextOpcodeAddr(lua_State *lst);
+    static int luaFunc_getVideoPosition(lua_State *lst);
     static int luaFunc_loadMemory(lua_State *lst);
     static int luaFunc_saveMemory(lua_State *lst);
     static int luaFunc_mprint(lua_State *lst);
