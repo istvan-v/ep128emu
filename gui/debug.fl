@@ -62,6 +62,7 @@ class Ep128EmuGUI_DebugWindow {open
   decl {void updateWindow();} {public
   }
   decl {void dumpMemory(std::string& buf, uint32_t startAddr, uint32_t endAddr, uint32_t cursorAddr, bool showCursor, bool isCPUAddress);} {}
+  decl {char * dumpMemoryAtRegister(char *bufp, const char *regName, uint16_t addr, int byteCnt, uint32_t cursorAddr = 0xFFFFFFFFU);} {}
   decl {void updateMemoryDumpDisplay();} {}
   decl {void updateIOPortDisplay();} {}
   decl {void updateDisassemblyDisplay();} {}

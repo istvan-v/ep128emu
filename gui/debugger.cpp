@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -288,30 +288,26 @@ void Ep128EmuGUI_DebugWindow::dumpMemory(std::string& buf,
         buf += '\n';
       }
       if (!cnt) {
-        std::sprintf(&(tmpBuf[0]),
-                     (isCPUAddress ? (showCursor ? "  %04X" : "  %04X ")
-                                     : (showCursor ? "%06X" : "%06X ")),
-                     (unsigned int) startAddr);
+        Ep128Emu::printHexNumber(&(tmpBuf[0]), startAddr,
+                                 (isCPUAddress ? 2 : 0), (isCPUAddress ? 4 : 6),
+                                 (showCursor ? 0 : 1));
         buf += &(tmpBuf[0]);
       }
-      static const char *memoryDumpFormatTable_[4] = {
-         " %02X",  " %02X", "  %02X", " *%02X"
-      };
       tmpBuf2[cnt] = gui.vm.readMemory(startAddr, isCPUAddress);
-      int     fmtNdx = (showCursor ? 2 : 0) | (startAddr == cursorAddr ? 1 : 0);
-      std::sprintf(&(tmpBuf[0]), memoryDumpFormatTable_[fmtNdx],
-                   (unsigned int) tmpBuf2[cnt]);
+      Ep128Emu::printHexNumber(&(tmpBuf[0]), tmpBuf2[cnt],
+                               (showCursor ? 2 : 1), 2, 0);
+      if (showCursor && startAddr == cursorAddr)
+        tmpBuf[1] = '*';
       buf += &(tmpBuf[0]);
       if (cnt == 7 && !showCursor) {
-        for (int i = 0; i < 8; i++) {
-          tmpBuf2[i] = tmpBuf2[i] & 0x7F;
-          if (tmpBuf2[i] < 0x20 || tmpBuf2[i] == 0x7F)
-            tmpBuf2[i] = 0x2E;
+        tmpBuf[0] = ' ';
+        tmpBuf[1] = ':';
+        for (int i = 2; i < 10; i++) {
+          tmpBuf[i] = char(tmpBuf2[i - 2] & 0x7F);
+          if (tmpBuf[i] < char(0x20) || tmpBuf[i] == char(0x7F))
+            tmpBuf[i] = '.';
         }
-        std::sprintf(&(tmpBuf[0]), " :%c%c%c%c%c%c%c%c",
-                     int(tmpBuf2[0]), int(tmpBuf2[1]), int(tmpBuf2[2]),
-                     int(tmpBuf2[3]), int(tmpBuf2[4]), int(tmpBuf2[5]),
-                     int(tmpBuf2[6]), int(tmpBuf2[7]));
+        tmpBuf[10] = '\0';
         buf += &(tmpBuf[0]);
       }
       if (startAddr == endAddr)
@@ -324,6 +320,24 @@ void Ep128EmuGUI_DebugWindow::dumpMemory(std::string& buf,
     buf.clear();
     gui.errorMessage(e.what());
   }
+}
+
+char * Ep128EmuGUI_DebugWindow::dumpMemoryAtRegister(
+    char *bufp, const char *regName, uint16_t addr, int byteCnt,
+    uint32_t cursorAddr)
+{
+  while ((*regName) != '\0')
+    *(bufp++) = *(regName++);
+  while (byteCnt-- > 0) {
+    char    *nxtp =
+        Ep128Emu::printHexNumber(bufp, gui.vm.readMemory(addr, true), 2, 2, 0);
+    if (uint32_t(addr) == cursorAddr)
+      bufp[1] = '*';
+    bufp = nxtp;
+    addr = (addr + 1) & 0xFFFF;
+  }
+  *bufp = '\0';
+  return bufp;
 }
 
 void Ep128EmuGUI_DebugWindow::updateMemoryDumpDisplay()
@@ -340,102 +354,51 @@ void Ep128EmuGUI_DebugWindow::updateMemoryDumpDisplay()
     dumpMemory(tmpBuffer, memoryDumpViewAddress, memoryDumpViewAddress + 0x2FU,
                0U, false, memoryDumpCPUAddressMode);
     memoryDumpDisplay->value(tmpBuffer.c_str());
-    for (int i = 0; i < 3; i++) {
-      char      *bufp = &(tmpBuf[0]);
-      int       n = 0;
-      uint16_t  addr = 0x0000;
-      const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                          &(gui.vm))->getZ80Registers();
-      switch (i) {
-      case 0:
-        addr = uint16_t(r.BC.W);
-        n = std::sprintf(bufp, " BC-04");
-        break;
-      case 1:
-        addr = uint16_t(r.DE.W);
-        n = std::sprintf(bufp, " DE-04");
-        break;
-      case 2:
-        addr = uint16_t(r.HL.W);
-        n = std::sprintf(bufp, " HL-04");
-        break;
-      }
-      bufp = bufp + n;
-      for (int j = -4; j < 8; j++) {
-        uint8_t tmp =
-            gui.vm.readMemory(uint16_t((int(addr) + j) & 0xFFFF), true);
-        if (j == 0)
-          fmt = " *%02X";
-        else
-          fmt = "  %02X";
-        n = std::sprintf(bufp, fmt, (unsigned int) tmp & 0xFFU);
-        bufp = bufp + n;
-      }
-      if (i != 2)
-        *(bufp++) = '\n';
-      *(bufp++) = '\0';
-      if (i == 0)
-        tmpBuffer = &(tmpBuf[0]);
-      else
-        tmpBuffer += &(tmpBuf[0]);
+    const Ep128::Z80_REGISTERS& r =
+        ((const Ep128Emu::VirtualMachine *) &(gui.vm))->getZ80Registers();
+    {
+      char    *bufp = dumpMemoryAtRegister(&(tmpBuf[0]), " BC-04",
+                                           (r.BC.W - 4) & 0xFFFF, 12, r.BC.W);
+      *(bufp++) = '\n';
+      *bufp = '\0';
+      tmpBuffer = &(tmpBuf[0]);
+      bufp = dumpMemoryAtRegister(&(tmpBuf[0]), " DE-04",
+                                  (r.DE.W - 4) & 0xFFFF, 12, r.DE.W);
+      *(bufp++) = '\n';
+      *bufp = '\0';
+      tmpBuffer += &(tmpBuf[0]);
+      bufp = dumpMemoryAtRegister(&(tmpBuf[0]), " HL-04",
+                                  (r.HL.W - 4) & 0xFFFF, 12, r.HL.W);
+      tmpBuffer += &(tmpBuf[0]);
     }
     memoryDisplay_BC_DE_HL->value(tmpBuffer.c_str());
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 6; i++) {
       char      *bufp = &(tmpBuf[0]);
-      int       n = 0;
-      const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                          &(gui.vm))->getZ80Registers();
-      uint16_t  addr = uint16_t(r.IX.W);
-      int32_t   offs = ixViewOffset + int32_t((i - 1) * 8);
-      if (offs >= 0)
-        n = std::sprintf(bufp, " IX+%02X", (unsigned int) offs & 0xFFU);
-      else
-        n = std::sprintf(bufp, " IX-%02X", (unsigned int) (-offs) & 0xFFU);
-      bufp = bufp + n;
-      addr = uint16_t((int32_t(addr) + offs) & 0xFFFF);
-      for (int j = 0; j < 8; j++) {
-        uint8_t tmp =
-            gui.vm.readMemory(uint16_t((int(addr) + j) & 0xFFFF), true);
-        n = std::sprintf(bufp, "  %02X", (unsigned int) tmp & 0xFFU);
-        bufp = bufp + n;
-      }
-      if (i != 2)
+      uint16_t  addr = uint16_t(i < 3 ? r.IX.W : r.IY.W);
+      int32_t   offs = (i < 3 ? ixViewOffset : iyViewOffset)
+                       + int32_t((i - 1) * 8);
+      *(bufp++) = ' ';
+      *(bufp++) = 'I';
+      *(bufp++) = (i < 3 ? 'X' : 'Y');
+      *(bufp++) = (offs >= 0 ? '+' : '-');
+      bufp = Ep128Emu::printHexNumber(bufp, uint32_t(offs >= 0 ?
+                                                     offs : (-offs)) & 0xFFU,
+                                      0, 2, 0);
+      bufp = dumpMemoryAtRegister(bufp, "",
+                                  uint16_t((int32_t(addr) + offs) & 0xFFFF), 8);
+      if (i != 2 && i != 5) {
         *(bufp++) = '\n';
-      *(bufp++) = '\0';
-      if (i == 0)
+        *bufp = '\0';
+      }
+      if (i == 0 || i == 3)
         tmpBuffer = &(tmpBuf[0]);
       else
         tmpBuffer += &(tmpBuf[0]);
+      if (i == 2)
+        memoryDisplay_IX->value(tmpBuffer.c_str());
+      else if (i == 5)
+        memoryDisplay_IY->value(tmpBuffer.c_str());
     }
-    memoryDisplay_IX->value(tmpBuffer.c_str());
-    for (int i = 0; i < 3; i++) {
-      char      *bufp = &(tmpBuf[0]);
-      int       n = 0;
-      const Ep128::Z80_REGISTERS& r = reinterpret_cast<const Ep128::Ep128VM *>(
-                                          &(gui.vm))->getZ80Registers();
-      uint16_t  addr = uint16_t(r.IY.W);
-      int32_t   offs = iyViewOffset + int32_t((i - 1) * 8);
-      if (offs >= 0)
-        n = std::sprintf(bufp, " IY+%02X", (unsigned int) offs & 0xFFU);
-      else
-        n = std::sprintf(bufp, " IY-%02X", (unsigned int) (-offs) & 0xFFU);
-      bufp = bufp + n;
-      addr = uint16_t((int32_t(addr) + offs) & 0xFFFF);
-      for (int j = 0; j < 8; j++) {
-        uint8_t tmp =
-            gui.vm.readMemory(uint16_t((int(addr) + j) & 0xFFFF), true);
-        n = std::sprintf(bufp, "  %02X", (unsigned int) tmp & 0xFFU);
-        bufp = bufp + n;
-      }
-      if (i != 2)
-        *(bufp++) = '\n';
-      *(bufp++) = '\0';
-      if (i == 0)
-        tmpBuffer = &(tmpBuf[0]);
-      else
-        tmpBuffer += &(tmpBuf[0]);
-    }
-    memoryDisplay_IY->value(tmpBuffer.c_str());
     tmpBuffer = "";
   }
   catch (std::exception& e) {
