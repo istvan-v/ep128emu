@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -21,9 +21,10 @@
 #include "debuglib.hpp"
 #include "monitor.hpp"
 
+#include <typeinfo>
 #include <vector>
 
-#define MONITOR_MAX_LINES   (120)
+#define MONITOR_MAX_LINES   (160)
 
 using Ep128Emu::parseHexNumberEx;
 
@@ -39,6 +40,7 @@ Ep128EmuGUIMonitor::Ep128EmuGUIMonitor(int xx, int yy, int ww, int hh,
     memoryDumpAddress(0U),
     addressMask(0xFFFFU),
     cpuAddressMode(true),
+    traceFlags(0x00),
     traceFile((std::FILE *) 0),
     traceInstructionsRemaining(0)
 {
@@ -322,8 +324,7 @@ void Ep128EmuGUIMonitor::command_setRegisters(const std::vector<std::string>&
         throw Ep128Emu::Exception("16 bit register value is out of range");
     }
   }
-  Ep128::Z80_REGISTERS& r =
-      reinterpret_cast<Ep128::Ep128VM *>(&(gui->vm))->getZ80Registers();
+  Ep128::Z80_REGISTERS& r = gui->vm.getZ80Registers();
   if (offs == 1) {
     gui->vm.setProgramCounter(uint16_t(regValues[0]));
     if (nValues > 1)
@@ -705,7 +706,7 @@ void Ep128EmuGUIMonitor::command_stepOver(const std::vector<std::string>& args)
 void Ep128EmuGUIMonitor::command_trace(const std::vector<std::string>& args)
 {
   closeTraceFile();
-  if (args.size() < 2 || args.size() > 4)
+  if (args.size() < 2 || args.size() > 5)
     throw Ep128Emu::Exception("invalid number of arguments");
   if (args[1].length() < 1 || args[1][0] != '"')
     throw Ep128Emu::Exception("file name is not a string");
@@ -719,11 +720,17 @@ void Ep128EmuGUIMonitor::command_trace(const std::vector<std::string>& args)
   if (!maxInsns)
     maxInsns = 65536U;
   if (args.size() > 3) {
-    uint32_t  n = parseHexNumberEx(args[3].c_str());
-    if (n > 0xFFFFU)
-      throw Ep128Emu::Exception("address is out of range");
-    startAddr = int32_t(n);
+    if (args[3] != "*") {
+      uint32_t  n = parseHexNumberEx(args[3].c_str());
+      if (n > 0xFFFFU)
+        throw Ep128Emu::Exception("address is out of range");
+      startAddr = int32_t(n);
+    }
   }
+  if (args.size() > 4)
+    traceFlags = uint8_t(parseHexNumberEx(args[4].c_str(), 0xFFU));
+  else
+    traceFlags = 0x03;
   std::string fileName(args[1].c_str() + 1);
   std::FILE *f = (std::FILE *) 0;
   int       err = gui->vm.openFileInWorkingDirectory(f, fileName, "w");
@@ -949,8 +956,11 @@ void Ep128EmuGUIMonitor::command_help(const std::vector<std::string>& args)
     printMessage("T <srcStart> <srcEnd> <dstStart>");
   }
   else if (args[1] == "TR") {
-    printMessage("TR <\"filename\"> [maxInsns [addr]]");
-    printMessage("maxInsns=0 (default) is interpreted as 65536");
+    printMessage("TR <\"filename\"> [maxInsns [addr [flags]]]");
+    printMessage("maxInsns=0 (default) is interpreted as 65536L");
+    printMessage("addr can be * to continue from the current PC");
+    printMessage("flags is an 8-bit value that enables the printing");
+    printMessage("of [X,Y], AF, BC, DE, HL, SP, segment, and opcode");
   }
   else if (args[1] == "V") {
     printMessage("V <\"filename\"> <asciiMode> <start> [end]");
@@ -1154,7 +1164,7 @@ void Ep128EmuGUIMonitor::memoryDump()
 void Ep128EmuGUIMonitor::printCPURegisters1()
 {
   const Ep128::Z80_REGISTERS& r =
-      reinterpret_cast<const Ep128::Ep128VM *>(&(gui->vm))->getZ80Registers();
+      ((const Ep128Emu::VirtualMachine *) &(gui->vm))->getZ80Registers();
   char    tmpBuf[128];
   std::sprintf(&(tmpBuf[0]), ";%04X %04X %04X %04X %04X %04X %04X %04X",
                (unsigned int) gui->vm.getProgramCounter(),
@@ -1168,7 +1178,7 @@ void Ep128EmuGUIMonitor::printCPURegisters1()
 void Ep128EmuGUIMonitor::printCPURegisters2()
 {
   const Ep128::Z80_REGISTERS& r =
-      reinterpret_cast<const Ep128::Ep128VM *>(&(gui->vm))->getZ80Registers();
+      ((const Ep128Emu::VirtualMachine *) &(gui->vm))->getZ80Registers();
   char    tmpBuf[128];
   std::sprintf(&(tmpBuf[0]), ";;    %04X %04X %04X %04X  %02X   %02X   %02X",
                (unsigned int) r.altAF.W, (unsigned int) r.altBC.W,
@@ -1288,28 +1298,65 @@ void Ep128EmuGUIMonitor::writeTraceFile(uint16_t addr)
     return;
   }
   traceInstructionsRemaining--;
-  char    tmpBuf[64];
+  char    tmpBuf[96];
   char    *bufp = &(tmpBuf[0]);
-  int     n =
-      std::sprintf(bufp, "%02X:%04X  ",
-                   (unsigned int) (gui->vm.getMemoryPage(addr >> 14) & 0xFF),
-                   (unsigned int) (addr & 0xFFFF));
-  bufp = bufp + n;
-  try {
-    std::string tmpBuf2;
-    tmpBuf2.reserve(48);
-    gui->vm.disassembleInstruction(tmpBuf2, addr, true);
-    if (tmpBuf2.length() > 21 && tmpBuf2.length() <= 40) {
-      n = std::sprintf(bufp, "%s", tmpBuf2.c_str() + 21);
+  if (traceFlags & 0x80) {
+    int     xPos = 0;
+    int     yPos = 0;
+    gui->vm.getVideoPosition(xPos, yPos);
+    int     n = std::sprintf(bufp,
+                             (typeid(gui->vm) == typeid(Ep128::Ep128VM) ?
+                              "[%2u,%05X] " : "[%3u,%3u] "),
+                             (unsigned int) xPos, (unsigned int) yPos);
+    bufp = bufp + n;
+  }
+  if (traceFlags & 0x7C) {
+    const Ep128::Z80_REGISTERS& r =
+        ((const Ep128Emu::VirtualMachine *) &(gui->vm))->getZ80Registers();
+    if (traceFlags & 0x40) {
+      int     n = std::sprintf(bufp, "AF=%04X ", (unsigned int) r.AF.W);
+      bufp = bufp + n;
+    }
+    if (traceFlags & 0x20) {
+      int     n = std::sprintf(bufp, "BC=%04X ", (unsigned int) r.BC.W);
+      bufp = bufp + n;
+    }
+    if (traceFlags & 0x10) {
+      int     n = std::sprintf(bufp, "DE=%04X ", (unsigned int) r.DE.W);
+      bufp = bufp + n;
+    }
+    if (traceFlags & 0x08) {
+      int     n = std::sprintf(bufp, "HL=%04X ", (unsigned int) r.HL.W);
+      bufp = bufp + n;
+    }
+    if (traceFlags & 0x04) {
+      int     n = std::sprintf(bufp, "SP=%04X ", (unsigned int) r.SP.W);
       bufp = bufp + n;
     }
   }
-  catch (...) {
+  if (traceFlags & 0x02) {
+    bufp = Ep128Emu::printHexNumber(bufp, gui->vm.getMemoryPage(addr >> 14),
+                                    0, 2, 0);
+    *(bufp++) = ':';
   }
-  if (std::fprintf(traceFile, "%s\n", &(tmpBuf[0]))
-      != (int(bufp - &(tmpBuf[0])) + 1)) {
+  bufp = Ep128Emu::printHexNumber(bufp, addr, 0, 4, 0);
+  if (traceFlags & 0x01) {
+    try {
+      std::string tmpBuf2;
+      tmpBuf2.reserve(48);
+      gui->vm.disassembleInstruction(tmpBuf2, addr, true);
+      if (tmpBuf2.length() > 21 && tmpBuf2.length() <= 40) {
+        int     n = std::sprintf(bufp, "  %s", tmpBuf2.c_str() + 21);
+        bufp = bufp + n;
+      }
+    }
+    catch (...) {
+    }
+  }
+  *(bufp++) = '\n';
+  size_t  len = size_t(bufp - &(tmpBuf[0]));
+  if (std::fwrite(&(tmpBuf[0]), sizeof(char), len, traceFile) != len)
     closeTraceFile();           // error writing file, disk may be full
-  }
   if (!traceInstructionsRemaining)
     closeTraceFile();
 }
