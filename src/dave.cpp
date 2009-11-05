@@ -674,20 +674,18 @@ namespace Ep128 {
       return keyboardState[keyboardRow];
     case 0x16:
       {
-        uint8_t n = 0xFE;
+        uint8_t n = 0x01;
         if (keyboardRow < 5) {
           // external joystick 1 (mapped to keyboard row 14)
-          n |= uint8_t((unsigned int) keyboardState[14] >> (4 - keyboardRow));
+          n = uint8_t((unsigned int) keyboardState[14] >> (4 - keyboardRow));
         }
         else if (keyboardRow < 10) {
           // external joystick 2 (mapped to keyboard row 15)
-          n |= uint8_t((unsigned int) keyboardState[15] >> (9 - keyboardRow));
+          n = uint8_t((unsigned int) keyboardState[15] >> (9 - keyboardRow));
         }
-        else
-          n++;
         // tape input
-        n &= uint8_t(tape_input_level > 0 ? 0xFF : 0xBF);
-        n &= uint8_t(tape_input ? 0xFF : 0x7F);
+        n = uint8_t((n & 0x01) | 0x0E | ((tape_input_level - 1) & 0x40)
+                    | ((tape_input - 1) & 0x80));
         return n;
       }
     }
