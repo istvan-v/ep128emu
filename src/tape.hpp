@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -280,6 +280,90 @@ namespace Ep128Emu {
      * Run tape emulation for a period of 1.0 / getSampleRate() seconds.
      */
    protected:
+    virtual void runOneSample_();
+   public:
+    /*!
+     * Turn motor on (newState = true) or off (newState = false).
+     */
+    virtual void setIsMotorOn(bool newState);
+    /*!
+     * Stop playback and recording.
+     */
+    virtual void stop();
+    /*!
+     * Seek to the specified time (in seconds).
+     */
+    virtual void seek(double t);
+    /*!
+     * Seek forward (if isForward = true) or backward (if isForward = false)
+     * to the nearest cue point, or by 't' seconds if no cue point is found.
+     */
+    virtual void seekToCuePoint(bool isForward = true, double t = 10.0);
+    /*!
+     * Create a new cue point at the current tape position.
+     * Has no effect if the file does not have a cue point table, or it
+     * is read-only.
+     */
+    virtual void addCuePoint();
+    /*!
+     * Delete the cue point nearest to the current tape position.
+     * Has no effect if the file is read-only.
+     */
+    virtual void deleteNearestCuePoint();
+    /*!
+     * Delete all cue points. Has no effect if the file is read-only.
+     */
+    virtual void deleteAllCuePoints();
+  };
+
+  class Tape_TZX : public Tape {
+   private:
+    std::FILE *f;
+    uint8_t   currentBlockType;
+    uint8_t   currentMode;
+    bool      endOfTape;
+    uint8_t   shiftReg;
+    uint32_t  pulseTimer;
+    uint32_t  pulseLength;
+    uint32_t  pulseCnt;
+    uint16_t  pilotPulseLength;
+    uint16_t  syncPulseLength1;
+    uint16_t  syncPulseLength2;
+    uint16_t  bit0PulseLength;
+    uint16_t  bit1PulseLength;
+    uint8_t   bit0PulseCnt;
+    uint8_t   bit1PulseCnt;
+    uint16_t  pilotPulseCnt;
+    uint8_t   lastByteBits;
+    uint8_t   pulseSequencePulsesLeft;
+    uint32_t  pauseLength;
+    uint32_t  clockFrequency;
+    uint32_t  dataBlockBytesLeft;
+    uint32_t  directRecordingSampleRate;
+    uint32_t  directRecordingTimer;
+    uint32_t  loopFilePos;
+    size_t    loopStartTime;
+    uint16_t  loopRepeatCnt;
+    bool      isTAPFile;
+   public:
+    /*!
+     * Open TZX or Spectrum TAP format tape file 'fileName' read-only.
+     */
+    Tape_TZX(const char *fileName, int bitsPerSample = 1);
+    virtual ~Tape_TZX();
+    /*!
+     * Run tape emulation for a period of 1.0 / getSampleRate() seconds.
+     */
+   protected:
+    void tapeReset();
+    bool readByte(uint8_t& n);
+    bool readUInt16(uint16_t& n);
+    bool readUInt24(uint32_t& n);
+    bool readUInt32(uint32_t& n);
+    uint32_t convertPulseLength(uint32_t n, uint32_t clockFreq_ = 0U);
+    void readNextTZXBlock();
+    void directRecordingNextBit();
+    void dataBlockNextBit();
     virtual void runOneSample_();
    public:
     /*!

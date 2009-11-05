@@ -1915,7 +1915,7 @@ void Ep128EmuGUI::menuCallback_Machine_OpenTape(Fl_Widget *o, void *v)
   try {
     std::string tmp;
     if (gui_.browseFile(tmp, gui_.tapeImageDirectory,
-                        "Tape files\t*.{tap,wav,aif,aiff,au,snd}",
+                        "Tape files\t*.{tap,wav,aif,aiff,au,snd,tzx}",
 #ifdef WIN32
                         Fl_Native_File_Chooser::BROWSE_FILE,
 #else
