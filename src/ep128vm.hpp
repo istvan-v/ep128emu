@@ -53,21 +53,22 @@ namespace Ep128 {
       Z80_(Ep128VM& vm_);
       virtual ~Z80_();
      protected:
-      virtual void ackInterruptFunction();
-      virtual uint8_t readMemory(uint16_t addr);
-      virtual uint16_t readMemoryWord(uint16_t addr);
-      virtual uint8_t readOpcodeFirstByte();
-      virtual uint8_t readOpcodeSecondByte();
-      virtual uint8_t readOpcodeByte(int offset);
-      virtual uint16_t readOpcodeWord(int offset);
-      virtual void writeMemory(uint16_t addr, uint8_t value);
-      virtual void writeMemoryWord(uint16_t addr, uint16_t value);
-      virtual void pushWord(uint16_t value);
-      virtual void doOut(uint16_t addr, uint8_t value);
-      virtual uint8_t doIn(uint16_t addr);
-      virtual void updateCycle();
-      virtual void updateCycles(int cycles);
-      virtual void tapePatch();
+      virtual EP128EMU_REGPARM1 void executeInterrupt();
+      virtual EP128EMU_REGPARM2 uint8_t readMemory(uint16_t addr);
+      virtual EP128EMU_REGPARM2 uint16_t readMemoryWord(uint16_t addr);
+      virtual EP128EMU_REGPARM1 uint8_t readOpcodeFirstByte();
+      virtual EP128EMU_REGPARM1 uint8_t readOpcodeSecondByte();
+      virtual EP128EMU_REGPARM2 uint8_t readOpcodeByte(int offset);
+      virtual EP128EMU_REGPARM2 uint16_t readOpcodeWord(int offset);
+      virtual EP128EMU_REGPARM3 void writeMemory(uint16_t addr, uint8_t value);
+      virtual EP128EMU_REGPARM3 void writeMemoryWord(uint16_t addr,
+                                                     uint16_t value);
+      virtual EP128EMU_REGPARM2 void pushWord(uint16_t value);
+      virtual EP128EMU_REGPARM3 void doOut(uint16_t addr, uint8_t value);
+      virtual EP128EMU_REGPARM2 uint8_t doIn(uint16_t addr);
+      virtual EP128EMU_REGPARM2 void updateCycle(uint16_t addr);
+      virtual EP128EMU_REGPARM3 void updateCycles(int cycles, uint16_t addr);
+      virtual EP128EMU_REGPARM1 void tapePatch();
      private:
       uint8_t readUserMemory(uint16_t addr);
       void writeUserMemory(uint16_t addr, uint8_t value);
@@ -478,11 +479,14 @@ namespace Ep128 {
      * NOTE: getting a non-const reference will stop any demo recording or
      * playback.
      */
-    Z80_REGISTERS& getZ80Registers();
-    inline const Z80_REGISTERS& getZ80Registers() const
-    {
-      return z80.getReg();
-    }
+    virtual Z80_REGISTERS& getZ80Registers();
+    virtual const Z80_REGISTERS& getZ80Registers() const;
+    /*!
+     * Returns the current horizontal (0 to 56) and vertical (0 to 0xFFFFF)
+     * video position. The vertical position is the sum of the LPB line
+     * counter, and the LPB video memory address multiplied by 16.
+     */
+    virtual void getVideoPosition(int& xPos, int& yPos) const;
     // ------------------------------- FILE I/O -------------------------------
     /*!
      * Save snapshot of virtual machine state, including all ROM and RAM

@@ -112,7 +112,7 @@ namespace Ep128 {
     closeAllFiles();
   }
 
-  void Ep128VM::Z80_::ackInterruptFunction()
+  EP128EMU_REGPARM1 void Ep128VM::Z80_::executeInterrupt()
   {
     if (vm.spectrumEmulatorEnabled) {
       vm.spectrumEmulatorIOPorts[0] = 0xFF;
@@ -121,9 +121,10 @@ namespace Ep128 {
       vm.spectrumEmulatorIOPorts[3] = 0x1F;
       this->NMI_();
     }
+    Z80::executeInterrupt();
   }
 
-  uint8_t Ep128VM::Z80_::readMemory(uint16_t addr)
+  EP128EMU_REGPARM2 uint8_t Ep128VM::Z80_::readMemory(uint16_t addr)
   {
     if (vm.memoryTimingEnabled) {
       if (vm.pageTable[addr >> 14] < 0xFC)
@@ -137,7 +138,7 @@ namespace Ep128 {
     return vm.memory.read(addr);
   }
 
-  uint16_t Ep128VM::Z80_::readMemoryWord(uint16_t addr)
+  EP128EMU_REGPARM2 uint16_t Ep128VM::Z80_::readMemoryWord(uint16_t addr)
   {
     if (vm.memoryTimingEnabled) {
       if (vm.pageTable[addr >> 14] < 0xFC)
@@ -157,7 +158,7 @@ namespace Ep128 {
     return retval;
   }
 
-  uint8_t Ep128VM::Z80_::readOpcodeFirstByte()
+  EP128EMU_REGPARM1 uint8_t Ep128VM::Z80_::readOpcodeFirstByte()
   {
     uint16_t  addr = uint16_t(R.PC.W.l);
     if (vm.memoryTimingEnabled) {
@@ -175,7 +176,7 @@ namespace Ep128 {
     return vm.checkSingleStepModeBreak();
   }
 
-  uint8_t Ep128VM::Z80_::readOpcodeSecondByte()
+  EP128EMU_REGPARM1 uint8_t Ep128VM::Z80_::readOpcodeSecondByte()
   {
     uint16_t  addr = (uint16_t(R.PC.W.l) + uint16_t(1)) & uint16_t(0xFFFF);
     if (vm.memoryTimingEnabled) {
@@ -190,7 +191,7 @@ namespace Ep128 {
     return vm.memory.readOpcode(addr);
   }
 
-  uint8_t Ep128VM::Z80_::readOpcodeByte(int offset)
+  EP128EMU_REGPARM2 uint8_t Ep128VM::Z80_::readOpcodeByte(int offset)
   {
     uint16_t  addr = uint16_t((int(R.PC.W.l) + offset) & 0xFFFF);
     if (vm.memoryTimingEnabled) {
@@ -205,7 +206,7 @@ namespace Ep128 {
     return vm.memory.readOpcode(addr);
   }
 
-  uint16_t Ep128VM::Z80_::readOpcodeWord(int offset)
+  EP128EMU_REGPARM2 uint16_t Ep128VM::Z80_::readOpcodeWord(int offset)
   {
     uint16_t  addr = uint16_t((int(R.PC.W.l) + offset) & 0xFFFF);
     if (vm.memoryTimingEnabled) {
@@ -226,7 +227,8 @@ namespace Ep128 {
     return retval;
   }
 
-  void Ep128VM::Z80_::writeMemory(uint16_t addr, uint8_t value)
+  EP128EMU_REGPARM3 void Ep128VM::Z80_::writeMemory(uint16_t addr,
+                                                    uint8_t value)
   {
     if (vm.memoryTimingEnabled) {
       if (vm.pageTable[addr >> 14] < 0xFC)
@@ -246,7 +248,8 @@ namespace Ep128 {
     }
   }
 
-  void Ep128VM::Z80_::writeMemoryWord(uint16_t addr, uint16_t value)
+  EP128EMU_REGPARM3 void Ep128VM::Z80_::writeMemoryWord(uint16_t addr,
+                                                        uint16_t value)
   {
     if (vm.spectrumEmulatorEnabled) {
       writeMemory(addr, uint8_t(value) & 0xFF);
@@ -270,9 +273,8 @@ namespace Ep128 {
     vm.memory.write((addr + 1) & 0xFFFF, uint8_t(value >> 8));
   }
 
-  void Ep128VM::Z80_::pushWord(uint16_t value)
+  EP128EMU_REGPARM2 void Ep128VM::Z80_::pushWord(uint16_t value)
   {
-    vm.cpuCyclesRemaining -= (int64_t(1) << 32);
     R.SP.W -= 2;
     uint16_t  addr = R.SP.W;
     if (vm.spectrumEmulatorEnabled) {
@@ -297,29 +299,31 @@ namespace Ep128 {
     vm.memory.write(addr, uint8_t(value) & 0xFF);
   }
 
-  void Ep128VM::Z80_::doOut(uint16_t addr, uint8_t value)
+  EP128EMU_REGPARM3 void Ep128VM::Z80_::doOut(uint16_t addr, uint8_t value)
   {
     vm.cpuCyclesRemaining -= (int64_t(4) << 32);
     vm.ioPorts.write(addr, value);
   }
 
-  uint8_t Ep128VM::Z80_::doIn(uint16_t addr)
+  EP128EMU_REGPARM2 uint8_t Ep128VM::Z80_::doIn(uint16_t addr)
   {
     vm.cpuCyclesRemaining -= (int64_t(4) << 32);
     return vm.ioPorts.read(addr);
   }
 
-  void Ep128VM::Z80_::updateCycle()
+  EP128EMU_REGPARM2 void Ep128VM::Z80_::updateCycle(uint16_t addr)
   {
+    (void) addr;
     vm.cpuCyclesRemaining -= (int64_t(1) << 32);
   }
 
-  void Ep128VM::Z80_::updateCycles(int cycles)
+  EP128EMU_REGPARM3 void Ep128VM::Z80_::updateCycles(int cycles, uint16_t addr)
   {
+    (void) addr;
     vm.updateCPUCycles(cycles);
   }
 
-  void Ep128VM::Z80_::tapePatch()
+  EP128EMU_REGPARM1 void Ep128VM::Z80_::tapePatch()
   {
     if ((R.PC.W.l & 0x3FFF) > 0x3FFC ||
         !((vm.fileIOEnabled | vm.isRecordingDemo | vm.isPlayingDemo) &&
@@ -2018,6 +2022,17 @@ namespace Ep128 {
       stopDemoRecording(false);
     }
     return z80.getReg();
+  }
+
+  const Z80_REGISTERS& Ep128VM::getZ80Registers() const
+  {
+    return z80.getReg();
+  }
+
+  void Ep128VM::getVideoPosition(int& xPos, int& yPos) const
+  {
+    xPos = nick.getCurrentSlot();
+    yPos = ((nick.getLPBAddress() & 0xFFF0) << 4) | nick.getLPBLine();
   }
 
   void Ep128VM::saveState(Ep128Emu::File& f)
