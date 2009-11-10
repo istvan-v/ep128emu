@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -18,8 +18,13 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include "gui.hpp"
+#include "ep128vm.hpp"
+#include "zx128vm.hpp"
+#include "cpc464vm.hpp"
 #include "system.hpp"
 #include "guicolor.hpp"
+
+#include <typeinfo>
 
 #ifdef WIN32
 #  include <windows.h>
@@ -52,7 +57,8 @@ int main(int argc, char **argv)
   const char  *cfgFileName = "ep128cfg.dat";
   int       snapshotNameIndex = 0;
   int       colorScheme = 0;
-  int       retval = 0;
+  uint8_t   machineType = 0;            // 0: EP, 1: ZX, 2: CPC
+  int8_t    retval = 0;
   bool      glEnabled = true;
   bool      glCanDoSingleBuf = false;
   bool      glCanDoDoubleBuf = false;
@@ -80,6 +86,15 @@ int main(int argc, char **argv)
       }
       else if (std::strcmp(argv[i], "-ep128") == 0) {
         cfgFileName = "ep128cfg.dat";
+        machineType = 0;
+      }
+      else if (std::strcmp(argv[i], "-zx") == 0) {
+        cfgFileName = "zx128cfg.dat";
+        machineType = 1;
+      }
+      else if (std::strcmp(argv[i], "-cpc") == 0) {
+        cfgFileName = "cpc_cfg.dat";
+        machineType = 2;
       }
       else if (std::strcmp(argv[i], "-opengl") == 0) {
         glEnabled = true;
@@ -95,6 +110,9 @@ int main(int argc, char **argv)
         std::fprintf(stderr,
                      "    -h | -help | --help "
                      "print this message\n");
+        std::fprintf(stderr,
+                     "    -ep128 | -zx | -cpc "
+                     "select the type of machine to be emulated\n");
         std::fprintf(stderr,
                      "    -cfg <FILENAME>     "
                      "load ASCII format configuration file\n");
@@ -137,8 +155,18 @@ int main(int argc, char **argv)
     if (!glEnabled)
       w = new Ep128Emu::FLTKDisplay(32, 32, 384, 288, "");
     w->end();
-    vm = new Ep128::Ep128VM(*(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
-                            *audioOutput);
+    if (machineType == 1) {
+      vm = new ZX128::ZX128VM(*(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
+                              *audioOutput);
+    }
+    else if (machineType == 2) {
+      vm = new CPC464::CPC464VM(*(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
+                                *audioOutput);
+    }
+    else {
+      vm = new Ep128::Ep128VM(*(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
+                              *audioOutput);
+    }
     config = new Ep128Emu::EmulatorConfiguration(
         *vm, *(dynamic_cast<Ep128Emu::VideoDisplay *>(w)), *audioOutput);
     config->setErrorCallback(&cfgErrorFunc, (void *) 0);
@@ -181,6 +209,8 @@ int main(int argc, char **argv)
     // check command line for any additional configuration
     for (int i = 1; i < argc; i++) {
       if (std::strcmp(argv[i], "-ep128") == 0 ||
+          std::strcmp(argv[i], "-zx") == 0 ||
+          std::strcmp(argv[i], "-cpc") == 0 ||
           std::strcmp(argv[i], "-opengl") == 0 ||
           std::strcmp(argv[i], "-no-opengl") == 0)
         continue;
@@ -250,7 +280,7 @@ int main(int argc, char **argv)
                          MB_OK | MB_ICONWARNING);
 #endif
     }
-    retval = -1;
+    retval = int8_t(-1);
   }
   if (gui_)
     delete gui_;
@@ -277,6 +307,6 @@ int main(int argc, char **argv)
 #ifdef WIN32
   timeEndPeriod(1U);
 #endif
-  return retval;
+  return int(retval);
 }
 

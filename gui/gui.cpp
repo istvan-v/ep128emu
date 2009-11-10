@@ -19,6 +19,10 @@
 
 #include "gui.hpp"
 #include "guicolor.hpp"
+#include "ep128vm.hpp"
+#include "zx128vm.hpp"
+
+#include <typeinfo>
 
 #ifdef WIN32
 #  define WIN32_LEAN_AND_MEAN   1
@@ -126,16 +130,17 @@ void Ep128EmuGUI::updateDisplay_windowMode()
   int     newWindowWidth = mainWindow->w();
   int     newWindowHeight = mainWindow->h();
   if ((displayMode & 1) == 0) {
-    if (newWindowWidth >= 745)
-      statusDisplayGroup->resize(newWindowWidth - 360, 0, 360, 30);
-    else
-      statusDisplayGroup->resize(newWindowWidth - 360, newWindowHeight - 30,
-                                 360, 30);
+    statusDisplayGroup->resize(newWindowWidth - 360,
+                               (newWindowWidth >= 745 ?
+                                0 : (newWindowHeight - 30)),
+                               360, 30);
     statusDisplayGroup->show();
     mainMenuBar->resize(0, 2, 300, 26);
     mainMenuBar->show();
-    diskStatusDisplayGroup->resize(345, 0, 30, 30);
-    diskStatusDisplayGroup->show();
+    if (typeid(vm) == typeid(Ep128::Ep128VM)) {
+      diskStatusDisplayGroup->resize(345, 0, 30, 30);
+      diskStatusDisplayGroup->show();
+    }
   }
   else {
     statusDisplayGroup->hide();
@@ -166,11 +171,10 @@ void Ep128EmuGUI::updateDisplay_windowSize()
       config.display.width = newWindowWidth;
       config.display.height = h;
     }
-    if (newWindowWidth >= 745)
-      statusDisplayGroup->resize(newWindowWidth - 360, 0, 360, 30);
-    else
-      statusDisplayGroup->resize(newWindowWidth - 360, newWindowHeight - 30,
-                                 360, 30);
+    statusDisplayGroup->resize(newWindowWidth - 360,
+                               (newWindowWidth >= 745 ?
+                                0 : (newWindowHeight - 30)),
+                               360, 30);
     mainMenuBar->resize(0, 2, 300, 26);
     diskStatusDisplayGroup->resize(345, 0, 30, 30);
   }
@@ -426,7 +430,8 @@ int Ep128EmuGUI::getMenuItemIndex(int n)
 
 void Ep128EmuGUI::createMenus()
 {
-  Ep128Emu::setWindowIcon(mainWindow, 0);
+  Ep128Emu::setWindowIcon(mainWindow,
+                          (typeid(vm) == typeid(ZX128::ZX128VM) ? 1 : 0));
   Ep128Emu::setWindowIcon(diskConfigWindow->window, 1);
   Ep128Emu::setWindowIcon(displaySettingsWindow->window, 2);
   Ep128Emu::setWindowIcon(keyboardConfigWindow->window, 3);
@@ -551,28 +556,33 @@ void Ep128EmuGUI::createMenus()
                    (char *) 0, &menuCallback_Options_SndDecVol, (void *) this);
   mainMenuBar->add("Options/Sound/Configure... (Alt+U)",
                    (char *) 0, &menuCallback_Options_SndConfig, (void *) this);
-  mainMenuBar->add("Options/Disk/Remove floppy/Drive A",
-                   (char *) 0, &menuCallback_Options_FloppyRmA, (void *) this);
-  mainMenuBar->add("Options/Disk/Remove floppy/Drive B",
-                   (char *) 0, &menuCallback_Options_FloppyRmB, (void *) this);
-  mainMenuBar->add("Options/Disk/Remove floppy/Drive C",
-                   (char *) 0, &menuCallback_Options_FloppyRmC, (void *) this);
-  mainMenuBar->add("Options/Disk/Remove floppy/Drive D",
-                   (char *) 0, &menuCallback_Options_FloppyRmD, (void *) this);
-  mainMenuBar->add("Options/Disk/Remove floppy/All drives",
-                   (char *) 0, &menuCallback_Options_FloppyRmv, (void *) this);
-  mainMenuBar->add("Options/Disk/Replace floppy/Drive A (Alt+H)",
-                   (char *) 0, &menuCallback_Options_FloppyRpA, (void *) this);
-  mainMenuBar->add("Options/Disk/Replace floppy/Drive B",
-                   (char *) 0, &menuCallback_Options_FloppyRpB, (void *) this);
-  mainMenuBar->add("Options/Disk/Replace floppy/Drive C",
-                   (char *) 0, &menuCallback_Options_FloppyRpC, (void *) this);
-  mainMenuBar->add("Options/Disk/Replace floppy/Drive D",
-                   (char *) 0, &menuCallback_Options_FloppyRpD, (void *) this);
-  mainMenuBar->add("Options/Disk/Replace floppy/All drives",
-                   (char *) 0, &menuCallback_Options_FloppyRpl, (void *) this);
-  mainMenuBar->add("Options/Disk/Configure... (Alt+D)",
-                   (char *) 0, &menuCallback_Options_FloppyCfg, (void *) this);
+  if (typeid(vm) == typeid(Ep128::Ep128VM)) {
+    mainMenuBar->add("Options/Disk/Remove floppy/Drive A", (char *) 0,
+                     &menuCallback_Options_FloppyRmA, (void *) this);
+    mainMenuBar->add("Options/Disk/Remove floppy/Drive B", (char *) 0,
+                     &menuCallback_Options_FloppyRmB, (void *) this);
+    mainMenuBar->add("Options/Disk/Remove floppy/Drive C", (char *) 0,
+                     &menuCallback_Options_FloppyRmC, (void *) this);
+    mainMenuBar->add("Options/Disk/Remove floppy/Drive D", (char *) 0,
+                     &menuCallback_Options_FloppyRmD, (void *) this);
+    mainMenuBar->add("Options/Disk/Remove floppy/All drives", (char *) 0,
+                     &menuCallback_Options_FloppyRmv, (void *) this);
+    mainMenuBar->add("Options/Disk/Replace floppy/Drive A (Alt+H)", (char *) 0,
+                     &menuCallback_Options_FloppyRpA, (void *) this);
+    mainMenuBar->add("Options/Disk/Replace floppy/Drive B", (char *) 0,
+                     &menuCallback_Options_FloppyRpB, (void *) this);
+    mainMenuBar->add("Options/Disk/Replace floppy/Drive C", (char *) 0,
+                     &menuCallback_Options_FloppyRpC, (void *) this);
+    mainMenuBar->add("Options/Disk/Replace floppy/Drive D", (char *) 0,
+                     &menuCallback_Options_FloppyRpD, (void *) this);
+    mainMenuBar->add("Options/Disk/Replace floppy/All drives", (char *) 0,
+                     &menuCallback_Options_FloppyRpl, (void *) this);
+    mainMenuBar->add("Options/Disk/Configure... (Alt+D)", (char *) 0,
+                     &menuCallback_Options_FloppyCfg, (void *) this);
+  }
+  else {
+    diskStatusDisplayGroup->hide();
+  }
   mainMenuBar->add("Options/Process priority/Idle",
                    (char *) 0, &menuCallback_Options_PPriority, (void *) this);
   mainMenuBar->add("Options/Process priority/Below normal",
@@ -1413,10 +1423,12 @@ bool Ep128EmuGUI::closeDemoFile(bool stopDemo_)
 void Ep128EmuGUI::saveQuickConfig(int n)
 {
   const char  *fName = (char *) 0;
-  if (n == 1)
-    fName = "epvmcfg1.cfg";
+  if (typeid(vm) == typeid(Ep128::Ep128VM))
+    fName = (n == 1 ? "epvmcfg1.cfg" : "epvmcfg2.cfg");
+  else if (typeid(vm) == typeid(ZX128::ZX128VM))
+    fName = (n == 1 ? "zxvmcfg1.cfg" : "zxvmcfg2.cfg");
   else
-    fName = "epvmcfg2.cfg";
+    fName = (n == 1 ? "cpvmcfg1.cfg" : "cpvmcfg2.cfg");
   try {
     Ep128Emu::ConfigurationDB tmpCfg;
     tmpCfg.createKey("vm.cpuClockFrequency", config.vm.cpuClockFrequency);
@@ -1509,7 +1521,12 @@ void Ep128EmuGUI::menuCallback_File_SaveMainCfg(Fl_Widget *o, void *v)
   try {
     Ep128Emu::File  f;
     gui_.config.saveState(f);
-    f.writeFile("ep128cfg.dat", true);
+    const char  *fName = "cpc_cfg.dat";
+    if (typeid(gui_.vm) == typeid(Ep128::Ep128VM))
+      fName = "ep128cfg.dat";
+    else if (typeid(gui_.vm) == typeid(ZX128::ZX128VM))
+      fName = "zx128cfg.dat";
+    f.writeFile(fName, true);
   }
   catch (std::exception& e) {
     gui_.errorMessage(e.what());
@@ -1521,7 +1538,12 @@ void Ep128EmuGUI::menuCallback_File_RevertCfg(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    Ep128Emu::File  f("ep128cfg.dat", true);
+    const char  *fName = "cpc_cfg.dat";
+    if (typeid(gui_.vm) == typeid(Ep128::Ep128VM))
+      fName = "ep128cfg.dat";
+    else if (typeid(gui_.vm) == typeid(ZX128::ZX128VM))
+      fName = "zx128cfg.dat";
+    Ep128Emu::File  f(fName, true);
     gui_.config.registerChunkType(f);
     f.processAllChunks();
     gui_.applyEmulatorConfiguration(true);
@@ -1561,7 +1583,12 @@ void Ep128EmuGUI::menuCallback_File_QSLoad(Fl_Widget *o, void *v)
         const char  *fName = gui_.quickSnapshotFileName.c_str();
         bool        useHomeDirectory = false;
         if (fName[0] == '\0') {
-          fName = "qs_ep128.dat";
+          if (typeid(gui_.vm) == typeid(Ep128::Ep128VM))
+            fName = "qs_ep128.dat";
+          else if (typeid(gui_.vm) == typeid(ZX128::ZX128VM))
+            fName = "qs_zx128.dat";
+          else
+            fName = "qs_cpc.dat";
           useHomeDirectory = true;
         }
         Ep128Emu::File  f(fName, useHomeDirectory);
@@ -1590,7 +1617,12 @@ void Ep128EmuGUI::menuCallback_File_QSSave(Fl_Widget *o, void *v)
         const char  *fName = gui_.quickSnapshotFileName.c_str();
         bool        useHomeDirectory = false;
         if (fName[0] == '\0') {
-          fName = "qs_ep128.dat";
+          if (typeid(gui_.vm) == typeid(Ep128::Ep128VM))
+            fName = "qs_ep128.dat";
+          else if (typeid(gui_.vm) == typeid(ZX128::ZX128VM))
+            fName = "qs_zx128.dat";
+          else
+            fName = "qs_cpc.dat";
           useHomeDirectory = true;
         }
         Ep128Emu::File  f;
@@ -1915,7 +1947,7 @@ void Ep128EmuGUI::menuCallback_Machine_OpenTape(Fl_Widget *o, void *v)
   try {
     std::string tmp;
     if (gui_.browseFile(tmp, gui_.tapeImageDirectory,
-                        "Tape files\t*.{tap,wav,aif,aiff,au,snd,tzx}",
+                        "Tape files\t*.{tap,wav,aif,aiff,au,snd,tzx,cdt}",
 #ifdef WIN32
                         Fl_Native_File_Chooser::BROWSE_FILE,
 #else
@@ -2206,7 +2238,12 @@ void Ep128EmuGUI::menuCallback_Machine_QuickCfgL1(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    gui_.config.loadState("epvmcfg1.cfg", true);
+    const char  *fName = "cpvmcfg1.cfg";
+    if (typeid(gui_.vm) == typeid(Ep128::Ep128VM))
+      fName = "epvmcfg1.cfg";
+    else if (typeid(gui_.vm) == typeid(ZX128::ZX128VM))
+      fName = "zxvmcfg1.cfg";
+    gui_.config.loadState(fName, true);
     gui_.applyEmulatorConfiguration(true);
   }
   catch (std::exception& e) {
@@ -2219,7 +2256,12 @@ void Ep128EmuGUI::menuCallback_Machine_QuickCfgL2(Fl_Widget *o, void *v)
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
   try {
-    gui_.config.loadState("epvmcfg2.cfg", true);
+    const char  *fName = "cpvmcfg2.cfg";
+    if (typeid(gui_.vm) == typeid(Ep128::Ep128VM))
+      fName = "epvmcfg2.cfg";
+    else if (typeid(gui_.vm) == typeid(ZX128::ZX128VM))
+      fName = "zxvmcfg2.cfg";
+    gui_.config.loadState(fName, true);
     gui_.applyEmulatorConfiguration(true);
   }
   catch (std::exception& e) {
@@ -2555,7 +2597,8 @@ void Ep128EmuGUI::menuCallback_Options_FloppyCfg(Fl_Widget *o, void *v)
 {
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
-  gui_.diskConfigWindow->show();
+  if (typeid(gui_.vm) == typeid(Ep128::Ep128VM))
+    gui_.diskConfigWindow->show();
 }
 
 void Ep128EmuGUI::menuCallback_Options_PPriority(Fl_Widget *o, void *v)

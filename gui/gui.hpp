@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -33,7 +33,6 @@
 #include "cfg_db.hpp"
 #include "emucfg.hpp"
 #include "script.hpp"
-#include "ep128vm.hpp"
 
 #include <FL/Fl_Menu_Item.H>
 #include <FL/Fl_File_Chooser.H>

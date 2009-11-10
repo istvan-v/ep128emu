@@ -21,6 +21,10 @@
 #include "cfg_db.hpp"
 #include "emucfg.hpp"
 #include "system.hpp"
+#include "ep128vm.hpp"
+#include "zx128vm.hpp"
+
+#include <typeinfo>
 
 template <typename T>
 static void configChangeCallback(void *userData,
@@ -370,6 +374,31 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "videoCapture.yuvFormat",
                                 videoCapture.yuvFormat, false,
                                 videoCaptureSettingsChanged);
+    // set machine specific defaults
+    if (typeid(vm_) != typeid(Ep128::Ep128VM)) {
+      int     sndDiv = 4;
+      if (typeid(vm_) == typeid(ZX128::ZX128VM)) {
+        vm.cpuClockFrequency = 3546896U;
+        vm.videoClockFrequency = 886724U;
+        vm.soundClockFrequency = 221681U;
+        display.quality = 1;
+        (*this)["memory.ram.size"].setRange(16.0, 128.0, 16.0);
+      }
+      else {                            // CPC
+        vm.cpuClockFrequency = 4000000U;
+        vm.videoClockFrequency = 1000000U;
+        vm.soundClockFrequency = 125000U;
+        (*this)["memory.ram.size"].setRange(64.0, 576.0, 64.0);
+        sndDiv = 8;
+      }
+      (*this)["vm.cpuClockFrequency"].setRange(
+          1600000.0, 8000000.0, double(sndDiv << 2));
+      (*this)["vm.videoClockFrequency"].setRange(
+          400000.0, 2000000.0, double(sndDiv));
+      (*this)["vm.soundClockFrequency"].setRange(
+          double(400000 / sndDiv), double(2000000 / sndDiv), 1.0);
+      (*this)["sound.sampleRate"].setRange(11025.0, 96000.0);
+    }
   }
 
   EmulatorConfiguration::~EmulatorConfiguration()
@@ -380,6 +409,18 @@ namespace Ep128Emu {
   void EmulatorConfiguration::applySettings()
   {
     if (vmConfigurationChanged) {
+      if (typeid(vm_) != typeid(Ep128::Ep128VM)) {
+        if (typeid(vm_) == typeid(ZX128::ZX128VM)) {
+          vm.soundClockFrequency = (vm.videoClockFrequency + 2U) >> 2;
+          vm.videoClockFrequency = vm.soundClockFrequency << 2;
+        }
+        else {                          // CPC
+          vm.soundClockFrequency = (vm.videoClockFrequency + 4U) >> 3;
+          vm.videoClockFrequency = vm.soundClockFrequency << 3;
+        }
+        vm.cpuClockFrequency = vm.videoClockFrequency << 2;
+        vm.enableMemoryTimingEmulation = true;
+      }
       // assume none of these will throw exceptions
       vm_.setCPUFrequency(vm.cpuClockFrequency);
       vm_.setVideoFrequency(vm.videoClockFrequency);
@@ -398,6 +439,20 @@ namespace Ep128Emu {
       vmProcessPriorityChanged = false;
     }
     if (memoryConfigurationChanged) {
+      if (typeid(vm_) != typeid(Ep128::Ep128VM)) {
+        memory.configFile.clear();
+        if (typeid(vm_) == typeid(ZX128::ZX128VM)) {
+          memory.ram.size = (memory.ram.size < 32 ?
+                             16 : (memory.ram.size < 88 ? 48 : 128));
+        }
+        else {                          // CPC
+          memory.ram.size = (memory.ram.size < 96 ?
+                             64 : (memory.ram.size < 160 ?
+                                   128 : (memory.ram.size < 256 ?
+                                          192 : (memory.ram.size < 448 ?
+                                                 320 : 576))));
+        }
+      }
       if (memory.configFile.length() > 0) {
         try {
           vm_.loadMemoryConfiguration(memory.configFile);
@@ -410,17 +465,30 @@ namespace Ep128Emu {
       else {
         vm_.resetMemoryConfiguration(memory.ram.size);
         for (size_t i = 0; i < 68; i++) {
-          if (i >= 8 && (i & 15) >= 4)
-            continue;
+          uint8_t segNum = uint8_t(i);
+          if (typeid(vm_) == typeid(Ep128::Ep128VM)) {
+            if (i >= 8 && (i & 15) >= 4) {
+              memory.rom[i].file.clear();
+              memory.rom[i].offset = 0;
+              continue;
+            }
+          }
+          else {
+            if (i >= 2) {
+              memory.rom[i].file.clear();
+              memory.rom[i].offset = 0;
+              continue;
+            }
+            segNum = segNum | 0x80;
+          }
           try {
-            vm_.loadROMSegment(uint8_t(i),
-                               memory.rom[i].file.c_str(),
+            vm_.loadROMSegment(segNum, memory.rom[i].file.c_str(),
                                size_t(memory.rom[i].offset));
           }
           catch (Exception& e) {
             memory.rom[i].file.clear();
             memory.rom[i].offset = 0;
-            vm_.loadROMSegment(uint8_t(i), "", 0);
+            vm_.loadROMSegment(segNum, "", 0);
             errorCallback(errorCallbackUserData, e.what());
           }
         }

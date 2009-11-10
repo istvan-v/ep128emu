@@ -322,6 +322,24 @@ ep128Lib = ep128LibEnvironment.StaticLibrary('ep128', Split('''
     z80/z80funcs2.cpp
     src/epmemcfg.cpp
     src/ide.cpp
+    src/snapshot.cpp
+'''))
+
+# -----------------------------------------------------------------------------
+
+if not oldSConsVersion:
+    zx128LibEnvironment = ep128emuLibEnvironment.Clone()
+else:
+    zx128LibEnvironment = ep128emuLibEnvironment.Copy()
+zx128LibEnvironment.Append(CPPPATH = ['./z80'])
+
+zx128Lib = zx128LibEnvironment.StaticLibrary('zx128', Split('''
+    src/ay3_8912.cpp
+    src/zx128vm.cpp
+    src/zxioport.cpp
+    src/zxmemory.cpp
+    src/ula.cpp
+    src/zx_snap.cpp
 '''))
 
 # -----------------------------------------------------------------------------
@@ -352,7 +370,7 @@ if not win32CrossCompile:
         ep128emuEnvironment.Append(LIBS = ['rt'])
 else:
     ep128emuEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
-ep128emuEnvironment.Prepend(LIBS = ['ep128', 'ep128emu'])
+ep128emuEnvironment.Prepend(LIBS = ['ep128', 'zx128', 'ep128emu'])
 
 ep128emuSources = ['gui/gui.cpp']
 ep128emuSources += fluidCompile(['gui/gui.fl', 'gui/disk_cfg.fl',
@@ -370,6 +388,7 @@ if win32CrossCompile:
     ep128emuSources += [ep128emuResourceObject]
 ep128emu = ep128emuEnvironment.Program('ep128emu', ep128emuSources)
 Depends(ep128emu, ep128Lib)
+Depends(ep128emu, zx128Lib)
 Depends(ep128emu, ep128emuLib)
 
 if sys.platform[:6] == 'darwin':

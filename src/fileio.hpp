@@ -40,6 +40,7 @@ namespace Ep128Emu {
       uint32_t readUInt32();
       int64_t readInt64();
       uint64_t readUInt64();
+      uint64_t readUIntVLen();
       double readFloat();
       std::string readString();
       void writeByte(unsigned char n);
@@ -50,6 +51,7 @@ namespace Ep128Emu {
       void writeUInt32(uint32_t n);
       void writeInt64(int64_t n);
       void writeUInt64(uint64_t n);
+      void writeUIntVLen(uint64_t n);
       void writeFloat(double n);
       void writeString(const std::string& n);
       void writeData(const unsigned char *buf_, size_t nBytes);

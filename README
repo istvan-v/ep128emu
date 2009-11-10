@@ -1,10 +1,10 @@
 ep128emu 2.0.8 beta
 ===================
 
-ep128emu is an open source, portable emulator of the Enterprise 128
-computer, written in C++, and supporting Windows and POSIX platforms
-(32 bit Windows, and 32 and 64 bit Linux have been tested; compiling and
-running on MacOS X may be possible, but was not tested yet).
+ep128emu is an open source, portable emulator of the Enterprise 128,
+ZX Spectrum 48/128, and Amstrad CPC 464 computers, written in C++, and
+supporting Windows and POSIX platforms (32 bit Windows, 32 and 64 bit
+Linux, and MacOS X have been tested).
 It implements accurate, high quality hardware emulation, however, the
 system requirements are higher than that of most other emulators.
 
@@ -92,6 +92,32 @@ Enterprise emulation
   * real time clock (at ports 7E, 7F)
   * external 4-channel 8-bit DAC at ports F0 to F3
 
+Spectrum emulation
+------------------
+
+  * instruction based emulation of the Z80 CPU, supports all documented
+    and undocumented opcodes, and cycle accurate synchronization with
+    the ULA chip when accessing video memory and I/O ports
+  * RAM size can be 16, 48, or 128 kilobytes
+  * ROM can be loaded from external image files
+  * ULA, AY-3-8912, keyboard, and Kempston joystick emulation
+  * tape emulation with playback, recording, and setting tape position;
+    markers can be created for quick positioning to specific tape
+    locations (useful for tapes with multiple files); uses custom file
+    format which is PCM audio data with 1 to 8 bits of sample resolution
+    and variable sample rate, and header including the table of markers;
+    there is also read-write (although without markers) support for
+    sound files like WAV, AIFF, etc.
+  * Spectrum tape files in .tap format can be used as tape images for
+    read-only hardware level tape emulation, or loaded directly to
+    memory if the "Enable virtual file I/O" option is checked in the
+    machine configuration
+  * it is also possible to load .tzx format tape images, although the
+    support for these is not complete yet
+  * loading SNA and Z80 format snapshot files created by other emulators
+    is supported; however, snapshot saving and demo recording are only
+    possible in the native zx128emu format
+
 Installation
 ============
 
@@ -175,6 +201,11 @@ Command line options
   -help
   --help
     print the list of available command line options
+  -ep128
+  -zx
+  -cpc
+    select the type of machine (Enterprise, ZX Spectrum, or CPC) to be
+    emulated
   -cfg <FILENAME>
     load an ASCII format configuration file on startup, and apply
     settings

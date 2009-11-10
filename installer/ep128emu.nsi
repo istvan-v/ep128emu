@@ -111,6 +111,8 @@ Section "ep128emu2" SecMain
     ;Create shortcuts
     CreateDirectory "$SMPROGRAMS\$STARTMENU_FOLDER"
     CreateDirectory "$SMPROGRAMS\$STARTMENU_FOLDER\GUI themes"
+    CreateDirectory "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator"
+    CreateDirectory "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator"
     SetOutPath "$INSTDIR"
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\ep128emu - OpenGL mode.lnk" "$INSTDIR\ep128emu.exe" '-opengl'
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\ep128emu - software mode.lnk" "$INSTDIR\ep128emu.exe" '-no-opengl'
@@ -120,6 +122,18 @@ Section "ep128emu2" SecMain
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\GUI themes\ep128emu - Software - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-no-opengl -colorscheme 1'
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\GUI themes\ep128emu - Software - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-no-opengl -colorscheme 2'
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\GUI themes\ep128emu - Software - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-no-opengl -colorscheme 3'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - GL - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -opengl -colorscheme 1'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - GL - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -opengl -colorscheme 2'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - GL - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -opengl -colorscheme 3'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - Software - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -no-opengl -colorscheme 1'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - Software - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -no-opengl -colorscheme 2'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - Software - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -no-opengl -colorscheme 3'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - GL - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl -colorscheme 1'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - GL - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl -colorscheme 2'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - GL - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl -colorscheme 3'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - Software - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 1'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - Software - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 2'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - Software - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 3'
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\README.lnk" "$INSTDIR\readme.txt"
     SetOutPath "$INSTDIR\tape"
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Tape editor.lnk" "$INSTDIR\tapeedit.exe"
@@ -348,6 +362,9 @@ Section "Uninstall"
   Delete "$INSTDIR\config\EP_64k_Tape_TASMON.cfg"
   Delete "$INSTDIR\config\EP_Keyboard_HU.cfg"
   Delete "$INSTDIR\config\EP_Keyboard_US.cfg"
+  Delete "$INSTDIR\config\cpc\CPC_128k.cfg"
+  Delete "$INSTDIR\config\cpc\CPC_576k.cfg"
+  Delete "$INSTDIR\config\cpc\CPC_64k.cfg"
   Delete "$INSTDIR\config\ep128brd\EP2048k_EXOS231_EXDOS_utils.cfg"
   Delete "$INSTDIR\config\ep128brd\EP_128k_EXDOS.cfg"
   Delete "$INSTDIR\config\ep128brd\EP_128k_EXDOS_FileIO.cfg"
@@ -412,11 +429,19 @@ Section "Uninstall"
   Delete "$INSTDIR\config\ep64\EP_64k_Tape_FileIO.cfg"
   Delete "$INSTDIR\config\ep64\EP_64k_Tape_NoCartridge.cfg"
   Delete "$INSTDIR\config\ep64\EP_64k_Tape_TASMON.cfg"
+  Delete "$INSTDIR\config\zx\ZX_128k.cfg"
+  Delete "$INSTDIR\config\zx\ZX_128k_FileIO.cfg"
+  Delete "$INSTDIR\config\zx\ZX_16k.cfg"
+  Delete "$INSTDIR\config\zx\ZX_16k_FileIO.cfg"
+  Delete "$INSTDIR\config\zx\ZX_48k.cfg"
+  Delete "$INSTDIR\config\zx\ZX_48k_FileIO.cfg"
+  RMDir "$INSTDIR\config\cpc"
   RMDir "$INSTDIR\config\ep128brd"
   RMDir "$INSTDIR\config\ep128esp"
   RMDir "$INSTDIR\config\ep128hun"
   RMDir "$INSTDIR\config\ep128uk"
   RMDir "$INSTDIR\config\ep64"
+  RMDir "$INSTDIR\config\zx"
   RMDir "$INSTDIR\config"
   RMDir "$INSTDIR\demo"
   Delete "$INSTDIR\disk\disk.zip"
@@ -429,6 +454,8 @@ Section "Uninstall"
   Delete "$INSTDIR\roms\basic20.rom"
   Delete "$INSTDIR\roms\basic21.rom"
   Delete "$INSTDIR\roms\brd.rom"
+  Delete "$INSTDIR\roms\cpc464.rom"
+  Delete "$INSTDIR\roms\cpc6128.rom"
   Delete "$INSTDIR\roms\cyrus.rom"
   Delete "$INSTDIR\roms\ep-plus.rom"
   Delete "$INSTDIR\roms\ep128emu_roms.bin"
@@ -476,7 +503,9 @@ Section "Uninstall"
   Delete "$INSTDIR\roms\zt18hfnt.rom"
   Delete "$INSTDIR\roms\zt18hun.rom"
   Delete "$INSTDIR\roms\zt18uk.rom"
+  Delete "$INSTDIR\roms\zx128.rom"
   Delete "$INSTDIR\roms\zx41.rom"
+  Delete "$INSTDIR\roms\zx48.rom"
   RMDir "$INSTDIR\roms"
   RMDir "$INSTDIR\snapshot"
   RMDir /r "$INSTDIR\src"
@@ -492,12 +521,27 @@ Section "Uninstall"
   Delete "$SMPROGRAMS\$MUI_TEMP\GUI themes\ep128emu - Software - Win2000 theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\GUI themes\ep128emu - Software - plastic theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\GUI themes\ep128emu - Software - Gtk+ theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\Spectrum emulator\zx128emu - GL - Win2000 theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\Spectrum emulator\zx128emu - GL - plastic theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\Spectrum emulator\zx128emu - GL - Gtk+ theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\Spectrum emulator\zx128emu - Software - Win2000 theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\Spectrum emulator\zx128emu - Software - plastic theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\Spectrum emulator\zx128emu - Software - Gtk+ theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc464emu - GL - Win2000 theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc464emu - GL - plastic theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc464emu - GL - Gtk+ theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc464emu - Software - Win2000 theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc464emu - Software - plastic theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc464emu - Software - Gtk+ theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\ep128emu - GL - Win2000 theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\ep128emu - GL - plastic theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\README.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\Tape editor.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\Reinstall configuration files.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\Uninstall.lnk"
+
+  RMDir "$SMPROGRAMS\$MUI_TEMP\Spectrum emulator"
+  RMDir "$SMPROGRAMS\$MUI_TEMP\CPC emulator"
 
   ;Delete empty start menu parent diretories
   StrCpy $MUI_TEMP "$SMPROGRAMS\$MUI_TEMP\GUI themes"

@@ -166,6 +166,18 @@ namespace Ep128Emu {
     return n;
   }
 
+  uint64_t File::Buffer::readUIntVLen()
+  {
+    uint64_t  n = 0UL;
+    uint8_t   i = 8, c;
+    do {
+      c = readByte();
+      n = (n << 7) | uint64_t(c & 0x7F);
+      i--;
+    } while ((c & 0x80) != 0 && i != 0);
+    return n;
+  }
+
   double File::Buffer::readFloat()
   {
     int32_t   i = readInt32();
@@ -261,6 +273,22 @@ namespace Ep128Emu {
     writeByte(uint8_t(n >> 16));
     writeByte(uint8_t(n >> 8));
     writeByte(uint8_t(n));
+  }
+
+  void File::Buffer::writeUIntVLen(uint64_t n)
+  {
+    uint64_t  mask = uint64_t(0x7F) << 49;
+    uint8_t   rshift = 49;
+    while (rshift != 0 && !(n & mask)) {
+      mask >>= 7;
+      rshift -= 7;
+    }
+    while (rshift != 0) {
+      writeByte(uint8_t((n & mask) >> rshift) | 0x80);
+      mask >>= 7;
+      rshift -= 7;
+    }
+    writeByte(uint8_t(n) & 0x7F);
   }
 
   void File::Buffer::writeFloat(double n)

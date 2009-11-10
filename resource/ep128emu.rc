@@ -32,4 +32,5 @@ BEGIN
 END
 
 101 ICON ".\\resource\\ep128emu.ico"
+102 ICON ".\\resource\\zx128emu.ico"
 

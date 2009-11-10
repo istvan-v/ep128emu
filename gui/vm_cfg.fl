@@ -74,7 +74,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
   o->value(double(gui.config.vm.cpuClockFrequency));
 }}
-              xywh {30 70 120 25} align 8 when 4 minimum 2e+06 maximum 2.5e+08 step 1 value 4e+06
+              xywh {30 70 120 25} align 8 when 4 minimum 1.6e+06 maximum 2.5e+08 step 1 value 4e+06
               code0 {o->cursor_color(Fl_Color(3));}
             }
             Fl_Value_Input vmVideoFrequencyValuator {
@@ -88,7 +88,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
   updateWindow();
 }}
-              xywh {30 105 120 25} align 8 when 4 minimum 178125 maximum 1.78125e+06 step 1 value 889846
+              xywh {30 105 120 25} align 8 when 4 minimum 178125 maximum 2e+06 step 1 value 889846
               code0 {o->cursor_color(Fl_Color(3));}
             }
             Fl_Value_Input vmSoundClockFrequencyValuator {
@@ -102,7 +102,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
   o->value(double(gui.config.vm.soundClockFrequency));
 }}
-              xywh {30 140 120 25} align 8 when 4 minimum 250000 maximum 1e+06 step 1 value 500000
+              xywh {30 140 120 25} align 8 when 4 minimum 50000 maximum 1e+06 step 1 value 500000
               code0 {o->cursor_color(Fl_Color(3));}
             }
             Fl_Light_Button enableMemoryTimingValuator {
@@ -111,7 +111,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   gui.config.vm.enableMemoryTimingEmulation = (o->value() != 0);
   gui.config.vmConfigurationChanged = true;
 }}
-              xywh {30 175 240 25} color 50 selection_color 3
+              xywh {30 175 240 25} value 1 color 50 selection_color 3
             }
           }
           Fl_Group {} {
@@ -200,7 +200,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
   o->value(double(gui.config.memory.ram.size));
 }}
-            xywh {20 80 120 25} align 8 when 4 minimum 64 maximum 3712 step 16 value 64
+            xywh {20 80 120 25} align 8 when 4 minimum 16 maximum 3712 step 16 value 64
             code0 {o->cursor_color(Fl_Color(3));}
           }
           Fl_Scroll memoryROMImagesScroll {

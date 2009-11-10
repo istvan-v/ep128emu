@@ -528,7 +528,16 @@ static const char *machineConfigFileNames[] = {
   "ep64/EP_64k_Tape.cfg",                               // 60
   "ep64/EP_64k_Tape_FileIO.cfg",                        // 61
   "ep64/EP_64k_Tape_NoCartridge.cfg",                   // 62
-  "ep64/EP_64k_Tape_TASMON.cfg"                         // 63
+  "ep64/EP_64k_Tape_TASMON.cfg",                        // 63
+  "zx/ZX_16k.cfg",                                      // +0
+  "zx/ZX_16k_FileIO.cfg",                               // +1
+  "zx/ZX_48k.cfg",                                      // +2
+  "zx/ZX_48k_FileIO.cfg",                               // +3
+  "zx/ZX_128k.cfg",                                     // +4
+  "zx/ZX_128k_FileIO.cfg",                              // +5
+  "cpc/CPC_64k.cfg",                                    // +6
+  "cpc/CPC_128k.cfg",                                   // +7
+  "cpc/CPC_576k.cfg"                                    // +8
 };
 
 static const uint64_t machineConfigs[] = {
@@ -721,19 +730,62 @@ static const uint64_t machineConfigs[] = {
 Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
     Ep128Emu::ConfigurationDB& config, int n, const std::string& romDirectory)
 {
-  vm.cpuClockFrequency = 4000000U;
-  vm.videoClockFrequency = 889846U;
-  vm.soundClockFrequency = 500000U;
-  vm.enableMemoryTimingEmulation = true;
-  vm.enableFileIO = bool(machineConfigs[n] & EP_ROM_EPFILEIO);
-  memory.ram.size = int(machineConfigs[n] & uint64_t(0x3F)) << 6;
-  for (int i = 0; i < 58; i++) {
-    if (machineConfigs[n] & (uint64_t(1) << (i + 6))) {
-      unsigned long tmp = romFileSegments[i];
-      for (int j = 0; j < 4 && tmp < 0x80000000UL; j++) {
-        memory.rom[(tmp >> 24) & 0xFFUL].file = romDirectory + romFileNames[i];
-        memory.rom[(tmp >> 24) & 0xFFUL].offset = j << 14;
-        tmp = (tmp & 0x00FFFFFFUL) << 8;
+  int     machineType = 0;              // 0: EP, 1: ZX, 2: CPC
+  if (n >= int(sizeof(machineConfigs) / sizeof(uint64_t))) {
+    n = n - int(sizeof(machineConfigs) / sizeof(uint64_t));
+    if (n < 6) {
+      machineType = 1;
+      try {
+        config["display.quality"] = 1;
+      }
+      catch (Ep128Emu::Exception) {
+      }
+      if (n < 4) {                      // Spectrum 16 or 48
+        vm.cpuClockFrequency = 3500000U;
+        vm.videoClockFrequency = 875000U;
+        vm.soundClockFrequency = 218750U;
+        memory.ram.size = (n < 2 ? 16 : 48);
+        memory.rom[0].file = romDirectory + "zx48.rom";
+      }
+      else {                            // Spectrum 128
+        vm.cpuClockFrequency = 3546896U;
+        vm.videoClockFrequency = 886724U;
+        vm.soundClockFrequency = 221681U;
+        memory.ram.size = 128;
+        memory.rom[0].file = romDirectory + "zx128.rom";
+        memory.rom[1].file = romDirectory + "zx128.rom";
+        memory.rom[1].offset = 16384;
+      }
+      vm.enableMemoryTimingEmulation = true;
+      vm.enableFileIO = bool(n & 1);
+    }
+    else {                              // TODO: CPC
+      n = n - 6;
+      machineType = 2;
+      vm.cpuClockFrequency = 4000000U;
+      vm.videoClockFrequency = 1000000U;
+      vm.soundClockFrequency = 125000U;
+      memory.ram.size = (n == 0 ? 64 : (n == 1 ? 128 : 576));
+      vm.enableMemoryTimingEmulation = true;
+      vm.enableFileIO = false;
+    }
+  }
+  else {                                // Enterprise
+    vm.cpuClockFrequency = 4000000U;
+    vm.videoClockFrequency = 889846U;
+    vm.soundClockFrequency = 500000U;
+    vm.enableMemoryTimingEmulation = true;
+    vm.enableFileIO = bool(machineConfigs[n] & EP_ROM_EPFILEIO);
+    memory.ram.size = int(machineConfigs[n] & uint64_t(0x3F)) << 6;
+    for (int i = 0; i < 58; i++) {
+      if (machineConfigs[n] & (uint64_t(1) << (i + 6))) {
+        unsigned long tmp = romFileSegments[i];
+        for (int j = 0; j < 4 && tmp < 0x80000000UL; j++) {
+          memory.rom[(tmp >> 24) & 0xFFUL].file =
+              romDirectory + romFileNames[i];
+          memory.rom[(tmp >> 24) & 0xFFUL].offset = j << 14;
+          tmp = (tmp & 0x00FFFFFFUL) << 8;
+        }
       }
     }
   }
@@ -749,51 +801,53 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
   config.createKey("memory.rom.00.offset", memory.rom[0x00].offset);
   config.createKey("memory.rom.01.file", memory.rom[0x01].file);
   config.createKey("memory.rom.01.offset", memory.rom[0x01].offset);
-  config.createKey("memory.rom.02.file", memory.rom[0x02].file);
-  config.createKey("memory.rom.02.offset", memory.rom[0x02].offset);
-  config.createKey("memory.rom.03.file", memory.rom[0x03].file);
-  config.createKey("memory.rom.03.offset", memory.rom[0x03].offset);
-  config.createKey("memory.rom.04.file", memory.rom[0x04].file);
-  config.createKey("memory.rom.04.offset", memory.rom[0x04].offset);
-  config.createKey("memory.rom.05.file", memory.rom[0x05].file);
-  config.createKey("memory.rom.05.offset", memory.rom[0x05].offset);
-  config.createKey("memory.rom.06.file", memory.rom[0x06].file);
-  config.createKey("memory.rom.06.offset", memory.rom[0x06].offset);
-  config.createKey("memory.rom.07.file", memory.rom[0x07].file);
-  config.createKey("memory.rom.07.offset", memory.rom[0x07].offset);
-  config.createKey("memory.rom.10.file", memory.rom[0x10].file);
-  config.createKey("memory.rom.10.offset", memory.rom[0x10].offset);
-  config.createKey("memory.rom.11.file", memory.rom[0x11].file);
-  config.createKey("memory.rom.11.offset", memory.rom[0x11].offset);
-  config.createKey("memory.rom.12.file", memory.rom[0x12].file);
-  config.createKey("memory.rom.12.offset", memory.rom[0x12].offset);
-  config.createKey("memory.rom.13.file", memory.rom[0x13].file);
-  config.createKey("memory.rom.13.offset", memory.rom[0x13].offset);
-  config.createKey("memory.rom.20.file", memory.rom[0x20].file);
-  config.createKey("memory.rom.20.offset", memory.rom[0x20].offset);
-  config.createKey("memory.rom.21.file", memory.rom[0x21].file);
-  config.createKey("memory.rom.21.offset", memory.rom[0x21].offset);
-  config.createKey("memory.rom.22.file", memory.rom[0x22].file);
-  config.createKey("memory.rom.22.offset", memory.rom[0x22].offset);
-  config.createKey("memory.rom.23.file", memory.rom[0x23].file);
-  config.createKey("memory.rom.23.offset", memory.rom[0x23].offset);
-  config.createKey("memory.rom.30.file", memory.rom[0x30].file);
-  config.createKey("memory.rom.30.offset", memory.rom[0x30].offset);
-  config.createKey("memory.rom.31.file", memory.rom[0x31].file);
-  config.createKey("memory.rom.31.offset", memory.rom[0x31].offset);
-  config.createKey("memory.rom.32.file", memory.rom[0x32].file);
-  config.createKey("memory.rom.32.offset", memory.rom[0x32].offset);
-  config.createKey("memory.rom.33.file", memory.rom[0x33].file);
-  config.createKey("memory.rom.33.offset", memory.rom[0x33].offset);
-  config.createKey("memory.rom.40.file", memory.rom[0x40].file);
-  config.createKey("memory.rom.40.offset", memory.rom[0x40].offset);
-  config.createKey("memory.rom.41.file", memory.rom[0x41].file);
-  config.createKey("memory.rom.41.offset", memory.rom[0x41].offset);
-  config.createKey("memory.rom.42.file", memory.rom[0x42].file);
-  config.createKey("memory.rom.42.offset", memory.rom[0x42].offset);
-  config.createKey("memory.rom.43.file", memory.rom[0x43].file);
-  config.createKey("memory.rom.43.offset", memory.rom[0x43].offset);
-  config.createKey("memory.configFile", memory.configFile);
+  if (machineType == 0) {
+    config.createKey("memory.rom.02.file", memory.rom[0x02].file);
+    config.createKey("memory.rom.02.offset", memory.rom[0x02].offset);
+    config.createKey("memory.rom.03.file", memory.rom[0x03].file);
+    config.createKey("memory.rom.03.offset", memory.rom[0x03].offset);
+    config.createKey("memory.rom.04.file", memory.rom[0x04].file);
+    config.createKey("memory.rom.04.offset", memory.rom[0x04].offset);
+    config.createKey("memory.rom.05.file", memory.rom[0x05].file);
+    config.createKey("memory.rom.05.offset", memory.rom[0x05].offset);
+    config.createKey("memory.rom.06.file", memory.rom[0x06].file);
+    config.createKey("memory.rom.06.offset", memory.rom[0x06].offset);
+    config.createKey("memory.rom.07.file", memory.rom[0x07].file);
+    config.createKey("memory.rom.07.offset", memory.rom[0x07].offset);
+    config.createKey("memory.rom.10.file", memory.rom[0x10].file);
+    config.createKey("memory.rom.10.offset", memory.rom[0x10].offset);
+    config.createKey("memory.rom.11.file", memory.rom[0x11].file);
+    config.createKey("memory.rom.11.offset", memory.rom[0x11].offset);
+    config.createKey("memory.rom.12.file", memory.rom[0x12].file);
+    config.createKey("memory.rom.12.offset", memory.rom[0x12].offset);
+    config.createKey("memory.rom.13.file", memory.rom[0x13].file);
+    config.createKey("memory.rom.13.offset", memory.rom[0x13].offset);
+    config.createKey("memory.rom.20.file", memory.rom[0x20].file);
+    config.createKey("memory.rom.20.offset", memory.rom[0x20].offset);
+    config.createKey("memory.rom.21.file", memory.rom[0x21].file);
+    config.createKey("memory.rom.21.offset", memory.rom[0x21].offset);
+    config.createKey("memory.rom.22.file", memory.rom[0x22].file);
+    config.createKey("memory.rom.22.offset", memory.rom[0x22].offset);
+    config.createKey("memory.rom.23.file", memory.rom[0x23].file);
+    config.createKey("memory.rom.23.offset", memory.rom[0x23].offset);
+    config.createKey("memory.rom.30.file", memory.rom[0x30].file);
+    config.createKey("memory.rom.30.offset", memory.rom[0x30].offset);
+    config.createKey("memory.rom.31.file", memory.rom[0x31].file);
+    config.createKey("memory.rom.31.offset", memory.rom[0x31].offset);
+    config.createKey("memory.rom.32.file", memory.rom[0x32].file);
+    config.createKey("memory.rom.32.offset", memory.rom[0x32].offset);
+    config.createKey("memory.rom.33.file", memory.rom[0x33].file);
+    config.createKey("memory.rom.33.offset", memory.rom[0x33].offset);
+    config.createKey("memory.rom.40.file", memory.rom[0x40].file);
+    config.createKey("memory.rom.40.offset", memory.rom[0x40].offset);
+    config.createKey("memory.rom.41.file", memory.rom[0x41].file);
+    config.createKey("memory.rom.41.offset", memory.rom[0x41].offset);
+    config.createKey("memory.rom.42.file", memory.rom[0x42].file);
+    config.createKey("memory.rom.42.offset", memory.rom[0x42].offset);
+    config.createKey("memory.rom.43.file", memory.rom[0x43].file);
+    config.createKey("memory.rom.43.offset", memory.rom[0x43].offset);
+    config.createKey("memory.configFile", memory.configFile);
+  }
 }
 
 class Ep128EmuDisplaySndConfiguration {
@@ -1216,7 +1270,7 @@ static bool unpackROMFiles(const std::string& romDir)
 int main(int argc, char **argv)
 {
   if ((sizeof(machineConfigs) / sizeof(uint64_t))
-      != (sizeof(machineConfigFileNames) / sizeof(char *))) {
+      > (sizeof(machineConfigFileNames) / sizeof(char *))) {
     std::abort();
   }
   Fl::lock();
@@ -1278,6 +1332,8 @@ int main(int argc, char **argv)
       tmp += '/';
     std::string tmp2 = tmp + "config";
     mkdir(tmp2.c_str(), 0755);
+    tmp2 = tmp + "config/cpc";
+    mkdir(tmp2.c_str(), 0755);
     tmp2 = tmp + "config/ep128brd";
     mkdir(tmp2.c_str(), 0755);
     tmp2 = tmp + "config/ep128esp";
@@ -1287,6 +1343,8 @@ int main(int argc, char **argv)
     tmp2 = tmp + "config/ep128uk";
     mkdir(tmp2.c_str(), 0755);
     tmp2 = tmp + "config/ep64";
+    mkdir(tmp2.c_str(), 0755);
+    tmp2 = tmp + "config/zx";
     mkdir(tmp2.c_str(), 0755);
     tmp2 = tmp + "demo";
     mkdir(tmp2.c_str(), 0755);
@@ -1315,6 +1373,8 @@ int main(int argc, char **argv)
       tmp += '\\';
     std::string tmp2 = tmp + "config";
     _mkdir(tmp2.c_str());
+    tmp2 = tmp + "config\\cpc";
+    _mkdir(tmp2.c_str());
     tmp2 = tmp + "config\\ep128brd";
     _mkdir(tmp2.c_str());
     tmp2 = tmp + "config\\ep128esp";
@@ -1324,6 +1384,8 @@ int main(int argc, char **argv)
     tmp2 = tmp + "config\\ep128uk";
     _mkdir(tmp2.c_str());
     tmp2 = tmp + "config\\ep64";
+    _mkdir(tmp2.c_str());
+    tmp2 = tmp + "config\\zx";
     _mkdir(tmp2.c_str());
     tmp2 = tmp + "demo";
     _mkdir(tmp2.c_str());
@@ -1397,27 +1459,43 @@ int main(int argc, char **argv)
         delete gCfg;
       }
       delete config;
-      config = new Ep128Emu::ConfigurationDB();
-      mCfg = new Ep128EmuMachineConfiguration(*config, 39, romDirectory);
-      dsCfg = new Ep128EmuDisplaySndConfiguration(*config);
-      setKeyboardConfiguration(*config, (gui->keyboardMapHU ? 1 : 0));
-      std::string fileIODir = installDirectory + "files";
-      config->createKey("fileio.workingDirectory", fileIODir);
-      try {
-        Ep128Emu::File  f;
-        config->saveState(f);
-        f.writeFile("ep128cfg.dat", true);
+      for (int i = 0; i < 3; i++) {
+        const char  *fName = "ep128cfg.dat";
+        int         configNum = 39;
+        if (i == 1) {
+          fName = "zx128cfg.dat";
+          configNum = int(sizeof(machineConfigs) / sizeof(uint64_t)) + 4;
+        }
+        else if (i == 2) {
+          fName = "cpc_cfg.dat";
+          configNum = int(sizeof(machineConfigs) / sizeof(uint64_t)) + 7;
+        }
+        config = new Ep128Emu::ConfigurationDB();
+        dsCfg = new Ep128EmuDisplaySndConfiguration(*config);
+        mCfg = new Ep128EmuMachineConfiguration(*config, configNum,
+                                                romDirectory);
+        setKeyboardConfiguration(*config, (gui->keyboardMapHU ? 1 : 0));
+        std::string fileIODir = installDirectory + "files";
+        config->createKey("fileio.workingDirectory", fileIODir);
+        try {
+          Ep128Emu::File  f;
+          config->saveState(f);
+          f.writeFile(fName, true);
+        }
+        catch (std::exception& e) {
+          gui->errorMessage(e.what());
+        }
+        delete config;
+        delete dsCfg;
+        delete mCfg;
+        config = (Ep128Emu::ConfigurationDB *) 0;
+        dsCfg = (Ep128EmuDisplaySndConfiguration *) 0;
+        mCfg = (Ep128EmuMachineConfiguration *) 0;
       }
-      catch (std::exception& e) {
-        gui->errorMessage(e.what());
-      }
-      delete config;
-      delete mCfg;
-      delete dsCfg;
-      config = (Ep128Emu::ConfigurationDB *) 0;
-      mCfg = (Ep128EmuMachineConfiguration *) 0;
     }
-    for (int i = 0; i < int(sizeof(machineConfigs) / sizeof(uint64_t)); i++) {
+    for (int i = 0;
+         i < int(sizeof(machineConfigFileNames) / sizeof(char *));
+         i++) {
       config = new Ep128Emu::ConfigurationDB();
       mCfg = new Ep128EmuMachineConfiguration(*config, i, romDirectory);
       try {
