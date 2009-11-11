@@ -247,6 +247,7 @@ namespace Ep128 {
 
   EP128EMU_REGPARM2 void Ep128VM::Z80_::pushWord(uint16_t value)
   {
+    vm.cpuCyclesRemaining -= (int64_t(1) << 32);
     R.SP.W -= 2;
     uint16_t  addr = R.SP.W;
     if (vm.spectrumEmulatorEnabled) {
@@ -283,15 +284,13 @@ namespace Ep128 {
     return vm.ioPorts.read(addr);
   }
 
-  EP128EMU_REGPARM2 void Ep128VM::Z80_::updateCycle(uint16_t addr)
+  EP128EMU_REGPARM1 void Ep128VM::Z80_::updateCycle()
   {
-    (void) addr;
     vm.cpuCyclesRemaining -= (int64_t(1) << 32);
   }
 
-  EP128EMU_REGPARM3 void Ep128VM::Z80_::updateCycles(int cycles, uint16_t addr)
+  EP128EMU_REGPARM2 void Ep128VM::Z80_::updateCycles(int cycles)
   {
-    (void) addr;
     vm.updateCPUCycles(cycles);
   }
 

@@ -127,6 +127,29 @@ namespace ZX128 {
     }
   }
 
+  EP128EMU_REGPARM1 void ZX128VM::runOneCycle()
+  {
+    ZX128VMCallback *p = firstCallback;
+    while (p) {
+      ZX128VMCallback *nxt = p->nxt;
+      p->func(p->userData);
+      p = nxt;
+    }
+    if (--ayCycleCnt == 0) {
+      ayCycleCnt = 4;
+      uint32_t  tmp = soundOutputSignal;
+      soundOutputSignal = 0U;
+      if (spectrum128Mode)
+        tmp = tmp + (uint32_t(ay3.runOneCycle()) << 2);
+      tmp = (tmp * 8864U + 0x8000U) & 0xFFFF0000U;
+      sendAudioOutput(tmp | (tmp >> 16));
+    }
+    ula.runOneSlot();
+    soundOutputSignal += uint32_t(ula.getSoundOutput());
+    ulaCyclesRemainingH--;
+    z80OpcodeHalfCycles = z80OpcodeHalfCycles - 8;
+  }
+
   // --------------------------------------------------------------------------
 
   ZX128VM::Z80_::Z80_(ZX128VM& vm_)
@@ -138,6 +161,7 @@ namespace ZX128 {
       tapeShiftRegCnt(0),
       tapeShiftReg(0x00)
   {
+    addressBusState.W = 0x0000;
   }
 
   ZX128VM::Z80_::~Z80_()
@@ -153,6 +177,7 @@ namespace ZX128 {
 
   EP128EMU_REGPARM2 uint8_t ZX128VM::Z80_::readMemory(uint16_t addr)
   {
+    addressBusState.W = addr;
     vm.memoryWait(addr);
     uint8_t   retval = vm.memory.read(addr);
     vm.updateCPUHalfCycles(1);
@@ -164,14 +189,17 @@ namespace ZX128 {
     vm.memoryWait(addr);
     uint16_t  retval = vm.memory.read(addr);
     vm.updateCPUHalfCycles(1);
-    vm.memoryWait((addr + 1) & 0xFFFF);
-    retval |= (uint16_t(vm.memory.read((addr + 1) & 0xFFFF) << 8));
+    addr = (addr + 1) & 0xFFFF;
+    addressBusState.W = addr;
+    vm.memoryWait(addr);
+    retval |= (uint16_t(vm.memory.read(addr) << 8));
     vm.updateCPUHalfCycles(1);
     return retval;
   }
 
   EP128EMU_REGPARM1 uint8_t ZX128VM::Z80_::readOpcodeFirstByte()
   {
+    addressBusState.B.h = R.I;
     uint16_t  addr = uint16_t(R.PC.W.l);
     vm.memoryWaitM1(addr);
     if (addr == 0x05E7) {
@@ -191,6 +219,7 @@ namespace ZX128 {
 
   EP128EMU_REGPARM1 uint8_t ZX128VM::Z80_::readOpcodeSecondByte()
   {
+    addressBusState.B.h = R.I;
     uint16_t  addr = (uint16_t(R.PC.W.l) + uint16_t(1)) & uint16_t(0xFFFF);
     vm.memoryWaitM1(addr);
     uint8_t   retval = vm.memory.readOpcode(addr);
@@ -201,6 +230,7 @@ namespace ZX128 {
   EP128EMU_REGPARM2 uint8_t ZX128VM::Z80_::readOpcodeByte(int offset)
   {
     uint16_t  addr = uint16_t((int(R.PC.W.l) + offset) & 0xFFFF);
+    addressBusState.W = addr;
     vm.memoryWait(addr);
     uint8_t   retval = vm.memory.readOpcode(addr);
     vm.updateCPUHalfCycles(1);
@@ -213,8 +243,10 @@ namespace ZX128 {
     vm.memoryWait(addr);
     uint16_t  retval = vm.memory.readOpcode(addr);
     vm.updateCPUHalfCycles(1);
-    vm.memoryWait((addr + 1) & 0xFFFF);
-    retval |= (uint16_t(vm.memory.readOpcode((addr + 1) & 0xFFFF) << 8));
+    addr = (addr + 1) & 0xFFFF;
+    addressBusState.W = addr;
+    vm.memoryWait(addr);
+    retval |= (uint16_t(vm.memory.readOpcode(addr) << 8));
     vm.updateCPUHalfCycles(1);
     return retval;
   }
@@ -222,6 +254,7 @@ namespace ZX128 {
   EP128EMU_REGPARM3 void ZX128VM::Z80_::writeMemory(uint16_t addr,
                                                     uint8_t value)
   {
+    addressBusState.W = addr;
     vm.memoryWait(addr);
     while (vm.z80OpcodeHalfCycles >= 8)
       vm.runOneCycle();
@@ -237,17 +270,24 @@ namespace ZX128 {
       vm.runOneCycle();
     vm.memory.write(addr, uint8_t(value) & 0xFF);
     vm.updateCPUHalfCycles(1);
-    vm.memoryWait((addr + 1) & 0xFFFF);
+    addr = (addr + 1) & 0xFFFF;
+    addressBusState.W = addr;
+    vm.memoryWait(addr);
     while (vm.z80OpcodeHalfCycles >= 8)
       vm.runOneCycle();
-    vm.memory.write((addr + 1) & 0xFFFF, uint8_t(value >> 8));
+    vm.memory.write(addr, uint8_t(value >> 8));
     vm.updateCPUHalfCycles(1);
   }
 
   EP128EMU_REGPARM2 void ZX128VM::Z80_::pushWord(uint16_t value)
   {
+    if (vm.isContendedAddress(addressBusState.W))
+      vm.contendedWait(2, 1);
+    else
+      vm.updateCPUHalfCycles(2);
     R.SP.W -= 2;
     uint16_t  addr = R.SP.W;
+    addressBusState.W = addr;
     vm.memoryWait((addr + 1) & 0xFFFF);
     while (vm.z80OpcodeHalfCycles >= 8)
       vm.runOneCycle();
@@ -262,6 +302,7 @@ namespace ZX128 {
 
   EP128EMU_REGPARM3 void ZX128VM::Z80_::doOut(uint16_t addr, uint8_t value)
   {
+    addressBusState.W = addr;
     vm.ioPortWait(addr);
     while (vm.z80OpcodeHalfCycles >= 8)
       vm.runOneCycle();
@@ -271,23 +312,24 @@ namespace ZX128 {
 
   EP128EMU_REGPARM2 uint8_t ZX128VM::Z80_::doIn(uint16_t addr)
   {
+    addressBusState.W = addr;
     vm.ioPortWait(addr);
     uint8_t   retval = vm.ioPorts.read(addr);
     vm.updateCPUHalfCycles(1);
     return retval;
   }
 
-  EP128EMU_REGPARM2 void ZX128VM::Z80_::updateCycle(uint16_t addr)
+  EP128EMU_REGPARM1 void ZX128VM::Z80_::updateCycle()
   {
-    if (vm.isContendedAddress(addr))
+    if (vm.isContendedAddress(addressBusState.W))
       vm.contendedWait(2, 1);
     else
       vm.updateCPUHalfCycles(2);
   }
 
-  EP128EMU_REGPARM3 void ZX128VM::Z80_::updateCycles(int cycles, uint16_t addr)
+  EP128EMU_REGPARM2 void ZX128VM::Z80_::updateCycles(int cycles)
   {
-    if (vm.isContendedAddress(addr)) {
+    if (vm.isContendedAddress(addressBusState.W)) {
       do {
         vm.contendedWait(2, 1);
       } while (--cycles > 0);
@@ -831,29 +873,6 @@ namespace ZX128 {
       else
         firstCallback = p;
     }
-  }
-
-  EP128EMU_REGPARM1 void ZX128VM::runOneCycle()
-  {
-    ZX128VMCallback *p = firstCallback;
-    while (p) {
-      ZX128VMCallback *nxt = p->nxt;
-      p->func(p->userData);
-      p = nxt;
-    }
-    if (--ayCycleCnt == 0) {
-      ayCycleCnt = 4;
-      uint32_t  tmp = soundOutputSignal;
-      soundOutputSignal = 0U;
-      if (spectrum128Mode)
-        tmp = tmp + (uint32_t(ay3.runOneCycle()) << 2);
-      tmp = (tmp * 8864U + 0x8000U) & 0xFFFF0000U;
-      sendAudioOutput(tmp | (tmp >> 16));
-    }
-    ula.runOneSlot();
-    soundOutputSignal += uint32_t(ula.getSoundOutput());
-    ulaCyclesRemainingH--;
-    z80OpcodeHalfCycles = z80OpcodeHalfCycles - 8;
   }
 
   // --------------------------------------------------------------------------

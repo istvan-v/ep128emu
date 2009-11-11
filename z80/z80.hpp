@@ -296,7 +296,7 @@ namespace Ep128 {
     virtual EP128EMU_REGPARM3 void writeMemoryWord(uint16_t addr,
                                                    uint16_t value);
     /*!
-     * Write a 16-bit word to the stack (6 cycles).
+     * Write a 16-bit word to the stack (7 cycles).
      */
     virtual EP128EMU_REGPARM2 void pushWord(uint16_t value);
     /*!
@@ -323,8 +323,8 @@ namespace Ep128 {
      * Read an opcode word (6 cycles; 'Offset' should not be zero).
      */
     virtual EP128EMU_REGPARM2 uint16_t readOpcodeWord(int offset);
-    virtual EP128EMU_REGPARM2 void updateCycle(uint16_t addr);
-    virtual EP128EMU_REGPARM3 void updateCycles(int cycles, uint16_t addr);
+    virtual EP128EMU_REGPARM1 void updateCycle();
+    virtual EP128EMU_REGPARM2 void updateCycles(int cycles);
     virtual EP128EMU_REGPARM1 void tapePatch();
   };
 

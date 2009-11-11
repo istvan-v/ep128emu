@@ -49,6 +49,7 @@ namespace ZX128 {
       uint16_t  tapeLeaderCnt;
       uint8_t   tapeShiftRegCnt;
       uint8_t   tapeShiftReg;
+      Ep128::Z80_REGISTER_PAIR  addressBusState;    // for contention timing
      public:
       Z80_(ZX128VM& vm_);
       virtual ~Z80_();
@@ -66,8 +67,8 @@ namespace ZX128 {
       virtual EP128EMU_REGPARM2 void pushWord(uint16_t value);
       virtual EP128EMU_REGPARM3 void doOut(uint16_t addr, uint8_t value);
       virtual EP128EMU_REGPARM2 uint8_t doIn(uint16_t addr);
-      virtual EP128EMU_REGPARM2 void updateCycle(uint16_t addr);
-      virtual EP128EMU_REGPARM3 void updateCycles(int cycles, uint16_t addr);
+      virtual EP128EMU_REGPARM1 void updateCycle();
+      virtual EP128EMU_REGPARM2 void updateCycles(int cycles);
      private:
       void readTapeFile();
      public:
@@ -170,6 +171,7 @@ namespace ZX128 {
     EP128EMU_INLINE void memoryWait(uint16_t addr);
     EP128EMU_INLINE void memoryWaitM1(uint16_t addr);
     EP128EMU_INLINE void ioPortWait(uint16_t addr);
+    EP128EMU_REGPARM1 void runOneCycle();
     static uint8_t ioPortReadCallback(void *userData, uint16_t addr);
     static void ioPortWriteCallback(void *userData,
                                     uint16_t addr, uint8_t value);
@@ -188,7 +190,6 @@ namespace ZX128 {
     // in the order of being registered; up to 16 callbacks can be set.
     void setCallback(void (*func)(void *userData), void *userData_,
                      bool isEnabled);
-    EP128EMU_REGPARM1 void runOneCycle();
    public:
     ZX128VM(Ep128Emu::VideoDisplay&, Ep128Emu::AudioOutput&);
     virtual ~ZX128VM();

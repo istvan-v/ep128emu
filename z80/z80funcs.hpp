@@ -24,7 +24,7 @@ namespace Ep128 {
   EP128EMU_INLINE Z80_BYTE Z80::RD_BYTE_INDEX_(Z80_WORD Index)
   {
     SETUP_INDEXED_ADDRESS(Index);
-    updateCycles(5, R.PC.W.l + 2);
+    updateCycles(5);
     return readMemory(R.IndexPlusOffset);
   }
 
@@ -34,7 +34,7 @@ namespace Ep128 {
   EP128EMU_INLINE void Z80::WR_BYTE_INDEX_(Z80_WORD Index, Z80_BYTE Data)
   {
     SETUP_INDEXED_ADDRESS(Index);
-    updateCycles(5, R.PC.W.l + 2);
+    updateCycles(5);
     writeMemory(R.IndexPlusOffset, Data);
   }
 
@@ -160,7 +160,7 @@ namespace Ep128 {
   EP128EMU_INLINE void Z80::RRD()
   {
     Z80_BYTE  tempByte = readMemory(R.HL.W);
-    updateCycles(4, R.HL.W);
+    updateCycles(4);
     writeMemory(R.HL.W, Z80_BYTE(((tempByte >> 4) | (R.AF.B.h << 4))));
     R.AF.B.h = (R.AF.B.h & 0xF0) | (tempByte & 0x0F);
 
@@ -171,7 +171,7 @@ namespace Ep128 {
   EP128EMU_INLINE void Z80::RLD()
   {
     Z80_BYTE  tempByte = readMemory(R.HL.W);
-    updateCycles(4, R.HL.W);
+    updateCycles(4);
     writeMemory(R.HL.W, Z80_BYTE((tempByte << 4) | (R.AF.B.h & 0x0F)));
     R.AF.B.h = (R.AF.B.h & 0xF0) | (tempByte >> 4);
 
@@ -193,9 +193,10 @@ namespace Ep128 {
 
   EP128EMU_INLINE void Z80::JR()
   {
-    int     tmp = int(Z80_BYTE_OFFSET(readOpcodeByte(1)));
-    updateCycles(5, R.PC.W.l + 1);
-    R.PC.W.l = Z80_WORD((R.PC.W.l + 2 + tmp) & 0xFFFF);
+    R.PC.W.l =
+        Z80_WORD((R.PC.W.l + 2 + int(Z80_BYTE_OFFSET(readOpcodeByte(1))))
+                 & 0xFFFF);
+    updateCycles(5);
   }
 
   /*--------------------*/
@@ -205,7 +206,6 @@ namespace Ep128 {
   {
     Z80_WORD  tempWord = readOpcodeWord(1);
     /* store return address on stack */
-    updateCycle(R.PC.W.l + 2);
     PUSH(Z80_WORD(R.PC.W.l + 3));
     /* set program counter to sub-routine address */
     R.PC.W.l = tempWord;
@@ -214,7 +214,7 @@ namespace Ep128 {
   EP128EMU_INLINE void Z80::DJNZ_dd()
   {
     /* decrement B */
-    updateCycle(uint16_t(R.I) << 8);
+    updateCycle();
     R.BC.B.h--;
 
     /* if zero */

@@ -66,8 +66,8 @@ namespace Ep128 {
       virtual EP128EMU_REGPARM2 void pushWord(uint16_t value);
       virtual EP128EMU_REGPARM3 void doOut(uint16_t addr, uint8_t value);
       virtual EP128EMU_REGPARM2 uint8_t doIn(uint16_t addr);
-      virtual EP128EMU_REGPARM2 void updateCycle(uint16_t addr);
-      virtual EP128EMU_REGPARM3 void updateCycles(int cycles, uint16_t addr);
+      virtual EP128EMU_REGPARM1 void updateCycle();
+      virtual EP128EMU_REGPARM2 void updateCycles(int cycles);
       virtual EP128EMU_REGPARM1 void tapePatch();
      private:
       uint8_t readUserMemory(uint16_t addr);

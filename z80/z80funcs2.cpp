@@ -40,7 +40,7 @@ namespace Ep128 {
       // IM 0: assume that the byte read from the data bus is FFh (RST 38H)
       // IM 1: the number of cycles required to complete the instruction
       // is two more than normal due to the two added wait states
-      updateCycles(7, 0);
+      updateCycles(6);
       // push return address onto stack
       PUSH(R.PC.W.l);
       // set program counter address
@@ -49,7 +49,7 @@ namespace Ep128 {
     else {
       // IM 2: 19 clock cycles for this mode. 7 for vector,
       // six for program counter, six to obtain jump address
-      updateCycles(7, 0);
+      updateCycles(6);
       PUSH(R.PC.W.l);
       Z80_WORD Vector = (R.I << 8) | (R.InterruptVectorBase);
       Z80_WORD Address = readMemoryWord(Vector);
@@ -220,7 +220,7 @@ namespace Ep128 {
     R.IFF1 = 0;
     // NMI takes a total of 11 cycles to execute
     // (5 + 6 for pushing the return address)
-    updateCycles(5, 0);
+    updateCycles(4);
     // push return address on stack
     PUSH(R.PC.W.l);
     // set program counter address
@@ -280,7 +280,7 @@ namespace Ep128 {
 
   void Z80::OUTI()
   {
-    updateCycle(uint16_t(R.I) << 8);
+    updateCycle();
     Z80_BYTE  tmp = readMemory(R.HL.W);
     R.HL.W++;
     R.BC.B.h--;
@@ -294,7 +294,7 @@ namespace Ep128 {
   /* B is pre-decremented before execution */
   void Z80::OUTD()
   {
-    updateCycle(uint16_t(R.I) << 8);
+    updateCycle();
     Z80_BYTE  tmp = readMemory(R.HL.W);
     R.HL.W--;
     R.BC.B.h--;
@@ -307,7 +307,7 @@ namespace Ep128 {
 
   void Z80::INI()
   {
-    updateCycle(uint16_t(R.I) << 8);
+    updateCycle();
     Z80_BYTE  tmp = doIn(R.BC.W);
     writeMemory(R.HL.W, tmp);
     R.HL.W++;
@@ -321,7 +321,7 @@ namespace Ep128 {
 
   void Z80::IND()
   {
-    updateCycle(uint16_t(R.I) << 8);
+    updateCycle();
     Z80_BYTE  tmp = doIn(R.BC.W);
     writeMemory(R.HL.W, tmp);
     R.HL.W--;
@@ -356,7 +356,7 @@ namespace Ep128 {
   EP128EMU_REGPARM2 uint8_t Z80::readMemory(uint16_t addr)
   {
     (void) addr;
-    updateCycles(3, 0);
+    updateCycles(3);
     return 0;
   }
 
@@ -364,7 +364,7 @@ namespace Ep128 {
   {
     (void) addr;
     (void) value;
-    updateCycles(3, 0);
+    updateCycles(3);
   }
 
   EP128EMU_REGPARM2 uint16_t Z80::readMemoryWord(uint16_t addr)
@@ -381,6 +381,7 @@ namespace Ep128 {
 
   EP128EMU_REGPARM2 void Z80::pushWord(uint16_t value)
   {
+    updateCycle();
     R.SP.W -= 2;
     writeMemory((R.SP.W + 1) & 0xFFFF, uint8_t(value >> 8));
     writeMemory(R.SP.W, uint8_t(value) & 0xFF);
@@ -390,25 +391,25 @@ namespace Ep128 {
   {
     (void) addr;
     (void) value;
-    updateCycles(4, 0);
+    updateCycles(4);
   }
 
   EP128EMU_REGPARM2 uint8_t Z80::doIn(uint16_t addr)
   {
     (void) addr;
-    updateCycles(4, 0);
+    updateCycles(4);
     return 0xFF;
   }
 
   EP128EMU_REGPARM1 uint8_t Z80::readOpcodeFirstByte()
   {
-    updateCycle(0);
+    updateCycle();
     return readMemory(uint16_t(R.PC.W.l));
   }
 
   EP128EMU_REGPARM1 uint8_t Z80::readOpcodeSecondByte()
   {
-    updateCycle(0);
+    updateCycle();
     return readMemory((uint16_t(R.PC.W.l) + uint16_t(1)) & 0xFFFF);
   }
 
@@ -422,15 +423,14 @@ namespace Ep128 {
     return readMemoryWord((uint16_t(R.PC.W.l) + uint16_t(offset)) & 0xFFFF);
   }
 
-  EP128EMU_REGPARM2 void Z80::updateCycle(uint16_t addr)
+  EP128EMU_REGPARM1 void Z80::updateCycle()
   {
-    updateCycles(1, addr);
+    updateCycles(1);
   }
 
-  EP128EMU_REGPARM3 void Z80::updateCycles(int cycles, uint16_t addr)
+  EP128EMU_REGPARM2 void Z80::updateCycles(int cycles)
   {
     (void) cycles;
-    (void) addr;
   }
 
   EP128EMU_REGPARM1 void Z80::tapePatch()
