@@ -177,9 +177,9 @@ namespace ZX128 {
 
   uint16_t AY3_8912::runOneCycle()
   {
-    uint16_t  audioOutput = 0;
-    if ((tgStateA | tgDisabledA) & (ngState | ngDisabledA))
-      audioOutput += amplitudeA;
+    uint16_t  audioOutput =
+        (((tgStateA | tgDisabledA) & (ngState | ngDisabledA)) ?
+         amplitudeA : uint16_t(0));
     if ((tgStateB | tgDisabledB) & (ngState | ngDisabledB))
       audioOutput += amplitudeB;
     if ((tgStateC | tgDisabledC) & (ngState | ngDisabledC))
@@ -216,32 +216,30 @@ namespace ZX128 {
     else {
       ngCnt--;
     }
-    if (envCnt <= 1) {
+    if (envCnt <= 1U) {
       envCnt = envFreq;
-      envState += envDir;
-      if (envState < 0 || envState > 31) {
-        if (envHold || !envContinue) {
-          envState = ((envAlternate == envAttack || !envContinue) ? 0 : 31);
-          envDir = 0;
+      if (envDir != 0) {
+        envState += envDir;
+        if (envState < 0 || envState > 31) {
+          if (envHold || !envContinue) {
+            envState = ((envAlternate == envAttack || !envContinue) ? 0 : 31);
+            envDir = 0;
+          }
+          else if (!envAlternate) {
+            envState = envState & 31;
+          }
+          else {
+            envState -= envDir;
+            envDir = -envDir;
+          }
         }
-        else if (!envAlternate) {
-          envState = (envState < 0 ? 31 : 0);
-        }
-        else if (envDir > 0) {
-          envDir = -1;
-          envState = 31;
-        }
-        else {
-          envDir = 1;
-          envState = 0;
-        }
+        if (envEnabledA)
+          amplitudeA = amplitudeTable[envState >> 1];
+        if (envEnabledB)
+          amplitudeB = amplitudeTable[envState >> 1];
+        if (envEnabledC)
+          amplitudeC = amplitudeTable[envState >> 1];
       }
-      if (envEnabledA)
-        amplitudeA = amplitudeTable[envState >> 1];
-      if (envEnabledB)
-        amplitudeB = amplitudeTable[envState >> 1];
-      if (envEnabledC)
-        amplitudeC = amplitudeTable[envState >> 1];
     }
     else {
       envCnt--;
