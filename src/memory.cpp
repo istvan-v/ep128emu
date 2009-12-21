@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -86,17 +86,17 @@ namespace Ep128 {
   }
 
   Memory::Memory()
+    : segmentTable((uint8_t **) 0),
+      segmentROMTable((bool *) 0),
+      breakPointTable((uint8_t *) 0),
+      breakPointCnt(0),
+      segmentBreakPointTable((uint8_t **) 0),
+      segmentBreakPointCntTable((size_t *) 0),
+      haveBreakPoints(false),
+      breakPointPriorityThreshold(0),
+      videoMemory((uint8_t *) 0),
+      dummyMemory((uint8_t *) 0)
   {
-    segmentTable = (uint8_t **) 0;
-    segmentROMTable = (bool *) 0;
-    breakPointTable = (uint8_t *) 0;
-    breakPointCnt = 0;
-    segmentBreakPointTable = (uint8_t **) 0;
-    segmentBreakPointCntTable = (size_t *) 0;
-    haveBreakPoints = false;
-    breakPointPriorityThreshold = 0;
-    videoMemory = (uint8_t *) 0;
-    dummyMemory = (uint8_t *) 0;
     for (int i = 0; i < 4; i++) {
       pageTable[i] = 0;
       pageAddressTableR[i] = (uint8_t *) 0;
@@ -175,18 +175,6 @@ namespace Ep128 {
     }
     delete[] segmentBreakPointTable;
     delete[] segmentBreakPointCntTable;
-    segmentTable = (uint8_t **) 0;
-    segmentROMTable = (bool *) 0;
-    pageTable[0] = 0;
-    pageTable[1] = 0;
-    pageTable[2] = 0;
-    pageTable[3] = 0;
-    breakPointTable = (uint8_t *) 0;
-    breakPointCnt = 0;
-    segmentBreakPointTable = (uint8_t **) 0;
-    segmentBreakPointCntTable = (size_t *) 0;
-    haveBreakPoints = false;
-    breakPointPriorityThreshold = 0;
   }
 
   void Memory::setBreakPoint(uint8_t segment, uint16_t addr, int priority,
