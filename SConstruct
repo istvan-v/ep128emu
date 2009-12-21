@@ -345,6 +345,23 @@ zx128Lib = zx128LibEnvironment.StaticLibrary('zx128', Split('''
 # -----------------------------------------------------------------------------
 
 if not oldSConsVersion:
+    cpc464LibEnvironment = ep128emuLibEnvironment.Clone()
+else:
+    cpc464LibEnvironment = ep128emuLibEnvironment.Copy()
+cpc464LibEnvironment.Append(CPPPATH = ['./z80'])
+
+cpc464Lib = cpc464LibEnvironment.StaticLibrary('cpc464', Split('''
+    src/cpc464vm.cpp
+    src/cpcio.cpp
+    src/cpcmem.cpp
+    src/crtc6845.cpp
+    src/cpcvideo.cpp
+    src/cpc_snap.cpp
+'''))
+
+# -----------------------------------------------------------------------------
+
+if not oldSConsVersion:
     ep128emuEnvironment = ep128emuGLGUIEnvironment.Clone()
 else:
     ep128emuEnvironment = ep128emuGLGUIEnvironment.Copy()
