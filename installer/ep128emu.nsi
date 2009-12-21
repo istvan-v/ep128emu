@@ -122,18 +122,22 @@ Section "ep128emu2" SecMain
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\GUI themes\ep128emu - Software - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-no-opengl -colorscheme 1'
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\GUI themes\ep128emu - Software - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-no-opengl -colorscheme 2'
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\GUI themes\ep128emu - Software - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-no-opengl -colorscheme 3'
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - GL - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -opengl -colorscheme 1'
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - GL - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -opengl -colorscheme 2'
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - GL - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -opengl -colorscheme 3'
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - Software - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -no-opengl -colorscheme 1'
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - Software - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -no-opengl -colorscheme 2'
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - Software - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -no-opengl -colorscheme 3'
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - GL - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl -colorscheme 1'
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - GL - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl -colorscheme 2'
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - GL - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl -colorscheme 3'
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - Software - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 1'
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - Software - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 2'
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - Software - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 3'
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - GL - default theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -opengl' "$INSTDIR\ep128emu.exe" 1
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - GL - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -opengl -colorscheme 1' "$INSTDIR\ep128emu.exe" 1
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - GL - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -opengl -colorscheme 2' "$INSTDIR\ep128emu.exe" 1
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - GL - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -opengl -colorscheme 3' "$INSTDIR\ep128emu.exe" 1
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - Software - default theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -no-opengl' "$INSTDIR\ep128emu.exe" 1
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - Software - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -no-opengl -colorscheme 1' "$INSTDIR\ep128emu.exe" 1
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - Software - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -no-opengl -colorscheme 2' "$INSTDIR\ep128emu.exe" 1
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - Software - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -no-opengl -colorscheme 3' "$INSTDIR\ep128emu.exe" 1
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - GL - default theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - GL - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl -colorscheme 1' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - GL - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl -colorscheme 2' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - GL - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl -colorscheme 3' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - Software - default theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - Software - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 1' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - Software - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 2' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - Software - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 3' "$INSTDIR\ep128emu.exe" 2
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\README.lnk" "$INSTDIR\readme.txt"
     SetOutPath "$INSTDIR\tape"
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Tape editor.lnk" "$INSTDIR\tapeedit.exe"
@@ -521,15 +525,19 @@ Section "Uninstall"
   Delete "$SMPROGRAMS\$MUI_TEMP\GUI themes\ep128emu - Software - Win2000 theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\GUI themes\ep128emu - Software - plastic theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\GUI themes\ep128emu - Software - Gtk+ theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\Spectrum emulator\zx128emu - GL - default theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\Spectrum emulator\zx128emu - GL - Win2000 theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\Spectrum emulator\zx128emu - GL - plastic theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\Spectrum emulator\zx128emu - GL - Gtk+ theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\Spectrum emulator\zx128emu - Software - default theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\Spectrum emulator\zx128emu - Software - Win2000 theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\Spectrum emulator\zx128emu - Software - plastic theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\Spectrum emulator\zx128emu - Software - Gtk+ theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc464emu - GL - default theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc464emu - GL - Win2000 theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc464emu - GL - plastic theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc464emu - GL - Gtk+ theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc464emu - Software - default theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc464emu - Software - Win2000 theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc464emu - Software - plastic theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc464emu - Software - Gtk+ theme.lnk"
