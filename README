@@ -713,6 +713,16 @@ scripts:
     counter within the current line parameter block (LPB), which counts
     up to 255, and the video memory address of the LPB multiplied by 16.
 
+  getRawAddress(segment, offset)
+
+    Calculates a 22-bit physical address from the specified segment and
+    offset; only the 14 least significant bits of 'offset' are used.
+
+  getRawAddress(addr)
+
+    Calculates a 22-bit physical address from a 16-bit CPU address,
+    using the current memory paging.
+
   loadMemory(fname, asciiMode, cpuAddressMode, startAddr[, endAddr])
 
     Loads a file to the memory area at 'startAddr' to 'endAddr' (the

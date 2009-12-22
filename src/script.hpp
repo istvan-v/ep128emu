@@ -117,6 +117,7 @@ namespace Ep128Emu {
     static int luaFunc_setIFF2(lua_State *lst);
     static int luaFunc_getNextOpcodeAddr(lua_State *lst);
     static int luaFunc_getVideoPosition(lua_State *lst);
+    static int luaFunc_getRawAddress(lua_State *lst);
     static int luaFunc_loadMemory(lua_State *lst);
     static int luaFunc_saveMemory(lua_State *lst);
     static int luaFunc_mprint(lua_State *lst);

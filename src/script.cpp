@@ -1319,6 +1319,38 @@ namespace Ep128Emu {
     return 2;
   }
 
+  int LuaScript::luaFunc_getRawAddress(lua_State *lst)
+  {
+    LuaScript&  this_ =
+        *(reinterpret_cast<LuaScript *>(lua_touserdata(lst,
+                                                       lua_upvalueindex(1))));
+    int       argCnt = lua_gettop(lst);
+    uint32_t  addr = 0U;
+    if (argCnt == 1) {
+      if (!lua_isnumber(lst, 1)) {
+        this_.luaError("invalid argument type for getRawAddress()");
+        return 0;
+      }
+      addr = uint32_t(lua_tointeger(lst, 1) & 0xFFFF);
+      addr = (addr & 0x3FFFU)
+             | (uint32_t(this_.vm.getMemoryPage(int(addr >> 14))) << 14);
+    }
+    else if (argCnt == 2) {
+      if (!(lua_isnumber(lst, 1) && lua_isnumber(lst, 2))) {
+        this_.luaError("invalid argument type for getRawAddress()");
+        return 0;
+      }
+      addr = (uint32_t(lua_tointeger(lst, 1) & 0xFF) << 14)
+             | uint32_t(lua_tointeger(lst, 2) & 0x3FFF);
+    }
+    else {
+      this_.luaError("invalid number of arguments for getRawAddress()");
+      return 0;
+    }
+    lua_pushinteger(lst, lua_Integer(addr));
+    return 1;
+  }
+
   int LuaScript::luaFunc_loadMemory(lua_State *lst)
   {
     LuaScript&  this_ =
@@ -1581,6 +1613,7 @@ namespace Ep128Emu {
     registerLuaFunction(&luaFunc_setIFF2, "setIFF2");
     registerLuaFunction(&luaFunc_getNextOpcodeAddr, "getNextOpcodeAddr");
     registerLuaFunction(&luaFunc_getVideoPosition, "getVideoPosition");
+    registerLuaFunction(&luaFunc_getRawAddress, "getRawAddress");
     registerLuaFunction(&luaFunc_loadMemory, "loadMemory");
     registerLuaFunction(&luaFunc_saveMemory, "saveMemory");
     registerLuaFunction(&luaFunc_mprint, "mprint");
