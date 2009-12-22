@@ -222,6 +222,7 @@ Section "Source code" SecSrc
   SetOutPath "$INSTDIR\src\roms"
 
   File "..\roms\*.rom"
+  File "..\roms\*.s"
 
   SetOutPath "$INSTDIR\src\src"
 
