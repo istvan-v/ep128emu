@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -28,7 +28,7 @@ namespace Ep128Emu {
   class WD177x {
    private:
     static const uint32_t ledStateCount1 = 60U;         // 120 ms
-    static const uint32_t ledStateCount2 = 2000U;       // 4000 ms
+    static const uint32_t ledStateCount2 = 500U;        // 1000 ms
     std::string imageFileName;
     std::FILE   *imageFile;
     uint8_t     nTracks;
