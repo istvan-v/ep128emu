@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -120,7 +120,7 @@ namespace Ep128Emu {
           else
             break;
         }
-        if (j != 7 || n >= 0x4000)
+        if (j != 7)
           throw Exception("syntax error in breakpoint list");
       }
       else if (j == 2)
@@ -146,11 +146,15 @@ namespace Ep128Emu {
           if (len != 2)
             throw Exception("syntax error in breakpoint list");
         }
-        else if (len != 4 || (haveSegment && n >= 0x4000))
+        else if (len != 4 || (haveSegment && ((n ^ addr) & 0xC000U) != 0U))
           throw Exception("syntax error in breakpoint list");
         if (n < addr)
           throw Exception("syntax error in breakpoint list");
         lastAddr = n;
+      }
+      if (haveSegment) {
+        addr = addr & 0x3FFF;
+        lastAddr = lastAddr & 0x3FFF;
       }
       for ( ; j < curToken.length(); j++) {
         switch (curToken[j]) {
