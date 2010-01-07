@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -473,13 +473,21 @@ namespace Ep128Emu {
               continue;
             }
           }
-          else {
+          else if (typeid(vm_) == typeid(ZX128::ZX128VM)) {
             if (i >= 2) {
               memory.rom[i].file.clear();
               memory.rom[i].offset = 0;
               continue;
             }
             segNum = segNum | 0x80;
+          }
+          else {
+            if (i >= 8 && i != 16) {
+              memory.rom[i].file.clear();
+              memory.rom[i].offset = 0;
+              continue;
+            }
+            segNum = segNum + uint8_t(i < 8 ? 0xC0 : 0x70);
           }
           try {
             vm_.loadROMSegment(segNum, memory.rom[i].file.c_str(),
