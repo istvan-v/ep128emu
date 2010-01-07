@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -498,7 +498,8 @@ namespace ZX128 {
   {
     if (vm.getIsDisplayEnabled())
       vm.display.drawLine(buf, nBytes);
-    vm.videoCaptureHSyncFlag = true;
+    if (vm.videoCapture)
+      vm.videoCapture->horizontalSync(buf, nBytes);
   }
 
   void ZX128VM::ULA_::vsyncStateChange(bool newState, unsigned int currentSlot_)
@@ -690,11 +691,7 @@ namespace ZX128 {
   void ZX128VM::videoCaptureCallback(void *userData)
   {
     ZX128VM&  vm = *(reinterpret_cast<ZX128VM *>(userData));
-    if (vm.videoCaptureHSyncFlag) {
-      vm.videoCaptureHSyncFlag = false;
-      vm.videoCapture->horizontalSync();
-    }
-    vm.videoCapture->runOneCycle(vm.ula.getVideoOutput(), vm.soundOutputSignal);
+    vm.videoCapture->runOneCycle(vm.soundOutputSignal);
   }
 
   uint8_t ZX128VM::checkSingleStepModeBreak()
@@ -893,10 +890,9 @@ namespace ZX128 {
       ayCycleCnt(2),
       z80OpcodeHalfCycles(0),
       joystickState(0x00),
+      tapeCallbackFlag(false),
       singleStepMode(0),
       singleStepModeNextAddr(int32_t(-1)),
-      tapeCallbackFlag(false),
-      videoCaptureHSyncFlag(false),
       soundOutputSignal(0U),
       demoFile((Ep128Emu::File *) 0),
       demoBuffer(),
@@ -1065,6 +1061,7 @@ namespace ZX128 {
     ulaFrequency = freq;
     stopDemoPlayback();         // changing configuration implies stopping
     stopDemoRecording(false);   // any demo playback or recording
+    setAudioConverterSampleRate(float(long(ulaFrequency >> 2)));
     if (haveTape()) {
       tapeSamplesPerULACycle =
           (int64_t(getTapeSampleRate()) << 32) / int64_t(ulaFrequency);
