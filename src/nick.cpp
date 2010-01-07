@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -1026,7 +1026,6 @@ namespace Ep128 {
       currentSlot = 0xFF;
       break;
     }
-    oldLineBufPtr = lineBufPtr;
     if (!currentRenderer) {
       *(lineBufPtr++) = 0x01;
       *(lineBufPtr++) = borderColor;
@@ -1106,7 +1105,6 @@ namespace Ep128 {
       lineBuf[i + 1] = borderColor;
     }
     lineBufPtr = lineBuf;
-    oldLineBufPtr = lineBuf;
   }
 
   void Nick::convertPixelToRGB(uint8_t pixelValue,

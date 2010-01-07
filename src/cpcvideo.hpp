@@ -29,7 +29,6 @@ namespace CPC464 {
    protected:
     const CRTC6845& crtc;
     uint8_t *lineBufPtr;
-    const uint8_t *oldLineBufPtr;
     bool    prvHSyncState;
     bool    prvVSyncState;
     uint8_t videoMode;
@@ -81,12 +80,6 @@ namespace CPC464 {
     }
     void setColor(uint8_t penNum, uint8_t c);   // penNum >= 16 is border
     uint8_t getColor(uint8_t penNum) const;
-    // returns a pointer to the video output generated in the last cycle
-    // (16 pixels); the format is the same as in the case of drawLine()
-    inline const uint8_t * getVideoOutput() const
-    {
-      return oldLineBufPtr;
-    }
     EP128EMU_REGPARM1 void runOneCycle();
     void reset();
   };

@@ -78,7 +78,6 @@ namespace CPC464 {
   CPCVideo::CPCVideo(const CRTC6845& crtc_, const uint8_t *videoMemory_)
     : crtc(crtc_),
       lineBufPtr((uint8_t *) 0),
-      oldLineBufPtr((uint8_t *) 0),
       prvHSyncState(false),
       prvVSyncState(false),
       videoMode(0),
@@ -93,7 +92,6 @@ namespace CPC464 {
     for (size_t i = 0; i < 648; i++)
       lineBuf[i] = uint8_t((~i) & 0x01);
     lineBufPtr = lineBuf;
-    oldLineBufPtr = lineBuf;
   }
 
   CPCVideo::~CPCVideo()
@@ -126,7 +124,6 @@ namespace CPC464 {
 
   EP128EMU_REGPARM1 void CPCVideo::runOneCycle()
   {
-    oldLineBufPtr = lineBufPtr;
     bool    hSyncState = crtc.getHSyncState();
     bool    vSyncState = crtc.getVSyncState();
     if (hSyncState | vSyncState) {

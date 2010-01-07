@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -236,7 +236,6 @@ namespace ZX128 {
       lineBuf[i + 1] = borderColor;
     }
     lineBufPtr = lineBuf;
-    oldLineBufPtr = lineBuf;
   }
 
   EP128EMU_REGPARM2 bool ULA::getInterruptFlag_(int timeOffs) const
@@ -312,7 +311,6 @@ namespace ZX128 {
       lineBufPtr = &(lineBuf[(currentSlot + 8) << 1]);
     else
       lineBufPtr = &(lineBuf[(currentSlot - hSyncEndSlot) << 1]);
-    oldLineBufPtr = lineBufPtr;
     ld1Ptr = videoRAMPtr + 0x1800;
     ld2Ptr = videoRAMPtr;
     if (currentLine < 192) {
@@ -346,7 +344,6 @@ namespace ZX128 {
       ld2Ptr(videoRAMPtr_),
       lineBuf((uint8_t *) 0),
       lineBufPtr((uint8_t *) 0),
-      oldLineBufPtr((uint8_t *) 0),
       videoRAMPtr(videoRAMPtr_),
       audioOutput(0),
       tapeInput(0),

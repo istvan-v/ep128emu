@@ -118,11 +118,10 @@ namespace ZX128 {
     uint8_t   ayCycleCnt;
     uint8_t   z80OpcodeHalfCycles;      // time since the last ULA slot
     uint8_t   joystickState;            // Kempston joystick state
+    bool      tapeCallbackFlag;
     // 0: normal mode, 1: single step, 2: step over, 3: trace
     uint8_t   singleStepMode;
     int32_t   singleStepModeNextAddr;
-    bool      tapeCallbackFlag;
-    bool      videoCaptureHSyncFlag;
     uint32_t  soundOutputSignal;
     Ep128Emu::File  *demoFile;
     // contains demo data, which is the emulator version number as a 32-bit

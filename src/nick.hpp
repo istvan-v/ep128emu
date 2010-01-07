@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -185,7 +185,6 @@ class x : public NickRenderer {                 \
     uint8_t   lptFlags;
     uint8_t   *lineBuf;         // 57 slots = 912 pixels
     uint8_t   *lineBufPtr;
-    uint8_t   *oldLineBufPtr;
     uint8_t   savedBorderColor;
     bool      vsyncFlag;
     uint8_t   port0Value;       // last value written to port 80h
@@ -234,12 +233,6 @@ class x : public NickRenderer {                 \
     void writePort(uint16_t portNum, uint8_t value);
     uint8_t readPortDebug(uint16_t portNum) const;
     void randomizeRegisters();
-    // returns a pointer to the video output generated in the last cycle
-    // (16 pixels); the format is the same as in the case of drawLine()
-    inline const uint8_t * getVideoOutput() const
-    {
-      return oldLineBufPtr;
-    }
     inline uint16_t getLD1Address() const
     {
       return lpb.ld1Addr;

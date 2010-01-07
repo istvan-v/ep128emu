@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -116,7 +116,6 @@ namespace Ep128Emu {
       soundOutputAccumulatorR(0U),
       curLine(0),
       vsyncCnt(0),
-      hsyncCnt(0),
       vsyncState(false),
       oddFrame(false),
       framesWritten(0),
@@ -155,17 +154,11 @@ namespace Ep128Emu {
     delete audioConverter;
   }
 
-  void VideoCapture::horizontalSync()
-  {
-    if (hsyncCnt >= 41)
-      hsyncCnt = 51;
-  }
-
   void VideoCapture::vsyncStateChange(bool newState, unsigned int currentSlot_)
   {
     vsyncState = newState;
-    if (newState && (vsyncCnt + int(hsyncCnt >= 51)) >= 260) {
-      vsyncCnt = -20 - int(hsyncCnt >= 51);
+    if (newState && vsyncCnt >= 260) {
+      vsyncCnt = -20;
       oddFrame = (currentSlot_ >= 20U && currentSlot_ < 48U);
     }
   }
@@ -366,8 +359,7 @@ namespace Ep128Emu {
     delete[] colormap;
   }
 
-  void VideoCapture_RLE8::runOneCycle(const uint8_t *videoInput,
-                                      uint32_t audioInput)
+  void VideoCapture_RLE8::runOneCycle(uint32_t audioInput)
   {
     soundOutputAccumulatorL += uint32_t(audioInput & 0xFFFFU);
     soundOutputAccumulatorR += uint32_t(audioInput >> 16);
@@ -379,16 +371,6 @@ namespace Ep128Emu {
       soundOutputAccumulatorR = 0U;
       audioConverter->sendInputSignal(tmpL | (tmpR << 16));
     }
-    if (hsyncCnt < (videoWidth / 16) && curLine >= 0 && curLine < videoHeight) {
-      uint8_t *p = &(tmpFrameBuf[curLine][tmpFrameBuf.lineBytes(curLine)]);
-      uint8_t c = videoInput[0];
-      tmpFrameBuf.lineBytes(curLine) += (uint32_t(c) + uint32_t(1));
-      *(p++) = c;
-      for (uint8_t i = 0; i < c; i++)
-        *(p++) = videoInput[i + 1];
-    }
-    if (++hsyncCnt >= 60)
-      lineDone();
   }
 
   void VideoCapture_RLE8::setClockFrequency(size_t freq_)
@@ -399,14 +381,18 @@ namespace Ep128Emu {
     audioConverter->setInputSampleRate(float(long(freq_)) * 0.5f);
   }
 
-  void VideoCapture_RLE8::lineDone()
+  void VideoCapture_RLE8::horizontalSync(const uint8_t *buf, size_t nBytes)
   {
-    if (curLine >= 0 && curLine < videoHeight &&
-        bool(curLine & 1) == prvOddFrame) {
-      // no interlace, need to duplicate line
-      tmpFrameBuf.copyLine(curLine ^ 1, curLine);
+    if (curLine >= 0 && curLine < videoHeight) {
+      uint8_t *p = &(tmpFrameBuf[curLine][0]);
+      for (size_t i = 0; i < nBytes; i++)
+        p[i] = buf[i];
+      tmpFrameBuf.lineBytes(curLine) = uint32_t(nBytes);
+      if (bool(curLine & 1) == prvOddFrame) {
+        // no interlace, need to duplicate line
+        tmpFrameBuf.copyLine(curLine ^ 1, curLine);
+      }
     }
-    hsyncCnt = 0;
     if (vsyncCnt != 0) {
       curLine += 2;
       if (curLine < videoHeight)
@@ -1089,8 +1075,7 @@ namespace Ep128Emu {
     delete[] colormap;
   }
 
-  void VideoCapture_YV12::runOneCycle(const uint8_t *videoInput,
-                                      uint32_t audioInput)
+  void VideoCapture_YV12::runOneCycle(uint32_t audioInput)
   {
     soundOutputAccumulatorL += uint32_t(audioInput & 0xFFFFU);
     soundOutputAccumulatorR += uint32_t(audioInput >> 16);
@@ -1102,12 +1087,6 @@ namespace Ep128Emu {
       soundOutputAccumulatorR = 0U;
       audioConverter->sendInputSignal(tmpL | (tmpR << 16));
     }
-    uint8_t   c = videoInput[0];
-    lineBuf[lineBufBytes++] = c;
-    for (uint8_t i = 0; i < c; i++)
-      lineBuf[lineBufBytes++] = videoInput[i + 1];
-    if (++hsyncCnt >= 60)
-      lineDone();
     curTime += timesliceLength;
   }
 
@@ -1120,11 +1099,15 @@ namespace Ep128Emu {
     audioConverter->setInputSampleRate(float(long(freq_)) * 0.5f);
   }
 
-  void VideoCapture_YV12::lineDone()
+  void VideoCapture_YV12::horizontalSync(const uint8_t *buf, size_t nBytes)
   {
-    if (curLine >= 0 && curLine < (videoHeight * 2))
+    if (curLine >= 0 && curLine < (videoHeight * 2)) {
+      uint8_t *p = lineBuf;
+      for (size_t i = 0; i < nBytes; i++)
+        p[i] = buf[i];
+      lineBufBytes = nBytes;
       decodeLine();
-    hsyncCnt = 0;
+    }
     lineBufBytes = 0;
     if (vsyncCnt != 0) {
       curLine += 2;

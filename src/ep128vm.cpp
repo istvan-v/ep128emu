@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -644,7 +644,8 @@ namespace Ep128 {
   {
     if (vm.getIsDisplayEnabled())
       vm.display.drawLine(buf, nBytes);
-    vm.videoCaptureHSyncFlag = true;
+    if (vm.videoCapture)
+      vm.videoCapture->horizontalSync(buf, nBytes);
   }
 
   void Ep128VM::Nick_::vsyncStateChange(bool newState,
@@ -1098,12 +1099,7 @@ namespace Ep128 {
   void Ep128VM::videoCaptureCallback(void *userData)
   {
     Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
-    if (vm.videoCaptureHSyncFlag) {
-      vm.videoCaptureHSyncFlag = false;
-      vm.videoCapture->horizontalSync();
-    }
-    vm.videoCapture->runOneCycle(vm.nick.getVideoOutput(),
-                                 vm.soundOutputSignal + vm.externalDACOutput);
+    vm.videoCapture->runOneCycle(vm.soundOutputSignal + vm.externalDACOutput);
   }
 
   uint8_t Ep128VM::checkSingleStepModeBreak()
@@ -1321,7 +1317,6 @@ namespace Ep128 {
       tapeCallbackFlag(false),
       isRemote1On(false),
       isRemote2On(false),
-      videoCaptureHSyncFlag(false),
       soundOutputSignal(0U),
       externalDACOutput(0U),
       demoFile((Ep128Emu::File *) 0),

@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -56,7 +56,6 @@ namespace Ep128Emu {
     uint32_t    soundOutputAccumulatorR;
     int         curLine;
     int         vsyncCnt;
-    int         hsyncCnt;
     bool        vsyncState;
     bool        oddFrame;
     size_t      framesWritten;
@@ -81,10 +80,33 @@ namespace Ep128Emu {
    public:
     VideoCapture(int frameRate_ = 50);
     virtual ~VideoCapture();
-    virtual void runOneCycle(const uint8_t *videoInput,
-                             uint32_t audioInput) = 0;
+    virtual void runOneCycle(uint32_t audioInput) = 0;
     virtual void setClockFrequency(size_t freq_) = 0;
-    void horizontalSync();
+    /*!
+     * horizontalSync() should be called after rendering each line.
+     * 'buf' defines a line of 768 pixels, as 48 groups of 16 pixels each,
+     * in the following format: the first byte defines the number of
+     * additional bytes that encode the 16 pixels to be displayed. The data
+     * length also determines the pixel format, and can have the following
+     * values:
+     *   0x01: one 8-bit color index (pixel width = 16)
+     *   0x02: two 8-bit color indices (pixel width = 8)
+     *   0x03: two 8-bit color indices for background (bit value = 0) and
+     *         foreground (bit value = 1) color, followed by a 8-bit bitmap
+     *         (msb first, pixel width = 2)
+     *   0x04: four 8-bit color indices (pixel width = 4)
+     *   0x06: similar to 0x03, but there are two sets of colors/bitmap
+     *         (c0a, c1a, bitmap_a, c0b, c1b, bitmap_b) and the pixel width
+     *         is 1
+     *   0x08: eight 8-bit color indices (pixel width = 2)
+     * The buffer contains 'nBytes' (in the range of 96 to 432) bytes of data.
+     */
+    virtual void horizontalSync(const uint8_t *buf, size_t nBytes) = 0;
+    /*!
+     * Called at the beginning (newState = true) and end (newState = false)
+     * of VSYNC. 'currentSlot_' is the position within the current line
+     * (0 to 56).
+     */
     void vsyncStateChange(bool newState, unsigned int currentSlot_);
     void openFile(const char *fileName);
     void setErrorCallback(void (*func)(void *userData, const char *msg),
@@ -141,7 +163,6 @@ namespace Ep128Emu {
     bool        prvOddFrame;
     uint8_t     *colormap;
     // ----------------
-    void lineDone();
     void frameDone();
     void decodeLine(uint8_t *outBuf, const uint8_t *inBuf);
     size_t rleCompressLine(uint8_t *outBuf, const uint8_t *inBuf);
@@ -154,8 +175,9 @@ namespace Ep128Emu {
                           (void (*)(uint8_t, float&, float&, float&)) 0,
                       int frameRate_ = 50);
     virtual ~VideoCapture_RLE8();
-    virtual void runOneCycle(const uint8_t *videoInput, uint32_t audioInput);
+    virtual void runOneCycle(uint32_t audioInput);
     virtual void setClockFrequency(size_t freq_);
+    virtual void horizontalSync(const uint8_t *buf, size_t nBytes);
   };
 
   // --------------------------------------------------------------------------
@@ -188,7 +210,6 @@ namespace Ep128Emu {
     size_t      lineBufBytes;
     uint32_t    *colormap;
     // ----------------
-    void lineDone();
     void decodeLine();
     void frameDone();
     void resampleFrame();
@@ -201,8 +222,9 @@ namespace Ep128Emu {
                           (void (*)(uint8_t, float&, float&, float&)) 0,
                       int frameRate_ = 30);
     virtual ~VideoCapture_YV12();
-    virtual void runOneCycle(const uint8_t *videoInput, uint32_t audioInput);
+    virtual void runOneCycle(uint32_t audioInput);
     virtual void setClockFrequency(size_t freq_);
+    virtual void horizontalSync(const uint8_t *buf, size_t nBytes);
   };
 
 }       // namespace Ep128Emu

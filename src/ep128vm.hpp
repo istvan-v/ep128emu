@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -142,7 +142,6 @@ namespace Ep128 {
     bool      tapeCallbackFlag;
     bool      isRemote1On;
     bool      isRemote2On;
-    bool      videoCaptureHSyncFlag;
     uint32_t  soundOutputSignal;
     uint32_t  externalDACOutput;
     Ep128Emu::File  *demoFile;

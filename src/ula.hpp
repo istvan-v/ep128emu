@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -42,7 +42,6 @@ namespace ZX128 {
     const uint8_t *ld2Ptr;              // bitmap data pointer
     uint8_t   *lineBuf;                 // 57 slots = 456 pixels
     uint8_t   *lineBufPtr;
-    uint8_t   *oldLineBufPtr;
     const uint8_t *videoRAMPtr;         // pointer to video RAM segment
     uint16_t  audioOutput;
     uint8_t   tapeInput;
@@ -78,7 +77,6 @@ namespace ZX128 {
     }
     inline void runOneSlot()
     {
-      oldLineBufPtr = lineBufPtr;
       runOneSlot_((void *) this);
     }
     inline uint16_t getSoundOutput() const
@@ -93,12 +91,6 @@ namespace ZX128 {
     inline int getTapeOutput() const
     {
       return int(tapeOutput > 0);
-    }
-    // returns a pointer to the video output generated in the last cycle
-    // (16 pixels); the format is the same as in the case of drawLine()
-    inline const uint8_t * getVideoOutput() const
-    {
-      return oldLineBufPtr;
     }
     inline void getVideoPosition(int& xPos, int& yPos) const
     {
