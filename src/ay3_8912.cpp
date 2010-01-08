@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -175,15 +175,14 @@ namespace ZX128 {
     }
   }
 
-  uint16_t AY3_8912::runOneCycle()
+  void AY3_8912::runOneCycle(uint16_t& outA, uint16_t& outB, uint16_t& outC)
   {
-    uint16_t  audioOutput =
-        (((tgStateA | tgDisabledA) & (ngState | ngDisabledA)) ?
-         amplitudeA : uint16_t(0));
-    if ((tgStateB | tgDisabledB) & (ngState | ngDisabledB))
-      audioOutput += amplitudeB;
-    if ((tgStateC | tgDisabledC) & (ngState | ngDisabledC))
-      audioOutput += amplitudeC;
+    outA = (((tgStateA | tgDisabledA) & (ngState | ngDisabledA)) ?
+            amplitudeA : uint16_t(0));
+    outB = (((tgStateB | tgDisabledB) & (ngState | ngDisabledB)) ?
+            amplitudeB : uint16_t(0));
+    outC = (((tgStateC | tgDisabledC) & (ngState | ngDisabledC)) ?
+            amplitudeC : uint16_t(0));
     if (tgCntA <= 1) {
       tgCntA = tgFreqA;
       tgStateA = !tgStateA;
@@ -244,7 +243,6 @@ namespace ZX128 {
     else {
       envCnt--;
     }
-    return audioOutput;
   }
 
   // --------------------------------------------------------------------------

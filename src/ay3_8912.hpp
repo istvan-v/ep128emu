@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -71,7 +71,7 @@ namespace ZX128 {
     void reset();
     uint8_t readRegister(uint16_t addr) const;
     void writeRegister(uint16_t addr, uint8_t value);
-    uint16_t runOneCycle();
+    void runOneCycle(uint16_t& outA, uint16_t& outB, uint16_t& outC);
     inline void setPortAInput(uint8_t value)
     {
       portAInput = value;
