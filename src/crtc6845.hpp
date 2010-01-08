@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -53,8 +53,8 @@ namespace CPC464 {
     // register 17: lightpen address low (bits 0 to 7)
     uint8_t     registers[18];
     uint8_t     horizontalPos;
-    // bit 0: display enabled H
-    // bit 1: display enabled V
+    // bit 0: 0: display enabled H
+    // bit 1: 0: display enabled V
     uint8_t     displayEnableFlags;
     // bit 0: horizontal sync
     // bit 1: vertical sync
@@ -80,7 +80,7 @@ namespace CPC464 {
 
     EP128EMU_INLINE bool getDisplayEnabled() const
     {
-      return bool(displayEnableFlags);
+      return (displayEnableFlags == 0);
     }
     EP128EMU_INLINE bool getHSyncState() const
     {

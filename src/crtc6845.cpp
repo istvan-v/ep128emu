@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -38,7 +38,7 @@ namespace CPC464 {
   void CRTC6845::reset()
   {
     horizontalPos = 0;
-    displayEnableFlags = 0x00;
+    displayEnableFlags = 0x03;
     syncFlags = 0x00;
     hSyncCnt = 0;
     vSyncCnt = 0;
@@ -60,7 +60,7 @@ namespace CPC464 {
     if (horizontalPos == registers[0]) {
       // end of line
       horizontalPos = 0;
-      displayEnableFlags = displayEnableFlags | 0x01;
+      displayEnableFlags = displayEnableFlags & 0x02;
       syncFlags = syncFlags & 0x02;
       hSyncCnt = 0;
       characterAddress = characterAddressLatch;
@@ -84,7 +84,7 @@ namespace CPC464 {
           ((rowAddress ^ registers[5]) & rowAddressMask) == 0) {
         // end of frame
         endOfFrameFlag = false;
-        displayEnableFlags = displayEnableFlags | 0x02;
+        displayEnableFlags = displayEnableFlags & 0x01;
         syncFlags = syncFlags & 0x01;
         vSyncCnt = 0;
         oddField = !oddField;
@@ -120,7 +120,7 @@ namespace CPC464 {
       }
       if ((verticalPos >> uint8_t(interlaceMode)) == registers[6]) {
         // display end / vertical
-        displayEnableFlags = displayEnableFlags & 0x01;
+        displayEnableFlags = displayEnableFlags | 0x02;
       }
       if (verticalPos == registers[7]) {
         // vertical sync start
@@ -143,7 +143,7 @@ namespace CPC464 {
     }
     if (horizontalPos == registers[1]) {
       // display end / horizontal
-      displayEnableFlags = displayEnableFlags & 0x02;
+      displayEnableFlags = displayEnableFlags | 0x01;
       if (((rowAddress ^ registers[9])
            & (0x1F - uint8_t((registers[8] & 0x03) == 0x03))) == 0) {
         characterAddressLatch = characterAddress;
