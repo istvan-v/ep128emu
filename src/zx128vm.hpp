@@ -122,6 +122,7 @@ namespace ZX128 {
     // 0: normal mode, 1: single step, 2: step over, 3: trace
     uint8_t   singleStepMode;
     int32_t   singleStepModeNextAddr;
+    uint32_t  soundOutputAccumulator;
     uint32_t  soundOutputSignal;
     Ep128Emu::File  *demoFile;
     // contains demo data, which is the emulator version number as a 32-bit

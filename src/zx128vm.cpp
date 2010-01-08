@@ -137,15 +137,22 @@ namespace ZX128 {
     }
     if (--ayCycleCnt == 0) {
       ayCycleCnt = 4;
-      uint32_t  tmp = soundOutputSignal;
-      soundOutputSignal = 0U;
-      if (spectrum128Mode)
-        tmp = tmp + (uint32_t(ay3.runOneCycle()) << 2);
+      uint32_t  tmp = soundOutputAccumulator;
+      soundOutputAccumulator = 0U;
+      if (spectrum128Mode) {
+        uint16_t  tmpA = 0;
+        uint16_t  tmpB = 0;
+        uint16_t  tmpC = 0;
+        ay3.runOneCycle(tmpA, tmpB, tmpC);
+        tmp = tmp + (uint32_t(tmpA + tmpB + tmpC) << 2);
+      }
       tmp = (tmp * 8864U + 0x8000U) & 0xFFFF0000U;
-      sendAudioOutput(tmp | (tmp >> 16));
+      tmp = tmp | (tmp >> 16);
+      soundOutputSignal = tmp;
+      sendAudioOutput(tmp);
     }
     ula.runOneSlot();
-    soundOutputSignal += uint32_t(ula.getSoundOutput());
+    soundOutputAccumulator += uint32_t(ula.getSoundOutput());
     ulaCyclesRemainingH--;
     z80OpcodeHalfCycles = z80OpcodeHalfCycles - 8;
   }
@@ -893,6 +900,7 @@ namespace ZX128 {
       tapeCallbackFlag(false),
       singleStepMode(0),
       singleStepModeNextAddr(int32_t(-1)),
+      soundOutputAccumulator(0U),
       soundOutputSignal(0U),
       demoFile((Ep128Emu::File *) 0),
       demoBuffer(),
