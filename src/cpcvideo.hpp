@@ -30,7 +30,7 @@ namespace CPC464 {
     const CRTC6845& crtc;
     uint8_t *lineBufPtr;
     bool    prvHSyncState;
-    bool    prvVSyncState;
+    uint8_t vSyncCnt;
     uint8_t videoMode;
     uint8_t borderColor;
     int     hSyncCnt;

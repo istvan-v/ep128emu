@@ -79,7 +79,7 @@ namespace CPC464 {
     : crtc(crtc_),
       lineBufPtr((uint8_t *) 0),
       prvHSyncState(false),
-      prvVSyncState(false),
+      vSyncCnt(0),
       videoMode(0),
       borderColor(0x00),
       hSyncCnt(0),
@@ -128,7 +128,7 @@ namespace CPC464 {
     bool    vSyncState = crtc.getVSyncState();
     if (hSyncState | vSyncState) {
       lineBufPtr[0] = 0x01;             // sync
-      lineBufPtr[1] = 0x00;
+      lineBufPtr[1] = 0x14;
       lineBufPtr = lineBufPtr + 2;
     }
     else if (crtc.getDisplayEnabled()) {
@@ -194,20 +194,27 @@ namespace CPC464 {
       lineBufPtr[1] = borderColor;
       lineBufPtr = lineBufPtr + 2;
     }
-    if (hSyncCnt == 48)
+    if (++hSyncCnt == 48)
       drawLine(lineBuf, size_t(lineBufPtr - lineBuf));
-    if (hSyncState && !prvHSyncState) { // horizontal sync
+    if (uint8_t(hSyncState) > uint8_t(prvHSyncState)) { // horizontal sync
+      if (vSyncState) {
+        if (++vSyncCnt == 4)            // VSync start (delayed by 3 lines)
+          vsyncStateChange(true, (crtc.getVSyncInterlace() ? 34U : 6U));
+      }
+      else {
+        if (vSyncCnt > 0) {             // vertical sync end
+          vSyncCnt = 0;
+          vsyncStateChange(false, 6U);
+        }
+      }
       if (hSyncCnt >= 48)
-        hSyncCnt = -10;
+        hSyncCnt = -13;
     }
     if (hSyncCnt == 0)
       lineBufPtr = lineBuf;
-    if (hSyncCnt >= 60)
-      hSyncCnt = -10;
-    if (vSyncState != prvVSyncState)
-      vsyncStateChange(vSyncState, (crtc.getVSyncInterlace() ? 34U : 6U));
+    if (hSyncCnt >= 55)
+      hSyncCnt = -13;
     prvHSyncState = hSyncState;
-    prvVSyncState = vSyncState;
   }
 
   void CPCVideo::reset()
