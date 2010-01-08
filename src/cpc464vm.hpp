@@ -114,6 +114,10 @@ namespace CPC464 {
     uint8_t   ppiPortCState;
     uint8_t   ppiControlRegister;
     uint8_t   tapeInputSignal;
+    uint8_t   crtcRegisterSelected;
+    uint8_t   gateArrayIRQCounter;
+    uint8_t   gateArrayVSyncDelay;
+    uint8_t   gateArrayPenSelected;
     // 0: normal mode, 1: single step, 2: step over, 3: trace
     uint8_t   singleStepMode;
     int32_t   singleStepModeNextAddr;

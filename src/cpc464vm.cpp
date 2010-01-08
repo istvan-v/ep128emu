@@ -51,7 +51,7 @@ static const uint8_t  keyboardConvTable[256] = {
   // STOP    DOWN    RIGHT       UP     HOLD     LEFT    ENTER      ALT
   99,  3,  99,  2,  99,  1,  99,  0,  99, 15,  99,  8,  99,  6,  99,  7,
   //   M   DELETE        ,        /        .   RSHIFT    SPACE   INSERT
-  99, 38,  99, 16,  99, 31,  99, 30,  99, 39,  99, 18,  99, 47,  99,  9,
+  99, 38,  99, 16,  99, 39,  99, 30,  99, 31,  99, 18,  99, 47,  99,  9,
   //   I                 O        @        P        [
   99, 35,  99, 99,  99, 34,  99, 26,  99, 27,  99, 17,  99, 99,  99, 99,
   99, 99,  99, 99,  99, 99,  99, 99,  99, 99,  99, 99,  99, 99,  99, 99,
@@ -106,16 +106,39 @@ namespace CPC464 {
       p = nxt;
     }
     if (--ayCycleCnt == 0) {
-      ayCycleCnt = 4;
-      uint32_t  tmp = soundOutputSignal;
-      soundOutputSignal = 0U;
-      tmp = tmp + (uint32_t(ay3.runOneCycle()) << 2);
-      tmp = (tmp * 8864U + 0x8000U) & 0xFFFF0000U;
-      sendAudioOutput(tmp | (tmp >> 16));
+      ayCycleCnt = 8;
+      uint16_t  tmpA = 0;
+      uint16_t  tmpB = 0;
+      uint16_t  tmpC = 0;
+      ay3.runOneCycle(tmpA, tmpB, tmpC);
+      uint32_t  tmpL =
+          ((uint32_t(tmpA) * 3U) + (uint32_t(tmpB) * 2U) + 1U) >> 1;
+      uint32_t  tmpR =
+          ((uint32_t(tmpC) * 3U) + (uint32_t(tmpB) * 2U) + 1U) >> 1;
+      soundOutputSignal = (tmpR << 16) | tmpL;
+      sendAudioOutput(soundOutputSignal);
     }
     videoRenderer.runOneCycle();
+    bool    crtcPrvHSyncState = crtc.getHSyncState();
+    bool    crtcPrvVSyncState = crtc.getVSyncState();
     crtc.runOneCycle();
-
+    if (uint8_t(crtc.getHSyncState()) < uint8_t(crtcPrvHSyncState)) {
+      gateArrayIRQCounter++;
+      if (gateArrayVSyncDelay > 0) {
+        if (--gateArrayVSyncDelay == 0) {
+          if (gateArrayIRQCounter >= 32)
+            z80.triggerInterrupt();
+          gateArrayIRQCounter = 0;
+        }
+      }
+      if (gateArrayIRQCounter >= 52) {
+        gateArrayIRQCounter = 0;
+        z80.triggerInterrupt();
+      }
+    }
+    if (uint8_t(crtc.getVSyncState()) > uint8_t(crtcPrvVSyncState)) {
+      gateArrayVSyncDelay = 2;
+    }
     crtcCyclesRemainingH--;
     z80OpcodeHalfCycles = z80OpcodeHalfCycles - 8;
   }
@@ -383,43 +406,42 @@ namespace CPC464 {
 
   EP128EMU_REGPARM1 void CPC464VM::updatePPIState()
   {
-    ay3.setPortAInput(0xFF);
     uint8_t ppiPortAInput = 0xFF;
-    if ((ppiPortCState & 0xC0) == 0x40) // read AY register
-      ppiPortAInput = ay3.readRegister(ayRegisterSelected & 0x0F);
     uint8_t ppiPortBInput =
         uint8_t((int(tapeInputSignal) << 7) | int(crtc.getVSyncState()) | 0x7E);
-    uint8_t ppiPortCInput = 0xFF;
+    uint8_t ppiPortCInput = 0xEF;
     if ((ppiControlRegister & 0x04) != 0) {     // mode 1 is not supported
-      ppiPortBState = ppiPortBInput;
       ppiPortCState = ppiPortCInput | 0xF0;
+      ppiPortBState = ppiPortBInput;
     }
     else {
+      if ((ppiControlRegister & 0x01) != 0)     // port C b0-b3: mode 0, input
+        ppiPortCState = ppiPortCInput | 0xF0;
+      else                                      // port C b0-b3: mode 0, output
+        ppiPortCState = ppiPortCRegister | 0xF0;
       if ((ppiControlRegister & 0x02) != 0)     // port B: mode 0, input
         ppiPortBState = ppiPortBInput;
       else                                      // port B: mode 0, output
         ppiPortBState = ppiPortBInput & ppiPortBRegister;
-      if ((ppiControlRegister & 0x01) != 0)     // port C b0-b3: mode 0, input
-        ppiPortCState = ppiPortCInput | 0xF0;
-      else                                      // port C b0-b3: mode 0, output
-        ppiPortCState = (ppiPortCInput & ppiPortCRegister) | 0xF0;
     }
+    ay3.setPortAInput(cpcKeyboardState[ppiPortCState & 0x0F]);
     if ((ppiControlRegister & 0x60) != 0x00) {  // modes 1, 2 are not supported
-      ppiPortAState = ppiPortAInput;
       ppiPortCState &= (ppiPortCInput | 0x0F);
+      ppiPortAState = ppiPortAInput;
     }
     else {
+      if ((ppiControlRegister & 0x08) != 0)     // port C b4-b7: mode 0, input
+        ppiPortCState &= (ppiPortCInput | 0x0F);
+      else                                      // port C b4-b7: mode 0, output
+        ppiPortCState &= (ppiPortCRegister | 0x0F);
+      if ((ppiPortCState & 0xC0) == 0x40)   // read AY register
+        ppiPortAInput = ay3.readRegister(ayRegisterSelected & 0x0F);
       if ((ppiControlRegister & 0x10) != 0)     // port A: mode 0, input
         ppiPortAState = ppiPortAInput;
       else                                      // port A: mode 0, output
         ppiPortAState = ppiPortAInput & ppiPortARegister;
-      if ((ppiControlRegister & 0x08) != 0)     // port C b4-b7: mode 0, input
-        ppiPortCState &= (ppiPortCInput | 0x0F);
-      else                                      // port C b4-b7: mode 0, output
-        ppiPortCState &= ((ppiPortCInput & ppiPortCRegister) | 0x0F);
     }
     setTapeMotorState(bool(ppiPortCState & 0x10));
-    ay3.setPortAInput(cpcKeyboardState[ppiPortCState & 0x0F]);
     switch (ppiPortCState & 0xC0) {
     case 0x80:                          // write AY register
       ay3.writeRegister(ayRegisterSelected & 0x0F, ppiPortAState);
@@ -435,6 +457,8 @@ namespace CPC464 {
     CPC464VM&  vm = *(reinterpret_cast<CPC464VM *>(userData));
     uint8_t   retval = 0xFF;
     if ((addr & 0x4000) == 0) {         // CRTC (register number is in A8-A9)
+      if ((addr & 0x0300) == 0x0300)    // read CRTC register
+        retval &= vm.crtc.readRegister(vm.crtcRegisterSelected & 0x1F);
     }
     if ((addr & 0x0800) == 0) {         // PPI (register number is in A8-A9)
       vm.updatePPIState();
@@ -462,12 +486,41 @@ namespace CPC464 {
   {
     CPC464VM&  vm = *(reinterpret_cast<CPC464VM *>(userData));
     if ((addr & 0xC000) == 0x4000) {    // gate array
+      switch (value & 0xC0) {
+      case 0x00:                // select pen
+        vm.gateArrayPenSelected = value & 0x3F;
+        break;
+      case 0x40:                // select color
+        vm.videoRenderer.setColor(vm.gateArrayPenSelected & 0x1F, value & 0x3F);
+        break;
+      case 0x80:                // video mode, ROM disable, interrupt delay
+        vm.videoRenderer.setVideoMode(value & 0x03);
+        vm.memory.setPaging((vm.memory.getPaging() & 0xFF3F)
+                            | uint16_t(((~value) & 0x0C) << 4));
+        if (value & 0x10)
+          vm.gateArrayIRQCounter = 0;
+        break;
+      }
     }
     if ((addr & 0x8000) == 0) {         // RAM configuration
+      if ((value & 0xC0) == 0xC0) {
+        vm.memory.setPaging((vm.memory.getPaging() & 0xFFC0)
+                            | uint16_t(value & 0x3F));
+      }
     }
     if ((addr & 0x4000) == 0) {         // CRTC (register number is in A8-A9)
+      switch (addr & 0x0300) {
+      case 0x0000:              // select CRTC register
+        vm.crtcRegisterSelected = value;
+        break;
+      case 0x0100:              // write CRTC register
+        vm.crtc.writeRegister(vm.crtcRegisterSelected & 0x1F, value);
+        break;
+      }
     }
     if ((addr & 0x2000) == 0) {         // ROM configuration
+      vm.memory.setPaging((vm.memory.getPaging() & 0x00FF)
+                          | (uint16_t(value) << 8));
     }
 #if 0
     if ((addr & 0x1000) == 0) {         // printer port
@@ -521,6 +574,7 @@ namespace CPC464 {
     }
 #endif
     if ((addr & 0x0800) == 0) {         // PPI (register number is in A8-A9)
+      vm.updatePPIState();
     }
 #if 0
     if ((addr & 0x0400) == 0) {         // expansion peripherals (floppy etc.)
@@ -773,7 +827,7 @@ namespace CPC464 {
       crtcCyclesRemainingL(0U),
       crtcCyclesRemainingH(0),
       ayRegisterSelected(0x00),
-      ayCycleCnt(2),
+      ayCycleCnt(4),
       z80OpcodeHalfCycles(0),
       ppiPortARegister(0x00),
       ppiPortAState(0xFF),
@@ -783,6 +837,10 @@ namespace CPC464 {
       ppiPortCState(0xFF),
       ppiControlRegister(0x9B),
       tapeInputSignal(0),
+      crtcRegisterSelected(0x00),
+      gateArrayIRQCounter(0),
+      gateArrayVSyncDelay(0),
+      gateArrayPenSelected(0x00),
       singleStepMode(0),
       singleStepModeNextAddr(int32_t(-1)),
       tapeCallbackFlag(false),
@@ -1283,11 +1341,36 @@ namespace CPC464 {
 
   void CPC464VM::listIORegisters(std::string& buf) const
   {
-#if 0
     unsigned int  tmpBuf[16];
     char    tmpBuf2[320];
     char    *bufp = &(tmpBuf2[0]);
     int     n;
+    n = std::sprintf(bufp,
+                     "8255 PPI: AO: %02X AI: %02X  BO: %02X BI: %02X\n"
+                     "8255 PPI: CO: %02X CI: %02X  Control: %02X\n",
+                     (unsigned int) ppiPortARegister,
+                     (unsigned int) ppiPortAState,
+                     (unsigned int) ppiPortBRegister,
+                     (unsigned int) ppiPortBState,
+                     (unsigned int) ppiPortCRegister,
+                     (unsigned int) ppiPortCState,
+                     (unsigned int) ppiControlRegister);
+    bufp = bufp + n;
+    n = std::sprintf(bufp,
+                     "AY3 sel.: %02X\n", (unsigned int) ayRegisterSelected);
+    bufp = bufp + n;
+    for (uint8_t i = 0; i < 16; i++)
+      tmpBuf[i] = ay3.readRegister(i);
+    n = std::sprintf(bufp,
+                     "AY3 reg.: %02X %02X %02X %02X  %02X %02X %02X %02X\n"
+                     "          %02X %02X %02X %02X  %02X %02X %02X %02X\n",
+                     tmpBuf[0], tmpBuf[1], tmpBuf[2], tmpBuf[3],
+                     tmpBuf[4], tmpBuf[5], tmpBuf[6], tmpBuf[7],
+                     tmpBuf[8], tmpBuf[9], tmpBuf[10], tmpBuf[11],
+                     tmpBuf[12], tmpBuf[13], tmpBuf[14], tmpBuf[15]);
+    bufp = bufp + n;
+
+#if 0
     n = std::sprintf(bufp,
                      "Joy   1F: %02X\n", (unsigned int) joystickState);
     bufp = bufp + n;
@@ -1295,28 +1378,14 @@ namespace CPC464 {
                      "128 7FFD: %02X\n",
                      (unsigned int) spectrum128PageRegister);
     bufp = bufp + n;
-    n = std::sprintf(bufp,
-                     "AY3 FFFD: %02X\n", (unsigned int) ayRegisterSelected);
-    bufp = bufp + n;
-    for (uint8_t i = 0; i < 16; i++)
-      tmpBuf[i] = ay3.readRegister(i);
-    n = std::sprintf(bufp,
-                     "AY3 BFFD: %02X %02X %02X %02X  %02X %02X %02X %02X\n"
-                     "          %02X %02X %02X %02X  %02X %02X %02X %02X\n",
-                     tmpBuf[0], tmpBuf[1], tmpBuf[2], tmpBuf[3],
-                     tmpBuf[4], tmpBuf[5], tmpBuf[6], tmpBuf[7],
-                     tmpBuf[8], tmpBuf[9], tmpBuf[10], tmpBuf[11],
-                     tmpBuf[12], tmpBuf[13], tmpBuf[14], tmpBuf[15]);
-    bufp = bufp + n;
     int     tmpX = 0;
     int     tmpY = 0;
     getVideoPosition(tmpX, tmpY);
     n = std::sprintf(bufp,
                      "ULA   FE: %02X    X: %3d  Y: %3d\n",
                      (unsigned int) ula.readPortDebug(), tmpX, tmpY);
-    buf = &(tmpBuf2[0]);
 #endif
-    buf.clear();
+    buf = &(tmpBuf2[0]);
   }
 
   uint32_t CPC464VM::disassembleInstruction(std::string& buf,
