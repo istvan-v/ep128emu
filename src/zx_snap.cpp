@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -20,7 +20,6 @@
 #include "ep128emu.hpp"
 #include "z80/z80.hpp"
 #include "zxmemory.hpp"
-#include "zxioport.hpp"
 #include "ay3_8912.hpp"
 #include "ula.hpp"
 #include "vm.hpp"
@@ -30,7 +29,6 @@ namespace ZX128 {
 
   void ZX128VM::saveState(Ep128Emu::File& f)
   {
-    ioPorts.saveState(f);
     memory.saveState(f);
     ula.saveState(f);
     ay3.saveState(f);
@@ -71,7 +69,7 @@ namespace ZX128 {
     saveMachineConfiguration(f);
     saveState(f);
     demoBuffer.clear();
-    demoBuffer.writeUInt32(0x00000201); // version 0.2.1
+    demoBuffer.writeUInt32(0x00020008); // version 2.0.8
     demoFile = &f;
     isRecordingDemo = true;
     setCallback(&demoRecordCallback, this, true);
@@ -163,7 +161,7 @@ namespace ZX128 {
     // check version number
     unsigned int  version = buf.readUInt32();
 #if 0
-    if (version != 0x00000201) {
+    if (version != 0x00020008) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible zx128 demo format");
     }
@@ -598,7 +596,6 @@ namespace ZX128 {
         delete p5;
       throw;
     }
-    ioPorts.registerChunkType(f);
     z80.registerChunkType(f);
     memory.registerChunkType(f);
     ay3.registerChunkType(f);

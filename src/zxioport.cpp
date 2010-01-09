@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -35,7 +35,6 @@ namespace ZX128 {
 
   IOPorts::IOPorts()
   {
-    portValues = (uint8_t *) 0;
     callbackUserData = (void *) 0;
     readCallback = &dummyReadCallback;
     writeCallback = &dummyWriteCallback;
@@ -44,17 +43,11 @@ namespace ZX128 {
     breakPointCnt = 0;
     breakPointPriorityThreshold = 0;
     try {
-      portValues = new uint8_t[256];
-      this->reset();
       breakPointTable = new uint8_t[256];
       for (int i = 0; i < 256; i++)
         breakPointTable[i] = 0;
     }
     catch (...) {
-      if (portValues) {
-        delete[] portValues;
-        portValues = (uint8_t *) 0;
-      }
       if (breakPointTable) {
         delete[] breakPointTable;
         breakPointTable = (uint8_t *) 0;
@@ -65,7 +58,6 @@ namespace ZX128 {
 
   IOPorts::~IOPorts()
   {
-    delete[] portValues;
     delete[] breakPointTable;
   }
 
@@ -143,12 +135,11 @@ namespace ZX128 {
   {
     if (debugReadCallback)
       return debugReadCallback(callbackUserData, addr);
-    return portValues[addr & 0xFF];
+    return 0xFF;
   }
 
   void IOPorts::writeDebug(uint16_t addr, uint8_t value)
   {
-    portValues[addr & 0xFF] = value;
     writeCallback(callbackUserData, addr, value);
   }
 
@@ -178,84 +169,6 @@ namespace ZX128 {
       writeCallback = func;
     else
       writeCallback = dummyWriteCallback;
-  }
-
-  void IOPorts::reset()
-  {
-    for (int i = 0; i < 256; i++)
-      portValues[i] = 0xFF;
-  }
-
-  // --------------------------------------------------------------------------
-
-  class ChunkType_IOSnapshot : public Ep128Emu::File::ChunkTypeHandler {
-   private:
-    IOPorts&  ref;
-   public:
-    ChunkType_IOSnapshot(IOPorts& ref_)
-      : Ep128Emu::File::ChunkTypeHandler(),
-        ref(ref_)
-    {
-    }
-    virtual ~ChunkType_IOSnapshot()
-    {
-    }
-    virtual Ep128Emu::File::ChunkType getChunkType() const
-    {
-      return Ep128Emu::File::EP128EMU_CHUNKTYPE_ZXIO_STATE;
-    }
-    virtual void processChunk(Ep128Emu::File::Buffer& buf)
-    {
-      ref.loadState(buf);
-    }
-  };
-
-  void IOPorts::saveState(Ep128Emu::File::Buffer& buf)
-  {
-    buf.setPosition(0);
-    buf.writeUInt32(0x01000000);        // version number
-    for (size_t i = 0; i < 256; i++)
-      buf.writeByte(portValues[i]);
-  }
-
-  void IOPorts::saveState(Ep128Emu::File& f)
-  {
-    Ep128Emu::File::Buffer  buf;
-    this->saveState(buf);
-    f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_ZXIO_STATE, buf);
-  }
-
-  void IOPorts::loadState(Ep128Emu::File::Buffer& buf)
-  {
-    buf.setPosition(0);
-    // check version number
-    unsigned int  version = buf.readUInt32();
-    if (version != 0x01000000) {
-      buf.setPosition(buf.getDataSize());
-      throw Ep128Emu::Exception("incompatible I/O port snapshot format");
-    }
-    // load saved state
-    uint8_t tmp[256];
-    for (size_t i = 0; i < 256; i++)
-      tmp[i] = buf.readByte();
-    if (buf.getPosition() != buf.getDataSize())
-      throw Ep128Emu::Exception("trailing garbage at end of "
-                                "I/O port snapshot data");
-    for (size_t i = 0; i < 256; i++)
-      portValues[i] = tmp[i];
-  }
-
-  void IOPorts::registerChunkType(Ep128Emu::File& f)
-  {
-    ChunkType_IOSnapshot  *p;
-    p = new ChunkType_IOSnapshot(*this);
-    try {
-      f.registerChunkType(p);
-    }
-    catch (...) {
-      delete p;
-      throw;
-    }
   }
 
 }       // namespace ZX128

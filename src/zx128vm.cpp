@@ -988,7 +988,6 @@ namespace ZX128 {
     stopDemoPlayback();         // TODO: should be recorded as an event ?
     stopDemoRecording(false);
     z80.reset();
-    ioPorts.reset();
     spectrum128PageRegister = 0x00;
     ayRegisterSelected = 0x00;
     initializeMemoryPaging();
