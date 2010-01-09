@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -108,7 +108,8 @@ namespace Ep128Emu {
       EP128EMU_CHUNKTYPE_CPCVID_STATE =   0x45508033,
       EP128EMU_CHUNKTYPE_CPCVM_CONFIG =   0x45508034,
       EP128EMU_CHUNKTYPE_CPCVM_STATE =    0x45508035,
-      EP128EMU_CHUNKTYPE_CPC_DEMO =       0x45508036
+      EP128EMU_CHUNKTYPE_CPC_DEMO =       0x45508036,
+      EP128EMU_CHUNKTYPE_CPC_SNA_FILE =   0x45508037
     } ChunkType;
     // ----------------
     class ChunkTypeHandler {
