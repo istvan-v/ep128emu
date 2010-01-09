@@ -398,27 +398,27 @@ namespace CPC464 {
      * frequency and timing settings, tape and disk state, and breakpoint list
      * are not saved.
      */
- // virtual void saveState(Ep128Emu::File&);
+    virtual void saveState(Ep128Emu::File&);
     /*!
      * Save clock frequency and timing settings.
      */
- // virtual void saveMachineConfiguration(Ep128Emu::File&);
+    virtual void saveMachineConfiguration(Ep128Emu::File&);
     /*!
      * Register all types of file data supported by this class, for use by
      * Ep128Emu::File::processAllChunks(). Note that loading snapshot data
      * will clear all breakpoints.
      */
- // virtual void registerChunkTypes(Ep128Emu::File&);
+    virtual void registerChunkTypes(Ep128Emu::File&);
     /*!
      * Start recording a demo to the file object, which will be used until
      * the recording is stopped for some reason.
      * Implies calling saveMachineConfiguration() and saveState() first.
      */
- // virtual void recordDemo(Ep128Emu::File&);
+    virtual void recordDemo(Ep128Emu::File&);
     /*!
      * Stop playing or recording demo.
      */
- // virtual void stopDemo();
+    virtual void stopDemo();
     /*!
      * Returns true if a demo is currently being recorded. The recording stops
      * when stopDemo() is called, any tape or disk I/O is attempted, clock
@@ -427,7 +427,7 @@ namespace CPC464 {
      * after recording is stopped for some reason other than calling
      * stopDemo().
      */
- // virtual bool getIsRecordingDemo();
+    virtual bool getIsRecordingDemo();
     /*!
      * Returns true if a demo is currently being played. The playback stops
      * when the end of the demo is reached, stopDemo() is called, any tape or
@@ -435,12 +435,12 @@ namespace CPC464 {
      * or a snapshot is loaded. Note that keyboard events are ignored while
      * playing a demo.
      */
- // virtual bool getIsPlayingDemo() const;
+    virtual bool getIsPlayingDemo() const;
     // ----------------
- // virtual void loadState(Ep128Emu::File::Buffer&);
- // virtual void loadMachineConfiguration(Ep128Emu::File::Buffer&);
- // virtual void loadDemo(Ep128Emu::File::Buffer&);
- // virtual void loadSNAFile(Ep128Emu::File::Buffer&);
+    virtual void loadState(Ep128Emu::File::Buffer&);
+    virtual void loadMachineConfiguration(Ep128Emu::File::Buffer&);
+    virtual void loadDemo(Ep128Emu::File::Buffer&);
+    virtual void loadSNAFile(Ep128Emu::File::Buffer&);
   };
 
 }       // namespace CPC464
