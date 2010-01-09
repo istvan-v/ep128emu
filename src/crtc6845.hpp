@@ -106,9 +106,21 @@ namespace CPC464 {
     {
       return ((characterAddress == cursorAddress) && (cursorFlags == 0));
     }
+    EP128EMU_INLINE void getVideoPosition(int& xPos, int& yPos) const
+    {
+      xPos = horizontalPos;
+      yPos = (int(verticalPos)
+              * ((int(registers[9]) | int((registers[8] & 0x03) == 0x03)) + 1))
+             + int(rowAddress);
+    }
     EP128EMU_REGPARM2 uint8_t readRegister(uint16_t addr) const;
     EP128EMU_REGPARM3 void writeRegister(uint16_t addr, uint8_t value);
+    EP128EMU_REGPARM2 uint8_t readRegisterDebug(uint16_t addr) const;
     // --------
+    void saveState(Ep128Emu::File::Buffer&);
+    void saveState(Ep128Emu::File&);
+    void loadState(Ep128Emu::File::Buffer&);
+    void registerChunkType(Ep128Emu::File&);
   };
 
 }       // namespace CPC464

@@ -26,7 +26,7 @@ namespace CPC464 {
   {
     for (int i = 0; i < 16; i++)
       registers[i] = 0x00;
-    registers[16] = 0xFF;
+    registers[16] = 0x3F;
     registers[17] = 0xFF;
     this->reset();
   }
@@ -75,7 +75,7 @@ namespace CPC464 {
         // character end line
         rowAddress = uint8_t(interlaceMode && oddField);
         endOfFrameFlag = (verticalPos == registers[4]);
-        verticalPos = (verticalPos + 1) & 0xFF;
+        verticalPos = (verticalPos + 1) & 0x7F;
       }
       else {
         rowAddress = (rowAddress + (uint8_t(interlaceMode) + 1)) & 0x1F;
@@ -159,7 +159,7 @@ namespace CPC464 {
   EP128EMU_REGPARM2 uint8_t CRTC6845::readRegister(uint16_t addr) const
   {
     addr = addr & 0x001F;
-    if (addr < 18)
+    if (addr >= 12 && addr < 18)
       return registers[addr];
     return 0x00;
   }
@@ -167,13 +167,161 @@ namespace CPC464 {
   EP128EMU_REGPARM3 void CRTC6845::writeRegister(uint16_t addr, uint8_t value)
   {
     addr = addr & 0x001F;
-    if (addr < 18) {
+    if (addr < 16) {
       switch (addr) {
-
-      default:
-        registers[addr] = value;
+      case 0x0003:                      // horizontal sync width: 4 bits
+        value = value & 0x0F;
         break;
+      case 0x0004:                      // vertical total: 7 bits
+        value = value & 0x7F;
+        break;
+      case 0x0005:                      // vertical total adjust: 5 bits
+        value = value & 0x1F;
+        break;
+      case 0x0006:                      // vertical displayed: 7 bits
+      case 0x0007:                      // vertical sync position: 7 bits
+        value = value & 0x7F;
+        break;
+      case 0x0008:                      // interlace mode: 2 bits
+        value = value & 0x03;
+        break;
+      case 0x0009:                      // max. scan line address: 5 bits
+        value = value & 0x1F;
+        break;
+      case 0x000A:                      // cursor start, mode: 7 bits
+        value = value & 0x7F;
+        break;
+      case 0x000B:                      // cursor end: 5 bits
+        value = value & 0x1F;
+        break;
+      case 0x000C:                      // start address H: 6 bits
+        value = value & 0x3F;
+        break;
+      case 0x000E:                      // cursor position H: 6 bits
+        value = value & 0x3F;
+      case 0x000F:                      // cursor position L: 8 bits
+        registers[addr] = value;
+        cursorAddress = (uint16_t(registers[14]) << 8)
+                        | uint16_t(registers[15]);
+        return;
       }
+      registers[addr] = value;
+    }
+  }
+
+  EP128EMU_REGPARM2 uint8_t CRTC6845::readRegisterDebug(uint16_t addr) const
+  {
+    addr = addr & 0x001F;
+    if (addr < 18)
+      return registers[addr];
+    return 0x00;
+  }
+
+  // --------------------------------------------------------------------------
+
+  class ChunkType_CRTCSnapshot : public Ep128Emu::File::ChunkTypeHandler {
+   private:
+    CRTC6845&   ref;
+   public:
+    ChunkType_CRTCSnapshot(CRTC6845& ref_)
+      : Ep128Emu::File::ChunkTypeHandler(),
+        ref(ref_)
+    {
+    }
+    virtual ~ChunkType_CRTCSnapshot()
+    {
+    }
+    virtual Ep128Emu::File::ChunkType getChunkType() const
+    {
+      return Ep128Emu::File::EP128EMU_CHUNKTYPE_M6845_STATE;
+    }
+    virtual void processChunk(Ep128Emu::File::Buffer& buf)
+    {
+      ref.loadState(buf);
+    }
+  };
+
+  void CRTC6845::saveState(Ep128Emu::File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    buf.writeUInt32(0x01000000U);       // version number
+    for (int i = 0; i < 18; i++)
+      buf.writeByte(registers[i]);
+    buf.writeByte(horizontalPos);
+    buf.writeByte(displayEnableFlags);
+    buf.writeByte(syncFlags);
+    buf.writeByte(hSyncCnt);
+    buf.writeByte(vSyncCnt);
+    buf.writeByte(rowAddress);
+    buf.writeByte(verticalPos);
+    buf.writeBoolean(oddField);
+    buf.writeUInt16(characterAddress);
+    buf.writeUInt16(characterAddressLatch);
+    buf.writeByte(cursorFlags);
+    buf.writeByte(cursorFlashCnt);
+    buf.writeBoolean(endOfFrameFlag);
+  }
+
+  void CRTC6845::saveState(Ep128Emu::File& f)
+  {
+    Ep128Emu::File::Buffer  buf;
+    this->saveState(buf);
+    f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_M6845_STATE, buf);
+  }
+
+  void CRTC6845::loadState(Ep128Emu::File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    // check version number
+    unsigned int  version = buf.readUInt32();
+    if (version != 0x01000000U) {
+      buf.setPosition(buf.getDataSize());
+      throw Ep128Emu::Exception("incompatible CRTC snapshot format");
+    }
+    try {
+      // load saved state
+      for (uint16_t i = 0; i < 16; i++)
+        writeRegister(i, buf.readByte());
+      registers[16] = buf.readByte() & 0x3F;
+      registers[17] = buf.readByte();
+      horizontalPos = buf.readByte();
+      displayEnableFlags = buf.readByte() & 0x03;
+      syncFlags = buf.readByte() & 0x03;
+      hSyncCnt = buf.readByte() & 0x1F;
+      vSyncCnt = buf.readByte() & 0x1F;
+      rowAddress = buf.readByte() & 0x1F;
+      verticalPos = buf.readByte() & 0x7F;
+      oddField = buf.readBoolean();
+      characterAddress = buf.readUInt16() & 0x3FFF;
+      characterAddressLatch = buf.readUInt16() & 0x3FFF;
+      cursorFlags = buf.readByte() & 0x03;
+      cursorFlashCnt = buf.readByte();
+      endOfFrameFlag = buf.readBoolean();
+      if (buf.getPosition() != buf.getDataSize())
+        throw Ep128Emu::Exception("trailing garbage at end of "
+                                  "CRTC snapshot data");
+    }
+    catch (...) {
+      // reset CRTC
+      for (int i = 0; i < 16; i++)
+        registers[i] = 0x00;
+      registers[16] = 0x3F;
+      registers[17] = 0xFF;
+      this->reset();
+      throw;
+    }
+  }
+
+  void CRTC6845::registerChunkType(Ep128Emu::File& f)
+  {
+    ChunkType_CRTCSnapshot  *p;
+    p = new ChunkType_CRTCSnapshot(*this);
+    try {
+      f.registerChunkType(p);
+    }
+    catch (...) {
+      delete p;
+      throw;
     }
   }
 
