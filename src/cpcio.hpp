@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -27,7 +27,6 @@ namespace CPC464 {
 
   class IOPorts {
    private:
-    uint8_t *portValues;
     void    *callbackUserData;
     uint8_t (*readCallback)(void *userData, uint16_t addr);
     void    (*writeCallback)(void *userData, uint16_t addr, uint8_t value);
@@ -47,17 +46,11 @@ namespace CPC464 {
     inline void write(uint16_t addr, uint8_t value);
     uint8_t readDebug(uint16_t addr) const;
     void writeDebug(uint16_t addr, uint8_t value);
-    inline uint8_t getLastValueWritten(uint16_t addr) const;
     void setCallbackUserData(void *userData);
     void setReadCallback(uint8_t (*func)(void *userData, uint16_t addr));
     void setDebugReadCallback(uint8_t (*func)(void *userData, uint16_t addr));
     void setWriteCallback(void (*func)(void *userData,
                                        uint16_t addr, uint8_t value));
-    void reset();
-    void saveState(Ep128Emu::File::Buffer&);
-    void saveState(Ep128Emu::File&);
-    void loadState(Ep128Emu::File::Buffer&);
-    void registerChunkType(Ep128Emu::File&);
    protected:
     virtual void breakPointCallback(bool isWrite, uint16_t addr, uint8_t value);
   };
@@ -68,7 +61,7 @@ namespace CPC464 {
   {
     uint8_t value = readCallback(callbackUserData, addr);
     if (breakPointTable) {
-      uint8_t offs = uint8_t(addr & 0xFF);
+      uint8_t offs = uint8_t(addr >> 8);
       if (breakPointTable[offs] >= breakPointPriorityThreshold &&
           (breakPointTable[offs] & 1) != 0)
         breakPointCallback(false, addr, value);
@@ -78,19 +71,13 @@ namespace CPC464 {
 
   inline void IOPorts::write(uint16_t addr, uint8_t value)
   {
-    uint8_t offs = uint8_t(addr & 0xFF);
     if (breakPointTable) {
+      uint8_t offs = uint8_t(addr >> 8);
       if (breakPointTable[offs] >= breakPointPriorityThreshold &&
           (breakPointTable[offs] & 2) != 0)
         breakPointCallback(true, addr, value);
     }
-    portValues[offs] = value;
     writeCallback(callbackUserData, addr, value);
-  }
-
-  inline uint8_t IOPorts::getLastValueWritten(uint16_t addr) const
-  {
-    return portValues[addr & 0xFF];
   }
 
 }       // namespace CPC464
