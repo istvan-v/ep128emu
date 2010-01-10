@@ -59,9 +59,9 @@ static const uint8_t  keyboardConvTable[256] = {
   99, 99,  99, 99,  99, 99,  99, 99,  99, 99,  99, 99,  99, 99,  99, 99,
   99, 99,  99, 99,  99, 99,  99, 99,  99, 99,  99, 99,  99, 99,  99, 99,
   // JOY1R  JOY1L    JOY1D    JOY1U    JOY1F
-  99, 75,  99, 74,  99, 73,  99, 72,  99, 77,  99, 99,  99, 99,  99, 99,
+  99, 75,  99, 74,  99, 73,  99, 72,  76, 77,  99, 99,  99, 99,  99, 99,
   // JOY2R  JOY2L    JOY2D    JOY2U    JOY2F
-  99, 51,  99, 50,  99, 49,  99, 48,  99, 53,  99, 99,  99, 99,  99, 99
+  99, 51,  99, 50,  99, 49,  99, 48,  52, 53,  99, 99,  99, 99,  99, 99
 };
 
 namespace CPC464 {
@@ -111,10 +111,9 @@ namespace CPC464 {
       uint16_t  tmpB = 0;
       uint16_t  tmpC = 0;
       ay3.runOneCycle(tmpA, tmpB, tmpC);
-      uint32_t  tmpL =
-          ((uint32_t(tmpA) * 3U) + (uint32_t(tmpB) * 2U) + 1U) >> 1;
-      uint32_t  tmpR =
-          ((uint32_t(tmpC) * 3U) + (uint32_t(tmpB) * 2U) + 1U) >> 1;
+      tmpB = tmpB + (uint16_t(tapeInputSignal) << 12);
+      uint32_t  tmpL = (((uint32_t(tmpA) * 3U) + 1U) >> 1) + uint32_t(tmpB);
+      uint32_t  tmpR = (((uint32_t(tmpC) * 3U) + 1U) >> 1) + uint32_t(tmpB);
       soundOutputSignal = (tmpR << 16) | tmpL;
       sendAudioOutput(soundOutputSignal);
     }
@@ -389,7 +388,7 @@ namespace CPC464 {
         demoTimeCnt = 0U;
         demoBuffer.writeByte(0x00);
         demoBuffer.writeByte(0x00);
-        demoFile->addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_ZX_DEMO,
+        demoFile->addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_CPC_DEMO,
                            demoBuffer);
       }
       catch (...) {
