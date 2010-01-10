@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -24,9 +24,13 @@
 #include <cmath>
 #include <map>
 
-static const unsigned char ep128EmuFile_Magic[16] = {
+static const unsigned char  ep128EmuFile_Magic[16] = {
   0x5D, 0x12, 0xE4, 0xF4, 0xC9, 0xDA, 0xB6, 0x42,
   0x01, 0x33, 0xDE, 0x07, 0xD2, 0x34, 0xF2, 0x22
+};
+
+static const unsigned char  cpcSNAFile_Magic[8] = {
+  0x4D, 0x56, 0x20, 0x2D, 0x20, 0x53, 0x4E, 0x41        // "MV - SNA"
 };
 
 static uint32_t hash_32(const unsigned char *buf, size_t nBytes)
@@ -400,24 +404,8 @@ namespace Ep128Emu {
   void File::loadZXSnapshotFile(std::FILE *f, const char *fileName)
   {
     size_t  nameLen = std::strlen(fileName);
-    bool    isSNAFile = false;
-    bool    isZ80File = false;
-    if (nameLen >= 5) {
-      if (fileName[nameLen - 4] == '.' &&
-          (fileName[nameLen - 3] | char(0x20)) == 's' &&
-          (fileName[nameLen - 2] | char(0x20)) == 'n' &&
-          (fileName[nameLen - 1] | char(0x20)) == 'a') {
-        isSNAFile = true;
-      }
-      else if (fileName[nameLen - 4] == '.' &&
-               (fileName[nameLen - 3] | char(0x20)) == 'z' &&
-               fileName[nameLen - 2] == '8' && fileName[nameLen - 1] == '0') {
-        isZ80File = true;
-      }
-    }
-    if (!(isSNAFile || isZ80File))
-      throw Exception("invalid file header");
     size_t  fileSize = 0;
+    int     fileType = -1;      // 0: ZX .SNA, 1: ZX .Z80, 2: CPC .SNA
     if (std::fseek(f, 0L, SEEK_END) >= 0) {
       long    tmp = std::ftell(f);
       if (tmp >= 0L) {
@@ -425,17 +413,58 @@ namespace Ep128Emu {
           fileSize = size_t(tmp);
       }
     }
+    if (fileSize >= 0x00010100) {
+      // file may be CPC snapshot, check header
+      fileType = 2;
+      for (int i = 0; i < 8; i++) {
+        int     c = std::fgetc(f);
+        if (c == EOF) {
+          fileSize = 0;
+          fileType = -1;
+          break;
+        }
+        if ((unsigned char) (c & 0xFF) != cpcSNAFile_Magic[i]) {
+          fileType = -1;
+          break;
+        }
+      }
+      if (fileSize > 0) {
+        if (std::fseek(f, (fileType < 0 ? 0L : 16L), SEEK_SET) < 0) {
+          fileSize = 0;
+          fileType = -1;
+        }
+      }
+      if (fileType >= 0)
+        fileSize = fileSize - 16;
+    }
     if (fileSize < 1)
       throw Exception("empty file or error seeking file");
-    if (!((isSNAFile && (fileSize == 49179 || fileSize == 131103 ||
-                         fileSize == 147487)) ||
-          (isZ80File && fileSize >= 1054 && fileSize < 262256))) {
+    if (fileType < 0 && nameLen >= 5) {
+      if (fileName[nameLen - 4] == '.' &&
+          (fileName[nameLen - 3] | char(0x20)) == 's' &&
+          (fileName[nameLen - 2] | char(0x20)) == 'n' &&
+          (fileName[nameLen - 1] | char(0x20)) == 'a') {
+        fileType = 0;
+      }
+      else if (fileName[nameLen - 4] == '.' &&
+               (fileName[nameLen - 3] | char(0x20)) == 'z' &&
+               fileName[nameLen - 2] == '8' && fileName[nameLen - 1] == '0') {
+        fileType = 1;
+      }
+    }
+    if (!((fileType == 0 && (fileSize == 49179 || fileSize == 131103 ||
+                             fileSize == 147487)) ||
+          (fileType == 1 && fileSize >= 1054 && fileSize < 262256) ||
+          fileType == 2)) {
       throw Exception("invalid file header");
     }
     buf.setPosition(fileSize + 24);
     buf.setPosition(0);
-    buf.writeUInt32(uint32_t(isSNAFile ? EP128EMU_CHUNKTYPE_ZX_SNA_FILE
-                                         : EP128EMU_CHUNKTYPE_ZX_Z80_FILE));
+    buf.writeUInt32(uint32_t(fileType == 0 ?
+                             EP128EMU_CHUNKTYPE_ZX_SNA_FILE
+                             : (fileType == 1 ?
+                                EP128EMU_CHUNKTYPE_ZX_Z80_FILE
+                                : EP128EMU_CHUNKTYPE_CPC_SNA_FILE)));
     buf.writeUInt32(uint32_t(fileSize));
     for (size_t i = 0; i < fileSize; i++) {
       int     c = std::fgetc(f);
