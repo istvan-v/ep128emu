@@ -417,6 +417,7 @@ namespace Ep128Emu {
         else {                          // CPC
           vm.soundClockFrequency = (vm.videoClockFrequency + 4U) >> 3;
           vm.videoClockFrequency = vm.soundClockFrequency << 3;
+          vm.enableFileIO = false;
         }
         vm.cpuClockFrequency = vm.videoClockFrequency << 2;
         vm.enableMemoryTimingEmulation = true;
