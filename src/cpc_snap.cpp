@@ -198,6 +198,109 @@ namespace CPC464 {
   void CPC464VM::loadSNAFile(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
+    stopDemo();
+    this->reset(true);
+    snapshotLoadFlag = true;
+    try {
+      uint8_t version = buf.readByte();
+      Ep128::Z80_REGISTERS& r = z80.getReg();
+      r.AF.B.l = buf.readByte();
+      r.AF.B.h = buf.readByte();
+      r.BC.B.l = buf.readByte();
+      r.BC.B.h = buf.readByte();
+      r.DE.B.l = buf.readByte();
+      r.DE.B.h = buf.readByte();
+      r.HL.B.l = buf.readByte();
+      r.HL.B.h = buf.readByte();
+      r.R = buf.readByte();
+      r.I = buf.readByte();
+      r.IFF1 = buf.readByte() & 0x01;
+      r.IFF2 = buf.readByte() & 0x01;
+      r.IX.B.l = buf.readByte();
+      r.IX.B.h = buf.readByte();
+      r.IY.B.l = buf.readByte();
+      r.IY.B.h = buf.readByte();
+      r.SP.B.l = buf.readByte();
+      r.SP.B.h = buf.readByte();
+      r.PC.B.l = buf.readByte();
+      r.PC.B.h = buf.readByte();
+      r.IM = buf.readByte() & 0x03;
+      if (r.IM > 2)
+        throw Ep128Emu::Exception("error in CPC snapshot data");
+      r.altAF.B.l = buf.readByte();
+      r.altAF.B.h = buf.readByte();
+      r.altBC.B.l = buf.readByte();
+      r.altBC.B.h = buf.readByte();
+      r.altDE.B.l = buf.readByte();
+      r.altDE.B.h = buf.readByte();
+      r.altHL.B.l = buf.readByte();
+      r.altHL.B.h = buf.readByte();
+      gateArrayPenSelected = buf.readByte() & 0x3F;
+      for (uint8_t i = 0; i <= 16; i++)
+        videoRenderer.setColor(i, buf.readByte());
+      uint8_t   tmp = buf.readByte();   // video mode and ROM disable
+      videoRenderer.setVideoMode(tmp & 0x03);
+      uint16_t  memConfig = uint16_t((~tmp) & 0x0C) << 4;
+      tmp = buf.readByte();             // RAM configuration
+      memConfig = memConfig | uint16_t(tmp & 0x3F);
+      crtcRegisterSelected = buf.readByte();
+      for (uint8_t i = 0; i < 16; i++)
+        crtc.writeRegister(i, buf.readByte());
+      crtc.setLightPenPosition(buf.readUInt16());
+      tmp = buf.readByte();             // ROM bank selected
+      memConfig = memConfig | (uint16_t(tmp) << 8);
+      memory.setPaging(memConfig);
+      ppiPortARegister = buf.readByte();
+      ppiPortBRegister = buf.readByte();
+      ppiPortCRegister = buf.readByte();
+      ppiControlRegister = buf.readByte();
+      ayRegisterSelected = buf.readByte();
+      for (uint8_t i = 0; i < 16; i++)
+        ay3.writeRegister(i, buf.readByte());
+      updatePPIState();
+      uint16_t  ramSize = buf.readByte();
+      ramSize = ramSize | (uint16_t(buf.readByte()) << 8);
+      if (ramSize > 576 || ((ramSize - 64) & (ramSize - 128)) != 0)
+        throw Ep128Emu::Exception("invalid RAM size in CPC snapshot");
+      if (version >= 2) {
+        uint8_t machineType = buf.readByte();
+        if (machineType >= 4)
+          throw Ep128Emu::Exception("unsupported machine type in CPC snapshot");
+        if (machineType < 3) {
+          if (machineType == 0 && memory.readRaw(0x00200006U) != 0x80)
+            throw Ep128Emu::Exception("CPC snapshot requires CPC464 ROM");
+          if (machineType == 1 && memory.readRaw(0x00200006U) != 0x7B)
+            throw Ep128Emu::Exception("CPC snapshot requires CPC664 ROM");
+          if (machineType == 2 && memory.readRaw(0x00200006U) != 0x91)
+            throw Ep128Emu::Exception("CPC snapshot requires CPC6128 ROM");
+          if (!(memory.isSegmentRAM(uint8_t(ramSize >> 4) - 1) &&
+                !memory.isSegmentRAM(uint8_t(ramSize >> 4)))) {
+            memory.setRAMSize(ramSize);
+          }
+        }
+      }
+      if (!(memory.isSegmentRAM(uint8_t(ramSize >> 4) - 1) &&
+            !memory.isSegmentRAM(uint8_t(ramSize >> 4)))) {
+        if (ramSize == 64)
+          throw Ep128Emu::Exception("CPC snapshot requires 64K RAM size");
+        else if (ramSize == 128)
+          throw Ep128Emu::Exception("CPC snapshot requires 128K RAM size");
+        else if (ramSize == 192)
+          throw Ep128Emu::Exception("CPC snapshot requires 192K RAM size");
+        else if (ramSize == 320)
+          throw Ep128Emu::Exception("CPC snapshot requires 320K RAM size");
+        else
+          throw Ep128Emu::Exception("CPC snapshot requires 576K RAM size");
+      }
+      while (buf.getPosition() < 0xF0)
+        (void) buf.readByte();
+      for (uint32_t i = 0U; i < (uint32_t(ramSize) << 10); i++)
+        memory.writeRaw(i, buf.readByte());
+    }
+    catch (...) {
+      this->reset(true);
+      throw;
+    }
   }
 
   // --------------------------------------------------------------------------
