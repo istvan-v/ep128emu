@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -759,13 +759,28 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
       vm.enableMemoryTimingEmulation = true;
       vm.enableFileIO = bool(n & 1);
     }
-    else {                              // TODO: CPC
+    else {
       n = n - 6;
       machineType = 2;
+      try {
+        config["sound.volume"] = 0.5;
+      }
+      catch (Ep128Emu::Exception) {
+      }
       vm.cpuClockFrequency = 4000000U;
       vm.videoClockFrequency = 1000000U;
       vm.soundClockFrequency = 125000U;
       memory.ram.size = (n == 0 ? 64 : (n == 1 ? 128 : 576));
+      if (n == 0) {                     // CPC 64K
+        memory.rom[0].file = romDirectory + "cpc464.rom";
+        memory.rom[0].offset = 16384;
+        memory.rom[16].file = romDirectory + "cpc464.rom";
+      }
+      else {                            // CPC 128K or 576K
+        memory.rom[0].file = romDirectory + "cpc6128.rom";
+        memory.rom[0].offset = 16384;
+        memory.rom[16].file = romDirectory + "cpc6128.rom";
+      }
       vm.enableMemoryTimingEmulation = true;
       vm.enableFileIO = false;
     }
@@ -801,7 +816,7 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
   config.createKey("memory.rom.00.offset", memory.rom[0x00].offset);
   config.createKey("memory.rom.01.file", memory.rom[0x01].file);
   config.createKey("memory.rom.01.offset", memory.rom[0x01].offset);
-  if (machineType == 0) {
+  if (machineType != 1) {
     config.createKey("memory.rom.02.file", memory.rom[0x02].file);
     config.createKey("memory.rom.02.offset", memory.rom[0x02].offset);
     config.createKey("memory.rom.03.file", memory.rom[0x03].file);
@@ -816,6 +831,8 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
     config.createKey("memory.rom.07.offset", memory.rom[0x07].offset);
     config.createKey("memory.rom.10.file", memory.rom[0x10].file);
     config.createKey("memory.rom.10.offset", memory.rom[0x10].offset);
+  }
+  if (machineType == 0) {
     config.createKey("memory.rom.11.file", memory.rom[0x11].file);
     config.createKey("memory.rom.11.offset", memory.rom[0x11].offset);
     config.createKey("memory.rom.12.file", memory.rom[0x12].file);
@@ -859,6 +876,7 @@ class Ep128EmuDisplaySndConfiguration {
       bool        highQuality;
       double      latency;
       int         hwPeriods;
+      double      volume;
     } sound;
  public:
   Ep128EmuDisplaySndConfiguration(Ep128Emu::ConfigurationDB& config)
@@ -867,10 +885,12 @@ class Ep128EmuDisplaySndConfiguration {
     sound.highQuality = true;
     sound.latency = 0.07;
     sound.hwPeriods = 16;
+    sound.volume = 0.7071;
     config.createKey("display.quality", display.quality);
     config.createKey("sound.highQuality", sound.highQuality);
     config.createKey("sound.latency", sound.latency);
     config.createKey("sound.hwPeriods", sound.hwPeriods);
+    config.createKey("sound.volume", sound.volume);
   }
 };
 
