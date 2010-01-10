@@ -67,17 +67,45 @@ namespace CPC464 {
     uint16_t    characterAddress;       // 0 to 0x3FFF
     uint16_t    characterAddressLatch;
     uint16_t    cursorAddress;          // copied from registers 14 and 15
+    uint8_t     rowAddressMask;         // 0x1E if R8 == 3, 0x1F otherwise
     // bit 0: 0 if row address is in cursor line range
     // bit 1: 0 if cursor enable / flash is on
     uint8_t     cursorFlags;
     uint8_t     cursorFlashCnt;
     bool        endOfFrameFlag;
+    // --------
+    EP128EMU_REGPARM1 void lineEnd();
    public:
     CRTC6845();
     virtual ~CRTC6845();
     void reset();
-    EP128EMU_REGPARM1 void runOneCycle();
-
+    EP128EMU_INLINE void runOneCycle()
+    {
+      if (horizontalPos == this->registers[0]) {
+        // end of line
+        this->lineEnd();
+      }
+      else {
+        horizontalPos = (horizontalPos + 1) & 0xFF;
+        characterAddress = (characterAddress + 1) & 0x3FFF;
+      }
+      if (hSyncCnt > 0) {
+        // horizontal sync
+        if (--hSyncCnt == 0)
+          syncFlags = syncFlags & 0x02;
+      }
+      if (horizontalPos == this->registers[1]) {
+        // display end / horizontal
+        displayEnableFlags = displayEnableFlags | 0x01;
+        if (((rowAddress ^ this->registers[9]) & rowAddressMask) == 0)
+          characterAddressLatch = characterAddress;
+      }
+      if (horizontalPos == this->registers[2]) {
+        // horizontal sync start
+        syncFlags = syncFlags | 0x01;
+        hSyncCnt = ((this->registers[3] - 1) & 0x0F) + 1;
+      }
+    }
     EP128EMU_INLINE bool getDisplayEnabled() const
     {
       return (displayEnableFlags == 0);
@@ -110,8 +138,13 @@ namespace CPC464 {
     {
       xPos = horizontalPos;
       yPos = (int(verticalPos)
-              * ((int(registers[9]) | int((registers[8] & 0x03) == 0x03)) + 1))
+              * (int(this->registers[9] | (0x1F - rowAddressMask)) + 1))
              + int(rowAddress);
+    }
+    EP128EMU_INLINE void setLightPenPosition(uint16_t addr)
+    {
+      this->registers[16] = uint8_t((addr >> 8) & 0x3F);
+      this->registers[17] = uint8_t(addr & 0xFF);
     }
     EP128EMU_REGPARM2 uint8_t readRegister(uint16_t addr) const;
     EP128EMU_REGPARM3 void writeRegister(uint16_t addr, uint8_t value);

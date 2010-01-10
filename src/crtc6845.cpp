@@ -26,8 +26,7 @@ namespace CPC464 {
   {
     for (int i = 0; i < 16; i++)
       registers[i] = 0x00;
-    registers[16] = 0x3F;
-    registers[17] = 0xFF;
+    setLightPenPosition(0x3FFF);
     this->reset();
   }
 
@@ -50,109 +49,83 @@ namespace CPC464 {
     characterAddressLatch = characterAddress;
     cursorAddress =
         uint16_t(registers[15]) | (uint16_t(registers[14] & 0x3F) << 8);
+    rowAddressMask = uint8_t(0x1F - int((registers[8] & 0x03) == 0x03));
     cursorFlags = 0x03;
     cursorFlashCnt = 0;
     endOfFrameFlag = false;
   }
 
-  EP128EMU_REGPARM1 void CRTC6845::runOneCycle()
+  EP128EMU_REGPARM1 void CRTC6845::lineEnd()
   {
-    if (horizontalPos == registers[0]) {
-      // end of line
-      horizontalPos = 0;
-      displayEnableFlags = displayEnableFlags & 0x02;
-      syncFlags = syncFlags & 0x02;
-      hSyncCnt = 0;
-      characterAddress = characterAddressLatch;
-      bool    interlaceMode = ((registers[8] & 0x03) == 0x03);
-      uint8_t rowAddressMask = 0x1F - uint8_t(interlaceMode);
-      if (((rowAddress ^ registers[11]) & rowAddressMask) == 0) {
-        // cursor end line
-        cursorFlags = cursorFlags | 0x01;
-      }
-      // increment row address
-      if (((rowAddress ^ registers[9]) & rowAddressMask) == 0) {
-        // character end line
-        rowAddress = uint8_t(interlaceMode && oddField);
-        endOfFrameFlag = (verticalPos == registers[4]);
-        verticalPos = (verticalPos + 1) & 0x7F;
-      }
-      else {
-        rowAddress = (rowAddress + (uint8_t(interlaceMode) + 1)) & 0x1F;
-      }
-      if (endOfFrameFlag &&
-          ((rowAddress ^ registers[5]) & rowAddressMask) == 0) {
-        // end of frame
-        endOfFrameFlag = false;
-        displayEnableFlags = displayEnableFlags & 0x01;
-        syncFlags = syncFlags & 0x01;
-        vSyncCnt = 0;
-        oddField = !oddField;
-        rowAddress = uint8_t(interlaceMode && oddField);
-        verticalPos = 0;
-        characterAddress =
-            uint16_t(registers[13]) | (uint16_t(registers[12] & 0x3F) << 8);
-        characterAddressLatch = characterAddress;
-        cursorFlashCnt = (cursorFlashCnt + 1) & 0xFF;
-        switch (registers[10] & 0x60) {
-        case 0x00:                      // no cursor flash
-          cursorFlags = 0x01;
-          break;
-        case 0x20:                      // cursor disabled
-          cursorFlags = 0x03;
-          break;
-        case 0x40:                      // cursor flash (16 frames)
-          cursorFlags = ((cursorFlashCnt & 0x08) >> 2) | 0x01;
-          break;
-        case 0x60:                      // cursor flash (32 frames)
-          cursorFlags = ((cursorFlashCnt & 0x10) >> 3) | 0x01;
-          break;
-        }
-      }
-      if (((rowAddress ^ registers[10]) & rowAddressMask) == 0) {
-        // cursor start line
-        cursorFlags = cursorFlags & 0x02;
-      }
-      if (vSyncCnt > 0) {
-        // vertical sync
-        if (--vSyncCnt == 0)
-          syncFlags = syncFlags & 0x01;
-      }
-      if ((verticalPos >> uint8_t(interlaceMode)) == registers[6]) {
-        // display end / vertical
-        displayEnableFlags = displayEnableFlags | 0x02;
-      }
-      if (verticalPos == registers[7]) {
-        // vertical sync start
-        syncFlags = syncFlags | 0x02;
-#if 0
-        vSyncCnt = (((registers[3] >> 4) - 1) & 0x0F) + 1;
-#else
-        vSyncCnt = 16;                  // VSYNC length is fixed on the 6845
-#endif
-      }
+    horizontalPos = 0;
+    displayEnableFlags = displayEnableFlags & 0x02;
+    syncFlags = syncFlags & 0x02;
+    hSyncCnt = 0;
+    characterAddress = characterAddressLatch;
+    if (((rowAddress ^ registers[11]) & rowAddressMask) == 0) {
+      // cursor end line
+      cursorFlags = cursorFlags | 0x01;
+    }
+    // increment row address
+    if (((rowAddress ^ registers[9]) & rowAddressMask) == 0) {
+      // character end line
+      rowAddress = (~rowAddressMask) & uint8_t(oddField);
+      endOfFrameFlag = (verticalPos == registers[4]);
+      verticalPos = (verticalPos + 1) & 0x7F;
     }
     else {
-      horizontalPos = (horizontalPos + 1) & 0xFF;
-      characterAddress = (characterAddress + 1) & 0x3FFF;
+      rowAddress = (rowAddress - rowAddressMask) & 0x1F;
     }
-    if (hSyncCnt > 0) {
-      // horizontal sync
-      if (--hSyncCnt == 0)
-        syncFlags = syncFlags & 0x02;
-    }
-    if (horizontalPos == registers[1]) {
-      // display end / horizontal
-      displayEnableFlags = displayEnableFlags | 0x01;
-      if (((rowAddress ^ registers[9])
-           & (0x1F - uint8_t((registers[8] & 0x03) == 0x03))) == 0) {
-        characterAddressLatch = characterAddress;
+    if (endOfFrameFlag &&
+        ((rowAddress ^ registers[5]) & rowAddressMask) == 0) {
+      // end of frame
+      endOfFrameFlag = false;
+      displayEnableFlags = displayEnableFlags & 0x01;
+      syncFlags = syncFlags & 0x01;
+      vSyncCnt = 0;
+      oddField = !oddField;
+      rowAddress = (~rowAddressMask) & uint8_t(oddField);
+      verticalPos = 0;
+      characterAddress =
+          uint16_t(registers[13]) | (uint16_t(registers[12] & 0x3F) << 8);
+      characterAddressLatch = characterAddress;
+      cursorFlashCnt = (cursorFlashCnt + 1) & 0xFF;
+      switch (registers[10] & 0x60) {
+      case 0x00:                        // no cursor flash
+        cursorFlags = 0x01;
+        break;
+      case 0x20:                        // cursor disabled
+        cursorFlags = 0x03;
+        break;
+      case 0x40:                        // cursor flash (16 frames)
+        cursorFlags = ((cursorFlashCnt & 0x08) >> 2) | 0x01;
+        break;
+      case 0x60:                        // cursor flash (32 frames)
+        cursorFlags = ((cursorFlashCnt & 0x10) >> 3) | 0x01;
+        break;
       }
     }
-    if (horizontalPos == registers[2]) {
-      // horizontal sync start
-      syncFlags = syncFlags | 0x01;
-      hSyncCnt = ((registers[3] - 1) & 0x0F) + 1;
+    if (((rowAddress ^ registers[10]) & rowAddressMask) == 0) {
+      // cursor start line
+      cursorFlags = cursorFlags & 0x02;
+    }
+    if (vSyncCnt > 0) {
+      // vertical sync
+      if (--vSyncCnt == 0)
+        syncFlags = syncFlags & 0x01;
+    }
+    if ((verticalPos >> (0x1F - rowAddressMask)) == registers[6]) {
+      // display end / vertical
+      displayEnableFlags = displayEnableFlags | 0x02;
+    }
+    if (verticalPos == registers[7]) {
+      // vertical sync start
+      syncFlags = syncFlags | 0x02;
+#if 0
+      vSyncCnt = (((registers[3] >> 4) - 1) & 0x0F) + 1;
+#else
+      vSyncCnt = 16;                    // VSYNC length is fixed on the 6845
+#endif
     }
   }
 
@@ -184,6 +157,7 @@ namespace CPC464 {
         break;
       case 0x0008:                      // interlace mode: 2 bits
         value = value & 0x03;
+        rowAddressMask = uint8_t(0x1F - int(value == 0x03));
         break;
       case 0x0009:                      // max. scan line address: 5 bits
         value = value & 0x1F;
@@ -305,8 +279,7 @@ namespace CPC464 {
       // reset CRTC
       for (int i = 0; i < 16; i++)
         registers[i] = 0x00;
-      registers[16] = 0x3F;
-      registers[17] = 0xFF;
+      setLightPenPosition(0x3FFF);
       this->reset();
       throw;
     }
