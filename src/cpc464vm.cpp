@@ -156,6 +156,7 @@ namespace CPC464 {
 
   EP128EMU_REGPARM1 void CPC464VM::Z80_::executeInterrupt()
   {
+    vm.gateArrayIRQCounter = vm.gateArrayIRQCounter & 0x1F;
     clearInterrupt();
     Ep128::Z80::executeInterrupt();
   }
