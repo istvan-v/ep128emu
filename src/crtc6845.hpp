@@ -103,7 +103,8 @@ namespace CPC464 {
       if (horizontalPos == this->registers[2]) {
         // horizontal sync start
         syncFlags = syncFlags | 0x01;
-        hSyncCnt = ((this->registers[3] - 1) & 0x0F) + 1;
+        // FIXME: sync width 0 is interpreted as 1
+        hSyncCnt = this->registers[3] | uint8_t(this->registers[3] == 0x00);
       }
     }
     EP128EMU_INLINE bool getDisplayEnabled() const

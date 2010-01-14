@@ -28,15 +28,19 @@ namespace CPC464 {
   class CPCVideo {
    protected:
     const CRTC6845& crtc;
-    uint8_t *lineBufPtr;
-    bool    prvHSyncState;
-    uint8_t vSyncCnt;
-    uint8_t videoMode;
-    uint8_t borderColor;
-    int     hSyncCnt;
+    uint8_t   *lineBufPtr;
+    uint8_t   crtcHSyncCnt;
+    uint8_t   vSyncCnt;
+    uint8_t   videoMode;
+    uint8_t   borderColor;
+    bool      displayEnabled;
+    uint8_t   videoByte0;
+    uint8_t   videoByte1;
+    uint8_t   videoModeLatched;
+    int       hSyncCnt;
     const uint8_t *videoMemory;
-    uint8_t *lineBuf;       // 72 * 9 = 648 bytes allocated as 162 uint32_t's
-    uint8_t palette[16];
+    uint8_t   *lineBuf;     // 72 * 9 = 648 bytes allocated as 162 uint32_t's
+    uint8_t   palette[16];
     // --------
     /*!
      * drawLine() is called after rendering each line.
