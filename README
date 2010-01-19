@@ -116,7 +116,35 @@ Spectrum emulation
     support for these is not complete yet
   * loading SNA and Z80 format snapshot files created by other emulators
     is supported; however, snapshot saving and demo recording are only
-    possible in the native zx128emu format
+    possible in the native ep128emu format
+
+Amstrad CPC emulation
+---------------------
+
+  * instruction based emulation of the Z80 CPU, supports all documented
+    and undocumented opcodes, and cycle accurate synchronization with
+    the CRTC and gate array when accessing video memory and I/O ports
+  * RAM size can be 64, 128, 192, 320, or 576 kilobytes
+  * ROM can be loaded from external image files to the lower ROM and
+    expansion ROMs 0 to 7
+  * 6845 CRTC (currently type 0 only), gate array, AY-3-8912, 8255 PPI
+    (modes 1 and 2 are not supported yet), keyboard, and joystick
+    emulation
+  * tape emulation with playback, recording, and setting tape position;
+    markers can be created for quick positioning to specific tape
+    locations (useful for tapes with multiple files); uses custom file
+    format which is PCM audio data with 1 to 8 bits of sample resolution
+    and variable sample rate, and header including the table of markers;
+    there is also read-write (although without markers) support for
+    sound files like WAV, AIFF, etc.
+  * CPC tape files in .cdt (same as Spectrum .tzx) format can be used as
+    tape images for read-only hardware level tape emulation, although
+    the support for this format is not complete yet
+  * loading SNA snapshot files (v1 or v2; v3 is loaded, but the extra
+    information about the internal state of the hardware is currently
+    ignored) created by other emulators is supported; however, snapshot
+    saving and demo recording are only possible in the native ep128emu
+    format
 
 Installation
 ============
@@ -518,6 +546,63 @@ A simple example file, assuming that the emulator is installed to
   ; 128K RAM at segments F8h..FFh
   0xF8 RAM "" 8
 
+Reading I/O ports in the debugger
+---------------------------------
+
+Write-only I/O ports are readable in the monitor and Lua scripts, and
+return the last value written to the port. There are also some changes
+to the address decoding compared to what is seen by the emulated Z80
+code, depending on the machine type:
+  - Spectrum:
+    - below port address 20H, the Kempston joystick state is read from
+      all addresses
+    - the last value written to the ULA is read from any other even
+      address that is less than 100H
+    - in Spectrum 128 mode, if the address is less than 100H, and the
+      lowest two bits are 01B, the memory paging register is returned
+    - reading any other I/O port below 100H returns FFH
+    - reading from ports 0xxxxxxxxxxxxx0xB does not write the data bus
+      state to the memory paging register
+  - CPC:
+    - when reading the gate array/RAM configuration port, the function
+      (pen/color/video mode/memory configuration) can be selected in
+      bits 6 and 7 of the address; for example, reading port 7F40H
+      returns the color of the currently selected pen
+    - in the address range 0 to 7FH, many I/O registers can be read
+      directly:
+      - 00H-1FH: 6845 CRTC registers
+      - 20H-2FH: gate array palette
+      - 30H-3FH: gate array border color
+      - 40H-4FH: AY-3-8912 registers
+      - 50H-5FH: 8255 PPI registers
+          0101x000B: port A current state (input or output)
+          0101x001B: port B current state (input or output)
+          0101x010B: port C current state (input or output)
+          0101xx11B: control register
+          0101x100B: last value written to port A register
+          0101x101B: last value written to port B register
+          0101x110B: last value written to port C register
+      - 60H-6FH: keyboard matrix state
+      - 70H:     currently selected CRTC register
+      - 71H:     CRTC flags
+          bit 0: 1 if the "display enabled" output is active
+          bit 1: 1 if the HSYNC output is active
+          bit 2: 1 if the VSYNC output is active
+          bit 3: 1 if the current field is odd in interlaced modes
+          bit 4: 1 if the "cursor enabled" output is active
+      - 72H:     current video memory address / low
+      - 73H:     current video memory address / high
+      - 74H:     video mode (0 to 3)
+      - 75H:     currently selected pen number
+      - 76H:     gate array IRQ counter (0 to 51)
+      - 77H:     AY-3-8912 register selected
+      - 78H:     RAM configuration (bits 6 and 7 are RAM enable flags
+                 for page 0 and page 3)
+      - 79H:     currently selected expansion ROM bank
+      - 7AH-7FH: unused, FFH is returned
+    - unlike the other machine types, I/O watchpoints are set on the
+      upper 8 bits of the address
+
 Lua scripting
 -------------
 
@@ -712,6 +797,15 @@ scripts:
     range 0 to 56. The vertical position is the sum of the 8-bit line
     counter within the current line parameter block (LPB), which counts
     up to 255, and the video memory address of the LPB multiplied by 16.
+
+    In CPC emulation mode, the horizontal position is in characters, and
+    the vertical position is in raster lines, i.e. 0 to 63 and 0 to 311
+    with the default CRTC settings. Position 0,0 is the upper left
+    corner of the screen, this is the CRTC cycle when the first two
+    bytes of the screen memory are read. In the case of interlaced video
+    mode (CRTC register 8 = 3), the vertical position is in frame lines,
+    and is incremented by two each line (it is even or odd depending on
+    the current field).
 
   getRawAddress(segment, offset)
 

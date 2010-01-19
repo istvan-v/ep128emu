@@ -1,6 +1,42 @@
 Changes in version 2.0.8
 ------------------------
 
+  * implemented ZX Spectrum 48/128 and Amstrad CPC emulation; for now,
+    only a basic configuration of these machines is supported (there is
+    no disk emulation yet), although the emulation accuracy should be
+    good. See the README file for more details
+  * new command line options for selecting the machine type to be
+    emulated: -ep128, -zx, and -cpc
+  * undocumented Z80 flags are emulated more accurately - the only
+    instruction that is still not correct is 'BIT n, (HL)'
+  * fixed bug in the emulation of DAVE port B6H, which prevented some
+    games from working
+  * reduced the time before the floppy write buffer is flushed from 4
+    seconds to 1 second
+  * the editor buffer in the monitor has been increased from 120 to 160
+    lines
+  * the monitor TR (trace) command has a new optional parameter now that
+    controls the printing of additional information about the video
+    position and Z80 registers
+  * new Lua functions: readWord(), readWordRaw(), writeWord(),
+    writeWordRaw(), getIFF1(), getIFF2(), setIFF1(), setIFF2(),
+    getVideoPosition(), and getRawAddress(); these are documented in the
+    README file
+  * detailed information about Lua errors is now also printed if the
+    error occurs in an extension function implemented by the emulator
+  * segment:offset style breakpoints allow the offset to be greater than
+    3FFFH (the two most significant bits are ignored, but must match
+    when specifying an address range)
+  * the Z80 disassembler in the debugger now supports more undocumented
+    instructions
+  * fixed bug in the Lua example script
+  * the file I/O extension ROM (epfileio.rom) has been modified so that
+    EXOS block read and write (6 and 8) calls are implemented in Z80
+    code, and not in the emulator; this reduces the speed of these
+    operations to a level similar to disk drives, and allows watchpoints
+    set on the read or written memory area to work
+  * the source code of epfileio.rom is included
+
 Changes in version 2.0.7
 ------------------------
 
