@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -138,7 +138,7 @@ namespace Ep128Emu {
   void setWindowIcon(Fl_Window *w, int iconNum)
   {
 #ifdef WIN32
-    if (!((iconNum >= 0 && iconNum <= 1) || (iconNum >= 10 && iconNum <= 13)))
+    if (!((iconNum >= 0 && iconNum <= 2) || (iconNum >= 10 && iconNum <= 13)))
       return;                   // ignore invalid icon numbers
     // FIXME: according to the FLTK documentation, Fl_Window::show(int, char**)
     // should be used for the icon to be displayed, but Fl_Window::show() seems
