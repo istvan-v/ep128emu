@@ -37,7 +37,7 @@ namespace CPC464 {
   void CRTC6845::reset()
   {
     horizontalPos = 0;
-    displayEnableFlags = 0x03;
+    displayEnableFlags = 0x00;
     syncFlags = 0x00;
     hSyncCnt = 0;
     vSyncCnt = 0;
@@ -47,24 +47,25 @@ namespace CPC464 {
     characterAddress =
         uint16_t(registers[13]) | (uint16_t(registers[12] & 0x3F) << 8);
     characterAddressLatch = characterAddress;
-    cursorAddress =
-        uint16_t(registers[15]) | (uint16_t(registers[14] & 0x3F) << 8);
-    rowAddressMask = uint8_t(0x1F - int((registers[8] & 0x03) == 0x03));
-    cursorFlags = 0x03;
+    cursorAddress = 0xFFFF;
+    writeRegister(8, registers[8]);
+    writeRegister(14, registers[14]);
     cursorFlashCnt = 0;
     endOfFrameFlag = false;
+    skewShiftRegister = 0x00;
   }
 
   EP128EMU_REGPARM1 void CRTC6845::lineEnd()
   {
     horizontalPos = 0;
-    displayEnableFlags = displayEnableFlags & 0x02;
+    displayEnableFlags = (displayEnableFlags | 0x40)
+                         | ((displayEnableFlags & 0x80) >> 6);
     syncFlags = syncFlags & 0x02;
     hSyncCnt = 0;
     characterAddress = characterAddressLatch;
     if (((rowAddress ^ registers[11]) & rowAddressMask) == 0) {
       // cursor end line
-      cursorFlags = cursorFlags | 0x01;
+      cursorAddress = cursorAddress | 0x4000;
     }
     // increment row address
     if (((rowAddress ^ registers[9]) & rowAddressMask) == 0) {
@@ -80,7 +81,7 @@ namespace CPC464 {
         ((rowAddress ^ registers[5]) & rowAddressMask) == 0) {
       // end of frame
       endOfFrameFlag = false;
-      displayEnableFlags = displayEnableFlags & 0x01;
+      displayEnableFlags = 0xC2;
       syncFlags = syncFlags & 0x01;
       vSyncCnt = 0;
       oddField = !oddField;
@@ -92,22 +93,24 @@ namespace CPC464 {
       cursorFlashCnt = (cursorFlashCnt + 1) & 0xFF;
       switch (registers[10] & 0x60) {
       case 0x00:                        // no cursor flash
-        cursorFlags = 0x01;
+        cursorAddress = (cursorAddress & 0x3FFF) | 0x4000;
         break;
       case 0x20:                        // cursor disabled
-        cursorFlags = 0x03;
+        cursorAddress = cursorAddress | 0xC000;
         break;
       case 0x40:                        // cursor flash (16 frames)
-        cursorFlags = ((cursorFlashCnt & 0x08) >> 2) | 0x01;
+        cursorAddress = (cursorAddress & 0x3FFF) | 0x4000
+                        | (uint16_t(cursorFlashCnt & 0x08) << 12);
         break;
       case 0x60:                        // cursor flash (32 frames)
-        cursorFlags = ((cursorFlashCnt & 0x10) >> 3) | 0x01;
+        cursorAddress = (cursorAddress & 0x3FFF) | 0x4000
+                        | (uint16_t(cursorFlashCnt & 0x10) << 11);
         break;
       }
     }
     if (((rowAddress ^ registers[10]) & rowAddressMask) == 0) {
       // cursor start line
-      cursorFlags = cursorFlags & 0x02;
+      cursorAddress = cursorAddress & 0xBFFF;
     }
     if (vSyncCnt > 0) {
       // vertical sync
@@ -116,16 +119,14 @@ namespace CPC464 {
     }
     if ((verticalPos >> (0x1F - rowAddressMask)) == registers[6]) {
       // display end / vertical
-      displayEnableFlags = displayEnableFlags | 0x02;
+      displayEnableFlags = 0x40;
     }
     if (verticalPos == registers[7]) {
-      // vertical sync start
-      syncFlags = syncFlags | 0x02;
-#if 0
-      vSyncCnt = (((registers[3] >> 4) - 1) & 0x0F) + 1;
-#else
-      vSyncCnt = 16;                    // VSYNC length is fixed on the 6845
-#endif
+      if ((rowAddress & rowAddressMask) == 0) {
+        // vertical sync start
+        syncFlags = syncFlags | 0x02;
+        vSyncCnt = (((registers[3] >> 4) - 1) & 0x0F) + 1;
+      }
     }
   }
 
@@ -142,9 +143,12 @@ namespace CPC464 {
     addr = addr & 0x001F;
     if (addr < 16) {
       switch (addr) {
-      case 0x0003:                      // horizontal sync width: 4 bits
+#if 0
+      case 0x0003:                      // sync widths
+        // FIXME: VSYNC width may be ignored depending on the type of the CRTC
         value = value & 0x0F;
         break;
+#endif
       case 0x0004:                      // vertical total: 7 bits
         value = value & 0x7F;
         break;
@@ -152,12 +156,24 @@ namespace CPC464 {
         value = value & 0x1F;
         break;
       case 0x0006:                      // vertical displayed: 7 bits
+        value = value & 0x7F;
+        if (value == verticalPos)
+          displayEnableFlags = displayEnableFlags & 0x40;
+        break;
       case 0x0007:                      // vertical sync position: 7 bits
         value = value & 0x7F;
+        if (value == verticalPos) {
+          if (registers[7] != verticalPos) {
+            syncFlags = syncFlags | 0x02;
+            vSyncCnt = (((registers[3] >> 4) - 1) & 0x0F) + 1;
+          }
+        }
         break;
-      case 0x0008:                      // interlace mode: 2 bits
-        value = value & 0x03;
-        rowAddressMask = uint8_t(0x1F - int(value == 0x03));
+      case 0x0008:                      // interlace mode and skew
+        value = value & 0xF3;
+        rowAddressMask = uint8_t(0x1F - int((value & 0x03) == 0x03));
+        displayEnableMask = uint8_t((2 << ((value & 0x30) >> 3)) & 0x3F);
+        cursorEnableMask = uint8_t((1 << ((value & 0xC0) >> 5)) & 0x3F);
         break;
       case 0x0009:                      // max. scan line address: 5 bits
         value = value & 0x1F;
@@ -175,8 +191,9 @@ namespace CPC464 {
         value = value & 0x3F;
       case 0x000F:                      // cursor position L: 8 bits
         registers[addr] = value;
-        cursorAddress = (uint16_t(registers[14]) << 8)
-                        | uint16_t(registers[15]);
+        cursorAddress =
+            (cursorAddress & 0xC000)
+            | (uint16_t(registers[14]) << 8) | uint16_t(registers[15]);
         return;
       }
       registers[addr] = value;
@@ -218,11 +235,11 @@ namespace CPC464 {
   void CRTC6845::saveState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
-    buf.writeUInt32(0x01000000U);       // version number
+    buf.writeUInt32(0x01000001U);       // version number
     for (int i = 0; i < 18; i++)
       buf.writeByte(registers[i]);
     buf.writeByte(horizontalPos);
-    buf.writeByte(displayEnableFlags);
+    buf.writeByte((displayEnableFlags >> 6) ^ 0x03);
     buf.writeByte(syncFlags);
     buf.writeByte(hSyncCnt);
     buf.writeByte(vSyncCnt);
@@ -231,9 +248,10 @@ namespace CPC464 {
     buf.writeBoolean(oddField);
     buf.writeUInt16(characterAddress);
     buf.writeUInt16(characterAddressLatch);
-    buf.writeByte(cursorFlags);
+    buf.writeByte(uint8_t(cursorAddress >> 14));
     buf.writeByte(cursorFlashCnt);
     buf.writeBoolean(endOfFrameFlag);
+    buf.writeByte(skewShiftRegister & 0x3F);
   }
 
   void CRTC6845::saveState(Ep128Emu::File& f)
@@ -248,7 +266,7 @@ namespace CPC464 {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
-    if (version != 0x01000000U) {
+    if (!(version >= 0x01000000U && version <= 0x01000001U)) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible CRTC snapshot format");
     }
@@ -259,7 +277,9 @@ namespace CPC464 {
       registers[16] = buf.readByte() & 0x3F;
       registers[17] = buf.readByte();
       horizontalPos = buf.readByte();
-      displayEnableFlags = buf.readByte() & 0x03;
+      displayEnableFlags = ((buf.readByte() ^ 0x03) & 0x03) << 6;
+      if (displayEnableFlags == 0xC0)
+        displayEnableFlags = 0xC2;
       syncFlags = buf.readByte() & 0x03;
       hSyncCnt = buf.readByte() & 0x1F;
       vSyncCnt = buf.readByte() & 0x1F;
@@ -268,9 +288,14 @@ namespace CPC464 {
       oddField = buf.readBoolean();
       characterAddress = buf.readUInt16() & 0x3FFF;
       characterAddressLatch = buf.readUInt16() & 0x3FFF;
-      cursorFlags = buf.readByte() & 0x03;
+      cursorAddress = (cursorAddress & 0x3FFF)
+                      | (uint16_t(buf.readByte() & 0x03) << 14);
       cursorFlashCnt = buf.readByte();
       endOfFrameFlag = buf.readBoolean();
+      if (version >= 0x01000001U)
+        skewShiftRegister = buf.readByte();
+      else
+        skewShiftRegister = 0x00;
       if (buf.getPosition() != buf.getDataSize())
         throw Ep128Emu::Exception("trailing garbage at end of "
                                   "CRTC snapshot data");

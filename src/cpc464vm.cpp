@@ -78,21 +78,21 @@ namespace CPC464 {
 
   EP128EMU_INLINE void CPC464VM::memoryWait()
   {
-    updateCPUHalfCycles((((~(int(z80OpcodeHalfCycles) + 3)) + 2) & 6) + 5);
+    updateCPUHalfCycles(((~(int(z80OpcodeHalfCycles) + 3)) & 6) + 5);
     while (z80OpcodeHalfCycles >= 8)
       runOneCycle();
   }
 
   EP128EMU_INLINE void CPC464VM::memoryWaitM1()
   {
-    updateCPUHalfCycles((((~(int(z80OpcodeHalfCycles) + 3)) + 2) & 6) + 4);
+    updateCPUHalfCycles(((~(int(z80OpcodeHalfCycles) + 3)) & 6) + 4);
     while (z80OpcodeHalfCycles >= 8)
       runOneCycle();
   }
 
   EP128EMU_INLINE void CPC464VM::ioPortWait()
   {
-    updateCPUHalfCycles((((~(int(z80OpcodeHalfCycles) + 5)) + 2) & 6) + 7);
+    updateCPUHalfCycles(((~(int(z80OpcodeHalfCycles) + 5)) & 6) + 7);
     while (z80OpcodeHalfCycles >= 8)
       runOneCycle();
   }
@@ -156,6 +156,7 @@ namespace CPC464 {
 
   EP128EMU_REGPARM1 void CPC464VM::Z80_::executeInterrupt()
   {
+    vm.updateCPUHalfCycles((~(int(vm.z80OpcodeHalfCycles) + 7)) & 6);
     vm.gateArrayIRQCounter = vm.gateArrayIRQCounter & 0x1F;
     clearInterrupt();
     Ep128::Z80::executeInterrupt();

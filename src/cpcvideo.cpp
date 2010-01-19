@@ -78,22 +78,22 @@ namespace CPC464 {
   CPCVideo::CPCVideo(const CRTC6845& crtc_, const uint8_t *videoMemory_)
     : crtc(crtc_),
       lineBufPtr((uint8_t *) 0),
+      hSyncCnt(0),
       crtcHSyncCnt(0),
       vSyncCnt(0),
-      videoMode(0),
-      borderColor(0x00),
-      displayEnabled(false),
-      videoByte0(0x00),
-      videoByte1(0x00),
+      videoDelayBufPos(0),
       videoModeLatched(0),
-      hSyncCnt(0),
       videoMemory(videoMemory_),
-      lineBuf((uint8_t *) 0)
+      lineBuf((uint8_t *) 0),
+      borderColor(0x00),
+      videoMode(0)
   {
+    for (size_t i = 0; i < 8; i++)
+      videoDelayBuf[i] = 0x00;
     for (size_t i = 0; i < 16; i++)
       palette[i] = 0x00;
-    lineBuf = reinterpret_cast<uint8_t *>(new uint32_t[162]);
-    for (size_t i = 0; i < 648; i++)
+    lineBuf = reinterpret_cast<uint8_t *>(new uint32_t[108]);
+    for (size_t i = 0; i < 432; i++)
       lineBuf[i] = uint8_t((~i) & 0x01);
     lineBufPtr = lineBuf;
   }
@@ -128,129 +128,138 @@ namespace CPC464 {
 
   EP128EMU_REGPARM1 void CPCVideo::runOneCycle()
   {
-    bool    hSyncState = crtc.getHSyncState();
-    bool    vSyncState = crtc.getVSyncState();
-    if (hSyncState | vSyncState) {
-      lineBufPtr[0] = 0x01;             // sync
-      lineBufPtr[1] = 0x14;
-      lineBufPtr = lineBufPtr + 2;
-    }
-    else if (displayEnabled) {
-      switch (videoModeLatched) {
-      case 0:                           // 16 color mode
-        {
-          lineBufPtr[0] = 0x04;
-          uint8_t b = videoByte0;
-          lineBufPtr[1] = palette[pixelConvTable_16[b & 0xAA]];
-          lineBufPtr[2] = palette[pixelConvTable_16[b & 0x55]];
-          b = videoByte1;
-          lineBufPtr[3] = palette[pixelConvTable_16[b & 0xAA]];
-          lineBufPtr[4] = palette[pixelConvTable_16[b & 0x55]];
-          lineBufPtr = lineBufPtr + 5;
+    if ((unsigned int) hSyncCnt < 48U) {
+      if (videoDelayBuf[videoDelayBufPos ^ 4] != 0) {
+        lineBufPtr[0] = 0x01;           // sync
+        lineBufPtr[1] = 0x14;
+        lineBufPtr = lineBufPtr + 2;
+      }
+      else if (videoDelayBuf[videoDelayBufPos + 1] != 0) {
+        uint8_t videoByte0 = videoDelayBuf[videoDelayBufPos + 2];
+        uint8_t videoByte1 = videoDelayBuf[videoDelayBufPos + 3];
+        switch (videoModeLatched) {
+        case 0:                         // 16 color mode
+          {
+            lineBufPtr[0] = 0x04;
+            lineBufPtr[1] = palette[pixelConvTable_16[videoByte0 & 0xAA]];
+            lineBufPtr[2] = palette[pixelConvTable_16[videoByte0 & 0x55]];
+            lineBufPtr[3] = palette[pixelConvTable_16[videoByte1 & 0xAA]];
+            lineBufPtr[4] = palette[pixelConvTable_16[videoByte1 & 0x55]];
+            lineBufPtr = lineBufPtr + 5;
+          }
+          break;
+        case 1:                         // 4 color mode
+          {
+            lineBufPtr[0] = 0x08;
+            lineBufPtr[1] = palette[pixelConvTable_4[videoByte0 & 0x88]];
+            lineBufPtr[2] = palette[pixelConvTable_4[videoByte0 & 0x44]];
+            lineBufPtr[3] = palette[pixelConvTable_4[videoByte0 & 0x22]];
+            lineBufPtr[4] = palette[pixelConvTable_4[videoByte0 & 0x11]];
+            lineBufPtr[5] = palette[pixelConvTable_4[videoByte1 & 0x88]];
+            lineBufPtr[6] = palette[pixelConvTable_4[videoByte1 & 0x44]];
+            lineBufPtr[7] = palette[pixelConvTable_4[videoByte1 & 0x22]];
+            lineBufPtr[8] = palette[pixelConvTable_4[videoByte1 & 0x11]];
+            lineBufPtr = lineBufPtr + 9;
+          }
+          break;
+        case 2:                         // 2 color mode
+          lineBufPtr[0] = 0x06;
+          lineBufPtr[1] = palette[0];
+          lineBufPtr[2] = palette[1];
+          lineBufPtr[3] = videoByte0;
+          lineBufPtr[4] = palette[0];
+          lineBufPtr[5] = palette[1];
+          lineBufPtr[6] = videoByte1;
+          lineBufPtr = lineBufPtr + 7;
+          break;
+        case 3:                         // 4 color mode (half resolution)
+          {
+            lineBufPtr[0] = 0x04;
+            lineBufPtr[1] = palette[pixelConvTable_16[videoByte0 & 0xAA] & 3];
+            lineBufPtr[2] = palette[pixelConvTable_16[videoByte0 & 0x55] & 3];
+            lineBufPtr[3] = palette[pixelConvTable_16[videoByte1 & 0xAA] & 3];
+            lineBufPtr[4] = palette[pixelConvTable_16[videoByte1 & 0x55] & 3];
+            lineBufPtr = lineBufPtr + 5;
+          }
+          break;
         }
-        break;
-      case 1:                           // 4 color mode
-        {
-          lineBufPtr[0] = 0x08;
-          uint8_t b = videoByte0;
-          lineBufPtr[1] = palette[pixelConvTable_4[b & 0x88]];
-          lineBufPtr[2] = palette[pixelConvTable_4[b & 0x44]];
-          lineBufPtr[3] = palette[pixelConvTable_4[b & 0x22]];
-          lineBufPtr[4] = palette[pixelConvTable_4[b & 0x11]];
-          b = videoByte1;
-          lineBufPtr[5] = palette[pixelConvTable_4[b & 0x88]];
-          lineBufPtr[6] = palette[pixelConvTable_4[b & 0x44]];
-          lineBufPtr[7] = palette[pixelConvTable_4[b & 0x22]];
-          lineBufPtr[8] = palette[pixelConvTable_4[b & 0x11]];
-          lineBufPtr = lineBufPtr + 9;
-        }
-        break;
-      case 2:                           // 2 color mode
-        lineBufPtr[0] = 0x06;
-        lineBufPtr[1] = palette[0];
-        lineBufPtr[2] = palette[1];
-        lineBufPtr[3] = videoByte0;
-        lineBufPtr[4] = palette[0];
-        lineBufPtr[5] = palette[1];
-        lineBufPtr[6] = videoByte1;
-        lineBufPtr = lineBufPtr + 7;
-        break;
-      case 3:                           // 4 color mode (half resolution)
-        {
-          lineBufPtr[0] = 0x04;
-          uint8_t b = videoByte0;
-          lineBufPtr[1] = palette[pixelConvTable_16[b & 0xAA] & 0x03];
-          lineBufPtr[2] = palette[pixelConvTable_16[b & 0x55] & 0x03];
-          b = videoByte1;
-          lineBufPtr[3] = palette[pixelConvTable_16[b & 0xAA] & 0x03];
-          lineBufPtr[4] = palette[pixelConvTable_16[b & 0x55] & 0x03];
-          lineBufPtr = lineBufPtr + 5;
-        }
-        break;
+      }
+      else {
+        lineBufPtr[0] = 0x01;           // border
+        lineBufPtr[1] = borderColor;
+        lineBufPtr = lineBufPtr + 2;
       }
     }
-    else {
-      lineBufPtr[0] = 0x01;             // border
-      lineBufPtr[1] = borderColor;
-      lineBufPtr = lineBufPtr + 2;
-    }
-    if (++hSyncCnt >= 48) {
-      if (hSyncCnt >= 54)
-        hSyncCnt = -12;
-      if (hSyncCnt == 48)
-        drawLine(lineBuf, size_t(lineBufPtr - lineBuf));
-    }
-    if (hSyncState) {                   // horizontal sync
+    hSyncCnt++;
+    if (crtc.getHSyncState()) {         // horizontal sync
       if (crtcHSyncCnt <= 6) {
         if (crtcHSyncCnt == 2) {
-          if (hSyncCnt >= 50)
-            hSyncCnt = -12;
+          if (hSyncCnt >= 49)
+            hSyncCnt = -13;
         }
-        // FIXME: this is a hack to fix the timing of mode changes;
-        // writes to the video mode register should actually be delayed
-        // by one cycle
-        if (crtcHSyncCnt == 5)
+        if (crtcHSyncCnt == 6) {
           videoModeLatched = videoMode;
+          if (vSyncCnt > 0) {
+            if (--vSyncCnt == 21)       // VSync start (delayed by 5 lines)
+              vsyncStateChange(true, (crtc.getVSyncInterlace() ? 34U : 6U));
+            if (vSyncCnt == 0)          // VSync end
+              vsyncStateChange(false, 6U);
+          }
+        }
         crtcHSyncCnt++;
       }
     }
     else if (crtcHSyncCnt > 0) {
-      if (crtcHSyncCnt <= 5)
+      if (crtcHSyncCnt <= 6) {
         videoModeLatched = videoMode;
+        if (vSyncCnt > 0) {
+          if (--vSyncCnt == 21)         // VSync start (delayed by 5 lines)
+            vsyncStateChange(true, (crtc.getVSyncInterlace() ? 34U : 6U));
+          if (vSyncCnt == 0)            // VSync end
+            vsyncStateChange(false, 6U);
+        }
+      }
       crtcHSyncCnt = 0;
     }
-    if (hSyncCnt == 0) {
-      lineBufPtr = lineBuf;
-      if (vSyncState) {                 // vertical sync
-        if (++vSyncCnt == 4)            // VSync start (delayed by 3 lines)
-          vsyncStateChange(true, (crtc.getVSyncInterlace() ? 34U : 6U));
+    if ((unsigned int) (hSyncCnt + 2) < 50U) {
+      if (hSyncCnt == 0)
+        lineBufPtr = lineBuf;
+      if (crtc.getVSyncState()) {
+        if (vSyncCnt == 0)
+          vSyncCnt = 26;                // CRTC vertical sync
       }
-      else if (vSyncCnt > 0) {          // VSync end
-        vSyncCnt = 0;
-        vsyncStateChange(false, 6U);
+      videoDelayBuf[videoDelayBufPos] =
+          uint8_t(crtc.getHSyncState()) | vSyncCnt;
+      bool    displayEnabled = crtc.getDisplayEnabled();
+      videoDelayBuf[videoDelayBufPos + 1] = uint8_t(displayEnabled);
+      if (displayEnabled) {
+        unsigned int  videoAddr =
+            ((unsigned int) (crtc.getRowAddress() & 0x07) << 11)
+            | ((unsigned int) (crtc.getMemoryAddress() & 0x03FF) << 1)
+            | ((unsigned int) (crtc.getMemoryAddress() & 0x3000) << 2);
+        videoDelayBuf[videoDelayBufPos + 2] = videoMemory[videoAddr];
+        videoDelayBuf[videoDelayBufPos + 3] = videoMemory[videoAddr + 1U];
       }
+      videoDelayBufPos = (~videoDelayBufPos) & 4;
     }
-    displayEnabled = crtc.getDisplayEnabled();
-    if (displayEnabled) {
-      unsigned int  videoAddr =
-          ((unsigned int) (crtc.getRowAddress() & 0x07) << 11)
-          | ((unsigned int) (crtc.getMemoryAddress() & 0x03FF) << 1)
-          | ((unsigned int) (crtc.getMemoryAddress() & 0x3000) << 2);
-      videoByte0 = videoMemory[videoAddr];
-      videoByte1 = videoMemory[videoAddr + 1U];
+    else {
+      if (hSyncCnt >= 53)
+        hSyncCnt = -13;
+      if (hSyncCnt == 48)
+        drawLine(lineBuf, size_t(lineBufPtr - lineBuf));
     }
   }
 
   void CPCVideo::reset()
   {
-    videoMode = 0;
-    borderColor = 0x00;
-    displayEnabled = false;
-    videoByte0 = 0x00;
-    videoByte1 = 0x00;
+    videoDelayBufPos = 0;
     videoModeLatched = 0;
+    for (size_t i = 0; i < 8; i++)
+      videoDelayBuf[i] = 0x00;
     for (size_t i = 0; i < 16; i++)
       palette[i] = 0x00;
+    borderColor = 0x00;
+    videoMode = 0;
   }
 
 }       // namespace CPC464

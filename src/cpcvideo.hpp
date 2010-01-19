@@ -29,18 +29,18 @@ namespace CPC464 {
    protected:
     const CRTC6845& crtc;
     uint8_t   *lineBufPtr;
+    int       hSyncCnt;
     uint8_t   crtcHSyncCnt;
     uint8_t   vSyncCnt;
-    uint8_t   videoMode;
-    uint8_t   borderColor;
-    bool      displayEnabled;
-    uint8_t   videoByte0;
-    uint8_t   videoByte1;
+    uint8_t   videoDelayBufPos;         // 0 or 4
     uint8_t   videoModeLatched;
-    int       hSyncCnt;
+    // sync (delay=1), displayEnabled (d=2), videoByte0 (d=2), videoByte1 (d=2)
+    uint8_t   videoDelayBuf[8];
     const uint8_t *videoMemory;
-    uint8_t   *lineBuf;     // 72 * 9 = 648 bytes allocated as 162 uint32_t's
+    uint8_t   *lineBuf;     // 48 * 9 = 432 bytes allocated as 108 uint32_t's
     uint8_t   palette[16];
+    uint8_t   borderColor;
+    uint8_t   videoMode;
     // --------
     /*!
      * drawLine() is called after rendering each line.

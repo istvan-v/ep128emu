@@ -53,8 +53,9 @@ namespace CPC464 {
     // register 17: lightpen address low (bits 0 to 7)
     uint8_t     registers[18];
     uint8_t     horizontalPos;
-    // bit 0: 0: display enabled H
-    // bit 1: 0: display enabled V
+    // bit 1: 1: display enabled (b6=1 and b7=1)
+    // bit 6: 1: display enabled H
+    // bit 7: 1: display enabled V
     uint8_t     displayEnableFlags;
     // bit 0: horizontal sync
     // bit 1: vertical sync
@@ -66,13 +67,24 @@ namespace CPC464 {
     bool        oddField;               // for interlace
     uint16_t    characterAddress;       // 0 to 0x3FFF
     uint16_t    characterAddressLatch;
-    uint16_t    cursorAddress;          // copied from registers 14 and 15
+    // bits 0-13: copied from registers 14 and 15
+    // bit 14:    0 if row address is in cursor line range
+    // bit 15:    0 if cursor enable / flash is on
+    uint16_t    cursorAddress;
     uint8_t     rowAddressMask;         // 0x1E if R8 == 3, 0x1F otherwise
-    // bit 0: 0 if row address is in cursor line range
-    // bit 1: 0 if cursor enable / flash is on
-    uint8_t     cursorFlags;
     uint8_t     cursorFlashCnt;
     bool        endOfFrameFlag;
+    // bit 0: current cursor enable output
+    // bit 1: current display enable output
+    // bit 2: cursor enable delayed by one cycle
+    // bit 3: display enable delayed by one cycle
+    // bit 4: cursor enable delayed by two cycles
+    // bit 5: display enable delayed by two cycles
+    uint8_t     skewShiftRegister;
+    // 2, 8, 32, or 0 depending on bits 4 and 5 of register 8
+    uint8_t     displayEnableMask;
+    // 1, 4, 16, or 0 depending on bits 6 and 7 of register 8
+    uint8_t     cursorEnableMask;
     // --------
     EP128EMU_REGPARM1 void lineEnd();
    public:
@@ -96,20 +108,23 @@ namespace CPC464 {
       }
       if (horizontalPos == this->registers[1]) {
         // display end / horizontal
-        displayEnableFlags = displayEnableFlags | 0x01;
+        displayEnableFlags = displayEnableFlags & 0x80;
         if (((rowAddress ^ this->registers[9]) & rowAddressMask) == 0)
           characterAddressLatch = characterAddress;
       }
       if (horizontalPos == this->registers[2]) {
         // horizontal sync start
         syncFlags = syncFlags | 0x01;
+        hSyncCnt = this->registers[3] & 0x0F;
         // FIXME: sync width 0 is interpreted as 1
-        hSyncCnt = this->registers[3] | uint8_t(this->registers[3] == 0x00);
+        hSyncCnt = hSyncCnt | uint8_t(hSyncCnt == 0x00);
       }
+      skewShiftRegister = (skewShiftRegister << 2) | displayEnableFlags
+                          | uint8_t(characterAddress == cursorAddress);
     }
     EP128EMU_INLINE bool getDisplayEnabled() const
     {
-      return (displayEnableFlags == 0);
+      return bool(skewShiftRegister & displayEnableMask);
     }
     EP128EMU_INLINE bool getHSyncState() const
     {
@@ -121,7 +136,7 @@ namespace CPC464 {
     }
     EP128EMU_INLINE bool getVSyncInterlace() const
     {
-      return (bool(this->registers[8] & 0x02) && oddField);
+      return (bool(this->registers[8] & 0x01) && oddField);
     }
     EP128EMU_INLINE uint8_t getRowAddress() const
     {
@@ -133,7 +148,7 @@ namespace CPC464 {
     }
     EP128EMU_INLINE bool getCursorEnabled() const
     {
-      return ((characterAddress == cursorAddress) && (cursorFlags == 0));
+      return bool(skewShiftRegister & cursorEnableMask);
     }
     EP128EMU_INLINE void getVideoPosition(int& xPos, int& yPos) const
     {
