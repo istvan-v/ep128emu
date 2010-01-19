@@ -259,6 +259,36 @@ Section "Associate snapshot and demo files with ep128emu" SecAssocFiles
 
 SectionEnd
 
+Section "Associate Spectrum .TZX and .Z80 files with ep128emu" SecAssocZX
+
+  WriteRegStr HKCR ".tzx" "" "Ep128Emu.TZXFile"
+  WriteRegStr HKCR "Ep128Emu.TZXFile" "" "Ep128Emu Spectrum tape file"
+  WriteRegStr HKCR "Ep128Emu.TZXFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,1"
+  WriteRegStr HKCR "Ep128Emu.TZXFile\shell" "" "open"
+  WriteRegStr HKCR "Ep128Emu.TZXFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -zx "tape.imageFile=%1"'
+  WriteRegStr HKCR ".z80" "" "Ep128Emu.Z80File"
+  WriteRegStr HKCR "Ep128Emu.Z80File" "" "Ep128Emu Spectrum snapshot file"
+  WriteRegStr HKCR "Ep128Emu.Z80File\DefaultIcon" "" "$INSTDIR\ep128emu.exe,1"
+  WriteRegStr HKCR "Ep128Emu.Z80File\shell" "" "open"
+  WriteRegStr HKCR "Ep128Emu.Z80File\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -zx -snapshot "%1"'
+
+SectionEnd
+
+Section "Associate CPC .CDT and .SNA files with ep128emu" SecAssocCPC
+
+  WriteRegStr HKCR ".cdt" "" "Ep128Emu.CDTFile"
+  WriteRegStr HKCR "Ep128Emu.CDTFile" "" "Ep128Emu CPC tape file"
+  WriteRegStr HKCR "Ep128Emu.CDTFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,2"
+  WriteRegStr HKCR "Ep128Emu.CDTFile\shell" "" "open"
+  WriteRegStr HKCR "Ep128Emu.CDTFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -cpc "tape.imageFile=%1"'
+  WriteRegStr HKCR ".sna" "" "Ep128Emu.SNAFile"
+  WriteRegStr HKCR "Ep128Emu.SNAFile" "" "Ep128Emu CPC snapshot file"
+  WriteRegStr HKCR "Ep128Emu.SNAFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,2"
+  WriteRegStr HKCR "Ep128Emu.SNAFile\shell" "" "open"
+  WriteRegStr HKCR "Ep128Emu.SNAFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -cpc -snapshot "%1"'
+
+SectionEnd
+
 Section "Download ROM images" SecDLRoms
 
   SetOutPath "$INSTDIR\roms"
@@ -297,6 +327,8 @@ SectionEnd
   LangString DESC_SecMain ${LANG_ENGLISH} "ep128emu binaries"
   LangString DESC_SecSrc ${LANG_ENGLISH} "ep128emu source code"
   LangString DESC_SecAssocFiles ${LANG_ENGLISH} "Associate snapshot and demo files with ep128emu"
+  LangString DESC_SecAssocZX ${LANG_ENGLISH} "Associate Spectrum .TZX and .Z80 files with ep128emu"
+  LangString DESC_SecAssocCPC ${LANG_ENGLISH} "Associate CPC .CDT and .SNA files with ep128emu"
   LangString DESC_SecDLRoms ${LANG_ENGLISH} "Download and install ROM images"
   LangString DESC_SecInstCfg ${LANG_ENGLISH} "Install configuration files"
 
@@ -305,6 +337,8 @@ SectionEnd
     !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} $(DESC_SecMain)
     !insertmacro MUI_DESCRIPTION_TEXT ${SecSrc} $(DESC_SecSrc)
     !insertmacro MUI_DESCRIPTION_TEXT ${SecAssocFiles} $(DESC_SecAssocFiles)
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecAssocZX} $(DESC_SecAssocZX)
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecAssocCPC} $(DESC_SecAssocCPC)
     !insertmacro MUI_DESCRIPTION_TEXT ${SecDLRoms} $(DESC_SecDLRoms)
     !insertmacro MUI_DESCRIPTION_TEXT ${SecInstCfg} $(DESC_SecInstCfg)
   !insertmacro MUI_FUNCTION_DESCRIPTION_END
