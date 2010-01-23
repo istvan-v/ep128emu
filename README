@@ -212,9 +212,8 @@ download page:
 To install, just run the executable, and follow the instructions.
 The installer can automatically download the ROM images needed for
 running the emulator, but these can also be installed manually by
-downloading
-http://ep128emu.enterpriseforever.org/roms/ep128emu_roms.zip, and
-extracting it to roms\ under the selected installation folder.
+downloading http://ep128emu.enterpriseforever.org/roms/ep128emu_roms.7z,
+and extracting it to roms\ under the selected installation folder.
 When asked if configuration files should be reinstalled, click 'OK'
 when installing the first time, but this step can be skipped in later
 installations to preserve the configuration.
@@ -715,6 +714,13 @@ scripts:
   getMemoryPage(n)
 
     Returns the segment selected for page 'n' (0 to 3).
+    In Spectrum or CPC emulation mode, RAM is mapped starting from
+    segment 00H. For the CPC, segments 00H to 03H are the internal RAM,
+    the lower ROM is at segment 80H, and expansion ROM 'n' is at segment
+    C0H + 'n'; this function returns the number of the segment for read
+    access (i.e. ROM if it is enabled). In the case of ZX Spectrum, the
+    ROM is at segment 80H (Spectrum 16 and 48), or segments 80H and 81H
+    (Spectrum 128).
 
   readMemory(addr)
 
