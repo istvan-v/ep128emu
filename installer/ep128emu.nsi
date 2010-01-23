@@ -216,7 +216,7 @@ Section "Source code" SecSrc
 
   SetOutPath "$INSTDIR\src\resource"
 
-  File "..\resource\ep128emu.rc"
+  File "..\resource\*.rc"
   File "..\resource\*.ico"
 
   SetOutPath "$INSTDIR\src\roms"
@@ -495,6 +495,8 @@ Section "Uninstall"
   Delete "$INSTDIR\roms\brd.rom"
   Delete "$INSTDIR\roms\cpc464.rom"
   Delete "$INSTDIR\roms\cpc6128.rom"
+  Delete "$INSTDIR\roms\cpc664.rom"
+  Delete "$INSTDIR\roms\cpc_amsdos.rom"
   Delete "$INSTDIR\roms\cyrus.rom"
   Delete "$INSTDIR\roms\ep-plus.rom"
   Delete "$INSTDIR\roms\ep128emu_roms.bin"
