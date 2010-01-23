@@ -398,7 +398,8 @@ ep128emuSources += ['gui/debugger.cpp', 'gui/monitor.cpp', 'gui/main.cpp']
 if win32CrossCompile:
     ep128emuResourceObject = ep128emuEnvironment.Command(
         'resource/resource.o',
-        ['resource/ep128emu.rc', 'resource/ep128emu.ico'],
+        ['resource/ep128emu.rc', 'resource/cpc464em.ico',
+         'resource/ep128emu.ico', 'resource/zx128emu.ico'],
         'wine C:/MinGW/bin/windres.exe -v --use-temp-file '
         + '--preprocessor="C:/MinGW/bin/gcc-sjlj.exe -E -xc -DRC_INVOKED" '
         + '-o $TARGET resource/ep128emu.rc')
@@ -430,13 +431,20 @@ if haveDotconf:
 if haveSDL:
     tapeeditEnvironment.Append(LIBS = ['SDL'])
 tapeeditEnvironment.Append(LIBS = ['sndfile'])
+tapeeditSources = fluidCompile(['tapeutil/tapeedit.fl'])
+tapeeditSources += ['tapeutil/tapeio.cpp']
 if not win32CrossCompile:
     tapeeditEnvironment.Append(LIBS = ['pthread'])
 else:
     tapeeditEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
-
-tapeedit = tapeeditEnvironment.Program('tapeedit',
-    fluidCompile(['tapeutil/tapeedit.fl']) + ['tapeutil/tapeio.cpp'])
+    tapeeditResourceObject = tapeeditEnvironment.Command(
+        'resource/te_resrc.o',
+        ['resource/tapeedit.rc', 'resource/tapeedit.ico'],
+        'wine C:/MinGW/bin/windres.exe -v --use-temp-file '
+        + '--preprocessor="C:/MinGW/bin/gcc-sjlj.exe -E -xc -DRC_INVOKED" '
+        + '-o $TARGET resource/tapeedit.rc')
+    tapeeditSources += [tapeeditResourceObject]
+tapeedit = tapeeditEnvironment.Program('tapeedit', tapeeditSources)
 Depends(tapeedit, ep128emuLib)
 
 if sys.platform[:6] == 'darwin':

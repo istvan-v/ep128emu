@@ -1,0 +1,35 @@
+
+#include <winver.h>
+
+VS_VERSION_INFO VERSIONINFO
+  FILEVERSION     2, 0, 8, 0
+  PRODUCTVERSION  2, 0, 8, 0
+  FILEFLAGSMASK   0
+  FILEFLAGS       0
+  FILEOS          VOS__WINDOWS32
+  FILETYPE        VFT_APP
+  FILESUBTYPE     VFT2_UNKNOWN
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904E4"
+    BEGIN
+      VALUE "Comments", "Home page: http://sourceforge.net/projects/ep128emu/"
+      VALUE "CompanyName", "Istvan Varga"
+      VALUE "FileDescription", "ep128emu tape editor utility"
+      VALUE "FileVersion", "2.0.8.0"
+      VALUE "InternalName", "tapeedit"
+      VALUE "LegalCopyright", "Copyright (C) 2003-2010, GPL v2 or later"
+      VALUE "OriginalFilename", "tapeedit"
+      VALUE "ProductName", "Ep128Emu"
+      VALUE "ProductVersion", "2.0.8.0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0409, 0x04E4
+  END
+END
+
+101 ICON ".\\resource\\tapeedit.ico"
+

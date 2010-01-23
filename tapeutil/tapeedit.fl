@@ -677,6 +677,7 @@ Function {main(int argc, char **argv)} {open return_type int
   Fl::lock();
   Ep128Emu::setGUIColorScheme();
   TapeEditorGUI *w = new TapeEditorGUI;
+  Ep128Emu::setWindowIcon(w->mainWindow, 0);
   try {
     w->mainWindow->show();
     for (int i = 1; i < argc; i++) {
