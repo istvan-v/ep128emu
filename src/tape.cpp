@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -933,6 +933,19 @@ namespace Ep128Emu {
                     / clockFreq_);
   }
 
+  void Tape_TZX::setPauseMode(uint32_t pauseLength_)
+  {
+    if (pauseLength_ > 0U)
+      pauseLength = pauseLength_;
+    else
+      pauseLength_ = pauseLength;
+    currentMode = 0x04;
+    pulseLength = (uint32_t(sampleRate) + 500U) / 1000U;
+    pulseTimer = pulseLength;
+    pulseCnt = (pauseLength * uint32_t(sampleRate) + (pulseLength * 500U))
+               / (pulseLength * 1000U);
+  }
+
   void Tape_TZX::readNextTZXBlock()
   {
     if (isTAPFile) {
@@ -945,7 +958,7 @@ namespace Ep128Emu {
       bit1PulseCnt = 2;
       pilotPulseCnt = 5643;
       lastByteBits = 8;
-      pauseLength = convertPulseLength(1500U, 1000U);
+      pauseLength = 1500U;
       {
         uint16_t  tmp = 0;
         if (!readUInt16(tmp))
@@ -1007,7 +1020,7 @@ namespace Ep128Emu {
           uint16_t  tmp = 0;
           if (!readUInt16(tmp))
             return;
-          pauseLength = convertPulseLength(tmp, 1000U);
+          pauseLength = tmp;
         }
         if (currentBlockType == 0x10) {
           uint16_t  tmp = 0;
@@ -1070,7 +1083,7 @@ namespace Ep128Emu {
           uint16_t  tmp = 0;
           if (!readUInt16(tmp))
             return;
-          pauseLength = convertPulseLength(tmp, 1000U);
+          pauseLength = tmp;
         }
         if (!readUInt24(dataBlockBytesLeft))
           return;
@@ -1094,7 +1107,7 @@ namespace Ep128Emu {
           directRecordingTimer = directRecordingSampleRate >> 1;
           if (!readUInt16(tmp))
             return;
-          pauseLength = convertPulseLength(tmp, 1000U);
+          pauseLength = tmp;
         }
         if (!readByte(lastByteBits))
           return;
@@ -1116,12 +1129,7 @@ namespace Ep128Emu {
             this->stop();
             continue;
           }
-          outputState = 0;
-          currentMode = 0x04;
-          pauseLength = convertPulseLength(tmp, 1000U);
-          pulseTimer = pauseLength;
-          pulseLength = pauseLength;
-          pulseCnt = 1U;
+          setPauseMode(tmp);
           return;
         }
         break;
@@ -1302,11 +1310,7 @@ namespace Ep128Emu {
         }
       }
       else if (pauseLength > 0U) {
-        outputState = 0;
-        currentMode = 0x04;
-        pulseTimer = pauseLength;
-        pulseLength = pauseLength;
-        pulseCnt = 1U;
+        setPauseMode();
         return;
       }
       else {
@@ -1339,10 +1343,7 @@ namespace Ep128Emu {
         }
       }
       else if (pauseLength > 0U) {
-        currentMode = 0x04;
-        pulseTimer = pauseLength;
-        pulseLength = pauseLength;
-        pulseCnt = 1U;
+        setPauseMode();
         return;
       }
       else {
@@ -1379,6 +1380,10 @@ namespace Ep128Emu {
     }
     outputState = (outputState == 0 ? (1 << (requestedBitsPerSample - 1)) : 0);
     pulseTimer = pulseLength;
+    if (currentMode == 0x04) {
+      if (currentBlockType != 0x12)
+        outputState = 0;                // pause: force output to 0 after 1 ms
+    }
     if (pulseCnt > 1U) {
       pulseCnt--;
       return;
@@ -1441,7 +1446,7 @@ namespace Ep128Emu {
       tapePosition = 0;
       if (std::fseek(f, (isTAPFile ? 0L : 10L), SEEK_SET) >= 0) {
         endOfTape = false;
-        outputState = 1 << (requestedBitsPerSample - 1);
+        outputState = 0;
         readNextTZXBlock();
       }
     }

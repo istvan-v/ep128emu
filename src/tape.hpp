@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -361,6 +361,7 @@ namespace Ep128Emu {
     bool readUInt24(uint32_t& n);
     bool readUInt32(uint32_t& n);
     uint32_t convertPulseLength(uint32_t n, uint32_t clockFreq_ = 0U);
+    void setPauseMode(uint32_t pauseLength_ = 0U);
     void readNextTZXBlock();
     void directRecordingNextBit();
     void dataBlockNextBit();
