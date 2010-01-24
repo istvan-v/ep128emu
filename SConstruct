@@ -7,8 +7,8 @@ linux32CrossCompile = 0
 disableSDL = 0          # set this to 1 on Linux with SDL version >= 1.2.10
 disableLua = 0
 enableGLShaders = 1
-enableDebug = 1
-buildRelease = 0
+enableDebug = 0
+buildRelease = 1
 
 compilerFlags = ''
 if buildRelease:
@@ -38,7 +38,6 @@ if linux32CrossCompile:
     compilerFlags = ' -m32 ' + compilerFlags
 ep128emuLibEnvironment.Append(CCFLAGS = Split(compilerFlags))
 ep128emuLibEnvironment.Append(CPPPATH = ['.', './src'])
-ep128emuLibEnvironment.Append(CPPPATH = ['./Fl_Native_File_Chooser'])
 ep128emuLibEnvironment.Append(CPPPATH = ['/usr/local/include'])
 if sys.platform[:6] == 'darwin':
     ep128emuLibEnvironment.Append(CPPPATH = ['/usr/X11R6/include'])
@@ -222,6 +221,17 @@ if not configure.CheckCXXHeader('FL/Fl.H'):
     else:
         print ' *** error: FLTK 1.1 is not found'
     Exit(-1)
+fltkVersion13 = 0
+if configure.CheckCXXHeader('FL/Fl_Cairo.H'):
+    fltkVersion13 = 1
+    if sys.platform[:5] == 'linux':
+        ep128emuGUIEnvironment.Append(LIBS = ['Xinerama', 'Xft'])
+        ep128emuGLGUIEnvironment.Append(LIBS = ['Xinerama', 'Xft'])
+    print 'WARNING: using FLTK 1.3.x - this may not work reliably yet'
+else:
+    ep128emuLibEnvironment.Append(CPPPATH = ['./Fl_Native_File_Chooser'])
+    ep128emuGUIEnvironment.Append(CPPPATH = ['./Fl_Native_File_Chooser'])
+    ep128emuGLGUIEnvironment.Append(CPPPATH = ['./Fl_Native_File_Chooser'])
 if not configure.CheckCHeader('GL/gl.h'):
     print ' *** error: OpenGL is not found'
     Exit(-1)
@@ -263,7 +273,8 @@ if haveLua:
         ep128emuLibEnvironment.Append(CCFLAGS = ['-DUSING_OLD_LUA_API'])
 if enableGLShaders:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DENABLE_GL_SHADERS'])
-ep128emuLibEnvironment.Append(CCFLAGS = ['-DFLTK1'])
+if not fltkVersion13:
+    ep128emuLibEnvironment.Append(CCFLAGS = ['-DFLTK1'])
 
 ep128emuGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
 ep128emuGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
@@ -281,7 +292,7 @@ def fluidCompile(flNames):
             cppNames += [cppName]
     return cppNames
 
-ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
+ep128emuLibSources = Split('''
     src/bplist.cpp
     src/cfg_db.cpp
     src/debuglib.cpp
@@ -301,8 +312,11 @@ ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu', Split('''
     src/vm.cpp
     src/vmthread.cpp
     src/wd177x.cpp
-    Fl_Native_File_Chooser/Fl_Native_File_Chooser.cxx
-'''))
+''')
+if not fltkVersion13:
+    ep128emuLibSources += ['Fl_Native_File_Chooser/Fl_Native_File_Chooser.cxx']
+ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu',
+                                                   ep128emuLibSources)
 
 # -----------------------------------------------------------------------------
 
