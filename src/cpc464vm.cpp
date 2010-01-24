@@ -546,6 +546,9 @@ namespace CPC464 {
             vm.ppiPortCRegister |= uint8_t(1 << ((value & 0x0E) >> 1));
         }
         else {
+          vm.ppiPortARegister = 0x00;
+          vm.ppiPortBRegister = 0x00;
+          vm.ppiPortCRegister = 0x00;
           vm.ppiControlRegister = value;
         }
         break;
