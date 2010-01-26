@@ -165,7 +165,7 @@ GNU C/C++ compiler, binutils, etc.), you need the following packages:
 
   * SCons (http://www.scons.org/)
   * Python interpreter for running SCons
-  * FLTK 1.1.x (http://www.fltk.org/software.php?VERSION=1.1.9)
+  * FLTK 1.1.x (http://www.fltk.org/software.php?VERSION=1.1.10)
     NOTES:
       * this library should be compiled with the --enable-threads
         'configure' option - many Linux distributions include binaries
