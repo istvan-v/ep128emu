@@ -122,6 +122,7 @@ namespace CPC464 {
     uint8_t   singleStepMode;
     int32_t   singleStepModeNextAddr;
     bool      tapeCallbackFlag;
+    bool      prvTapeCallbackFlag;
     uint32_t  soundOutputSignal;
     Ep128Emu::File  *demoFile;
     // contains demo data, which is the emulator version number as a 32-bit

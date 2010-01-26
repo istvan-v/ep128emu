@@ -52,6 +52,7 @@ namespace CPC464 {
     writeRegister(14, registers[14]);
     cursorFlashCnt = 0;
     endOfFrameFlag = false;
+    verticalAdjustCnt = 0;
     skewShiftRegister = 0x00;
   }
 
@@ -71,41 +72,49 @@ namespace CPC464 {
     if (((rowAddress ^ registers[9]) & rowAddressMask) == 0) {
       // character end line
       rowAddress = (~rowAddressMask) & uint8_t(oddField);
-      endOfFrameFlag = (verticalPos == registers[4]);
+      if (verticalPos == registers[4]) {
+        endOfFrameFlag = true;
+        verticalAdjustCnt = 0;
+      }
       verticalPos = (verticalPos + 1) & 0x7F;
     }
     else {
       rowAddress = (rowAddress - rowAddressMask) & 0x1F;
     }
-    if (endOfFrameFlag &&
-        ((rowAddress ^ registers[5]) & rowAddressMask) == 0) {
-      // end of frame
-      endOfFrameFlag = false;
-      displayEnableFlags = 0xC2;
-      syncFlags = syncFlags & 0x01;
-      vSyncCnt = 0;
-      oddField = !oddField;
-      rowAddress = (~rowAddressMask) & uint8_t(oddField);
-      verticalPos = 0;
-      characterAddress =
-          uint16_t(registers[13]) | (uint16_t(registers[12] & 0x3F) << 8);
-      characterAddressLatch = characterAddress;
-      cursorFlashCnt = (cursorFlashCnt + 1) & 0xFF;
-      switch (registers[10] & 0x60) {
-      case 0x00:                        // no cursor flash
-        cursorAddress = (cursorAddress & 0x3FFF) | 0x4000;
-        break;
-      case 0x20:                        // cursor disabled
-        cursorAddress = cursorAddress | 0xC000;
-        break;
-      case 0x40:                        // cursor flash (16 frames)
-        cursorAddress = (cursorAddress & 0x3FFF) | 0x4000
-                        | (uint16_t(cursorFlashCnt & 0x08) << 12);
-        break;
-      case 0x60:                        // cursor flash (32 frames)
-        cursorAddress = (cursorAddress & 0x3FFF) | 0x4000
-                        | (uint16_t(cursorFlashCnt & 0x10) << 11);
-        break;
+    if (endOfFrameFlag) {
+      if (verticalAdjustCnt == registers[5]) {
+        // end of frame
+        endOfFrameFlag = false;
+        verticalAdjustCnt = 0;
+        displayEnableFlags = 0xC2;
+        syncFlags = syncFlags & 0x01;
+        vSyncCnt = 0;
+        oddField = !oddField;
+        rowAddress = (~rowAddressMask) & uint8_t(oddField);
+        verticalPos = 0;
+        characterAddress =
+            uint16_t(registers[13]) | (uint16_t(registers[12] & 0x3F) << 8);
+        characterAddressLatch = characterAddress;
+        cursorFlashCnt = (cursorFlashCnt + 1) & 0xFF;
+        switch (registers[10] & 0x60) {
+        case 0x00:                      // no cursor flash
+          cursorAddress = (cursorAddress & 0x3FFF) | 0x4000;
+          break;
+        case 0x20:                      // cursor disabled
+          cursorAddress = cursorAddress | 0xC000;
+          break;
+        case 0x40:                      // cursor flash (16 frames)
+          cursorAddress = (cursorAddress & 0x3FFF) | 0x4000
+                          | (uint16_t(cursorFlashCnt & 0x08) << 12);
+          break;
+        case 0x60:                      // cursor flash (32 frames)
+          cursorAddress = (cursorAddress & 0x3FFF) | 0x4000
+                          | (uint16_t(cursorFlashCnt & 0x10) << 11);
+          break;
+        }
+      }
+      else {
+        verticalAdjustCnt = (verticalAdjustCnt + 1) & 0x1F;
       }
     }
     if (((rowAddress ^ registers[10]) & rowAddressMask) == 0) {
@@ -117,7 +126,7 @@ namespace CPC464 {
       if (--vSyncCnt == 0)
         syncFlags = syncFlags & 0x01;
     }
-    if ((verticalPos >> (0x1F - rowAddressMask)) == registers[6]) {
+    if (verticalPos == registers[6]) {
       // display end / vertical
       displayEnableFlags = 0x40;
     }
@@ -235,7 +244,7 @@ namespace CPC464 {
   void CRTC6845::saveState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
-    buf.writeUInt32(0x01000001U);       // version number
+    buf.writeUInt32(0x01000002U);       // version number
     for (int i = 0; i < 18; i++)
       buf.writeByte(registers[i]);
     buf.writeByte(horizontalPos);
@@ -251,6 +260,7 @@ namespace CPC464 {
     buf.writeByte(uint8_t(cursorAddress >> 14));
     buf.writeByte(cursorFlashCnt);
     buf.writeBoolean(endOfFrameFlag);
+    buf.writeByte(verticalAdjustCnt);
     buf.writeByte(skewShiftRegister & 0x3F);
   }
 
@@ -266,7 +276,7 @@ namespace CPC464 {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
-    if (!(version >= 0x01000000U && version <= 0x01000001U)) {
+    if (!(version >= 0x01000000U && version <= 0x01000002U)) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible CRTC snapshot format");
     }
@@ -292,6 +302,10 @@ namespace CPC464 {
                       | (uint16_t(buf.readByte() & 0x03) << 14);
       cursorFlashCnt = buf.readByte();
       endOfFrameFlag = buf.readBoolean();
+      if (version >= 0x01000002U)
+        verticalAdjustCnt = buf.readByte() & 0x1F;
+      else
+        verticalAdjustCnt = rowAddress >> (0x1F - rowAddressMask);
       if (version >= 0x01000001U)
         skewShiftRegister = buf.readByte();
       else

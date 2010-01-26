@@ -74,6 +74,7 @@ namespace CPC464 {
     uint8_t     rowAddressMask;         // 0x1E if R8 == 3, 0x1F otherwise
     uint8_t     cursorFlashCnt;
     bool        endOfFrameFlag;
+    uint8_t     verticalAdjustCnt;
     // bit 0: current cursor enable output
     // bit 1: current display enable output
     // bit 2: cursor enable delayed by one cycle

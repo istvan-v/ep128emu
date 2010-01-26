@@ -442,7 +442,6 @@ namespace CPC464 {
       else                                      // port A: mode 0, output
         ppiPortAState = ppiPortAInput & ppiPortARegister;
     }
-    setTapeMotorState(bool(ppiPortCState & 0x10));
     switch (ppiPortCState & 0xC0) {
     case 0x80:                          // write AY register
       ay3.writeRegister(ayRegisterSelected & 0x0F, ppiPortAState);
@@ -498,8 +497,10 @@ namespace CPC464 {
         vm.videoRenderer.setVideoMode(value & 0x03);
         vm.memory.setPaging((vm.memory.getPaging() & 0xFF3F)
                             | uint16_t(((~value) & 0x0C) << 4));
-        if (value & 0x10)
+        if (value & 0x10) {
           vm.gateArrayIRQCounter = 0;
+          vm.z80.clearInterrupt();
+        }
         break;
       }
     }
@@ -704,7 +705,7 @@ namespace CPC464 {
   {
     CPC464VM&  vm = *(reinterpret_cast<CPC464VM *>(userData));
     vm.tapeSamplesRemaining += vm.tapeSamplesPerCRTCCycle;
-    if (vm.tapeSamplesRemaining > 0) {
+    if (vm.tapeSamplesRemaining >= 0) {
       // assume tape sample rate < crtcFrequency
       vm.tapeSamplesRemaining -= (int64_t(1) << 32);
       uint8_t prvTapeInput = vm.tapeInputSignal;
@@ -963,6 +964,7 @@ namespace CPC464 {
       singleStepMode(0),
       singleStepModeNextAddr(int32_t(-1)),
       tapeCallbackFlag(false),
+      prvTapeCallbackFlag(false),
       soundOutputSignal(0U),
       demoFile((Ep128Emu::File *) 0),
       demoBuffer(),
@@ -974,7 +976,7 @@ namespace CPC464 {
       firstCallback((CPC464VMCallback *) 0),
       videoCapture((Ep128Emu::VideoCapture *) 0),
       tapeSamplesPerCRTCCycle(0L),
-      tapeSamplesRemaining(0L),
+      tapeSamplesRemaining(-1L),
       crtcFrequency(1000000)
   {
     for (size_t i = 0;
@@ -1027,15 +1029,17 @@ namespace CPC464 {
         resetKeyboard();
     }
     bool    newTapeCallbackFlag =
-        (haveTape() && getIsTapeMotorOn() && getTapeButtonState() != 0);
+        (haveTape() && bool(ppiPortCState & 0x10) && getTapeButtonState() != 0);
     if (newTapeCallbackFlag != tapeCallbackFlag) {
-      tapeCallbackFlag = newTapeCallbackFlag;
-      if (!tapeCallbackFlag && tapeInputSignal != 0) {
+      if (newTapeCallbackFlag == prvTapeCallbackFlag) {
+        tapeCallbackFlag = newTapeCallbackFlag;
         tapeInputSignal = 0;
         updatePPIState();
+        setTapeMotorState(newTapeCallbackFlag);
+        setCallback(&tapeCallback, this, newTapeCallbackFlag);
       }
-      setCallback(&tapeCallback, this, tapeCallbackFlag);
     }
+    prvTapeCallbackFlag = newTapeCallbackFlag;
     z80OpcodeHalfCycles = z80OpcodeHalfCycles & 0xFE;
     int64_t crtcCyclesRemaining =
         int64_t(crtcCyclesRemainingL) + (int64_t(crtcCyclesRemainingH) << 32)
@@ -1222,7 +1226,7 @@ namespace CPC464 {
       tapeSamplesPerCRTCCycle =
           (int64_t(getTapeSampleRate()) << 32) / int64_t(crtcFrequency);
     }
-    tapeSamplesRemaining = 0;
+    tapeSamplesRemaining = -1L;
   }
 
   void CPC464VM::tapePlay()

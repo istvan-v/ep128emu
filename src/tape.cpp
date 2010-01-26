@@ -1447,7 +1447,7 @@ namespace Ep128Emu {
       if (std::fseek(f, (isTAPFile ? 0L : 10L), SEEK_SET) >= 0) {
         endOfTape = false;
         outputState = 0;
-        readNextTZXBlock();
+        setPauseMode(150U);
       }
     }
   }
