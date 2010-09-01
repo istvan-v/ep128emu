@@ -14,7 +14,7 @@
 
   ;Name and file
   Name "ep128emu"
-  OutFile "ep128emu-2.0.8.1.exe"
+  OutFile "ep128emu-2.0.9-beta.exe"
 
   ;Default installation folder
   InstallDir "$PROGRAMFILES\ep128emu2"
@@ -293,12 +293,12 @@ Section "Download ROM images" SecDLRoms
 
   SetOutPath "$INSTDIR\roms"
 
-  NSISdl::download "http://ep128emu.enterpriseforever.org/roms/ep128emu_roms.bin" "$INSTDIR\roms\ep128emu_roms.bin"
+  NSISdl::download "http://ep128emu.enterpriseforever.com/roms/ep128emu_roms.bin" "$INSTDIR\roms\ep128emu_roms.bin"
   Pop $R0
   StrCmp $R0 "success" downloadDone 0
   StrCmp $R0 "cancel" downloadDone 0
 
-  MessageBox MB_OK "WARNING: download from ep128emu.enterpriseforever.org failed ($R0), trying www.sharemation.com instead"
+  MessageBox MB_OK "WARNING: download from ep128emu.enterpriseforever.com failed ($R0), trying www.sharemation.com instead"
 
   NSISdl::download "http://www.sharemation.com/IstvanV/roms/ep128emu_roms.bin" "$INSTDIR\roms\ep128emu_roms.bin"
   Pop $R0
