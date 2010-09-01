@@ -910,87 +910,6 @@ namespace Ep128 {
 
   void Nick::runOneSlot()
   {
-    if (currentSlot < 8) {
-      // read LPB
-      switch (currentSlot) {
-      case 0:
-        {
-          lpb.nLines = 256 - int(videoMemory[lptCurrentAddr + 0]);
-          uint8_t modeByte = videoMemory[lptCurrentAddr + 1];
-          bool    irqState = bool(modeByte & 0x80);
-          if (irqState != lpb.interruptFlag) {
-            lpb.interruptFlag = irqState;
-            irqStateChange(irqState);
-          }
-          lpb.colorMode = (modeByte >> 5) & 3;
-          lpb.vresMode = bool(modeByte & 0x10);
-          lpb.videoMode = (modeByte >> 1) & 7;
-          borderColor = (lpb.videoMode != 0 ? savedBorderColor : uint8_t(0));
-          lpb.reloadFlag = bool(modeByte & 0x01);
-          if (vsyncFlag && lpb.videoMode != 0) {
-            vsyncFlag = false;
-            vsyncStateChange(false, currentSlot);
-          }
-        }
-        break;
-      case 1:
-        lpb.leftMargin = videoMemory[lptCurrentAddr + 2];
-        lpb.lsbAlt = bool(lpb.leftMargin & 0x40);
-        lpb.msbAlt = bool(lpb.leftMargin & 0x80);
-        lpb.leftMargin &= 0x3F;
-        lpb.rightMargin = videoMemory[lptCurrentAddr + 3];
-        lpb.altInd1 = bool(lpb.rightMargin & 0x40);
-        lpb.altInd0 = bool(lpb.rightMargin & 0x80);
-        lpb.rightMargin &= 0x3F;
-        break;
-      case 2:
-        if (linesRemaining <= 0 || !lpb.vresMode) {
-          lpb.ld1Addr = uint16_t(videoMemory[lptCurrentAddr + 4])
-                        | (uint16_t(videoMemory[lptCurrentAddr + 5]) << 8);
-        }
-        break;
-      case 3:
-        {
-          uint16_t  ld2Base = videoMemory[lptCurrentAddr + 6];
-          ld2Base = ld2Base | (uint16_t(videoMemory[lptCurrentAddr + 7]) << 8);
-          switch (lpb.videoMode) {
-          case 3:                   // CH256
-            ld2Base = (ld2Base << 8) & 0xFF00;
-            lpb.ld2Addr = (lpb.ld2Addr + 0x0100) & 0xFFFF;
-            break;
-          case 4:                   // CH128
-            ld2Base = (ld2Base << 7) & 0xFF80;
-            lpb.ld2Addr = (lpb.ld2Addr + 0x0080) & 0xFFFF;
-            break;
-          case 5:                   // CH64
-            ld2Base = (ld2Base << 6) & 0xFFC0;
-            lpb.ld2Addr = (lpb.ld2Addr + 0x0040) & 0xFFFF;
-            break;
-          }
-          if (linesRemaining <= 0) {
-            lpb.ld2Addr = ld2Base;
-            linesRemaining = lpb.nLines;
-          }
-        }
-        break;
-      case 4:
-        lpb.palette[0] = videoMemory[lptCurrentAddr + 8];
-        lpb.palette[1] = videoMemory[lptCurrentAddr + 9];
-        break;
-      case 5:
-        lpb.palette[2] = videoMemory[lptCurrentAddr + 10];
-        lpb.palette[3] = videoMemory[lptCurrentAddr + 11];
-        break;
-      case 6:
-        lpb.palette[4] = videoMemory[lptCurrentAddr + 12];
-        lpb.palette[5] = videoMemory[lptCurrentAddr + 13];
-        break;
-      case 7:
-        lpb.palette[6] = videoMemory[lptCurrentAddr + 14];
-        lpb.palette[7] = videoMemory[lptCurrentAddr + 15];
-        break;
-      }
-    }
     if (currentSlot == lpb.rightMargin) {
       currentRenderer = (NickRenderer *) 0;
       if (vsyncFlag) {
@@ -1006,8 +925,82 @@ namespace Ep128 {
         vsyncStateChange(vsyncFlag, currentSlot);
     }
     switch (currentSlot) {
-    case 7:                             // begin display area
-      lineBufPtr = lineBuf;
+    case 0:                             // slots 0 to 7: read LPB
+      {
+        lpb.nLines = 256 - int(videoMemory[lptCurrentAddr + 0]);
+        uint8_t modeByte = videoMemory[lptCurrentAddr + 1];
+        bool    irqState = bool(modeByte & 0x80);
+        if (irqState != lpb.interruptFlag) {
+          lpb.interruptFlag = irqState;
+          irqStateChange(irqState);
+        }
+        lpb.colorMode = (modeByte >> 5) & 3;
+        lpb.vresMode = bool(modeByte & 0x10);
+        lpb.videoMode = (modeByte >> 1) & 7;
+        borderColor = (lpb.videoMode != 0 ? savedBorderColor : uint8_t(0));
+        lpb.reloadFlag = bool(modeByte & 0x01);
+        if (vsyncFlag && lpb.videoMode != 0) {
+          vsyncFlag = false;
+          vsyncStateChange(false, currentSlot);
+        }
+      }
+      break;
+    case 1:
+      lpb.leftMargin = videoMemory[lptCurrentAddr + 2];
+      lpb.lsbAlt = bool(lpb.leftMargin & 0x40);
+      lpb.msbAlt = bool(lpb.leftMargin & 0x80);
+      lpb.leftMargin &= 0x3F;
+      lpb.rightMargin = videoMemory[lptCurrentAddr + 3];
+      lpb.altInd1 = bool(lpb.rightMargin & 0x40);
+      lpb.altInd0 = bool(lpb.rightMargin & 0x80);
+      lpb.rightMargin &= 0x3F;
+      break;
+    case 2:
+      if (linesRemaining <= 0 || !lpb.vresMode) {
+        lpb.ld1Addr = uint16_t(videoMemory[lptCurrentAddr + 4])
+                      | (uint16_t(videoMemory[lptCurrentAddr + 5]) << 8);
+      }
+      break;
+    case 3:
+      {
+        uint16_t  ld2Base = videoMemory[lptCurrentAddr + 6];
+        ld2Base = ld2Base | (uint16_t(videoMemory[lptCurrentAddr + 7]) << 8);
+        switch (lpb.videoMode) {
+        case 3:                 // CH256
+          ld2Base = (ld2Base << 8) & 0xFF00;
+          lpb.ld2Addr = (lpb.ld2Addr + 0x0100) & 0xFFFF;
+          break;
+        case 4:                 // CH128
+          ld2Base = (ld2Base << 7) & 0xFF80;
+          lpb.ld2Addr = (lpb.ld2Addr + 0x0080) & 0xFFFF;
+          break;
+        case 5:                 // CH64
+          ld2Base = (ld2Base << 6) & 0xFFC0;
+          lpb.ld2Addr = (lpb.ld2Addr + 0x0040) & 0xFFFF;
+          break;
+        }
+        if (linesRemaining <= 0) {
+          lpb.ld2Addr = ld2Base;
+          linesRemaining = lpb.nLines;
+        }
+      }
+      break;
+    case 4:
+      lpb.palette[0] = videoMemory[lptCurrentAddr + 8];
+      lpb.palette[1] = videoMemory[lptCurrentAddr + 9];
+      break;
+    case 5:
+      lpb.palette[2] = videoMemory[lptCurrentAddr + 10];
+      lpb.palette[3] = videoMemory[lptCurrentAddr + 11];
+      break;
+    case 6:
+      lpb.palette[4] = videoMemory[lptCurrentAddr + 12];
+      lpb.palette[5] = videoMemory[lptCurrentAddr + 13];
+      break;
+    case 7:
+      lpb.palette[6] = videoMemory[lptCurrentAddr + 14];
+      lpb.palette[7] = videoMemory[lptCurrentAddr + 15];
+      lineBufPtr = lineBuf;             // begin display area
       break;
     case 55:                            // end of display area
       drawLine(lineBuf, size_t(lineBufPtr - lineBuf));

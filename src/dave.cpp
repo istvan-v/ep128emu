@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -193,12 +193,9 @@ namespace Ep128 {
     clk_1000_phase--;
     clk_50_phase--;
     clk_1_phase--;
-    if (chn0_run)
-      chn0_phase--;
-    if (chn1_run)
-      chn1_phase--;
-    if (chn2_run)
-      chn2_phase--;
+    chn0_phase -= chn0_run;
+    chn1_phase -= chn1_run;
+    chn2_phase -= chn2_run;
 
     // trigger interrupts if enabled
     if ((*int_snd_phase) < 0) {
@@ -495,24 +492,27 @@ namespace Ep128 {
       if ((int) value & 0x01) {
         chn0_run = 0;                     // channel 0 sync
         chn0_state1 = 0;
-        chn0_phase = chn0_frqcode;        // reset phase
       }
-      else
+      else if (!chn0_run) {
+        chn0_phase = chn0_frqcode;        // reset phase
         chn0_run = 1;
+      }
       if ((int) value & 0x02) {
         chn1_run = 0;                     // channel 1 sync
         chn1_state1 = 0;
-        chn1_phase = chn1_frqcode;        // reset phase
       }
-      else
+      else if (!chn1_run) {
+        chn1_phase = chn1_frqcode;        // reset phase
         chn1_run = 1;
+      }
       if ((int) value & 0x04) {
         chn2_run = 0;                     // channel 2 sync
         chn2_state1 = 0;
-        chn2_phase = chn2_frqcode;        // reset phase
       }
-      else
+      else if (!chn2_run) {
+        chn2_phase = chn2_frqcode;        // reset phase
         chn2_run = 1;
+      }
       dac_mode_left  = ((int) value & 0x08 ? 1 : 0);    // analogue mode
       dac_mode_right = ((int) value & 0x10 ? 1 : 0);
       switch ((int) value & 0x60) {
