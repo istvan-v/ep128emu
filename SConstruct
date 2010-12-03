@@ -370,6 +370,8 @@ cpc464Lib = cpc464LibEnvironment.StaticLibrary('cpc464', Split('''
     src/cpcmem.cpp
     src/crtc6845.cpp
     src/cpcvideo.cpp
+    src/fdc765.cpp
+    src/cpcdisk.cpp
     src/cpc_snap.cpp
 '''))
 
