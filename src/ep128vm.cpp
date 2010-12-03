@@ -603,14 +603,16 @@ namespace Ep128 {
 
   void Ep128VM::Dave_::setRemote1State(int state)
   {
-    vm.isRemote1On = (state != 0);
-    vm.setTapeMotorState(vm.isRemote1On || vm.isRemote2On);
+    vm.remoteControlState =
+        (vm.remoteControlState & 0x02) | uint8_t(bool(state));
+    vm.setTapeMotorState(bool(vm.remoteControlState));
   }
 
   void Ep128VM::Dave_::setRemote2State(int state)
   {
-    vm.isRemote2On = (state != 0);
-    vm.setTapeMotorState(vm.isRemote1On || vm.isRemote2On);
+    vm.remoteControlState =
+        (vm.remoteControlState & 0x01) | (uint8_t(bool(state)) << 1);
+    vm.setTapeMotorState(bool(vm.remoteControlState));
   }
 
   void Ep128VM::Dave_::interruptRequest()
@@ -1315,8 +1317,7 @@ namespace Ep128 {
       singleStepMode(0),
       singleStepModeNextAddr(int32_t(-1)),
       tapeCallbackFlag(false),
-      isRemote1On(false),
-      isRemote2On(false),
+      remoteControlState(0x00),
       soundOutputSignal(0U),
       externalDACOutput(0U),
       demoFile((Ep128Emu::File *) 0),
@@ -1492,8 +1493,7 @@ namespace Ep128 {
       ioPorts.writeDebug(i, 0x00);
     dave.reset(isColdReset);
     setMemoryWaitTiming();
-    isRemote1On = false;
-    isRemote2On = false;
+    remoteControlState = 0x00;
     setTapeMotorState(false);
     currentFloppyDrive = 0xFF;
     for (int i = 0; i < 4; i++)
@@ -1680,7 +1680,7 @@ namespace Ep128 {
   void Ep128VM::setTapeFileName(const std::string& fileName)
   {
     Ep128Emu::VirtualMachine::setTapeFileName(fileName);
-    setTapeMotorState(isRemote1On || isRemote2On);
+    setTapeMotorState(bool(remoteControlState));
     if (haveTape()) {
       tapeSamplesPerNickCycle =
           (int64_t(getTapeSampleRate()) << 32) / int64_t(nickFrequency);

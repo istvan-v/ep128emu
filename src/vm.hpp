@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -55,7 +55,11 @@ namespace Ep128Emu {
     float           audioOutputEQ_Q;
     bool            tapePlaybackOn;
     bool            tapeRecordOn;
+    // true if tapeMotorState is non-zero
     bool            tapeMotorOn;
+    // bit 0: 1 if tape motor is turned on by remote control
+    // bit 1: 1 if tape motor is forced on (no remote control)
+    uint8_t         tapeMotorState;
     Tape            *tape;
     long            defaultTapeSampleRate;
     int             tapeSoundFileChannel;
@@ -344,6 +348,11 @@ namespace Ep128Emu {
                                             bool enableFilter_,
                                             float filterMinFreq_,
                                             float filterMaxFreq_);
+    /*!
+     * If enabled, then the tape motor is always on, ignoring software remote
+     * control from the emulated machine.
+     */
+    virtual void setForceTapeMotorOn(bool isEnabled);
     // ------------------------------ DEBUGGING -------------------------------
     /*!
      * Add breakpoints from the specified breakpoint list (see also
@@ -582,12 +591,16 @@ namespace Ep128Emu {
    protected:
     inline void setTapeMotorState(bool newState)
     {
-      if (newState != this->tapeMotorOn)
+      if (uint8_t(newState) != (this->tapeMotorState & 0x01))
         this->setTapeMotorState_(newState);
     }
     inline bool getIsTapeMotorOn() const
     {
       return this->tapeMotorOn;
+    }
+    inline bool getIsTapeMotorForcedOn() const
+    {
+      return bool(this->tapeMotorState & 0x02);
     }
     inline int getTapeButtonState() const
     {

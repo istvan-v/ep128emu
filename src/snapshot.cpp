@@ -86,8 +86,7 @@ namespace Ep128 {
   {
     // turn off tape motor, stop any previous demo recording or playback,
     // and reset keyboard state
-    isRemote1On = false;
-    isRemote2On = false;
+    remoteControlState = 0x00;
     setTapeMotorState(false);
     dave.setTapeInput(0, 0);
     stopDemo();
@@ -141,8 +140,7 @@ namespace Ep128 {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible ep128 snapshot version");
     }
-    isRemote1On = false;
-    isRemote2On = false;
+    remoteControlState = 0x00;
     setTapeMotorState(false);
     stopDemo();
     snapshotLoadFlag = true;
@@ -284,8 +282,7 @@ namespace Ep128 {
     (void) version;
     // turn off tape motor, stop any previous demo recording or playback,
     // and reset keyboard state
-    isRemote1On = false;
-    isRemote2On = false;
+    remoteControlState = 0x00;
     setTapeMotorState(false);
     dave.setTapeInput(0, 0);
     stopDemo();

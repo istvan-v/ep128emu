@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -132,6 +132,7 @@ namespace Ep128Emu {
       tapePlaybackOn(false),
       tapeRecordOn(false),
       tapeMotorOn(false),
+      tapeMotorState(0x00),
       tape((Tape *) 0),
       defaultTapeSampleRate(24000L),
       tapeSoundFileChannel(0),
@@ -570,6 +571,14 @@ namespace Ep128Emu {
     }
   }
 
+  void VirtualMachine::setForceTapeMotorOn(bool isEnabled)
+  {
+    tapeMotorState = (tapeMotorState & 0x01) | (uint8_t(isEnabled) << 1);
+    tapeMotorOn = bool(tapeMotorState);
+    if (tape)
+      tape->setIsMotorOn(tapeMotorOn);
+  }
+
   void VirtualMachine::setBreakPoints(const BreakPointList& bpList)
   {
     (void) bpList;
@@ -782,11 +791,10 @@ namespace Ep128Emu {
 
   void VirtualMachine::setTapeMotorState_(bool newState)
   {
-    tapeMotorOn = newState;
-    writingAudioOutput =
-        (audioConverter != (AudioConverter *) 0 && audioOutputEnabled);
+    tapeMotorState = (tapeMotorState & 0x02) | uint8_t(newState);
+    tapeMotorOn = bool(tapeMotorState);
     if (tape)
-      tape->setIsMotorOn(newState);
+      tape->setIsMotorOn(tapeMotorOn);
   }
 
   void VirtualMachine::setAudioConverterSampleRate(float sampleRate_)

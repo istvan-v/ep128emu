@@ -140,8 +140,9 @@ namespace Ep128 {
     uint8_t   singleStepMode;
     int32_t   singleStepModeNextAddr;
     bool      tapeCallbackFlag;
-    bool      isRemote1On;
-    bool      isRemote2On;
+    // bit 0: 1 if remote 1 is on
+    // bit 1: 1 if remote 2 is on
+    uint8_t   remoteControlState;
     uint32_t  soundOutputSignal;
     uint32_t  externalDACOutput;
     Ep128Emu::File  *demoFile;

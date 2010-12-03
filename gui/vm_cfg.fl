@@ -879,7 +879,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
         } {
           Fl_Group {} {
             label {General tape emulation settings} open
-            xywh {20 45 360 65} box ENGRAVED_FRAME align 21
+            xywh {20 45 360 100} box ENGRAVED_FRAME align 21
           } {
             Fl_Value_Input tapeDefaultSampleRateValuator {
               label {Default tape sample rate (Hz)}
@@ -891,10 +891,18 @@ class Ep128EmuGUI_MachineConfigWindow {open
               xywh {30 70 120 25} align 8 when 4 minimum 10000 maximum 120000 step 1 value 24000
               code0 {o->cursor_color(Fl_Color(3));}
             }
+            Fl_Light_Button tapeForceMotorOnValuator {
+              label {Force motor on}
+              callback {{
+  gui.config.tape.forceMotorOn = (o->value() != 0);
+  gui.config.tapeSettingsChanged = true;
+}}
+              tooltip {If enabled, the tape motor is always on, ignoring software control from the emulated machine} xywh {30 105 160 25} color 50 selection_color 3
+            }
           }
           Fl_Group {} {
             label {Sound file input} open
-            xywh {20 120 360 100} box ENGRAVED_FRAME align 21
+            xywh {20 155 360 100} box ENGRAVED_FRAME align 21
           } {
             Fl_Value_Input tapeChannelValuator {
               label {Channel number}
@@ -903,7 +911,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   gui.config.tapeSoundFileSettingsChanged = true;
   o->value(double(gui.config.tape.soundFileChannel));
 }}
-              tooltip {Channel to use in multichannel sound files (for stereo files, channel 0 is left, and channel 1 is right)} xywh {30 145 40 25} align 8 when 4 maximum 15 step 1
+              tooltip {Channel to use in multichannel sound files (for stereo files, channel 0 is left, and channel 1 is right)} xywh {30 180 40 25} align 8 when 4 maximum 15 step 1
               code0 {o->cursor_color(Fl_Color(3));}
             }
             Fl_Light_Button tapeEnableFilterValuator {
@@ -912,7 +920,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   gui.config.tape.enableSoundFileFilter = (o->value() != 0);
   gui.config.tapeSoundFileSettingsChanged = true;
 }}
-              tooltip {Apply a linear phase FIR bandpass filter to sound file input (enabling this increases CPU usage)} xywh {30 180 160 25} color 50 selection_color 3
+              tooltip {Apply a linear phase FIR bandpass filter to sound file input (enabling this increases CPU usage)} xywh {30 215 160 25} color 50 selection_color 3
             }
             Fl_Value_Slider tapeMinFreqValuator {
               label {Min freq}
@@ -920,7 +928,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   gui.config.tape.soundFileFilterMinFreq = o->value();
   gui.config.tapeSoundFileSettingsChanged = true;
 }}
-              tooltip {The lowest frequency not attenuated by the bandpass filter (if enabled) in Hz} xywh {260 146 110 23} type Horizontal color 47 selection_color 52 align 4 maximum 2000 step 1 value 500
+              tooltip {The lowest frequency not attenuated by the bandpass filter (if enabled) in Hz} xywh {260 181 110 23} type Horizontal color 47 selection_color 52 align 4 maximum 2000 step 1 value 500
             }
             Fl_Value_Slider tapeMaxFreqValuator {
               label {Max freq}
@@ -928,7 +936,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   gui.config.tape.soundFileFilterMaxFreq = o->value();
   gui.config.tapeSoundFileSettingsChanged = true;
 }}
-              tooltip {The highest frequency not attenuated by the bandpass filter (if enabled) in Hz} xywh {260 181 110 23} type Horizontal color 47 selection_color 52 align 4 minimum 1000 maximum 20000 step 10 value 5000
+              tooltip {The highest frequency not attenuated by the bandpass filter (if enabled) in Hz} xywh {260 216 110 23} type Horizontal color 47 selection_color 52 align 4 minimum 1000 maximum 20000 step 10 value 5000
             }
           }
         }
@@ -1029,6 +1037,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   memoryROM43FileNameValuator->value(gui.config.memory.rom[0x43].file.c_str());
   memoryROM43OffsetValuator->value(double(gui.config.memory.rom[0x43].offset));
   tapeDefaultSampleRateValuator->value(double(gui.config.tape.defaultSampleRate));
+  tapeForceMotorOnValuator->value(gui.config.tape.forceMotorOn ? 1 : 0);
   tapeChannelValuator->value(double(gui.config.tape.soundFileChannel));
   tapeEnableFilterValuator->value(gui.config.tape.enableSoundFileFilter ? 1 : 0);
   tapeMinFreqValuator->value(gui.config.tape.soundFileFilterMinFreq);

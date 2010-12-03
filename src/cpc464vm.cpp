@@ -1029,7 +1029,8 @@ namespace CPC464 {
         resetKeyboard();
     }
     bool    newTapeCallbackFlag =
-        (haveTape() && bool(ppiPortCState & 0x10) && getTapeButtonState() != 0);
+        haveTape() && getTapeButtonState() != 0 &&
+        (bool(ppiPortCState & 0x10) | getIsTapeMotorForcedOn());
     if (newTapeCallbackFlag != tapeCallbackFlag) {
       if (newTapeCallbackFlag == prvTapeCallbackFlag) {
         tapeCallbackFlag = newTapeCallbackFlag;
@@ -1038,8 +1039,8 @@ namespace CPC464 {
         setTapeMotorState(newTapeCallbackFlag);
         setCallback(&tapeCallback, this, newTapeCallbackFlag);
       }
+      prvTapeCallbackFlag = newTapeCallbackFlag;
     }
-    prvTapeCallbackFlag = newTapeCallbackFlag;
     z80OpcodeHalfCycles = z80OpcodeHalfCycles & 0xFE;
     int64_t crtcCyclesRemaining =
         int64_t(crtcCyclesRemainingL) + (int64_t(crtcCyclesRemainingH) << 32)

@@ -359,6 +359,9 @@ namespace Ep128Emu {
                                 tape.soundFileFilterMaxFreq, 5000.0,
                                 tapeSoundFileSettingsChanged,
                                 1000.0, 20000.0);
+    defineConfigurationVariable(*this, "tape.forceMotorOn",
+                                tape.forceMotorOn, false,
+                                tapeSettingsChanged);
     // ----------------
     defineConfigurationVariable(*this, "fileio.workingDirectory",
                                 fileio.workingDirectory, std::string("."),
@@ -685,6 +688,7 @@ namespace Ep128Emu {
     }
     if (tapeSettingsChanged) {
       vm_.setDefaultTapeSampleRate(tape.defaultSampleRate);
+      vm_.setForceTapeMotorOn(tape.forceMotorOn);
       tapeSettingsChanged = false;
     }
     if (tapeFileChanged) {
