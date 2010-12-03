@@ -557,7 +557,7 @@ void Ep128EmuGUI::createMenus()
                    (char *) 0, &menuCallback_Options_SndDecVol, (void *) this);
   mainMenuBar->add("Options/Sound/Configure... (Alt+U)",
                    (char *) 0, &menuCallback_Options_SndConfig, (void *) this);
-  if (typeid(vm) == typeid(Ep128::Ep128VM)) {
+  if (typeid(vm) != typeid(ZX128::ZX128VM)) {
     mainMenuBar->add("Options/Disk/Remove floppy/Drive A", (char *) 0,
                      &menuCallback_Options_FloppyRmA, (void *) this);
     mainMenuBar->add("Options/Disk/Remove floppy/Drive B", (char *) 0,
@@ -2598,7 +2598,7 @@ void Ep128EmuGUI::menuCallback_Options_FloppyCfg(Fl_Widget *o, void *v)
 {
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
-  if (typeid(gui_.vm) == typeid(Ep128::Ep128VM))
+  if (typeid(gui_.vm) != typeid(ZX128::ZX128VM))
     gui_.diskConfigWindow->show();
 }
 

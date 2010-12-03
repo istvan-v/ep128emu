@@ -6,6 +6,10 @@ code_name {.cpp}
 decl {\#include "gui.hpp"} {selected
 } 
 
+decl {\#include "ep128vm.hpp"} {} 
+
+decl {\#include <typeinfo>} {} 
+
 class Ep128EmuGUI_DiskConfigWindow {open
 } {
   decl {Ep128EmuGUI& gui;} {}
@@ -35,7 +39,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
           Fl_Group {} {open
             tooltip {Note: you can set any of the disk geometry parameters to -1 to have it calculated from the image file size and the file system header} xywh {20 45 360 80} box THIN_UP_BOX
           } {
-            Fl_Button {} {
+            Fl_Button floppyADeviceButton {
               label {A:}
               callback {{
   try {
@@ -121,7 +125,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
           Fl_Group {} {open
             tooltip {Note: you can set any of the disk geometry parameters to -1 to have it calculated from the image file size and the file system header} xywh {20 135 360 80} box THIN_UP_BOX
           } {
-            Fl_Button {} {
+            Fl_Button floppyBDeviceButton {
               label {B:}
               callback {{
   try {
@@ -597,25 +601,44 @@ class Ep128EmuGUI_DiskConfigWindow {open
   } {
     code {{
   floppyAImageFileValuator->value(gui.config.floppy.a.imageFile.c_str());
-  floppyATracksValuator->value(double(gui.config.floppy.a.tracks));
-  floppyASidesValuator->value(double(gui.config.floppy.a.sides));
-  floppyASectorsPerTrackValuator->value(double(gui.config.floppy.a.sectorsPerTrack));
   floppyBImageFileValuator->value(gui.config.floppy.b.imageFile.c_str());
-  floppyBTracksValuator->value(double(gui.config.floppy.b.tracks));
-  floppyBSidesValuator->value(double(gui.config.floppy.b.sides));
-  floppyBSectorsPerTrackValuator->value(double(gui.config.floppy.b.sectorsPerTrack));
   floppyCImageFileValuator->value(gui.config.floppy.c.imageFile.c_str());
-  floppyCTracksValuator->value(double(gui.config.floppy.c.tracks));
-  floppyCSidesValuator->value(double(gui.config.floppy.c.sides));
-  floppyCSectorsPerTrackValuator->value(double(gui.config.floppy.c.sectorsPerTrack));
   floppyDImageFileValuator->value(gui.config.floppy.d.imageFile.c_str());
-  floppyDTracksValuator->value(double(gui.config.floppy.d.tracks));
-  floppyDSidesValuator->value(double(gui.config.floppy.d.sides));
-  floppyDSectorsPerTrackValuator->value(double(gui.config.floppy.d.sectorsPerTrack));
-  ide0ImageFileValuator->value(gui.config.ide.imageFile0.c_str());
-  ide1ImageFileValuator->value(gui.config.ide.imageFile1.c_str());
-  ide2ImageFileValuator->value(gui.config.ide.imageFile2.c_str());
-  ide3ImageFileValuator->value(gui.config.ide.imageFile3.c_str());
+  if (typeid(gui.vm) != typeid(Ep128::Ep128VM)) {
+    ideConfigGroup->deactivate();
+    floppyADeviceButton->set_output();
+    floppyBDeviceButton->set_output();
+    floppyATracksValuator->deactivate();
+    floppyASidesValuator->deactivate();
+    floppyASectorsPerTrackValuator->deactivate();
+    floppyBTracksValuator->deactivate();
+    floppyBSidesValuator->deactivate();
+    floppyBSectorsPerTrackValuator->deactivate();
+    floppyCTracksValuator->deactivate();
+    floppyCSidesValuator->deactivate();
+    floppyCSectorsPerTrackValuator->deactivate();
+    floppyDTracksValuator->deactivate();
+    floppyDSidesValuator->deactivate();
+    floppyDSectorsPerTrackValuator->deactivate();
+  }
+  else {
+    floppyATracksValuator->value(double(gui.config.floppy.a.tracks));
+    floppyASidesValuator->value(double(gui.config.floppy.a.sides));
+    floppyASectorsPerTrackValuator->value(double(gui.config.floppy.a.sectorsPerTrack));
+    floppyBTracksValuator->value(double(gui.config.floppy.b.tracks));
+    floppyBSidesValuator->value(double(gui.config.floppy.b.sides));
+    floppyBSectorsPerTrackValuator->value(double(gui.config.floppy.b.sectorsPerTrack));
+    floppyCTracksValuator->value(double(gui.config.floppy.c.tracks));
+    floppyCSidesValuator->value(double(gui.config.floppy.c.sides));
+    floppyCSectorsPerTrackValuator->value(double(gui.config.floppy.c.sectorsPerTrack));
+    floppyDTracksValuator->value(double(gui.config.floppy.d.tracks));
+    floppyDSidesValuator->value(double(gui.config.floppy.d.sides));
+    floppyDSectorsPerTrackValuator->value(double(gui.config.floppy.d.sectorsPerTrack));
+    ide0ImageFileValuator->value(gui.config.ide.imageFile0.c_str());
+    ide1ImageFileValuator->value(gui.config.ide.imageFile1.c_str());
+    ide2ImageFileValuator->value(gui.config.ide.imageFile2.c_str());
+    ide3ImageFileValuator->value(gui.config.ide.imageFile3.c_str());
+  }
 }} {}
   }
 } 
