@@ -222,9 +222,9 @@ class Ep128EmuMachineConfiguration {
 // bit  7:    exos21.rom at segments 00h..01h
 // bit  8:    exos22.rom at segments 00h..03h
 // bit  9:    exos23.rom at segments 00h..03h
-// bit 10:    exos231esp.rom at segments 00h..03h
-// bit 11:    exos231hun.rom at segments 00h..03h
-// bit 12:    exos231uk.rom at segments 00h..03h
+// bit 10:    exos232esp.rom at segments 00h..03h
+// bit 11:    exos232hun.rom at segments 00h..03h
+// bit 12:    exos232uk.rom at segments 00h..03h
 // bit 13:    basic20.rom at segment 04h
 // bit 14:    basic21.rom at segment 04h
 // bit 15:    basic21.rom at segment 05h
@@ -290,9 +290,9 @@ class Ep128EmuMachineConfiguration {
 #define EP_ROM_EXOS21           uint64_t(0x00000080UL)
 #define EP_ROM_EXOS22           uint64_t(0x00000100UL)
 #define EP_ROM_EXOS23           uint64_t(0x00000200UL)
-#define EP_ROM_EXOS231_ES       uint64_t(0x00000400UL)
-#define EP_ROM_EXOS231_HU       uint64_t(0x00000800UL)
-#define EP_ROM_EXOS231_UK       uint64_t(0x00001000UL)
+#define EP_ROM_EXOS232_ES       uint64_t(0x00000400UL)
+#define EP_ROM_EXOS232_HU       uint64_t(0x00000800UL)
+#define EP_ROM_EXOS232_UK       uint64_t(0x00001000UL)
 #define EP_ROM_BASIC20          uint64_t(0x00002000UL)
 #define EP_ROM_BASIC21_04       uint64_t(0x00004000UL)
 #define EP_ROM_BASIC21_05       uint64_t(0x00008000UL)
@@ -347,9 +347,9 @@ static const char *romFileNames[58] = {
   "exos21.rom",
   "exos22.rom",
   "exos23.rom",
-  "exos231esp.rom",
-  "exos231hun.rom",
-  "exos231uk.rom",
+  "exos232esp.rom",
+  "exos232hun.rom",
+  "exos232uk.rom",
   "basic20.rom",
   "basic21.rom",
   "basic21.rom",
@@ -408,9 +408,9 @@ static const unsigned long romFileSegments[58] = {
   0x0001FFFFUL,         // exos21.rom
   0x00010203UL,         // exos22.rom
   0x00010203UL,         // exos23.rom
-  0x00010203UL,         // exos231esp.rom
-  0x00010203UL,         // exos231hun.rom
-  0x00010203UL,         // exos231uk.rom
+  0x00010203UL,         // exos232esp.rom
+  0x00010203UL,         // exos232hun.rom
+  0x00010203UL,         // exos232uk.rom
   0x04FFFFFFUL,         // basic20.rom
   0x04FFFFFFUL,         // basic21.rom
   0x05FFFFFFUL,         // basic21.rom
@@ -465,7 +465,7 @@ static const unsigned long romFileSegments[58] = {
 };
 
 static const char *machineConfigFileNames[] = {
-  "ep128brd/EP2048k_EXOS231_EXDOS_utils.cfg",           //  0
+  "ep128brd/EP2048k_EXOS232_EXDOS_utils.cfg",           //  0
   "ep128brd/EP_128k_EXDOS.cfg",                         //  1
   "ep128brd/EP_128k_EXDOS_FileIO.cfg",                  //  2
   "ep128brd/EP_128k_EXDOS_FileIO_SpectrumEmulator.cfg", //  3
@@ -474,10 +474,10 @@ static const char *machineConfigFileNames[] = {
   "ep128brd/EP_128k_Tape_FileIO.cfg",                   //  6
   "ep128brd/EP_128k_Tape_FileIO_TASMON.cfg",            //  7
   "ep128brd/EP_128k_Tape_TASMON.cfg",                   //  8
-  "ep128brd/EP_640k_EXOS231_EXDOS.cfg",                 //  9
-  "ep128brd/EP_640k_EXOS231_EXDOS_utils.cfg",           // 10
-  "ep128brd/EP_640k_EXOS231_IDE_utils.cfg",             // 11
-  "ep128esp/EP2048k_EXOS231_EXDOS_utils.cfg",           // 12
+  "ep128brd/EP_640k_EXOS232_EXDOS.cfg",                 //  9
+  "ep128brd/EP_640k_EXOS232_EXDOS_utils.cfg",           // 10
+  "ep128brd/EP_640k_EXOS232_IDE_utils.cfg",             // 11
+  "ep128esp/EP2048k_EXOS232_EXDOS_utils.cfg",           // 12
   "ep128esp/EP_128k_EXDOS.cfg",                         // 13
   "ep128esp/EP_128k_EXDOS_FileIO.cfg",                  // 14
   "ep128esp/EP_128k_EXDOS_FileIO_SpectrumEmulator.cfg", // 15
@@ -486,10 +486,10 @@ static const char *machineConfigFileNames[] = {
   "ep128esp/EP_128k_Tape_FileIO.cfg",                   // 18
   "ep128esp/EP_128k_Tape_FileIO_TASMON.cfg",            // 19
   "ep128esp/EP_128k_Tape_TASMON.cfg",                   // 20
-  "ep128esp/EP_640k_EXOS231_EXDOS.cfg",                 // 21
-  "ep128esp/EP_640k_EXOS231_EXDOS_utils.cfg",           // 22
-  "ep128esp/EP_640k_EXOS231_IDE_utils.cfg",             // 23
-  "ep128hun/EP2048k_EXOS231_EXDOS_utils.cfg",           // 24
+  "ep128esp/EP_640k_EXOS232_EXDOS.cfg",                 // 21
+  "ep128esp/EP_640k_EXOS232_EXDOS_utils.cfg",           // 22
+  "ep128esp/EP_640k_EXOS232_IDE_utils.cfg",             // 23
+  "ep128hun/EP2048k_EXOS232_EXDOS_utils.cfg",           // 24
   "ep128hun/EP_128k_EXDOS.cfg",                         // 25
   "ep128hun/EP_128k_EXDOS_FileIO.cfg",                  // 26
   "ep128hun/EP_128k_EXDOS_FileIO_SpectrumEmulator.cfg", // 27
@@ -500,10 +500,10 @@ static const char *machineConfigFileNames[] = {
   "ep128hun/EP_128k_Tape_TASMON.cfg",                   // 32
   "ep128hun/EP_640k_EXOS22_EXDOS.cfg",                  // 33
   "ep128hun/EP_640k_EXOS23_EXDOS.cfg",                  // 34
-  "ep128hun/EP_640k_EXOS231_EXDOS.cfg",                 // 35
-  "ep128hun/EP_640k_EXOS231_EXDOS_utils.cfg",           // 36
-  "ep128hun/EP_640k_EXOS231_IDE_utils.cfg",             // 37
-  "ep128uk/EP2048k_EXOS231_EXDOS_utils.cfg",            // 38
+  "ep128hun/EP_640k_EXOS232_EXDOS.cfg",                 // 35
+  "ep128hun/EP_640k_EXOS232_EXDOS_utils.cfg",           // 36
+  "ep128hun/EP_640k_EXOS232_IDE_utils.cfg",             // 37
+  "ep128uk/EP2048k_EXOS232_EXDOS_utils.cfg",            // 38
   "ep128uk/EP_128k_EXDOS.cfg",                          // 39
   "ep128uk/EP_128k_EXDOS_EP-PLUS.cfg",                  // 40
   "ep128uk/EP_128k_EXDOS_EP-PLUS_TASMON.cfg",           // 41
@@ -518,9 +518,9 @@ static const char *machineConfigFileNames[] = {
   "ep128uk/EP_128k_Tape_NoCartridge.cfg",               // 50
   "ep128uk/EP_128k_Tape_NoCartridge_FileIO.cfg",        // 51
   "ep128uk/EP_128k_Tape_TASMON.cfg",                    // 52
-  "ep128uk/EP_640k_EXOS231_EXDOS.cfg",                  // 53
-  "ep128uk/EP_640k_EXOS231_EXDOS_utils.cfg",            // 54
-  "ep128uk/EP_640k_EXOS231_IDE_utils.cfg",              // 55
+  "ep128uk/EP_640k_EXOS232_EXDOS.cfg",                  // 53
+  "ep128uk/EP_640k_EXOS232_EXDOS_utils.cfg",            // 54
+  "ep128uk/EP_640k_EXOS232_IDE_utils.cfg",              // 55
   "ep64/EP_64k_EXDOS.cfg",                              // 56
   "ep64/EP_64k_EXDOS_FileIO.cfg",                       // 57
   "ep64/EP_64k_EXDOS_NoCartridge.cfg",                  // 58
@@ -536,13 +536,16 @@ static const char *machineConfigFileNames[] = {
   "zx/ZX_128k.cfg",                                     // +4
   "zx/ZX_128k_FileIO.cfg",                              // +5
   "cpc/CPC_64k.cfg",                                    // +6
-  "cpc/CPC_128k.cfg",                                   // +7
-  "cpc/CPC_576k.cfg"                                    // +8
+  "cpc/CPC_64k_AMSDOS.cfg",                             // +7
+  "cpc/CPC_128k.cfg",                                   // +8
+  "cpc/CPC_128k_AMSDOS.cfg",                            // +9
+  "cpc/CPC_576k.cfg",                                   // +10
+  "cpc/CPC_576k_AMSDOS.cfg"                             // +11
 };
 
 static const uint64_t machineConfigs[] = {
-  // ep128brd/EP2048k_EXOS231_EXDOS_utils.cfg
-  EP_RAM_2048K | EP_ROM_EXOS231_UK | EP_ROM_ASMON15_04 | EP_ROM_FENAS12_06
+  // ep128brd/EP2048k_EXOS232_EXDOS_utils.cfg
+  EP_RAM_2048K | EP_ROM_EXOS232_UK | EP_ROM_ASMON15_04 | EP_ROM_FENAS12_06
   | EP_ROM_EPDOS_Z_10 | EP_ROM_HEASS10_UK | EP_ROM_EXDOS13 | EP_ROM_PASCAL11
   | EP_ROM_ZX41 | EP_ROM_BRD_32 | EP_ROM_FORTH | EP_ROM_ZT18_UK
   | EP_ROM_GENMON,
@@ -569,18 +572,18 @@ static const uint64_t machineConfigs[] = {
   // ep128brd/EP_128k_Tape_TASMON.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_ASMON15_04 | EP_ROM_BASIC21_06
   | EP_ROM_BRD_07,
-  // ep128brd/EP_640k_EXOS231_EXDOS.cfg
-  EP_RAM_640K | EP_ROM_EXOS231_UK | EP_ROM_BRD_04 | EP_ROM_EXDOS13,
-  // ep128brd/EP_640k_EXOS231_EXDOS_utils.cfg
-  EP_RAM_640K | EP_ROM_EXOS231_UK | EP_ROM_ASMON15_04 | EP_ROM_EPDOS_Z_06
+  // ep128brd/EP_640k_EXOS232_EXDOS.cfg
+  EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_BRD_04 | EP_ROM_EXDOS13,
+  // ep128brd/EP_640k_EXOS232_EXDOS_utils.cfg
+  EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_ASMON15_04 | EP_ROM_EPDOS_Z_06
   | EP_ROM_EPFILEIO | EP_ROM_FENAS12_12 | EP_ROM_EXDOS13 | EP_ROM_IVIEW_30
   | EP_ROM_BRD_32 | EP_ROM_ZT18_UK | EP_ROM_TPT_43,
-  // ep128brd/EP_640k_EXOS231_IDE_utils.cfg
-  EP_RAM_640K | EP_ROM_EXOS231_UK | EP_ROM_ASMON15_04 | EP_ROM_EPD19UK_06
+  // ep128brd/EP_640k_EXOS232_IDE_utils.cfg
+  EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_ASMON15_04 | EP_ROM_EPD19UK_06
   | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS13 | EP_ROM_IDE_42
   | EP_ROM_IVIEW_30 | EP_ROM_BRD_32 | EP_ROM_ZT18_UK | EP_ROM_TPT_43,
-  // ep128esp/EP2048k_EXOS231_EXDOS_utils.cfg
-  EP_RAM_2048K | EP_ROM_EXOS231_ES | EP_ROM_ASMON15_04 | EP_ROM_FENAS12_06
+  // ep128esp/EP2048k_EXOS232_EXDOS_utils.cfg
+  EP_RAM_2048K | EP_ROM_EXOS232_ES | EP_ROM_ASMON15_04 | EP_ROM_FENAS12_06
   | EP_ROM_EPDOS_Z_10 | EP_ROM_HEASS10_UK | EP_ROM_EXDOS13I_ES
   | EP_ROM_PASCAL11 | EP_ROM_ZX41 | EP_ROM_ESP_32 | EP_ROM_FORTH
   | EP_ROM_ZT18_UK | EP_ROM_GENMON,
@@ -607,18 +610,18 @@ static const uint64_t machineConfigs[] = {
   // ep128esp/EP_128k_Tape_TASMON.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_ASMON15_04 | EP_ROM_BASIC21_06
   | EP_ROM_ESP_07,
-  // ep128esp/EP_640k_EXOS231_EXDOS.cfg
-  EP_RAM_640K | EP_ROM_EXOS231_ES | EP_ROM_ESP_04 | EP_ROM_EXDOS13I_ES,
-  // ep128esp/EP_640k_EXOS231_EXDOS_utils.cfg
-  EP_RAM_640K | EP_ROM_EXOS231_ES | EP_ROM_ASMON15_04 | EP_ROM_EPDOS_Z_06
+  // ep128esp/EP_640k_EXOS232_EXDOS.cfg
+  EP_RAM_640K | EP_ROM_EXOS232_ES | EP_ROM_ESP_04 | EP_ROM_EXDOS13I_ES,
+  // ep128esp/EP_640k_EXOS232_EXDOS_utils.cfg
+  EP_RAM_640K | EP_ROM_EXOS232_ES | EP_ROM_ASMON15_04 | EP_ROM_EPDOS_Z_06
   | EP_ROM_EPFILEIO | EP_ROM_FENAS12_12 | EP_ROM_EXDOS13I_ES | EP_ROM_IVIEW_30
   | EP_ROM_ESP_32 | EP_ROM_ZT18_UK | EP_ROM_TPT_43,
-  // ep128esp/EP_640k_EXOS231_IDE_utils.cfg
-  EP_RAM_640K | EP_ROM_EXOS231_ES | EP_ROM_ASMON15_04 | EP_ROM_EPD19UK_06
+  // ep128esp/EP_640k_EXOS232_IDE_utils.cfg
+  EP_RAM_640K | EP_ROM_EXOS232_ES | EP_ROM_ASMON15_04 | EP_ROM_EPD19UK_06
   | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS13I_ES | EP_ROM_IDE_42
   | EP_ROM_IVIEW_30 | EP_ROM_ESP_32 | EP_ROM_ZT18_UK | EP_ROM_TPT_43,
-  // ep128hun/EP2048k_EXOS231_EXDOS_utils.cfg
-  EP_RAM_2048K | EP_ROM_EXOS231_HU | EP_ROM_ASMON15_04 | EP_ROM_FENAS12_06
+  // ep128hun/EP2048k_EXOS232_EXDOS_utils.cfg
+  EP_RAM_2048K | EP_ROM_EXOS232_HU | EP_ROM_ASMON15_04 | EP_ROM_FENAS12_06
   | EP_ROM_EPDOS_Z_10 | EP_ROM_HEASS10_HU | EP_ROM_EXDOS13I_HU
   | EP_ROM_PASCAL11 | EP_ROM_ZX41 | EP_ROM_HUN_32 | EP_ROM_FORTH
   | EP_ROM_ZT18_HU | EP_ROM_GENMON,
@@ -649,18 +652,18 @@ static const uint64_t machineConfigs[] = {
   EP_RAM_640K | EP_ROM_EXOS22 | EP_ROM_HUN_04 | EP_ROM_EXDOS13I_HU,
   // ep128hun/EP_640k_EXOS23_EXDOS.cfg
   EP_RAM_640K | EP_ROM_EXOS23 | EP_ROM_HUN_04 | EP_ROM_EXDOS13I_HU,
-  // ep128hun/EP_640k_EXOS231_EXDOS.cfg
-  EP_RAM_640K | EP_ROM_EXOS231_HU | EP_ROM_HUN_04 | EP_ROM_EXDOS13I_HU,
-  // ep128hun/EP_640k_EXOS231_EXDOS_utils.cfg
-  EP_RAM_640K | EP_ROM_EXOS231_HU | EP_ROM_ASMON15_04 | EP_ROM_EPDOS_Z_06
+  // ep128hun/EP_640k_EXOS232_EXDOS.cfg
+  EP_RAM_640K | EP_ROM_EXOS232_HU | EP_ROM_HUN_04 | EP_ROM_EXDOS13I_HU,
+  // ep128hun/EP_640k_EXOS232_EXDOS_utils.cfg
+  EP_RAM_640K | EP_ROM_EXOS232_HU | EP_ROM_ASMON15_04 | EP_ROM_EPDOS_Z_06
   | EP_ROM_EPFILEIO | EP_ROM_FENAS12_12 | EP_ROM_EXDOS13I_HU | EP_ROM_IVIEW_30
   | EP_ROM_HUN_32 | EP_ROM_ZT18_HU | EP_ROM_TPT_43,
-  // ep128hun/EP_640k_EXOS231_IDE_utils.cfg
-  EP_RAM_640K | EP_ROM_EXOS231_HU | EP_ROM_ASMON15_04 | EP_ROM_EPD19HU_06
+  // ep128hun/EP_640k_EXOS232_IDE_utils.cfg
+  EP_RAM_640K | EP_ROM_EXOS232_HU | EP_ROM_ASMON15_04 | EP_ROM_EPD19HU_06
   | EP_ROM_EPFILEIO | EP_ROM_HEASS10_HU | EP_ROM_EXDOS13I_HU | EP_ROM_IDE_42
   | EP_ROM_IVIEW_30 | EP_ROM_HUN_32 | EP_ROM_ZT18_HU | EP_ROM_TPT_43,
-  // ep128uk/EP2048k_EXOS231_EXDOS_utils.cfg
-  EP_RAM_2048K | EP_ROM_EXOS231_UK | EP_ROM_ASMON15_04 | EP_ROM_FENAS12_06
+  // ep128uk/EP2048k_EXOS232_EXDOS_utils.cfg
+  EP_RAM_2048K | EP_ROM_EXOS232_UK | EP_ROM_ASMON15_04 | EP_ROM_FENAS12_06
   | EP_ROM_EPDOS_Z_10 | EP_ROM_HEASS10_UK | EP_ROM_EXDOS13 | EP_ROM_PASCAL11
   | EP_ROM_ZX41 | EP_ROM_LISP | EP_ROM_FORTH | EP_ROM_ZT18_UK | EP_ROM_GENMON,
   // ep128uk/EP_128k_EXDOS.cfg
@@ -697,14 +700,14 @@ static const uint64_t machineConfigs[] = {
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_EPFILEIO,
   // ep128uk/EP_128k_Tape_TASMON.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_ASMON15_04 | EP_ROM_BASIC21_06,
-  // ep128uk/EP_640k_EXOS231_EXDOS.cfg
-  EP_RAM_640K | EP_ROM_EXOS231_UK | EP_ROM_EXDOS13,
-  // ep128uk/EP_640k_EXOS231_EXDOS_utils.cfg
-  EP_RAM_640K | EP_ROM_EXOS231_UK | EP_ROM_ASMON15_04 | EP_ROM_EPDOS_Z_06
+  // ep128uk/EP_640k_EXOS232_EXDOS.cfg
+  EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_EXDOS13,
+  // ep128uk/EP_640k_EXOS232_EXDOS_utils.cfg
+  EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_ASMON15_04 | EP_ROM_EPDOS_Z_06
   | EP_ROM_EPFILEIO | EP_ROM_FENAS12_12 | EP_ROM_EXDOS13 | EP_ROM_IVIEW_30
   | EP_ROM_ZT18_UK | EP_ROM_TPT_43,
-  // ep128uk/EP_640k_EXOS231_IDE_utils.cfg
-  EP_RAM_640K | EP_ROM_EXOS231_UK | EP_ROM_ASMON15_04 | EP_ROM_EPD19UK_06
+  // ep128uk/EP_640k_EXOS232_IDE_utils.cfg
+  EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_ASMON15_04 | EP_ROM_EPD19UK_06
   | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS13 | EP_ROM_IDE_42
   | EP_ROM_IVIEW_30 | EP_ROM_ZT18_UK | EP_ROM_TPT_43,
   // ep64/EP_64k_EXDOS.cfg
@@ -770,15 +773,23 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
       vm.cpuClockFrequency = 4000000U;
       vm.videoClockFrequency = 1000000U;
       vm.soundClockFrequency = 125000U;
-      memory.ram.size = (n == 0 ? 64 : (n == 1 ? 128 : 576));
+      memory.ram.size = (n < 2 ? 64 : (n < 4 ? 128 : 576));
       if (n == 0) {                     // CPC 64K
         memory.rom[0].file = romDirectory + "cpc464.rom";
         memory.rom[0].offset = 16384;
         memory.rom[16].file = romDirectory + "cpc464.rom";
       }
+      else if (n == 1) {                // CPC 64K (AMSDOS)
+        memory.rom[0].file = romDirectory + "cpc664.rom";
+        memory.rom[0].offset = 16384;
+        memory.rom[7].file = romDirectory + "cpc_amsdos.rom";
+        memory.rom[16].file = romDirectory + "cpc664.rom";
+      }
       else {                            // CPC 128K or 576K
         memory.rom[0].file = romDirectory + "cpc6128.rom";
         memory.rom[0].offset = 16384;
+        if ((n & 1) != 0)
+          memory.rom[7].file = romDirectory + "cpc_amsdos.rom";
         memory.rom[16].file = romDirectory + "cpc6128.rom";
       }
       vm.enableMemoryTimingEmulation = true;
@@ -1488,7 +1499,7 @@ int main(int argc, char **argv)
         }
         else if (i == 2) {
           fName = "cpc_cfg.dat";
-          configNum = int(sizeof(machineConfigs) / sizeof(uint64_t)) + 7;
+          configNum = int(sizeof(machineConfigs) / sizeof(uint64_t)) + 9;
         }
         config = new Ep128Emu::ConfigurationDB();
         dsCfg = new Ep128EmuDisplaySndConfiguration(*config);
