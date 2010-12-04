@@ -21,7 +21,6 @@
 #define EP128EMU_FDC765_HPP
 
 #include "ep128emu.hpp"
-#include "cpcdisk.hpp"
 
 namespace CPC464 {
 

@@ -21,8 +21,44 @@
 #define EP128EMU_CPCDISK_HPP
 
 #include "ep128emu.hpp"
+#include "fdc765.hpp"
 
 namespace CPC464 {
+
+  class CPCDiskImage {
+   public:
+    struct CPCDiskSectorInfo {
+      uint32_t  fileOffset;             // start position of sector data
+      uint32_t  dataSize;               // size of sector data in image file
+      uint8_t   trackNum;               // logical track number (C)
+      uint8_t   sideNum;                // logical side number (H)
+      uint8_t   sectorNum;              // logical sector number (R)
+      uint8_t   sectorSizeCode;         // sector size (N); 128 * 2^N bytes
+      uint8_t   statusRegister1;        // status register 1 (ST1) & 0xA5
+      uint8_t   statusRegister2;        // status register 2 (ST2) & 0x61
+    };
+   protected:
+    struct CPCDiskTrackInfo {
+      CPCDiskSectorInfo *sectorTable;   // array of sector info structures
+      uint8_t   nSectors;               // number of sectors (0 to 29)
+      uint8_t   gapLen;                 // gap 3 length (unused)
+      uint8_t   fillerByte;             // filler byte (unused)
+    };
+    CPCDiskTrackInfo  *trackTable;
+    CPCDiskSectorInfo *sectorTableBuf;
+    std::FILE *imageFile;
+    int       nCylinders;               // number of cylinders (1 to 240)
+    int       nSides;                   // number of sides (1 or 2)
+    bool      writeProtectFlag;
+    // ----------------
+    void readImageFile(uint8_t *buf, size_t filePos, size_t nBytes);
+    void parseDSKFileHeaders(uint8_t *buf, size_t fileSize);
+    void parseEXTFileHeaders(uint8_t *buf, size_t fileSize);
+   public:
+    CPCDiskImage();
+    virtual ~CPCDiskImage();
+    virtual void openDiskImage(const char *fileName);
+  };
 
 }       // namespace CPC464
 
