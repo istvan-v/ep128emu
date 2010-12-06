@@ -21,6 +21,7 @@
 #include "fdc765.hpp"
 #include "cpcdisk.hpp"
 #include "wd177x.hpp"
+#include "system.hpp"
 
 static const char *dskFileHeader = "MV - CPCEMU Disk-File\r\nDisk-Info\r\n";
 static const char *dskTrackHeader = "Track-Info\r\n";
@@ -280,6 +281,35 @@ namespace CPC464 {
     return true;
   }
 
+  FDC765::CPCDiskError CPCDiskImage::findSector(
+      CPCDiskSectorInfo*& sectorPtr, const FDC765::FDCCommandParams& cmdParams)
+  {
+    sectorPtr = (CPCDiskSectorInfo *) 0;
+    if (imageFile == (std::FILE *) 0 || trackTable == (CPCDiskTrackInfo *) 0)
+      return FDC765::CPCDISK_ERROR_NO_DISK;
+    if (int(currentCylinder) >= nCylinders)
+      return FDC765::CPCDISK_ERROR_INVALID_TRACK;
+    if (int(cmdParams.physicalSide) >= nSides)
+      return FDC765::CPCDISK_ERROR_INVALID_SIDE;
+    CPCDiskTrackInfo& currentTrack =
+        trackTable[int(currentCylinder) * nSides + int(cmdParams.physicalSide)];
+    for (uint8_t i = 0; i < currentTrack.nSectors; i++) {
+      if (currentTrack.sectorTable[i].trackNum != cmdParams.cylinderID) {
+        if (currentTrack.sectorTable[i].trackNum == 0xFF)
+          return FDC765::CPCDISK_ERROR_BAD_CYLINDER;
+        return FDC765::CPCDISK_ERROR_WRONG_CYLINDER;
+      }
+      if (currentTrack.sectorTable[i].sideNum == cmdParams.headID &&
+          currentTrack.sectorTable[i].sectorNum == cmdParams.sectorID &&
+          currentTrack.sectorTable[i].sectorSizeCode
+          == cmdParams.sectorSizeCode) {
+        sectorPtr = &(currentTrack.sectorTable[i]);
+        return FDC765::CPCDISK_NO_ERROR;
+      }
+    }
+    return FDC765::CPCDISK_ERROR_SECTOR_NOT_FOUND;
+  }
+
   // --------------------------------------------------------------------------
 
   CPCDiskImage::CPCDiskImage()
@@ -288,8 +318,12 @@ namespace CPC464 {
       imageFile((std::FILE *) 0),
       nCylinders(0),
       nSides(0),
-      writeProtectFlag(true)
+      writeProtectFlag(true),
+      currentCylinder(1),
+      randomSeed(0)
   {
+    Ep128Emu::setRandomSeed(randomSeed,
+                            Ep128Emu::Timer::getRandomSeedFromTime());
   }
 
   CPCDiskImage::~CPCDiskImage()
@@ -362,6 +396,171 @@ namespace CPC464 {
       openDiskImage((char *) 0);
       throw;
     }
+  }
+
+  FDC765::CPCDiskError CPCDiskImage::readSector(
+      uint8_t *buf, const FDC765::FDCCommandParams& cmdParams,
+      uint8_t& statusRegister1, uint8_t& statusRegister2)
+  {
+    CPCDiskSectorInfo     *sectorPtr = (CPCDiskSectorInfo *) 0;
+    FDC765::CPCDiskError  err = findSector(sectorPtr, cmdParams);
+    if (err != FDC765::CPCDISK_NO_ERROR)
+      return err;
+    statusRegister1 =
+        (statusRegister1 & 0x5A) | (sectorPtr->statusRegister1 & 0xA5);
+    statusRegister2 =
+        (statusRegister2 & 0x9E) | (sectorPtr->statusRegister2 & 0x61);
+    if (((cmdParams.commandCode & 0x1F) == 0x06 &&
+         (statusRegister2 & 0x40) != 0) ||
+        ((cmdParams.commandCode & 0x1F) == 0x0C &&
+         (statusRegister2 & 0x40) == 0)) {
+      statusRegister2 = statusRegister2 | 0x40;
+      if (cmdParams.commandCode & 0x20)
+        return FDC765::CPCDISK_ERROR_DELETED_SECTOR;
+    }
+    else {
+      statusRegister2 = statusRegister2 & 0xBF;
+    }
+    size_t  filePos = size_t(sectorPtr->fileOffset);
+    size_t  dataSize = size_t(sectorPtr->dataSize);
+    size_t  sectorBytes = size_t(0x80) << (sectorPtr->sectorSizeCode & 0x07);
+    if (dataSize > sectorBytes) {       // weak sector
+      filePos = filePos
+                + (sectorBytes * (size_t(Ep128Emu::getRandomNumber(randomSeed))
+                                  % (dataSize / sectorBytes)));
+    }
+    if (std::fseek(imageFile, long(filePos), SEEK_SET) < 0)
+      return FDC765::CPCDISK_ERROR_SECTOR_NOT_FOUND;
+    size_t  nBytes = (dataSize < sectorBytes ? dataSize : sectorBytes);
+    if (std::fread(buf, sizeof(uint8_t), nBytes, imageFile) != nBytes)
+      return FDC765::CPCDISK_ERROR_READ_FAILED;
+    if (dataSize < sectorBytes) {
+      for (size_t i = dataSize; i < sectorBytes; i++)
+        buf[i] = buf[i - dataSize];
+    }
+    return FDC765::CPCDISK_NO_ERROR;
+  }
+
+  FDC765::CPCDiskError CPCDiskImage::writeSector(
+      const uint8_t *buf, const FDC765::FDCCommandParams& cmdParams,
+      uint8_t& statusRegister1, uint8_t& statusRegister2)
+  {
+    if (writeProtectFlag && imageFile != (std::FILE *) 0)
+      return FDC765::CPCDISK_ERROR_WRITE_PROTECTED;
+    CPCDiskSectorInfo     *sectorPtr = (CPCDiskSectorInfo *) 0;
+    FDC765::CPCDiskError  err = findSector(sectorPtr, cmdParams);
+    if (err != FDC765::CPCDISK_NO_ERROR)
+      return err;
+    statusRegister1 =
+        (statusRegister1 & 0x5A) | (sectorPtr->statusRegister1 & 0xA5);
+    statusRegister2 =
+        (statusRegister2 & 0x9E) | (sectorPtr->statusRegister2 & 0x61);
+    if (((cmdParams.commandCode & 0x1F) == 0x05 &&
+         (statusRegister2 & 0x40) != 0) ||
+        ((cmdParams.commandCode & 0x1F) == 0x09 &&
+         (statusRegister2 & 0x40) == 0)) {
+      CPCDiskTrackInfo& currentTrack =
+          trackTable[int(currentCylinder) * nSides
+                     + int(cmdParams.physicalSide)];
+      err = FDC765::CPCDISK_ERROR_WRITE_FAILED;
+      if (currentTrack.sectorTableFileOffset != 0U) {
+        // deleted sector flag changed: update status register 2 in image file
+        if (std::fseek(imageFile,
+                       long(currentTrack.sectorTableFileOffset)
+                       + (long(sectorPtr - currentTrack.sectorTable) * 8L)
+                       + 5L, SEEK_SET) >= 0) {
+          uint8_t newStatusRegister2 = (sectorPtr->statusRegister2 & 0xBF)
+                                       | ((cmdParams.commandCode & 0x08) << 3);
+          if (std::fputc(newStatusRegister2, imageFile) != EOF) {
+            sectorPtr->statusRegister2 = newStatusRegister2;
+            err = FDC765::CPCDISK_NO_ERROR;
+          }
+        }
+      }
+    }
+    statusRegister2 = statusRegister2 & 0xBF;
+    size_t  filePos = size_t(sectorPtr->fileOffset);
+    size_t  dataSize = size_t(sectorPtr->dataSize);
+    size_t  sectorBytes = size_t(0x80) << (sectorPtr->sectorSizeCode & 0x07);
+    if (dataSize > sectorBytes) {       // FIXME: writing to weak sector
+      filePos = filePos
+                + (sectorBytes * (size_t(Ep128Emu::getRandomNumber(randomSeed))
+                                  % (dataSize / sectorBytes)));
+      err = FDC765::CPCDISK_ERROR_WRITE_FAILED;
+    }
+    if (std::fseek(imageFile, long(filePos), SEEK_SET) < 0)
+      return FDC765::CPCDISK_ERROR_SECTOR_NOT_FOUND;
+    size_t  nBytes = (dataSize < sectorBytes ? dataSize : sectorBytes);
+    if (std::fwrite(buf, sizeof(uint8_t), nBytes, imageFile) != nBytes)
+      return FDC765::CPCDISK_ERROR_WRITE_FAILED;
+    return err;
+  }
+
+  void CPCDiskImage::stepIn(int nSteps)
+  {
+    int     tmp = int(currentCylinder) + nSteps;
+    currentCylinder = uint8_t(tmp > 0 ? (tmp < 84 ? tmp : 84) : 0);
+  }
+
+  void CPCDiskImage::stepOut(int nSteps)
+  {
+    int     tmp = int(currentCylinder) - nSteps;
+    currentCylinder = uint8_t(tmp > 0 ? (tmp < 84 ? tmp : 84) : 0);
+  }
+
+  // ==========================================================================
+
+  FDC765_CPC::FDC765_CPC()
+    : FDC765()
+  {
+  }
+
+  FDC765_CPC::~FDC765_CPC()
+  {
+  }
+
+  void FDC765_CPC::openDiskImage(int n, const char *fileName)
+  {
+    floppyDrives[n & 3].openDiskImage(fileName);
+  }
+
+  FDC765::CPCDiskError FDC765_CPC::readSector(uint8_t& statusRegister1,
+                                              uint8_t& statusRegister2)
+  {
+    return floppyDrives[cmdParams.unitNumber].readSector(
+               sectorBuf, cmdParams, statusRegister1, statusRegister2);
+  }
+
+  FDC765::CPCDiskError FDC765_CPC::writeSector(uint8_t& statusRegister1,
+                                               uint8_t& statusRegister2)
+  {
+    return floppyDrives[cmdParams.unitNumber].writeSector(
+               sectorBuf, cmdParams, statusRegister1, statusRegister2);
+  }
+
+  void FDC765_CPC::stepIn(int nSteps)
+  {
+    floppyDrives[cmdParams.unitNumber].stepIn(nSteps);
+  }
+
+  void FDC765_CPC::stepOut(int nSteps)
+  {
+    floppyDrives[cmdParams.unitNumber].stepOut(nSteps);
+  }
+
+  bool FDC765_CPC::haveDisk() const
+  {
+    return floppyDrives[cmdParams.unitNumber].haveDisk();
+  }
+
+  bool FDC765_CPC::getIsTrack0() const
+  {
+    return floppyDrives[cmdParams.unitNumber].getIsTrack0();
+  }
+
+  bool FDC765_CPC::getIsWriteProtected() const
+  {
+    return floppyDrives[cmdParams.unitNumber].getIsWriteProtected();
   }
 
 }       // namespace CPC464

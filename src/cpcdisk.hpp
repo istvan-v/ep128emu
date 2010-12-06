@@ -46,21 +46,68 @@ namespace CPC464 {
       uint32_t  sectorTableFileOffset;  // start position of sector table
                                         // in image file (0: no table/raw file)
     };
+    // ----------------
     CPCDiskTrackInfo  *trackTable;
     CPCDiskSectorInfo *sectorTableBuf;
     std::FILE *imageFile;
     int       nCylinders;               // number of cylinders (1 to 240)
     int       nSides;                   // number of sides (1 or 2)
     bool      writeProtectFlag;
+    uint8_t   currentCylinder;          // drive head position
+    int       randomSeed;               // for emulating weak sectors
     // ----------------
     void readImageFile(uint8_t *buf, size_t filePos, size_t nBytes);
     void parseDSKFileHeaders(uint8_t *buf, size_t fileSize);
     void parseEXTFileHeaders(uint8_t *buf, size_t fileSize);
     bool openFloppyDevice(const char *fileName);
+    FDC765::CPCDiskError findSector(CPCDiskSectorInfo*& sectorPtr,
+                                    const FDC765::FDCCommandParams& cmdParams);
    public:
     CPCDiskImage();
     virtual ~CPCDiskImage();
     virtual void openDiskImage(const char *fileName);
+    virtual FDC765::CPCDiskError
+        readSector(uint8_t *buf, const FDC765::FDCCommandParams& cmdParams,
+                   uint8_t& statusRegister1, uint8_t& statusRegister2);
+    virtual FDC765::CPCDiskError
+        writeSector(const uint8_t *buf,
+                    const FDC765::FDCCommandParams& cmdParams,
+                    uint8_t& statusRegister1, uint8_t& statusRegister2);
+    virtual void stepIn(int nSteps = 1);
+    virtual void stepOut(int nSteps = 1);
+    inline bool haveDisk() const
+    {
+      return (this->imageFile != (std::FILE *) 0);
+    }
+    inline bool getIsTrack0() const
+    {
+      return (this->currentCylinder == 0);
+    }
+    inline bool getIsWriteProtected() const
+    {
+      return this->writeProtectFlag;
+    }
+  };
+
+  // --------------------------------------------------------------------------
+
+  class FDC765_CPC : public FDC765 {
+   private:
+    CPCDiskImage  floppyDrives[4];
+   public:
+    FDC765_CPC();
+    virtual ~FDC765_CPC();
+    virtual void openDiskImage(int n, const char *fileName);
+   protected:
+    virtual CPCDiskError readSector(uint8_t& statusRegister1,
+                                    uint8_t& statusRegister2);
+    virtual CPCDiskError writeSector(uint8_t& statusRegister1,
+                                     uint8_t& statusRegister2);
+    virtual void stepIn(int nSteps = 1);
+    virtual void stepOut(int nSteps = 1);
+    virtual bool haveDisk() const;
+    virtual bool getIsTrack0() const;
+    virtual bool getIsWriteProtected() const;
   };
 
 }       // namespace CPC464

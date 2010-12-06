@@ -24,6 +24,70 @@
 
 namespace CPC464 {
 
+  class FDC765 {
+   public:
+    struct FDCCommandParams {
+      uint8_t   commandCode;
+      uint8_t   unitNumber;             // drive number (0 to 3)
+      uint8_t   physicalCylinders[4];   // stored separately for each drive
+      uint8_t   physicalSide;
+      bool      motorOn;
+      uint8_t   cylinderID;
+      uint8_t   headID;
+      uint8_t   sectorID;
+      uint8_t   sectorSizeCode;         // sector size = 0x80 << sectorSizeCode
+      uint8_t   statusRegister0;
+      uint8_t   statusRegister1;
+      uint8_t   statusRegister2;
+      uint8_t   statusRegister3;
+    };
+    typedef enum {
+      CPCDISK_NO_ERROR = 0,
+      CPCDISK_ERROR_UNKNOWN = -1,
+      CPCDISK_ERROR_INVALID_COMMAND = -2,
+      CPCDISK_ERROR_NO_DISK = -3,
+      CPCDISK_ERROR_NOT_READY = -4,
+      CPCDISK_ERROR_WRITE_PROTECTED = -5,
+      CPCDISK_ERROR_INVALID_TRACK = -6,
+      CPCDISK_ERROR_INVALID_SIDE = -7,
+      CPCDISK_ERROR_BAD_CYLINDER = -8,
+      CPCDISK_ERROR_WRONG_CYLINDER = -9,
+      CPCDISK_ERROR_SECTOR_NOT_FOUND = -10,
+      CPCDISK_ERROR_DELETED_SECTOR = -11,
+      CPCDISK_ERROR_END_OF_CYLINDER = -12,
+      CPCDISK_ERROR_READ_FAILED = -13,
+      CPCDISK_ERROR_WRITE_FAILED = -14
+    } CPCDiskError;
+   protected:
+    FDCCommandParams  cmdParams;
+    // 0: idle
+    // 1: command phase
+    // 2: execution phase
+    // 3: result phase
+    uint8_t   fdcState;
+    uint8_t   *sectorBuf;
+    // ----------------
+    void updateStatusRegisters(CPCDiskError errorCode);
+   public:
+    FDC765();
+    virtual ~FDC765();
+    virtual void reset();
+    virtual void setMotorState(bool isEnabled);
+    virtual uint8_t readMainStatusRegister() const;
+    virtual uint8_t readDataRegister();
+    virtual void writeDataRegister(uint8_t n);
+   protected:
+    virtual CPCDiskError readSector(uint8_t& statusRegister1,
+                                    uint8_t& statusRegister2) = 0;
+    virtual CPCDiskError writeSector(uint8_t& statusRegister1,
+                                     uint8_t& statusRegister2) = 0;
+    virtual void stepIn(int nSteps = 1) = 0;
+    virtual void stepOut(int nSteps = 1) = 0;
+    virtual bool haveDisk() const = 0;
+    virtual bool getIsTrack0() const = 0;
+    virtual bool getIsWriteProtected() const = 0;
+  };
+
 }       // namespace CPC464
 
 #endif  // EP128EMU_FDC765_HPP
