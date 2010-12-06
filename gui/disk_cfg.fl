@@ -606,8 +606,6 @@ class Ep128EmuGUI_DiskConfigWindow {open
   floppyDImageFileValuator->value(gui.config.floppy.d.imageFile.c_str());
   if (typeid(gui.vm) != typeid(Ep128::Ep128VM)) {
     ideConfigGroup->deactivate();
-    floppyADeviceButton->set_output();
-    floppyBDeviceButton->set_output();
     floppyATracksValuator->deactivate();
     floppyASidesValuator->deactivate();
     floppyASectorsPerTrackValuator->deactivate();
