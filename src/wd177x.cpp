@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -23,93 +23,143 @@
 #include <vector>
 
 #ifdef WIN32
-
-#include <windows.h>
-#include <winioctl.h>
-
-static int checkFloppyDisk(const std::string& fileName,
-                           int& nTracks, int& nSides, int& nSectorsPerTrack)
-{
-  if (fileName.length() < 5)
-    return 0;                   // return value == 0: regular file
-  if (!(fileName[0] == '\\' && fileName[1] == '\\' &&
-        fileName[2] == '.' && fileName[3] == '\\')) {
-    return 0;
-  }
-  DISK_GEOMETRY diskGeometry;
-  HANDLE  h = INVALID_HANDLE_VALUE;
-  DWORD   tmp;
-  bool    retryFlag = false;
-  while (true) {
-    h = CreateFileA(fileName.c_str(), (DWORD) 0,
-                    FILE_SHARE_READ | FILE_SHARE_WRITE,
-                    (LPSECURITY_ATTRIBUTES) 0, OPEN_EXISTING,
-                    FILE_ATTRIBUTE_NORMAL, (HANDLE) 0);
-    if (h == INVALID_HANDLE_VALUE)
-      return -1;                // return value == -1: error opening device
-    if (DeviceIoControl(h, IOCTL_DISK_GET_DRIVE_GEOMETRY,
-                        (LPVOID) 0, (DWORD) 0,
-                        &diskGeometry, (DWORD) sizeof(diskGeometry),
-                        &tmp, (LPOVERLAPPED) 0) == FALSE) {
-      if (!retryFlag) {
-        retryFlag = true;
-        std::FILE *f = std::fopen(fileName.c_str(), "rb");
-        if (f)
-          std::fclose(f);
-        CloseHandle(h);
-        continue;
-      }
-      CloseHandle(h);
-      return -1;
-    }
-    break;
-  }
-  bool    errorFlag = false;
-  if (!(diskGeometry.MediaType > Unknown &&
-        diskGeometry.MediaType < RemovableMedia)) {
-    errorFlag = true;
-  }
-  if (diskGeometry.Cylinders.QuadPart < (LONGLONG) 1 ||
-      diskGeometry.Cylinders.QuadPart > (LONGLONG) 240 ||
-      diskGeometry.TracksPerCylinder < (DWORD) 1 ||
-      diskGeometry.TracksPerCylinder > (DWORD) 2 ||
-      diskGeometry.SectorsPerTrack < (DWORD) 1 ||
-      diskGeometry.SectorsPerTrack > (DWORD) 240 ||
-      diskGeometry.BytesPerSector != (DWORD) 512) {
-    errorFlag = true;
-  }
-  if (nTracks >= 1 && nTracks <= 240) {
-    if (nTracks != int(diskGeometry.Cylinders.QuadPart))
-      errorFlag = true;
-  }
-  if (nSides >= 1 && nSides <= 2) {
-    if (nSides != int(diskGeometry.TracksPerCylinder))
-      errorFlag = true;
-  }
-  if (nSectorsPerTrack >= 1 && nSectorsPerTrack <= 240) {
-    if (nSectorsPerTrack != int(diskGeometry.SectorsPerTrack))
-      errorFlag = true;
-  }
-  if (errorFlag) {
-    CloseHandle(h);
-    return -2;                  // return value == -2: invalid disk geometry
-  }
-  nTracks = int(diskGeometry.Cylinders.QuadPart);
-  nSides = int(diskGeometry.TracksPerCylinder);
-  nSectorsPerTrack = int(diskGeometry.SectorsPerTrack);
-  if (DeviceIoControl(h, IOCTL_DISK_IS_WRITABLE,
-                      (LPVOID) 0, (DWORD) 0, (LPVOID) 0, (DWORD) 0,
-                      &tmp, (LPOVERLAPPED) 0) == FALSE) {
-    CloseHandle(h);
-    return 1;                   // return value == 1: write protected disk
-  }
-  CloseHandle(h);
-  return 2;                     // return value == 2: writable floppy disk
-}
-
+#  include <windows.h>
+#  include <winioctl.h>
+#elif defined(HAVE_LINUX_FD_H)
+#  include <sys/types.h>
+#  include <sys/stat.h>
+#  include <unistd.h>
+#  include <fcntl.h>
+#  include <sys/ioctl.h>
+#  include <linux/fd.h>
 #endif
 
 namespace Ep128Emu {
+
+  int checkFloppyDisk(const char *fileName,
+                      int& nTracks, int& nSides, int& nSectorsPerTrack)
+  {
+#ifdef WIN32
+    if (std::strlen(fileName) < 5)
+      return 0;                 // return value == 0: regular file
+    if (!(fileName[0] == '\\' && fileName[1] == '\\' &&
+          fileName[2] == '.' && fileName[3] == '\\')) {
+      return 0;
+    }
+    DISK_GEOMETRY diskGeometry;
+    HANDLE  h = INVALID_HANDLE_VALUE;
+    DWORD   tmp;
+    bool    retryFlag = false;
+    while (true) {
+      h = CreateFileA(fileName, (DWORD) 0,
+                      FILE_SHARE_READ | FILE_SHARE_WRITE,
+                      (LPSECURITY_ATTRIBUTES) 0, OPEN_EXISTING,
+                      FILE_ATTRIBUTE_NORMAL, (HANDLE) 0);
+      if (h == INVALID_HANDLE_VALUE)
+        return -1;              // return value == -1: error opening device
+      if (DeviceIoControl(h, IOCTL_DISK_GET_DRIVE_GEOMETRY,
+                          (LPVOID) 0, (DWORD) 0,
+                          &diskGeometry, (DWORD) sizeof(diskGeometry),
+                          &tmp, (LPOVERLAPPED) 0) == FALSE) {
+        if (!retryFlag) {
+          retryFlag = true;
+          std::FILE *f = std::fopen(fileName, "rb");
+          if (f)
+            std::fclose(f);
+          CloseHandle(h);
+          continue;
+        }
+        CloseHandle(h);
+        return -1;
+      }
+      break;
+    }
+    bool    errorFlag = false;
+    if (!(diskGeometry.MediaType > Unknown &&
+          diskGeometry.MediaType < RemovableMedia)) {
+      errorFlag = true;
+    }
+    if (diskGeometry.Cylinders.QuadPart < (LONGLONG) 1 ||
+        diskGeometry.Cylinders.QuadPart > (LONGLONG) 240 ||
+        diskGeometry.TracksPerCylinder < (DWORD) 1 ||
+        diskGeometry.TracksPerCylinder > (DWORD) 2 ||
+        diskGeometry.SectorsPerTrack < (DWORD) 1 ||
+        diskGeometry.SectorsPerTrack > (DWORD) 240 ||
+        diskGeometry.BytesPerSector != (DWORD) 512) {
+      errorFlag = true;
+    }
+    if (nTracks >= 1 && nTracks <= 240) {
+      if (nTracks != int(diskGeometry.Cylinders.QuadPart))
+        errorFlag = true;
+    }
+    if (nSides >= 1 && nSides <= 2) {
+      if (nSides != int(diskGeometry.TracksPerCylinder))
+        errorFlag = true;
+    }
+    if (nSectorsPerTrack >= 1 && nSectorsPerTrack <= 240) {
+      if (nSectorsPerTrack != int(diskGeometry.SectorsPerTrack))
+        errorFlag = true;
+    }
+    if (errorFlag) {
+      CloseHandle(h);
+      return -2;                // return value == -2: invalid disk geometry
+    }
+    nTracks = int(diskGeometry.Cylinders.QuadPart);
+    nSides = int(diskGeometry.TracksPerCylinder);
+    nSectorsPerTrack = int(diskGeometry.SectorsPerTrack);
+    if (DeviceIoControl(h, IOCTL_DISK_IS_WRITABLE,
+                        (LPVOID) 0, (DWORD) 0, (LPVOID) 0, (DWORD) 0,
+                        &tmp, (LPOVERLAPPED) 0) == FALSE) {
+      CloseHandle(h);
+      return 1;                 // return value == 1: write protected disk
+    }
+    CloseHandle(h);
+    return 2;                   // return value == 2: writable floppy disk
+#elif defined(HAVE_LINUX_FD_H)
+    int     fd = open(fileName, O_RDONLY);
+    if (fd < 0)
+      return -1;                // error opening image file
+    struct floppy_drive_struct  driveState;
+    struct floppy_struct  floppyParams;
+    if (ioctl(fd, FDPOLLDRVSTAT, &driveState) != 0) {
+      close(fd);
+      return 0;                 // not a floppy device
+    }
+    if (ioctl(fd, FDGETPRM, &floppyParams) != 0) {
+      close(fd);
+      return 0;                 // not a floppy device
+    }
+    close(fd);
+    if (floppyParams.track < 1U || floppyParams.track > 240U ||
+        floppyParams.head < 1U || floppyParams.head > 2U ||
+        floppyParams.sect < 1U || floppyParams.sect > 240U ||
+        floppyParams.size != (floppyParams.track * floppyParams.head
+                              * floppyParams.sect)) {
+      return -2;
+    }
+    if ((nTracks >= 1 && nTracks <= 240 &&
+         nTracks != int(floppyParams.track)) ||
+        (nSides >= 1 && nSides <= 2 && nSides != int(floppyParams.head)) ||
+        (nSectorsPerTrack >= 1 && nSectorsPerTrack <= 240 &&
+         nSectorsPerTrack != int(floppyParams.sect))) {
+      return -2;
+    }
+    nTracks = int(floppyParams.track);
+    nSides = int(floppyParams.head);
+    nSectorsPerTrack = int(floppyParams.sect);
+    if (driveState.flags & FD_DISK_WRITABLE)
+      return 2;
+    return 1;
+#else
+    (void) fileName;
+    (void) nTracks;
+    (void) nSides;
+    (void) nSectorsPerTrack;
+    return 0;
+#endif
+  }
+
+  // --------------------------------------------------------------------------
 
   WD177x::WD177x()
     : imageFileName(""),
@@ -239,12 +289,21 @@ namespace Ep128Emu {
     this->reset();
     if (fileName_ == "")
       return;
-#ifdef WIN32
+    unsigned char tmpBuf[512];
+    bool    nTracksValid = (nTracks_ >= 1 && nTracks_ <= 240);
+    bool    nSidesValid = (nSides_ >= 1 && nSides_ <= 2);
+    bool    nSectorsPerTrackValid =
+                (nSectorsPerTrack_ >= 1 && nSectorsPerTrack_ <= 240);
+    bool    disableFATCheck =
+        (nTracksValid && nSidesValid && nSectorsPerTrackValid);
     {
-      int     diskType = checkFloppyDisk(fileName_,
+      int     diskType = checkFloppyDisk(fileName_.c_str(),
                                          nTracks_, nSides_, nSectorsPerTrack_);
-      if (diskType == 1) {
-        writeProtectFlag = true;
+      if (diskType > 0) {
+        writeProtectFlag = (diskType == 1);
+        nTracksValid = true;
+        nSidesValid = true;
+        nSectorsPerTrackValid = true;
       }
       else if (diskType == -2) {
         throw Exception("wd177x: invalid or inconsistent "
@@ -254,12 +313,6 @@ namespace Ep128Emu {
         throw Exception("wd177x: error opening disk image file");
       }
     }
-#endif
-    unsigned char tmpBuf[512];
-    bool    nTracksValid = (nTracks_ >= 1 && nTracks_ <= 240);
-    bool    nSidesValid = (nSides_ >= 1 && nSides_ <= 2);
-    bool    nSectorsPerTrackValid =
-                (nSectorsPerTrack_ >= 1 && nSectorsPerTrack_ <= 240);
     try {
       if (!writeProtectFlag)
         imageFile = std::fopen(fileName_.c_str(), "r+b");
@@ -274,47 +327,56 @@ namespace Ep128Emu {
       long    fileSize = -1L;
       if (std::fseek(imageFile, 0L, SEEK_END) >= 0)
         fileSize = std::ftell(imageFile);
-      if (fileSize > (240L * 2L * 240L * 512L))
-        fileSize = -1L;
-      long    nSectors_ = fileSize / 512L;
-      if (!nTracksValid) {
-        if (nSectors_ > 0L && nSidesValid && nSectorsPerTrackValid) {
+      if (fileSize >= 512L && fileSize <= (240L * 2L * 240L * 512L)) {
+        long    nSectors_ = fileSize / 512L;
+        if (!nTracksValid && nSidesValid && nSectorsPerTrackValid) {
           nTracks_ = int(nSectors_ / (long(nSides_) * long(nSectorsPerTrack_)));
           nTracksValid = true;
         }
-      }
-      else if (!nSidesValid) {
-        if (nSectors_ > 0L && nTracksValid && nSectorsPerTrackValid) {
+        else if (nTracksValid && !nSidesValid && nSectorsPerTrackValid) {
           nSides_ = int(nSectors_ / (long(nTracks_) * long(nSectorsPerTrack_)));
           nSidesValid = true;
         }
-      }
-      else if (!nSectorsPerTrackValid) {
-        if (nSectors_ > 0L && nTracksValid && nSidesValid) {
+        else if (nTracksValid && nSidesValid && !nSectorsPerTrackValid) {
           nSectorsPerTrack_ = int(nSectors_ / (long(nTracks_) * long(nSides_)));
           nSectorsPerTrackValid = true;
         }
       }
-      if (!(nTracksValid && nSidesValid && nSectorsPerTrackValid)) {
-        // try to find out geometry parameters from FAT filesystem
-        if (std::fseek(imageFile, 0L, SEEK_SET) >= 0) {
-          if (std::fread(&(tmpBuf[0]), 1, 512, imageFile) == 512) {
-            nSectors_ = long(tmpBuf[0x13]) | (long(tmpBuf[0x14]) << 8);
-            if (!nSectors_) {
-              nSectors_ =
-                  long(tmpBuf[0x20]) | (long(tmpBuf[0x21]) << 8)
-                  | (long(tmpBuf[0x22]) << 16) | (long(tmpBuf[0x23]) << 24);
-            }
-            if (!nSidesValid)
-              nSides_ = int(tmpBuf[0x1A]) | (int(tmpBuf[0x1B]) << 8);
-            if (!nSectorsPerTrackValid)
-              nSectorsPerTrack_ = int(tmpBuf[0x18]) | (int(tmpBuf[0x19]) << 8);
-            if (!nTracksValid) {
-              if (nSides_ >= 1 && nSides_ <= 2 &&
-                  nSectorsPerTrack_ >= 1 && nSectorsPerTrack_ <= 240 &&
-                  nSectors_ >= 1L && nSectors_ <= (240L * 2L * 240L)) {
-                nTracks_ =
-                    int(nSectors_ / (long(nSides_) * long(nSectorsPerTrack_)));
+      // try to find out geometry parameters from FAT filesystem
+      if (!disableFATCheck && std::fseek(imageFile, 0L, SEEK_SET) >= 0) {
+        if (std::fread(&(tmpBuf[0]), 1, 512, imageFile) == 512) {
+          int     fatSectorSize = int(tmpBuf[0x0B]) | (int(tmpBuf[0x0C]) << 8);
+          long    fatSectors = long(tmpBuf[0x13]) | (long(tmpBuf[0x14]) << 8);
+          if (!fatSectors) {
+            fatSectors =
+                long(tmpBuf[0x20]) | (long(tmpBuf[0x21]) << 8)
+                | (long(tmpBuf[0x22]) << 16) | (long(tmpBuf[0x23]) << 24);
+          }
+          int     fatSides = int(tmpBuf[0x1A]) | (int(tmpBuf[0x1B]) << 8);
+          int     fatSectorsPerTrack =
+              int(tmpBuf[0x18]) | (int(tmpBuf[0x19]) << 8);
+          if ((tmpBuf[0x15] == 0xF0 || tmpBuf[0x15] >= 0xF8) &&
+              (tmpBuf[0x0D] & 0x7F) != 0 &&
+              (tmpBuf[0x0D] & (tmpBuf[0x0D] - 1)) == 0 &&
+              fatSectorSize == 512 && fatSectors >= 1L &&
+              fatSides >= 1 && fatSides <= 2 &&
+              fatSectorsPerTrack >= 1 && fatSectorsPerTrack <= 240) {
+            if ((fatSectors % long(fatSides * fatSectorsPerTrack)) == 0L) {
+              long    fatTracks =
+                  fatSectors / long(fatSides * fatSectorsPerTrack);
+              if (fatTracks >= 1L && fatTracks <= 240L) {
+                // found a valid FAT header, set or check geometry parameters
+                if (!nTracksValid)
+                  nTracks_ = int(fatTracks);
+                if (!nSidesValid)
+                  nSides_ = fatSides;
+                if (!nSectorsPerTrackValid)
+                  nSectorsPerTrack_ = fatSectorsPerTrack;
+                if (nTracks_ != int(fatTracks) || nSides_ != fatSides ||
+                    nSectorsPerTrack_ != fatSectorsPerTrack) {
+                  throw Exception("wd177x: invalid or inconsistent "
+                                  "disk image size parameters");
+                }
               }
             }
           }
@@ -324,8 +386,7 @@ namespace Ep128Emu {
             nSides_ >= 1 && nSides_ <= 2 &&
             nSectorsPerTrack_ >= 1 && nSectorsPerTrack_ <= 240))
         throw Exception("wd177x: cannot determine size of disk image");
-      nSectors_ = long(nTracks_) * long(nSides_) * long(nSectorsPerTrack_);
-      fileSize = nSectors_ * 512L;
+      fileSize = long(nTracks_ * nSides_) * long(nSectorsPerTrack_) * 512L;
       bool    err = true;
       if (std::fseek(imageFile, fileSize - 512L, SEEK_SET) >= 0) {
         if (std::fread(&(tmpBuf[0]), 1, 512, imageFile) == 512) {
