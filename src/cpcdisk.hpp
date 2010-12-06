@@ -43,6 +43,8 @@ namespace CPC464 {
       uint8_t   nSectors;               // number of sectors (0 to 29)
       uint8_t   gapLen;                 // gap 3 length (unused)
       uint8_t   fillerByte;             // filler byte (unused)
+      uint32_t  sectorTableFileOffset;  // start position of sector table
+                                        // in image file (0: no table/raw file)
     };
     CPCDiskTrackInfo  *trackTable;
     CPCDiskSectorInfo *sectorTableBuf;
@@ -54,6 +56,7 @@ namespace CPC464 {
     void readImageFile(uint8_t *buf, size_t filePos, size_t nBytes);
     void parseDSKFileHeaders(uint8_t *buf, size_t fileSize);
     void parseEXTFileHeaders(uint8_t *buf, size_t fileSize);
+    bool openFloppyDevice(const char *fileName);
    public:
     CPCDiskImage();
     virtual ~CPCDiskImage();

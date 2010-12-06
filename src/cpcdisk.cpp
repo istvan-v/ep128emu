@@ -20,6 +20,7 @@
 #include "ep128emu.hpp"
 #include "fdc765.hpp"
 #include "cpcdisk.hpp"
+#include "wd177x.hpp"
 
 static const char *dskFileHeader = "MV - CPCEMU Disk-File\r\nDisk-Info\r\n";
 static const char *dskTrackHeader = "Track-Info\r\n";
@@ -72,6 +73,7 @@ namespace CPC464 {
       trackTable[i].nSectors = uint8_t(nSectors);
       trackTable[i].gapLen = buf[22];
       trackTable[i].fillerByte = buf[23];
+      trackTable[i].sectorTableFileOffset = uint32_t(filePos + 24);
     }
     sectorTableBuf = new CPCDiskSectorInfo[nSectorsTotal];
     size_t  sectorTableBufPos = 0;
@@ -151,6 +153,7 @@ namespace CPC464 {
       trackTable[i].nSectors = buf[21];
       trackTable[i].gapLen = buf[22];
       trackTable[i].fillerByte = buf[23];
+      trackTable[i].sectorTableFileOffset = uint32_t(filePos + 24);
       filePos = filePos + (size_t(trackSizeMSBTable[i]) << 8);
     }
     sectorTableBuf = new CPCDiskSectorInfo[nSectorsTotal];
@@ -201,6 +204,82 @@ namespace CPC464 {
     }
   }
 
+  bool CPCDiskImage::openFloppyDevice(const char *fileName)
+  {
+    // file name is assumed to be non-NULL and non-empty
+    nCylinders = 0;
+    nSides = 0;
+    int     nSectorsPerTrack = 0;
+    int     err = Ep128Emu::checkFloppyDisk(fileName, nCylinders, nSides,
+                                            nSectorsPerTrack);
+    if (err > 0) {
+      if (err == 1)
+        imageFile = std::fopen(fileName, "rb");
+      else
+        imageFile = std::fopen(fileName, "r+b");
+      if (!imageFile) {
+        err = -1;
+      }
+      else {
+        std::setvbuf(imageFile, (char *) 0, _IONBF, 0);
+        err = -err;
+        if (std::fseek(imageFile,
+                       long(nCylinders * nSides) * long(nSectorsPerTrack)
+                       * 512L - 512L, SEEK_SET) >= 0) {
+          uint8_t tmpBuf[512];
+          if (std::fread(&(tmpBuf[0]), 1, 512, imageFile) == 512) {
+            if (std::fread(&(tmpBuf[0]), 1, 512, imageFile) == 0)
+              err = -err;
+          }
+        }
+        if (err < 0) {
+          err = -2;
+          std::fclose(imageFile);
+        }
+        else {
+          std::fseek(imageFile, 0L, SEEK_SET);
+        }
+      }
+    }
+    if (err <= 0) {
+      nCylinders = 0;
+      nSides = 0;
+      if (err < 0) {
+        if (err == -2) {
+          throw Ep128Emu::Exception("CPCDiskImage: "
+                                    "invalid or unknown disk geometry");
+        }
+        throw Ep128Emu::Exception("error opening CPC disk image or device");
+      }
+      return false;
+    }
+    writeProtectFlag = (err == 1);
+    int     nTracks = nCylinders * nSides;
+    trackTable = new CPCDiskTrackInfo[size_t(nTracks)];
+    sectorTableBuf = new CPCDiskSectorInfo[size_t(nTracks * nSectorsPerTrack)];
+    for (int i = 0; i < nTracks; i++) {
+      int     sectorTableBufPos = i * nSectorsPerTrack;
+      trackTable[i].sectorTable = &(sectorTableBuf[sectorTableBufPos]);
+      trackTable[i].nSectors = uint8_t(nSectorsPerTrack);
+      trackTable[i].gapLen = 0x52;
+      trackTable[i].fillerByte = 0xE5;
+      trackTable[i].sectorTableFileOffset = 0U;
+      for (int j = 0; j < nSectorsPerTrack; j++) {
+        sectorTableBuf[sectorTableBufPos].fileOffset =
+            uint32_t(sectorTableBufPos) * 512U;
+        sectorTableBuf[sectorTableBufPos].dataSize = 512U;
+        sectorTableBuf[sectorTableBufPos].trackNum = uint8_t(i / nSides);
+        sectorTableBuf[sectorTableBufPos].sideNum = uint8_t(i % nSides);
+        sectorTableBuf[sectorTableBufPos].sectorNum = uint8_t(j + 1);
+        sectorTableBuf[sectorTableBufPos].sectorSizeCode = 0x02;
+        sectorTableBuf[sectorTableBufPos].statusRegister1 = 0x00;
+        sectorTableBuf[sectorTableBufPos].statusRegister2 = 0x00;
+        sectorTableBufPos++;
+      }
+    }
+    return true;
+  }
+
   // --------------------------------------------------------------------------
 
   CPCDiskImage::CPCDiskImage()
@@ -238,6 +317,8 @@ namespace CPC464 {
     if (fileName == (char *) 0 || fileName[0] == '\0')
       return;
     try {
+      if (openFloppyDevice(fileName))
+        return;
       // open image file
       imageFile = std::fopen(fileName, "r+b");
       if (!imageFile) {
