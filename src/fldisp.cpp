@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -360,8 +360,11 @@ namespace Ep128Emu {
     }
     if (vsyncCnt != 0) {
       curLine += 2;
-      if (vsyncCnt >= 261 && (vsyncState || vsyncCnt >= 335))
-        vsyncCnt = -19;
+      if (vsyncCnt >= (EP128EMU_VSYNC_MIN_LINES + 2 - EP128EMU_VSYNC_OFFSET) &&
+          (vsyncState || vsyncCnt >= (EP128EMU_VSYNC_MAX_LINES
+                                      + 2 - EP128EMU_VSYNC_OFFSET))) {
+        vsyncCnt = 2 - EP128EMU_VSYNC_OFFSET;
+      }
       vsyncCnt++;
     }
     else {
@@ -375,8 +378,9 @@ namespace Ep128Emu {
   void FLTKDisplay_::vsyncStateChange(bool newState, unsigned int currentSlot_)
   {
     vsyncState = newState;
-    if (newState && vsyncCnt >= 261) {
-      vsyncCnt = -19;
+    if (newState &&
+        vsyncCnt >= (EP128EMU_VSYNC_MIN_LINES + 2 - EP128EMU_VSYNC_OFFSET)) {
+      vsyncCnt = 2 - EP128EMU_VSYNC_OFFSET;
       oddFrame = (currentSlot_ >= 20U && currentSlot_ < 48U);
     }
   }

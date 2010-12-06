@@ -157,8 +157,9 @@ namespace Ep128Emu {
   void VideoCapture::vsyncStateChange(bool newState, unsigned int currentSlot_)
   {
     vsyncState = newState;
-    if (newState && vsyncCnt >= 260) {
-      vsyncCnt = -20;
+    if (newState &&
+        vsyncCnt >= (EP128EMU_VSYNC_MIN_LINES + 1 - EP128EMU_VSYNC_OFFSET)) {
+      vsyncCnt = 1 - EP128EMU_VSYNC_OFFSET;
       oddFrame = (currentSlot_ >= 20U && currentSlot_ < 48U);
     }
   }
@@ -397,8 +398,11 @@ namespace Ep128Emu {
       curLine += 2;
       if (curLine < videoHeight)
         tmpFrameBuf.lineBytes(curLine) = 0U;
-      if (vsyncCnt >= 259 && (vsyncState || vsyncCnt >= 333))
-        vsyncCnt = -21;
+      if (vsyncCnt >= (EP128EMU_VSYNC_MIN_LINES - EP128EMU_VSYNC_OFFSET) &&
+          (vsyncState ||
+           vsyncCnt >= (EP128EMU_VSYNC_MAX_LINES - EP128EMU_VSYNC_OFFSET))) {
+        vsyncCnt = -(EP128EMU_VSYNC_OFFSET);
+      }
       vsyncCnt++;
     }
     else {
@@ -1111,8 +1115,11 @@ namespace Ep128Emu {
     lineBufBytes = 0;
     if (vsyncCnt != 0) {
       curLine += 2;
-      if (vsyncCnt >= 259 && (vsyncState || vsyncCnt >= 333))
-        vsyncCnt = -21;
+      if (vsyncCnt >= (EP128EMU_VSYNC_MIN_LINES - EP128EMU_VSYNC_OFFSET) &&
+          (vsyncState ||
+           vsyncCnt >= (EP128EMU_VSYNC_MAX_LINES - EP128EMU_VSYNC_OFFSET))) {
+        vsyncCnt = -(EP128EMU_VSYNC_OFFSET);
+      }
       vsyncCnt++;
     }
     else {
