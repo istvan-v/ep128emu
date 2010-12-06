@@ -243,6 +243,9 @@ if enableGLShaders:
 haveDotconf = configure.CheckCHeader('dotconf.h')
 if configure.CheckCHeader('stdint.h'):
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_STDINT_H'])
+if sys.platform[:5] == 'linux':
+    if configure.CheckCHeader('linux/fd.h'):
+        ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_LINUX_FD_H'])
 if not disableSDL:
     haveSDL = configure.CheckCHeader('SDL/SDL.h')
 else:
