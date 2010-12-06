@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -157,6 +157,20 @@ namespace Ep128Emu {
     virtual void interruptRequest();
     virtual void clearInterruptRequest();
   };
+
+  /*!
+   * Check if the disk image specified in 'fileName' (should not be NULL) is
+   * a real floppy disk, and set (if zero or negative) or verify (if positive)
+   * the geometry parameters.
+   * Returns one of the following values:
+   *   -2: the specified geometry does not match the actual disk parameters
+   *   -1: error opening file or device
+   *    0: the file is not a disk device
+   *    1: no error, disk is write protected
+   *    2: no error, disk is not write protected
+   */
+  extern int checkFloppyDisk(const char *fileName,
+                             int& nTracks, int& nSides, int& nSectorsPerTrack);
 
 }       // namespace Ep128Emu
 
