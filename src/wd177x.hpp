@@ -146,6 +146,7 @@ namespace Ep128Emu {
     }
     void setEnableBusyFlagHack(bool isEnabled);
     // returns 0: black (off), 1: red, 2: green, 3: yellow-green
+    // should be called at a rate of 500 Hz
     inline uint8_t getLEDState()
     {
       if (ledStateCounter)
