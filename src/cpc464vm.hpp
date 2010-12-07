@@ -38,6 +38,8 @@ namespace Ep128Emu {
 
 namespace CPC464 {
 
+  class FDC765_CPC;
+
   class CPC464VM : public Ep128Emu::VirtualMachine {
    private:
     class Z80_ : public Ep128::Z80 {
@@ -148,6 +150,7 @@ namespace CPC464 {
     bool      snapshotLoadFlag;
     // used for counting time between demo events (in CRTC cycles)
     uint64_t  demoTimeCnt;
+    FDC765_CPC  *floppyDrive;
     uint8_t   breakPointPriorityThreshold;
     struct CPC464VMCallback {
       void      (*func)(void *);
@@ -245,6 +248,23 @@ namespace CPC464 {
      * the output file.
      */
     virtual void closeVideoCapture();
+    // -------------------------- DISK AND FILE I/O ---------------------------
+    /*!
+     * Load disk image for drive 'n' (0 to 3); an empty file name means no
+     * disk. The geometry parameters are ignored by the CPC disk emulation.
+     */
+    virtual void setDiskImageFile(int n, const std::string& fileName_,
+                                  int nTracks_ = -1, int nSides_ = 2,
+                                  int nSectorsPerTrack_ = 9);
+    /*!
+     * Returns the current state of the disk drive LEDs, which is the sum
+     * of any of the following values:
+     *   0x0000000C: drive 0 LED is on
+     *   0x00000C00: drive 1 LED is on
+     *   0x000C0000: drive 2 LED is on
+     *   0x0C000000: drive 3 LED is on
+     */
+    virtual uint32_t getFloppyDriveLEDState();
     // ---------------------------- TAPE EMULATION ----------------------------
     /*!
      * Set tape image file name (if the file name is NULL or empty, tape

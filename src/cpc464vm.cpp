@@ -30,6 +30,8 @@
 #include "cpc464vm.hpp"
 #include "debuglib.hpp"
 #include "videorec.hpp"
+#include "fdc765.hpp"
+#include "cpcdisk.hpp"
 
 #include <vector>
 
@@ -474,10 +476,18 @@ namespace CPC464 {
         break;
       }
     }
-#if 0
-    if ((addr & 0x0400) == 0) {         // expansion peripherals (floppy etc.)
+    if ((addr & 0x0480) == 0) {         // expansion peripherals (floppy etc.)
+      if (!(vm.isRecordingDemo | vm.isPlayingDemo)) {
+        switch (addr & 0x0101) {
+        case 0x0100:            // main status register
+          retval &= vm.floppyDrive->readMainStatusRegister();
+          break;
+        case 0x0101:            // data register
+          retval &= vm.floppyDrive->readDataRegister();
+          break;
+        }
+      }
     }
-#endif
     return retval;
   }
 
@@ -556,16 +566,24 @@ namespace CPC464 {
       }
       vm.updatePPIState();
     }
-#if 0
-    if ((addr & 0x0400) == 0) {         // expansion peripherals (floppy etc.)
+    if ((addr & 0x0480) == 0) {         // expansion peripherals (floppy etc.)
+      if (!(vm.isRecordingDemo | vm.isPlayingDemo)) {
+        switch (addr & 0x0101) {
+        case 0x0000:            // floppy drive motor control
+          vm.floppyDrive->setMotorState(bool(value & 0x01));
+          break;
+        case 0x0101:            // data register
+          vm.floppyDrive->writeDataRegister(value);
+          break;
+        }
+      }
     }
-#endif
   }
 
   uint8_t CPC464VM::ioPortDebugReadCallback(void *userData, uint16_t addr)
   {
     CPC464VM&  vm = *(reinterpret_cast<CPC464VM *>(userData));
-    if (addr < 0x0080) {
+    if (addr < 0x00A0) {
       switch (addr & 0x00F0) {
       case 0x0000:                      // CRTC registers
       case 0x0010:
@@ -637,6 +655,9 @@ namespace CPC464 {
         default:
           return 0xFF;
         }
+      case 0x0080:
+      case 0x0090:
+        return vm.floppyDrive->debugRead(addr);
       }
     }
     uint8_t   retval = 0xFF;
@@ -694,10 +715,19 @@ namespace CPC464 {
         break;
       }
     }
-#if 0
-    if ((addr & 0x0400) == 0) {         // expansion peripherals (floppy etc.)
+    if ((addr & 0x0480) == 0) {         // expansion peripherals (floppy etc.)
+      switch (addr & 0x0101) {
+      case 0x0000:              // floppy drive motor control
+        retval &= uint8_t(vm.floppyDrive->getMotorState());
+        break;
+      case 0x0100:              // main status register
+        retval &= vm.floppyDrive->readMainStatusRegister();
+        break;
+      case 0x0101:              // data register
+        retval &= vm.floppyDrive->readDataRegisterDebug();
+        break;
+      }
     }
-#endif
     return retval;
   }
 
@@ -972,6 +1002,7 @@ namespace CPC464 {
       isPlayingDemo(false),
       snapshotLoadFlag(false),
       demoTimeCnt(0UL),
+      floppyDrive((FDC765_CPC *) 0),
       breakPointPriorityThreshold(0),
       firstCallback((CPC464VMCallback *) 0),
       videoCapture((Ep128Emu::VideoCapture *) 0),
@@ -986,6 +1017,7 @@ namespace CPC464 {
       callbacks[i].userData = (void *) 0;
       callbacks[i].nxt = (CPC464VMCallback *) 0;
     }
+    floppyDrive = new FDC765_CPC();
     // register I/O callbacks
     ioPorts.setCallbackUserData((void *) this);
     ioPorts.setReadCallback(&ioPortReadCallback);
@@ -1016,6 +1048,7 @@ namespace CPC464 {
     }
     catch (...) {
     }
+    delete floppyDrive;
   }
 
   void CPC464VM::run(size_t microseconds)
@@ -1077,6 +1110,7 @@ namespace CPC464 {
     gateArrayIRQCounter = 0;
     gateArrayVSyncDelay = 0;
     gateArrayPenSelected = 0x00;
+    floppyDrive->reset();
   }
 
   void CPC464VM::resetMemoryConfiguration(size_t memSize)
@@ -1173,6 +1207,7 @@ namespace CPC464 {
     vmStatus_.tapeLength = getTapeLength();
     vmStatus_.tapeSampleRate = getTapeSampleRate();
     vmStatus_.tapeSampleSize = getTapeSampleSize();
+    vmStatus_.floppyDriveLEDState = floppyDrive->getLEDState(0x0C);
     vmStatus_.isPlayingDemo = isPlayingDemo;
     if (demoFile != (Ep128Emu::File *) 0 && !isRecordingDemo)
       stopDemoRecording(true);
@@ -1218,6 +1253,24 @@ namespace CPC464 {
       delete videoCapture;
       videoCapture = (Ep128Emu::VideoCapture *) 0;
     }
+  }
+
+  void CPC464VM::setDiskImageFile(int n, const std::string& fileName_,
+                                  int nTracks_, int nSides_,
+                                  int nSectorsPerTrack_)
+  {
+    (void) nTracks_;
+    (void) nSides_;
+    (void) nSectorsPerTrack_;
+    if (n < 0 || n > 7)
+      throw Ep128Emu::Exception("invalid disk drive number");
+    if (n < 4)
+      floppyDrive->openDiskImage(n, fileName_.c_str());
+  }
+
+  uint32_t CPC464VM::getFloppyDriveLEDState()
+  {
+    return floppyDrive->getLEDState(0x0C);
   }
 
   void CPC464VM::setTapeFileName(const std::string& fileName)

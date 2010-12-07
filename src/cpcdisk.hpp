@@ -87,6 +87,28 @@ namespace CPC464 {
     {
       return this->writeProtectFlag;
     }
+    inline uint8_t getPhysicalTrackSectors(int c, int h) const
+    {
+      if (c < 0 || c >= this->nCylinders || h < 0 || h >= this->nSides)
+        return 0;
+      return this->trackTable[c * this->nSides + h].nSectors;
+    }
+    inline uint8_t getCurrentTrackSectors(int h) const
+    {
+      return this->getPhysicalTrackSectors(this->currentCylinder, h);
+    }
+    // NOTE: the numbering of 's' starts from 0
+    virtual bool getPhysicalSectorID(uint8_t& cylinderID, uint8_t& headID,
+                                     uint8_t& sectorID, uint8_t& sectorSizeCode,
+                                     int c, int h, int s) const;
+    inline bool getPhysicalSectorID(uint8_t& cylinderID, uint8_t& headID,
+                                    uint8_t& sectorID, uint8_t& sectorSizeCode,
+                                    int h, int s) const
+    {
+      return this->getPhysicalSectorID(
+                 cylinderID, headID, sectorID, sectorSizeCode,
+                 this->currentCylinder, h, s);
+    }
   };
 
   // --------------------------------------------------------------------------

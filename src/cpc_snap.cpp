@@ -19,6 +19,8 @@
 
 #include "ep128emu.hpp"
 #include "cpc464vm.hpp"
+#include "fdc765.hpp"
+#include "cpcdisk.hpp"
 
 namespace CPC464 {
 
@@ -70,6 +72,8 @@ namespace CPC464 {
     updatePPIState();
     stopDemo();
     resetKeyboard();
+    // floppy emulation is disabled while recording or playing demo
+    floppyDrive->reset();
     // save full snapshot, including timing and clock frequency settings
     saveMachineConfiguration(f);
     saveState(f);
@@ -112,6 +116,8 @@ namespace CPC464 {
     }
     stopDemo();
     snapshotLoadFlag = true;
+    // reset floppy emulation, as its state is not saved
+    floppyDrive->reset();
     try {
       for (uint8_t i = 0; i <= 16; i++)
         videoRenderer.setColor(i, buf.readByte());
@@ -182,6 +188,8 @@ namespace CPC464 {
     updatePPIState();
     stopDemo();
     resetKeyboard();
+    // floppy emulation is disabled while recording or playing demo
+    floppyDrive->reset();
     // initialize time counter with first delta time
     demoTimeCnt = buf.readUIntVLen();
     isPlayingDemo = true;

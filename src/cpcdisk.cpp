@@ -58,11 +58,7 @@ namespace CPC464 {
                                     "in CPC disk image file");
         }
       }
-      if (buf[20] > 6) {
-        throw Ep128Emu::Exception("invalid track header "
-                                  "in CPC disk image file");
-      }
-      size_t  sectorSize = size_t(0x80) << buf[20];
+      size_t  sectorSize = size_t(0x80) << (buf[20] & 0x07);
       if (sectorSize > 0x1800)
         sectorSize = 0x1800;
       size_t  nSectors = buf[21];
@@ -82,23 +78,20 @@ namespace CPC464 {
       // read all sector headers
       size_t  filePos = size_t(i) * trackSize + 256;
       readImageFile(buf, filePos, 256);
-      if (buf[20] > 6) {
-        throw Ep128Emu::Exception("invalid track header "
-                                  "in CPC disk image file");
-      }
+      filePos = filePos + 256;
+      buf[20] = buf[20] & 0x07;
       size_t  sectorSize = size_t(0x80) << buf[20];
       if (sectorSize > 0x1800)
         sectorSize = 0x1800;
-      filePos = filePos + 256;
       trackTable[i].sectorTable = &(sectorTableBuf[sectorTableBufPos]);
       for (int j = 0; j < int(trackTable[i].nSectors); j++) {
-        if (buf[(j << 3) + 27] > buf[20]) {
+        if ((buf[(j << 3) + 27] & 0x07) > buf[20]) {
           throw Ep128Emu::Exception("invalid sector header "
                                     "in CPC disk image file");
         }
         sectorTableBuf[sectorTableBufPos].fileOffset = uint32_t(filePos);
         sectorTableBuf[sectorTableBufPos].dataSize =
-            uint32_t(0x80U << buf[(j << 3) + 27]);
+            uint32_t(0x80U << (buf[(j << 3) + 27] & 0x07));
         if (sectorTableBuf[sectorTableBufPos].dataSize > 0x1800U)
           sectorTableBuf[sectorTableBufPos].dataSize = 0x1800U;
         sectorTableBuf[sectorTableBufPos].trackNum = buf[(j << 3) + 24];
@@ -146,7 +139,7 @@ namespace CPC464 {
                                     "in CPC disk image file");
         }
       }
-      if (buf[20] > 7 || buf[21] > 29) {
+      if (buf[21] > 29) {
         throw Ep128Emu::Exception("invalid track header "
                                   "in CPC disk image file");
       }
@@ -163,24 +156,21 @@ namespace CPC464 {
     for (int i = 0; i < nTracks; i++) {
       // read all sector headers
       readImageFile(buf, filePos, 256);
-      if (buf[20] > 7) {
-        throw Ep128Emu::Exception("invalid track header "
-                                  "in CPC disk image file");
-      }
       size_t  nextFilePos = filePos + (size_t(trackSizeMSBTable[i]) << 8);
       filePos = filePos + 256;
+      buf[20] = buf[20] & 0x07;
       trackTable[i].sectorTable = &(sectorTableBuf[sectorTableBufPos]);
       for (int j = 0; j < int(trackTable[i].nSectors); j++) {
-        if (buf[(j << 3) + 27] > buf[20]) {
+        if ((buf[(j << 3) + 27] & 0x07) > buf[20]) {
           throw Ep128Emu::Exception("invalid sector header "
                                     "in CPC disk image file");
         }
-        uint32_t  sectorSize = uint32_t(0x80U << buf[(j << 3) + 27]);
+        uint32_t  sectorSize = uint32_t(0x80U << (buf[(j << 3) + 27] & 0x07));
         uint32_t  dataSize =
             uint32_t(buf[(j << 3) + 30]) | (uint32_t(buf[(j << 3) + 31]) << 8);
         if (dataSize < 1U ||
             ((dataSize & (sectorSize - 1U)) != 0U &&
-             !(sectorSize == 0x2000U && dataSize == 0x1800U))) {
+             !(dataSize >= 0x1000U && dataSize < sectorSize))) {
           throw Ep128Emu::Exception("invalid sector header "
                                     "in CPC disk image file");
         }
@@ -506,6 +496,27 @@ namespace CPC464 {
   {
     int     tmp = int(currentCylinder) - nSteps;
     currentCylinder = uint8_t(tmp > 0 ? (tmp < 84 ? tmp : 84) : 0);
+  }
+
+  bool CPCDiskImage::getPhysicalSectorID(
+      uint8_t& cylinderID, uint8_t& headID, uint8_t& sectorID,
+      uint8_t& sectorSizeCode, int c, int h, int s) const
+  {
+    if (c >= 0 && c < nCylinders && h >= 0 && h < nSides) {
+      const CPCDiskTrackInfo& t = trackTable[c * nSides + h];
+      if (s >= 0 && s < int(t.nSectors)) {
+        cylinderID = t.sectorTable[s].trackNum;
+        headID = t.sectorTable[s].sideNum;
+        sectorID = t.sectorTable[s].sectorNum;
+        sectorSizeCode = t.sectorTable[s].sectorSizeCode;
+        return true;
+      }
+    }
+    cylinderID = 0;
+    headID = 0;
+    sectorID = 0;
+    sectorSizeCode = 0;
+    return false;
   }
 
   // ==========================================================================

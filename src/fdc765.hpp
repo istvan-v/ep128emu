@@ -29,13 +29,16 @@ namespace CPC464 {
     struct FDCCommandParams {
       uint8_t   commandCode;
       uint8_t   unitNumber;             // drive number (0 to 3)
-      uint8_t   physicalCylinders[4];   // stored separately for each drive
       uint8_t   physicalSide;
-      bool      motorOn;
       uint8_t   cylinderID;
       uint8_t   headID;
       uint8_t   sectorID;
       uint8_t   sectorSizeCode;         // sector size = 0x80 << sectorSizeCode
+      uint8_t   lastSectorID;
+      uint8_t   gapLen;
+      uint8_t   sectorDataLength;
+      uint8_t   sectorCnt;
+      uint8_t   fillerByte;
       uint8_t   statusRegister0;
       uint8_t   statusRegister1;
       uint8_t   statusRegister2;
@@ -60,22 +63,48 @@ namespace CPC464 {
     } CPCDiskError;
    protected:
     FDCCommandParams  cmdParams;
+    uint32_t  timeCounter;              // updated at a rate of 500 Hz
+    uint32_t  totalDataBytes;
+    uint32_t  dataBytesRemaining;
     // 0: idle
     // 1: command phase
     // 2: execution phase
     // 3: result phase
     uint8_t   fdcState;
+    bool      dataDirectionIsRead;
+    bool      motorOn;
     uint8_t   *sectorBuf;
+    uint8_t   physicalCylinders[4];     // stored separately for each drive
     // ----------------
     void updateStatusRegisters(CPCDiskError errorCode);
+    void processFDCCommand();
    public:
     FDC765();
     virtual ~FDC765();
     virtual void reset();
-    virtual void setMotorState(bool isEnabled);
+    inline bool getMotorState() const
+    {
+      return this->motorOn;
+    }
+    inline void setMotorState(bool isEnabled)
+    {
+      this->motorOn = isEnabled;
+    }
     virtual uint8_t readMainStatusRegister() const;
     virtual uint8_t readDataRegister();
     virtual void writeDataRegister(uint8_t n);
+    virtual uint8_t readDataRegisterDebug() const;
+    // read internal state for debugging
+    virtual uint8_t debugRead(uint16_t addr) const;
+    // returns onValue * (256 ^ driveNum) if a drive is active, or 0 otherwise
+    // should be called at a rate of 500 Hz
+    inline uint32_t getLEDState(uint8_t onValue)
+    {
+      this->timeCounter++;
+      if (this->fdcState != 0)
+        return (uint32_t(onValue) << (this->cmdParams.unitNumber << 3));
+      return 0U;
+    }
    protected:
     virtual CPCDiskError readSector(uint8_t& statusRegister1,
                                     uint8_t& statusRegister2) = 0;
