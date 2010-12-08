@@ -22,6 +22,7 @@
 
 #include "ep128emu.hpp"
 #include "fdc765.hpp"
+#include "system.hpp"
 
 namespace CPC464 {
 
@@ -41,7 +42,7 @@ namespace CPC464 {
     struct CPCDiskTrackInfo {
       CPCDiskSectorInfo *sectorTable;   // array of sector info structures
       uint8_t   nSectors;               // number of sectors (0 to 29)
-      uint8_t   gapLen;                 // gap 3 length (unused)
+      uint8_t   gapLen;                 // gap 3 length
       uint8_t   fillerByte;             // filler byte (unused)
       uint32_t  sectorTableFileOffset;  // start position of sector table
                                         // in image file (0: no table/raw file)
@@ -60,54 +61,64 @@ namespace CPC464 {
     void parseDSKFileHeaders(uint8_t *buf, size_t fileSize);
     void parseEXTFileHeaders(uint8_t *buf, size_t fileSize);
     bool openFloppyDevice(const char *fileName);
-    FDC765::CPCDiskError findSector(CPCDiskSectorInfo*& sectorPtr,
-                                    const FDC765::FDCCommandParams& cmdParams);
    public:
     CPCDiskImage();
     virtual ~CPCDiskImage();
     virtual void openDiskImage(const char *fileName);
-    virtual FDC765::CPCDiskError
-        readSector(uint8_t *buf, const FDC765::FDCCommandParams& cmdParams,
-                   uint8_t& statusRegister1, uint8_t& statusRegister2);
-    virtual FDC765::CPCDiskError
-        writeSector(const uint8_t *buf,
-                    const FDC765::FDCCommandParams& cmdParams,
-                    uint8_t& statusRegister1, uint8_t& statusRegister2);
-    virtual void stepIn(int nSteps = 1);
-    virtual void stepOut(int nSteps = 1);
     inline bool haveDisk() const
     {
-      return (this->imageFile != (std::FILE *) 0);
+      return (imageFile != (std::FILE *) 0);
     }
     inline bool getIsTrack0() const
     {
-      return (this->currentCylinder == 0);
+      return (currentCylinder == 0);
     }
     inline bool getIsWriteProtected() const
     {
-      return this->writeProtectFlag;
+      return writeProtectFlag;
     }
     inline uint8_t getPhysicalTrackSectors(int c, int h) const
     {
-      if (c < 0 || c >= this->nCylinders || h < 0 || h >= this->nSides)
+      if (c < 0 || c >= nCylinders || h < 0 || h >= nSides)
         return 0;
-      return this->trackTable[c * this->nSides + h].nSectors;
+      return trackTable[c * nSides + h].nSectors;
     }
     inline uint8_t getCurrentTrackSectors(int h) const
     {
-      return this->getPhysicalTrackSectors(this->currentCylinder, h);
+      return getPhysicalTrackSectors(currentCylinder, h);
     }
+    // returns the ID (C, H, R, N) of the physical sector specified by c, h, s
     // NOTE: the numbering of 's' starts from 0
-    virtual bool getPhysicalSectorID(uint8_t& cylinderID, uint8_t& headID,
-                                     uint8_t& sectorID, uint8_t& sectorSizeCode,
+    virtual bool getPhysicalSectorID(FDC765::FDCSectorID& sectorID,
                                      int c, int h, int s) const;
-    inline bool getPhysicalSectorID(uint8_t& cylinderID, uint8_t& headID,
-                                    uint8_t& sectorID, uint8_t& sectorSizeCode,
+    // returns the ID of a physical sector on the current cylinder
+    inline bool getPhysicalSectorID(FDC765::FDCSectorID& sectorID,
                                     int h, int s) const
     {
-      return this->getPhysicalSectorID(
-                 cylinderID, headID, sectorID, sectorSizeCode,
-                 this->currentCylinder, h, s);
+      return getPhysicalSectorID(sectorID, currentCylinder, h, s);
+    }
+    // returns the next physical sector (starting from 0) on side 'h' of the
+    // current cylinder at rotation angle 'n' / 'd' (0 to 1, 0 is the ID
+    // address mark of the first sector),
+    // or -1 if there are no sectors or the specified parameters are invalid
+    virtual int getPhysicalSector(int h, int n, int d) const;
+    // returns the position (0 to 1) of the ID address mark of physical sector
+    // 's' on side 'h' of the current cylinder, multiplied by 'd',
+    // or -1 if the sector does not exist or the parameters are invalid
+    virtual int getPhysicalSectorPos(int h, int s, int d) const;
+    // read/write physical sector on the current cylinder
+    virtual FDC765::CPCDiskError
+        readSector(uint8_t *buf, int physicalSide, int physicalSector,
+                   uint8_t& statusRegister1, uint8_t& statusRegister2);
+    // NOTE: bit 6 of 'statusRegister2' is used as input (1 = deleted sector)
+    virtual FDC765::CPCDiskError
+        writeSector(const uint8_t *buf, int physicalSide, int physicalSector,
+                    uint8_t& statusRegister1, uint8_t& statusRegister2);
+    virtual void stepIn(int nSteps = 1);
+    virtual void stepOut(int nSteps = 1);
+    EP128EMU_INLINE int getRandomNumber(int n)
+    {
+      return (Ep128Emu::getRandomNumber(randomSeed) % n);
     }
   };
 
@@ -121,15 +132,35 @@ namespace CPC464 {
     virtual ~FDC765_CPC();
     virtual void openDiskImage(int n, const char *fileName);
    protected:
-    virtual CPCDiskError readSector(uint8_t& statusRegister1,
-                                    uint8_t& statusRegister2);
-    virtual CPCDiskError writeSector(uint8_t& statusRegister1,
-                                     uint8_t& statusRegister2);
-    virtual void stepIn(int nSteps = 1);
-    virtual void stepOut(int nSteps = 1);
     virtual bool haveDisk() const;
     virtual bool getIsTrack0() const;
     virtual bool getIsWriteProtected() const;
+    virtual uint8_t getPhysicalTrackSectors(int c) const;
+    virtual uint8_t getCurrentTrackSectors() const;
+    // returns the ID (C, H, R, N) of the physical sector specified by c, s
+    // NOTE: the numbering of 's' starts from 0
+    virtual bool getPhysicalSectorID(FDCSectorID& sectorID, int c, int s) const;
+    // returns the ID of a physical sector on the current cylinder
+    virtual bool getPhysicalSectorID(FDCSectorID& sectorID, int s) const;
+    // returns the next physical sector (starting from 0) on the current
+    // cylinder and side at rotation angle 'n' / 'd' (0 to 1, 0 is the ID
+    // address mark of the first sector),
+    // or -1 if there are no sectors or the specified parameters are invalid
+    virtual int getPhysicalSector(int n, int d) const;
+    // returns the position (0 to 1) of the ID address mark of physical sector
+    // 's' on the current cylinder and side, multiplied by 'd',
+    // or -1 if the sector does not exist or the parameters are invalid
+    virtual int getPhysicalSectorPos(int s, int d) const;
+    // read/write physical sector on the current cylinder
+    virtual CPCDiskError readSector(int physicalSector,
+                                    uint8_t& statusRegister1,
+                                    uint8_t& statusRegister2);
+    // NOTE: bit 6 of 'statusRegister2' is used as input (1 = deleted sector)
+    virtual CPCDiskError writeSector(int physicalSector,
+                                     uint8_t& statusRegister1,
+                                     uint8_t& statusRegister2);
+    virtual void stepIn(int nSteps = 1);
+    virtual void stepOut(int nSteps = 1);
   };
 
 }       // namespace CPC464

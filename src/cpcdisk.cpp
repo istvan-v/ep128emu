@@ -271,35 +271,6 @@ namespace CPC464 {
     return true;
   }
 
-  FDC765::CPCDiskError CPCDiskImage::findSector(
-      CPCDiskSectorInfo*& sectorPtr, const FDC765::FDCCommandParams& cmdParams)
-  {
-    sectorPtr = (CPCDiskSectorInfo *) 0;
-    if (imageFile == (std::FILE *) 0 || trackTable == (CPCDiskTrackInfo *) 0)
-      return FDC765::CPCDISK_ERROR_NO_DISK;
-    if (int(currentCylinder) >= nCylinders)
-      return FDC765::CPCDISK_ERROR_INVALID_TRACK;
-    if (int(cmdParams.physicalSide) >= nSides)
-      return FDC765::CPCDISK_ERROR_INVALID_SIDE;
-    CPCDiskTrackInfo& currentTrack =
-        trackTable[int(currentCylinder) * nSides + int(cmdParams.physicalSide)];
-    for (uint8_t i = 0; i < currentTrack.nSectors; i++) {
-      if (currentTrack.sectorTable[i].trackNum != cmdParams.cylinderID) {
-        if (currentTrack.sectorTable[i].trackNum == 0xFF)
-          return FDC765::CPCDISK_ERROR_BAD_CYLINDER;
-        return FDC765::CPCDISK_ERROR_WRONG_CYLINDER;
-      }
-      if (currentTrack.sectorTable[i].sideNum == cmdParams.headID &&
-          currentTrack.sectorTable[i].sectorNum == cmdParams.sectorID &&
-          currentTrack.sectorTable[i].sectorSizeCode
-          == cmdParams.sectorSizeCode) {
-        sectorPtr = &(currentTrack.sectorTable[i]);
-        return FDC765::CPCDISK_NO_ERROR;
-      }
-    }
-    return FDC765::CPCDISK_ERROR_SECTOR_NOT_FOUND;
-  }
-
   // --------------------------------------------------------------------------
 
   CPCDiskImage::CPCDiskImage()
@@ -313,7 +284,10 @@ namespace CPC464 {
       randomSeed(0)
   {
     Ep128Emu::setRandomSeed(randomSeed,
-                            Ep128Emu::Timer::getRandomSeedFromTime());
+                            uint32_t(uintptr_t((void *) this) & 0xFFFFFFFFUL));
+    Ep128Emu::setRandomSeed(randomSeed,
+                            uint32_t(Ep128Emu::getRandomNumber(randomSeed))
+                            ^ Ep128Emu::Timer::getRandomSeedFromTime());
   }
 
   CPCDiskImage::~CPCDiskImage()
@@ -388,36 +362,98 @@ namespace CPC464 {
     }
   }
 
+  bool CPCDiskImage::getPhysicalSectorID(
+      FDC765::FDCSectorID& sectorID, int c, int h, int s) const
+  {
+    if (c >= 0 && c < nCylinders && h >= 0 && h < nSides) {
+      const CPCDiskTrackInfo& t = trackTable[c * nSides + h];
+      if (s >= 0 && s < int(t.nSectors)) {
+        CPCDiskSectorInfo&  s_ = t.sectorTable[s];
+        sectorID.cylinderID = s_.trackNum;
+        sectorID.headID = s_.sideNum;
+        sectorID.sectorID = s_.sectorNum;
+        sectorID.sectorSizeCode = s_.sectorSizeCode;
+        sectorID.isDeleted = bool(s_.statusRegister2 & 0x40);
+        return true;
+      }
+    }
+    sectorID.cylinderID = 0;
+    sectorID.headID = 0;
+    sectorID.sectorID = 0;
+    sectorID.sectorSizeCode = 0;
+    sectorID.isDeleted = false;
+    return false;
+  }
+
+  int CPCDiskImage::getPhysicalSector(int h, int n, int d) const
+  {
+    if (int(currentCylinder) >= nCylinders ||
+        h < 0 || h >= nSides || n < 0 || d <= 0) {
+      return -1;
+    }
+    CPCDiskTrackInfo& t = trackTable[int(currentCylinder) * nSides + h];
+    if (t.nSectors < 1)
+      return -1;
+    // total track size is 6250 bytes, assuming rotation speed = 300 RPM
+    // and data rate = 250 kbps
+    int     headPosBytes = (n * 6250 + (d >> 1)) / d;
+    int     curPos = 0;
+    for (int s = 0; s < int(t.nSectors); s++) {
+      if (curPos >= headPosBytes)
+        return s;
+      // ID address mark, ID, ID CRC, gap 2, sync, data address mark,
+      // data, data CRC, gap 3, sync
+      curPos = curPos + (4 + 4 + 2 + 22 + 12 + 4
+                         + (0x0080 << (t.sectorTable[s].sectorSizeCode & 0x07))
+                         + 2 + int(t.gapLen) + 12);
+    }
+    return 0;
+  }
+
+  int CPCDiskImage::getPhysicalSectorPos(int h, int s, int d) const
+  {
+    if (int(currentCylinder) >= nCylinders || h < 0 || h >= nSides || d <= 0)
+      return -1;
+    CPCDiskTrackInfo& t = trackTable[int(currentCylinder) * nSides + h];
+    if (s < 0 || s >= int(t.nSectors))
+      return -1;
+    int     curPos = 0;
+    for (int i = 0; i < s; i++) {
+      // ID address mark, ID, ID CRC, gap 2, sync, data address mark,
+      // data, data CRC, gap 3, sync
+      curPos = curPos + (4 + 4 + 2 + 22 + 12 + 4
+                         + (0x0080 << (t.sectorTable[i].sectorSizeCode & 0x07))
+                         + 2 + int(t.gapLen) + 12);
+    }
+    // total track size is 6250 bytes, assuming rotation speed = 300 RPM
+    // and data rate = 250 kbps
+    return ((curPos * d + 3125) / 6250);
+  }
+
   FDC765::CPCDiskError CPCDiskImage::readSector(
-      uint8_t *buf, const FDC765::FDCCommandParams& cmdParams,
+      uint8_t *buf, int physicalSide, int physicalSector,
       uint8_t& statusRegister1, uint8_t& statusRegister2)
   {
-    CPCDiskSectorInfo     *sectorPtr = (CPCDiskSectorInfo *) 0;
-    FDC765::CPCDiskError  err = findSector(sectorPtr, cmdParams);
-    if (err != FDC765::CPCDISK_NO_ERROR)
-      return err;
-    statusRegister1 =
-        (statusRegister1 & 0x5A) | (sectorPtr->statusRegister1 & 0xA5);
-    statusRegister2 =
-        (statusRegister2 & 0x9E) | (sectorPtr->statusRegister2 & 0x61);
-    if (((cmdParams.commandCode & 0x1F) == 0x06 &&
-         (statusRegister2 & 0x40) != 0) ||
-        ((cmdParams.commandCode & 0x1F) == 0x0C &&
-         (statusRegister2 & 0x40) == 0)) {
-      statusRegister2 = statusRegister2 | 0x40;
-      if (cmdParams.commandCode & 0x20)
-        return FDC765::CPCDISK_ERROR_DELETED_SECTOR;
-    }
-    else {
-      statusRegister2 = statusRegister2 & 0xBF;
-    }
-    size_t  filePos = size_t(sectorPtr->fileOffset);
-    size_t  dataSize = size_t(sectorPtr->dataSize);
-    size_t  sectorBytes = size_t(0x80) << (sectorPtr->sectorSizeCode & 0x07);
+    if (imageFile == (std::FILE *) 0 || trackTable == (CPCDiskTrackInfo *) 0)
+      return FDC765::CPCDISK_ERROR_NO_DISK;
+    if (int(currentCylinder) >= nCylinders)
+      return FDC765::CPCDISK_ERROR_INVALID_TRACK;
+    if (physicalSide < 0 || physicalSide >= nSides)
+      return FDC765::CPCDISK_ERROR_INVALID_SIDE;
+    CPCDiskTrackInfo&   t =
+        trackTable[int(currentCylinder) * nSides + physicalSide];
+    if (physicalSector < 0 || physicalSector >= int(t.nSectors))
+      return FDC765::CPCDISK_ERROR_SECTOR_NOT_FOUND;
+    CPCDiskSectorInfo&  s = t.sectorTable[physicalSector];
+    size_t  filePos = size_t(s.fileOffset);
+    size_t  dataSize = size_t(s.dataSize);
+    size_t  sectorBytes = size_t(0x80) << (s.sectorSizeCode & 0x07);
+    statusRegister1 = (statusRegister1 & 0x5A) | (s.statusRegister1 & 0xA5);
+    statusRegister2 = (statusRegister2 & 0x9E) | (s.statusRegister2 & 0x61);
     if (dataSize > sectorBytes) {       // weak sector
       filePos = filePos
-                + (sectorBytes * (size_t(Ep128Emu::getRandomNumber(randomSeed))
-                                  % (dataSize / sectorBytes)));
+                + (sectorBytes
+                   * size_t(getRandomNumber(int(dataSize) / int(sectorBytes))));
     }
     if (std::fseek(imageFile, long(filePos), SEEK_SET) < 0)
       return FDC765::CPCDISK_ERROR_SECTOR_NOT_FOUND;
@@ -432,50 +468,48 @@ namespace CPC464 {
   }
 
   FDC765::CPCDiskError CPCDiskImage::writeSector(
-      const uint8_t *buf, const FDC765::FDCCommandParams& cmdParams,
+      const uint8_t *buf, int physicalSide, int physicalSector,
       uint8_t& statusRegister1, uint8_t& statusRegister2)
   {
-    if (writeProtectFlag && imageFile != (std::FILE *) 0)
+    if (imageFile == (std::FILE *) 0 || trackTable == (CPCDiskTrackInfo *) 0)
+      return FDC765::CPCDISK_ERROR_NO_DISK;
+    if (writeProtectFlag)
       return FDC765::CPCDISK_ERROR_WRITE_PROTECTED;
-    CPCDiskSectorInfo     *sectorPtr = (CPCDiskSectorInfo *) 0;
-    FDC765::CPCDiskError  err = findSector(sectorPtr, cmdParams);
-    if (err != FDC765::CPCDISK_NO_ERROR)
-      return err;
-    statusRegister1 =
-        (statusRegister1 & 0x5A) | (sectorPtr->statusRegister1 & 0xA5);
-    statusRegister2 =
-        (statusRegister2 & 0x9E) | (sectorPtr->statusRegister2 & 0x61);
-    if (((cmdParams.commandCode & 0x1F) == 0x05 &&
-         (statusRegister2 & 0x40) != 0) ||
-        ((cmdParams.commandCode & 0x1F) == 0x09 &&
-         (statusRegister2 & 0x40) == 0)) {
-      CPCDiskTrackInfo& currentTrack =
-          trackTable[int(currentCylinder) * nSides
-                     + int(cmdParams.physicalSide)];
+    if (int(currentCylinder) >= nCylinders)
+      return FDC765::CPCDISK_ERROR_INVALID_TRACK;
+    if (physicalSide < 0 || physicalSide >= nSides)
+      return FDC765::CPCDISK_ERROR_INVALID_SIDE;
+    CPCDiskTrackInfo&   t =
+        trackTable[int(currentCylinder) * nSides + physicalSide];
+    if (physicalSector < 0 || physicalSector >= int(t.nSectors))
+      return FDC765::CPCDISK_ERROR_SECTOR_NOT_FOUND;
+    CPCDiskSectorInfo&  s = t.sectorTable[physicalSector];
+    FDC765::CPCDiskError  err = FDC765::CPCDISK_NO_ERROR;
+    if ((statusRegister2 ^ s.statusRegister2) & 0x40) {
       err = FDC765::CPCDISK_ERROR_WRITE_FAILED;
-      if (currentTrack.sectorTableFileOffset != 0U) {
+      if (t.sectorTableFileOffset != 0U) {
         // deleted sector flag changed: update status register 2 in image file
-        if (std::fseek(imageFile,
-                       long(currentTrack.sectorTableFileOffset)
-                       + (long(sectorPtr - currentTrack.sectorTable) * 8L)
-                       + 5L, SEEK_SET) >= 0) {
-          uint8_t newStatusRegister2 = (sectorPtr->statusRegister2 & 0xBF)
-                                       | ((cmdParams.commandCode & 0x08) << 3);
+        if (std::fseek(imageFile, long(t.sectorTableFileOffset)
+                                  + (long(&s - t.sectorTable) * 8L) + 5L,
+                       SEEK_SET) >= 0) {
+          uint8_t newStatusRegister2 =
+              (s.statusRegister2 & 0xBF) | (statusRegister2 & 0x40);
           if (std::fputc(newStatusRegister2, imageFile) != EOF) {
-            sectorPtr->statusRegister2 = newStatusRegister2;
+            s.statusRegister2 = newStatusRegister2;
             err = FDC765::CPCDISK_NO_ERROR;
           }
         }
       }
     }
-    statusRegister2 = statusRegister2 & 0xBF;
-    size_t  filePos = size_t(sectorPtr->fileOffset);
-    size_t  dataSize = size_t(sectorPtr->dataSize);
-    size_t  sectorBytes = size_t(0x80) << (sectorPtr->sectorSizeCode & 0x07);
+    size_t  filePos = size_t(s.fileOffset);
+    size_t  dataSize = size_t(s.dataSize);
+    size_t  sectorBytes = size_t(0x80) << (s.sectorSizeCode & 0x07);
+    statusRegister1 = (statusRegister1 & 0x5A) | (s.statusRegister1 & 0xA5);
+    statusRegister2 = (statusRegister2 & 0x9E) | (s.statusRegister2 & 0x61);
     if (dataSize > sectorBytes) {       // FIXME: writing to weak sector
       filePos = filePos
-                + (sectorBytes * (size_t(Ep128Emu::getRandomNumber(randomSeed))
-                                  % (dataSize / sectorBytes)));
+                + (sectorBytes
+                   * size_t(getRandomNumber(int(dataSize) / int(sectorBytes))));
       err = FDC765::CPCDISK_ERROR_WRITE_FAILED;
     }
     if (std::fseek(imageFile, long(filePos), SEEK_SET) < 0)
@@ -498,27 +532,6 @@ namespace CPC464 {
     currentCylinder = uint8_t(tmp > 0 ? (tmp < 84 ? tmp : 84) : 0);
   }
 
-  bool CPCDiskImage::getPhysicalSectorID(
-      uint8_t& cylinderID, uint8_t& headID, uint8_t& sectorID,
-      uint8_t& sectorSizeCode, int c, int h, int s) const
-  {
-    if (c >= 0 && c < nCylinders && h >= 0 && h < nSides) {
-      const CPCDiskTrackInfo& t = trackTable[c * nSides + h];
-      if (s >= 0 && s < int(t.nSectors)) {
-        cylinderID = t.sectorTable[s].trackNum;
-        headID = t.sectorTable[s].sideNum;
-        sectorID = t.sectorTable[s].sectorNum;
-        sectorSizeCode = t.sectorTable[s].sectorSizeCode;
-        return true;
-      }
-    }
-    cylinderID = 0;
-    headID = 0;
-    sectorID = 0;
-    sectorSizeCode = 0;
-    return false;
-  }
-
   // ==========================================================================
 
   FDC765_CPC::FDC765_CPC()
@@ -532,31 +545,8 @@ namespace CPC464 {
 
   void FDC765_CPC::openDiskImage(int n, const char *fileName)
   {
+    rotationAngles[n & 3] = uint8_t(floppyDrives[n & 3].getRandomNumber(100));
     floppyDrives[n & 3].openDiskImage(fileName);
-  }
-
-  FDC765::CPCDiskError FDC765_CPC::readSector(uint8_t& statusRegister1,
-                                              uint8_t& statusRegister2)
-  {
-    return floppyDrives[cmdParams.unitNumber].readSector(
-               sectorBuf, cmdParams, statusRegister1, statusRegister2);
-  }
-
-  FDC765::CPCDiskError FDC765_CPC::writeSector(uint8_t& statusRegister1,
-                                               uint8_t& statusRegister2)
-  {
-    return floppyDrives[cmdParams.unitNumber].writeSector(
-               sectorBuf, cmdParams, statusRegister1, statusRegister2);
-  }
-
-  void FDC765_CPC::stepIn(int nSteps)
-  {
-    floppyDrives[cmdParams.unitNumber].stepIn(nSteps);
-  }
-
-  void FDC765_CPC::stepOut(int nSteps)
-  {
-    floppyDrives[cmdParams.unitNumber].stepOut(nSteps);
   }
 
   bool FDC765_CPC::haveDisk() const
@@ -572,6 +562,72 @@ namespace CPC464 {
   bool FDC765_CPC::getIsWriteProtected() const
   {
     return floppyDrives[cmdParams.unitNumber].getIsWriteProtected();
+  }
+
+  uint8_t FDC765_CPC::getPhysicalTrackSectors(int c) const
+  {
+    return floppyDrives[cmdParams.unitNumber].getPhysicalTrackSectors(
+               c, cmdParams.physicalSide);
+  }
+
+  uint8_t FDC765_CPC::getCurrentTrackSectors() const
+  {
+    return floppyDrives[cmdParams.unitNumber].getCurrentTrackSectors(
+               cmdParams.physicalSide);
+  }
+
+  bool FDC765_CPC::getPhysicalSectorID(FDC765::FDCSectorID& sectorID,
+                                       int c, int s) const
+  {
+    return floppyDrives[cmdParams.unitNumber].getPhysicalSectorID(
+               sectorID, c, cmdParams.physicalSide, s);
+  }
+
+  bool FDC765_CPC::getPhysicalSectorID(FDC765::FDCSectorID& sectorID,
+                                       int s) const
+  {
+    return floppyDrives[cmdParams.unitNumber].getPhysicalSectorID(
+               sectorID, cmdParams.physicalSide, s);
+  }
+
+  int FDC765_CPC::getPhysicalSector(int n, int d) const
+  {
+    return floppyDrives[cmdParams.unitNumber].getPhysicalSector(
+               cmdParams.physicalSide, n, d);
+  }
+
+  int FDC765_CPC::getPhysicalSectorPos(int s, int d) const
+  {
+    return floppyDrives[cmdParams.unitNumber].getPhysicalSectorPos(
+               cmdParams.physicalSide, s, d);
+  }
+
+  FDC765::CPCDiskError FDC765_CPC::readSector(int physicalSector,
+                                              uint8_t& statusRegister1,
+                                              uint8_t& statusRegister2)
+  {
+    return floppyDrives[cmdParams.unitNumber].readSector(
+               sectorBuf, cmdParams.physicalSide, physicalSector,
+               statusRegister1, statusRegister2);
+  }
+
+  FDC765::CPCDiskError FDC765_CPC::writeSector(int physicalSector,
+                                               uint8_t& statusRegister1,
+                                               uint8_t& statusRegister2)
+  {
+    return floppyDrives[cmdParams.unitNumber].writeSector(
+               sectorBuf, cmdParams.physicalSide, physicalSector,
+               statusRegister1, statusRegister2);
+  }
+
+  void FDC765_CPC::stepIn(int nSteps)
+  {
+    floppyDrives[cmdParams.unitNumber].stepIn(nSteps);
+  }
+
+  void FDC765_CPC::stepOut(int nSteps)
+  {
+    floppyDrives[cmdParams.unitNumber].stepOut(nSteps);
   }
 
 }       // namespace CPC464

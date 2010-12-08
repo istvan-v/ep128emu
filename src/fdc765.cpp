@@ -31,7 +31,7 @@ namespace CPC464 {
     cmdParams.statusRegister3 =
         cmdParams.unitNumber | (cmdParams.physicalSide << 2)
         | (uint8_t(getIsTrack0()) << 4)
-        | (uint8_t(motorOn && haveDisk()) << 5)
+        | (uint8_t(motorSpeed >= 100 && haveDisk()) << 5)
         | (uint8_t(getIsWriteProtected()) << 6);
     switch (errorCode) {
     case CPCDISK_NO_ERROR:
@@ -82,20 +82,72 @@ namespace CPC464 {
 
   }
 
+  void FDC765::setMotorState_(bool isEnabled)
+  {
+    updateDrives();
+    motorOn = isEnabled;
+    motorStateChanging = true;
+  }
+
+  uint32_t FDC765::updateDrives_()
+  {
+    uint32_t  dTime = (timeCounter - prvTimeCounter) & uint32_t(0xFFFFFFFFUL);
+    prvTimeCounter = timeCounter;
+    if (dTime < 1U)
+      return 0U;
+    uint32_t  angleChange = (motorOn ? dTime : uint32_t(0));
+    if (motorStateChanging) {
+      if (motorOn) {
+        // motor spinning up
+        if (dTime >= 102U || (uint32_t(motorSpeed) + dTime) >= 102U) {
+          angleChange = angleChange - (uint32_t(102 - motorSpeed) >> 1);
+          motorSpeed = 102;
+          motorStateChanging = false;
+        }
+        else {
+          angleChange = angleChange - (dTime >> 1);
+          motorSpeed = motorSpeed + uint8_t(dTime);
+        }
+      }
+      else {
+        // motor spinning down
+        if (dTime >= uint32_t(motorSpeed)) {
+          angleChange = angleChange + (uint32_t(motorSpeed) >> 1);
+          motorSpeed = 0;
+          motorStateChanging = false;
+        }
+        else {
+          angleChange = angleChange + (dTime >> 1);
+          motorSpeed = motorSpeed - uint8_t(dTime);
+        }
+      }
+    }
+    for (int i = 0; i < 4; i++) {
+      rotationAngles[i] =
+          uint8_t((uint32_t(rotationAngles[i]) + angleChange) % 100U);
+    }
+    return dTime;
+  }
+
   // --------------------------------------------------------------------------
 
   FDC765::FDC765()
     : timeCounter(0U),
+      prvTimeCounter(0U),
       totalDataBytes(0U),
       dataBytesRemaining(0U),
       fdcState(0),
       dataDirectionIsRead(false),
       motorOn(false),
+      motorSpeed(0),
+      motorStateChanging(false),
       sectorBuf((uint8_t *) 0)
   {
     std::memset(&cmdParams, 0x00, sizeof(FDCCommandParams));
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 4; i++) {
       physicalCylinders[i] = 0;
+      rotationAngles[i] = 0;
+    }
     sectorBuf = new uint8_t[0x4000];    // maximum sector size (N=7) is 16K
     std::memset(&(sectorBuf[0]), 0x00, 0x4000);
   }
@@ -107,22 +159,28 @@ namespace CPC464 {
 
   void FDC765::reset()
   {
+    updateDrives();
     std::memset(&cmdParams, 0x00, sizeof(FDCCommandParams));
     totalDataBytes = 0U;
     dataBytesRemaining = 0U;
     fdcState = 0;
     dataDirectionIsRead = false;
-    motorOn = false;
+    if (motorOn) {
+      motorOn = false;
+      motorStateChanging = true;
+    }
   }
 
-  uint8_t FDC765::readMainStatusRegister() const
+  uint8_t FDC765::readMainStatusRegister()
   {
+    updateDrives();
     return ((uint8_t(fdcState == 2) << 5) | (uint8_t(dataDirectionIsRead) << 6)
             | 0x80);
   }
 
   uint8_t FDC765::readDataRegister()
   {
+    updateDrives();
     if (!dataDirectionIsRead)           // wrong data direction
       return 0xFF;
     if (dataBytesRemaining > 0U) {
@@ -134,6 +192,7 @@ namespace CPC464 {
 
   void FDC765::writeDataRegister(uint8_t n)
   {
+    updateDrives();
     if (dataDirectionIsRead)            // wrong data direction
       return;
     if (fdcState == 0) {                // start new command
@@ -288,15 +347,17 @@ namespace CPC464 {
     }
   }
 
-  uint8_t FDC765::readDataRegisterDebug() const
+  uint8_t FDC765::readDataRegisterDebug()
   {
+    updateDrives();
     if (dataDirectionIsRead && dataBytesRemaining > 0U)
       return sectorBuf[totalDataBytes - dataBytesRemaining];
     return 0xFF;
   }
 
-  uint8_t FDC765::debugRead(uint16_t addr) const
+  uint8_t FDC765::debugRead(uint16_t addr)
   {
+    updateDrives();
     switch (addr & 0x001F) {
     case 0x0000:
       return fdcState;
