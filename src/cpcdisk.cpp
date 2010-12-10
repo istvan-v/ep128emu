@@ -546,22 +546,27 @@ namespace CPC464 {
   void FDC765_CPC::openDiskImage(int n, const char *fileName)
   {
     rotationAngles[n & 3] = uint8_t(floppyDrives[n & 3].getRandomNumber(100));
-    floppyDrives[n & 3].openDiskImage(fileName);
+    floppyDrives[n & 3].openDiskImage((char *) 0);
+    updateDriveReadyStatus();
+    if (fileName != (char *) 0 && fileName[0] != '\0') {
+      floppyDrives[n & 3].openDiskImage(fileName);
+      updateDriveReadyStatus();
+    }
   }
 
-  bool FDC765_CPC::haveDisk() const
+  bool FDC765_CPC::haveDisk(int driveNum) const
   {
-    return floppyDrives[cmdParams.unitNumber].haveDisk();
+    return floppyDrives[driveNum & 3].haveDisk();
   }
 
-  bool FDC765_CPC::getIsTrack0() const
+  bool FDC765_CPC::getIsTrack0(int driveNum) const
   {
-    return floppyDrives[cmdParams.unitNumber].getIsTrack0();
+    return floppyDrives[driveNum & 3].getIsTrack0();
   }
 
-  bool FDC765_CPC::getIsWriteProtected() const
+  bool FDC765_CPC::getIsWriteProtected(int driveNum) const
   {
-    return floppyDrives[cmdParams.unitNumber].getIsWriteProtected();
+    return floppyDrives[driveNum & 3].getIsWriteProtected();
   }
 
   uint8_t FDC765_CPC::getPhysicalTrackSectors(int c) const
@@ -620,14 +625,14 @@ namespace CPC464 {
                statusRegister1, statusRegister2);
   }
 
-  void FDC765_CPC::stepIn(int nSteps)
+  void FDC765_CPC::stepIn(int driveNum, int nSteps)
   {
-    floppyDrives[cmdParams.unitNumber].stepIn(nSteps);
+    floppyDrives[driveNum & 3].stepIn(nSteps);
   }
 
-  void FDC765_CPC::stepOut(int nSteps)
+  void FDC765_CPC::stepOut(int driveNum, int nSteps)
   {
-    floppyDrives[cmdParams.unitNumber].stepOut(nSteps);
+    floppyDrives[driveNum & 3].stepOut(nSteps);
   }
 
 }       // namespace CPC464

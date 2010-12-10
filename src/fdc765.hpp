@@ -39,10 +39,6 @@ namespace CPC464 {
       uint8_t   sectorDataLength;
       uint8_t   sectorCnt;
       uint8_t   fillerByte;
-      uint8_t   statusRegister0;
-      uint8_t   statusRegister1;
-      uint8_t   statusRegister2;
-      uint8_t   statusRegister3;
     };
     struct FDCSectorID {
       uint8_t   cylinderID;
@@ -80,16 +76,29 @@ namespace CPC464 {
     // 3: result phase
     uint8_t   fdcState;
     bool      dataDirectionIsRead;
+    bool      dataIsNotReady;           // true if no data yet in R/W command
     bool      motorOn;
     uint8_t   motorSpeed;               // should be >= 100 for drive ready
     bool      motorStateChanging;
-    uint8_t   *sectorBuf;
-    uint8_t   physicalCylinders[4];     // stored separately for each drive
+    uint8_t   stepRate;                 // step time in 2ms units
+    uint8_t   headUnloadTime;           // head unload time in 2ms units
+    uint8_t   headLoadTime;             // head load time in 2ms units
+    uint8_t   headUnloadTimer;          // head unload time remaining
+    uint8_t   headLoadTimer;            // head load time remaining
+    uint8_t   *sectorBuf;               // sector data buffer (16K)
+    uint8_t   presentCylinderNumbers[4];    // stored separately for each drive
+    uint8_t   newCylinderNumbers[4];    // used by the SEEK command
+    uint8_t   recalibrateSteps[4];      // 77->0 counters for seeking to trk. 0
+    uint8_t   seekTimers[4];
+    bool      driveReady[4];
+    uint8_t   interruptStatus[4];
     uint8_t   rotationAngles[4];        // 0 to 99 (300 RPM = 100 2ms ticks)
     // ----------------
-    void updateStatusRegisters(CPCDiskError errorCode);
+    void startResultPhase(CPCDiskError errorCode);
     void processFDCCommand();
     void setMotorState_(bool isEnabled);
+    void updateDriveReadyStatus();
+    void seekComplete(int driveNum, bool isRecalibrate, bool isNotReady);
     uint32_t updateDrives_();
     EP128EMU_INLINE uint32_t updateDrives()
     {
@@ -126,9 +135,9 @@ namespace CPC464 {
       return 0U;
     }
    protected:
-    virtual bool haveDisk() const = 0;
-    virtual bool getIsTrack0() const = 0;
-    virtual bool getIsWriteProtected() const = 0;
+    virtual bool haveDisk(int driveNum) const = 0;
+    virtual bool getIsTrack0(int driveNum) const = 0;
+    virtual bool getIsWriteProtected(int driveNum) const = 0;
     virtual uint8_t getPhysicalTrackSectors(int c) const = 0;
     virtual uint8_t getCurrentTrackSectors() const = 0;
     // returns the ID (C, H, R, N) of the physical sector specified by c, s
@@ -154,8 +163,8 @@ namespace CPC464 {
     virtual CPCDiskError writeSector(int physicalSector,
                                      uint8_t& statusRegister1,
                                      uint8_t& statusRegister2) = 0;
-    virtual void stepIn(int nSteps = 1) = 0;
-    virtual void stepOut(int nSteps = 1) = 0;
+    virtual void stepIn(int driveNum, int nSteps = 1) = 0;
+    virtual void stepOut(int driveNum, int nSteps = 1) = 0;
   };
 
 }       // namespace CPC464

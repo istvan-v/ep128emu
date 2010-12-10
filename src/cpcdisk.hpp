@@ -132,9 +132,9 @@ namespace CPC464 {
     virtual ~FDC765_CPC();
     virtual void openDiskImage(int n, const char *fileName);
    protected:
-    virtual bool haveDisk() const;
-    virtual bool getIsTrack0() const;
-    virtual bool getIsWriteProtected() const;
+    virtual bool haveDisk(int driveNum) const;
+    virtual bool getIsTrack0(int driveNum) const;
+    virtual bool getIsWriteProtected(int driveNum) const;
     virtual uint8_t getPhysicalTrackSectors(int c) const;
     virtual uint8_t getCurrentTrackSectors() const;
     // returns the ID (C, H, R, N) of the physical sector specified by c, s
@@ -159,8 +159,8 @@ namespace CPC464 {
     virtual CPCDiskError writeSector(int physicalSector,
                                      uint8_t& statusRegister1,
                                      uint8_t& statusRegister2);
-    virtual void stepIn(int nSteps = 1);
-    virtual void stepOut(int nSteps = 1);
+    virtual void stepIn(int driveNum, int nSteps = 1);
+    virtual void stepOut(int driveNum, int nSteps = 1);
   };
 
 }       // namespace CPC464
