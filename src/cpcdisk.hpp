@@ -152,13 +152,13 @@ namespace CPC464 {
     // or -1 if the sector does not exist or the parameters are invalid
     virtual int getPhysicalSectorPos(int s, int d) const;
     // read/write physical sector on the current cylinder
-    virtual CPCDiskError readSector(int physicalSector,
-                                    uint8_t& statusRegister1,
-                                    uint8_t& statusRegister2);
-    // NOTE: bit 6 of 'statusRegister2' is used as input (1 = deleted sector)
-    virtual CPCDiskError writeSector(int physicalSector,
-                                     uint8_t& statusRegister1,
-                                     uint8_t& statusRegister2);
+    virtual CPCDiskError readSector(int physicalSector_,
+                                    uint8_t& statusRegister1_,
+                                    uint8_t& statusRegister2_);
+    // NOTE: bit 6 of 'statusRegister2_' is used as input (1 = deleted sector)
+    virtual CPCDiskError writeSector(int physicalSector_,
+                                     uint8_t& statusRegister1_,
+                                     uint8_t& statusRegister2_);
     virtual void stepIn(int driveNum, int nSteps = 1);
     virtual void stepOut(int driveNum, int nSteps = 1);
   };

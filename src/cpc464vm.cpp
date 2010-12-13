@@ -109,6 +109,10 @@ namespace CPC464 {
     }
     if (--ayCycleCnt == 0) {
       ayCycleCnt = 8;
+      if (--floppyCycleCnt == 0) {
+        floppyCycleCnt = 4;             // 31.25 kHz
+        floppyDrive->runOneByte();
+      }
       uint16_t  tmpA = 0;
       uint16_t  tmpB = 0;
       uint16_t  tmpC = 0;
@@ -570,6 +574,7 @@ namespace CPC464 {
       if (!(vm.isRecordingDemo | vm.isPlayingDemo)) {
         switch (addr & 0x0101) {
         case 0x0000:            // floppy drive motor control
+        case 0x0001:
           vm.floppyDrive->setMotorState(bool(value & 0x01));
           break;
         case 0x0101:            // data register
@@ -718,6 +723,7 @@ namespace CPC464 {
     if ((addr & 0x0480) == 0) {         // expansion peripherals (floppy etc.)
       switch (addr & 0x0101) {
       case 0x0000:              // floppy drive motor control
+      case 0x0001:
         retval &= uint8_t(vm.floppyDrive->getMotorState());
         break;
       case 0x0100:              // main status register
@@ -1003,6 +1009,7 @@ namespace CPC464 {
       snapshotLoadFlag(false),
       demoTimeCnt(0UL),
       floppyDrive((FDC765_CPC *) 0),
+      floppyCycleCnt(1),
       breakPointPriorityThreshold(0),
       firstCallback((CPC464VMCallback *) 0),
       videoCapture((Ep128Emu::VideoCapture *) 0),

@@ -151,6 +151,7 @@ namespace CPC464 {
     // used for counting time between demo events (in CRTC cycles)
     uint64_t  demoTimeCnt;
     FDC765_CPC  *floppyDrive;
+    uint8_t   floppyCycleCnt;           // divides 125 kHz sound clock by 4
     uint8_t   breakPointPriorityThreshold;
     struct CPC464VMCallback {
       void      (*func)(void *);

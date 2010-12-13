@@ -45,7 +45,8 @@ namespace CPC464 {
       uint8_t   headID;
       uint8_t   sectorID;
       uint8_t   sectorSizeCode;
-      bool      isDeleted;
+      uint8_t   statusRegister1;
+      uint8_t   statusRegister2;
     };
     typedef enum {
       CPCDISK_NO_ERROR = 0,
@@ -66,8 +67,6 @@ namespace CPC464 {
     } CPCDiskError;
    protected:
     FDCCommandParams  cmdParams;
-    uint32_t  timeCounter;              // updated at a rate of 500 Hz
-    uint32_t  prvTimeCounter;
     uint32_t  totalDataBytes;
     uint32_t  dataBytesRemaining;
     // 0: idle
@@ -78,6 +77,7 @@ namespace CPC464 {
     bool      dataDirectionIsRead;
     bool      dataIsNotReady;           // true if no data yet in R/W command
     bool      motorOn;
+    uint8_t   timeCounter2ms;
     uint8_t   motorSpeed;               // should be >= 100 for drive ready
     bool      motorStateChanging;
     uint8_t   stepRate;                 // step time in 2ms units
@@ -85,6 +85,13 @@ namespace CPC464 {
     uint8_t   headLoadTime;             // head load time in 2ms units
     uint8_t   headUnloadTimer;          // head unload time remaining
     uint8_t   headLoadTimer;            // head load time remaining
+    uint8_t   indexPulsesRemaining;     // counts down from 2 in search mode
+    uint8_t   executionPhaseFlags;      // bit 7 = 1: multi-track mode
+                                        // bit 0 = 1: data I/O completed by CPU
+    uint8_t   statusRegister1;
+    uint8_t   statusRegister2;
+    int       sectorDelay;              // time left until sector ID or data
+    uint8_t   physicalSector;           // physical sector processed by R/W cmd
     uint8_t   *sectorBuf;               // sector data buffer (16K)
     uint8_t   presentCylinderNumbers[4];    // stored separately for each drive
     uint8_t   newCylinderNumbers[4];    // used by the SEEK command
@@ -92,44 +99,58 @@ namespace CPC464 {
     uint8_t   seekTimers[4];
     bool      driveReady[4];
     uint8_t   interruptStatus[4];
-    uint8_t   rotationAngles[4];        // 0 to 99 (300 RPM = 100 2ms ticks)
+    int       rotationAngles[4];        // 0 to 6249 (TrkBytes=6250 at 300 RPM)
     // ----------------
     void startResultPhase(CPCDiskError errorCode);
     void processFDCCommand();
-    void setMotorState_(bool isEnabled);
     void updateDriveReadyStatus();
     void seekComplete(int driveNum, bool isRecalibrate, bool isNotReady);
-    uint32_t updateDrives_();
-    EP128EMU_INLINE uint32_t updateDrives()
-    {
-      if (timeCounter != prvTimeCounter)
-        return updateDrives_(); // return number of 2ms ticks since last update
-      return 0U;
-    }
+    bool incrementSectorID();
+    EP128EMU_REGPARM1 void runExecutionPhase();
+    EP128EMU_REGPARM1 void updateDrives();
    public:
     FDC765();
     virtual ~FDC765();
     virtual void reset();
+    // run floppy drive emulation (should be called at a rate of 31250 Hz)
+    EP128EMU_INLINE void runOneByte()
+    {
+      if (--timeCounter2ms == 0)        // update rotation speed, stepping,
+        updateDrives();                 // and head (un)load at 2ms intervals
+      if (motorSpeed > (timeCounter2ms + 18)) {
+        // update disk rotation angles
+        rotationAngles[0] =
+            (rotationAngles[0] < 6249 ? (rotationAngles[0] + 1) : 0);
+        rotationAngles[1] =
+            (rotationAngles[1] < 6249 ? (rotationAngles[1] + 1) : 0);
+        rotationAngles[2] =
+            (rotationAngles[2] < 6249 ? (rotationAngles[2] + 1) : 0);
+        rotationAngles[3] =
+            (rotationAngles[3] < 6249 ? (rotationAngles[3] + 1) : 0);
+      }
+      if (fdcState == 2)
+        runExecutionPhase();
+    }
     inline bool getMotorState() const
     {
       return motorOn;
     }
     inline void setMotorState(bool isEnabled)
     {
-      if (isEnabled != motorOn)
-        setMotorState_(isEnabled);
+      if (isEnabled != motorOn) {
+        motorOn = isEnabled;
+        motorStateChanging = true;
+      }
     }
-    virtual uint8_t readMainStatusRegister();
+    virtual uint8_t readMainStatusRegister() const;
     virtual uint8_t readDataRegister();
     virtual void writeDataRegister(uint8_t n);
-    virtual uint8_t readDataRegisterDebug();
+    virtual uint8_t readDataRegisterDebug() const;
     // read internal state for debugging
-    virtual uint8_t debugRead(uint16_t addr);
+    virtual uint8_t debugRead(uint16_t addr) const;
     // returns onValue * (256 ^ driveNum) if a drive is active, or 0 otherwise
-    // should be called at a rate of 500 Hz
-    inline uint32_t getLEDState(uint8_t onValue)
+    inline uint32_t getLEDState(uint8_t onValue) const
     {
-      timeCounter++;
       if (fdcState != 0)
         return (uint32_t(onValue) << (cmdParams.unitNumber << 3));
       return 0U;
@@ -156,13 +177,13 @@ namespace CPC464 {
     // or -1 if the sector does not exist or the parameters are invalid
     virtual int getPhysicalSectorPos(int s, int d) const = 0;
     // read/write physical sector on the current cylinder
-    virtual CPCDiskError readSector(int physicalSector,
-                                    uint8_t& statusRegister1,
-                                    uint8_t& statusRegister2) = 0;
-    // NOTE: bit 6 of 'statusRegister2' is used as input (1 = deleted sector)
-    virtual CPCDiskError writeSector(int physicalSector,
-                                     uint8_t& statusRegister1,
-                                     uint8_t& statusRegister2) = 0;
+    virtual CPCDiskError readSector(int physicalSector_,
+                                    uint8_t& statusRegister1_,
+                                    uint8_t& statusRegister2_) = 0;
+    // NOTE: bit 6 of 'statusRegister2_' is used as input (1 = deleted sector)
+    virtual CPCDiskError writeSector(int physicalSector_,
+                                     uint8_t& statusRegister1_,
+                                     uint8_t& statusRegister2_) = 0;
     virtual void stepIn(int driveNum, int nSteps = 1) = 0;
     virtual void stepOut(int driveNum, int nSteps = 1) = 0;
   };

@@ -26,12 +26,49 @@ namespace CPC464 {
   {
     totalDataBytes = 0U;
     if (fdcState != 0) {
+      if (fdcState == 2) {
+        // unload head after read/write command
+        headUnloadTimer = headUnloadTime;
+        headLoadTimer = 0;
+      }
       if (errorCode == CPCDISK_ERROR_INVALID_COMMAND) {
         sectorBuf[0] = 0x80;    // ST0
         totalDataBytes = 1U;
       }
       else {
         switch (cmdParams.commandCode & 0x1F) {
+        case 0x02:                      // READ TRACK
+        case 0x05:                      // WRITE SECTOR(S)
+        case 0x06:                      // READ SECTOR(S)
+        case 0x09:                      // WRITE DELETED SECTOR(S)
+        case 0x0A:                      // READ SECTOR ID
+        case 0x0C:                      // READ DELETED SECTOR(S)
+        case 0x0D:                      // FORMAT TRACK
+        case 0x11:                      // SCAN EQUAL
+        case 0x19:                      // SCAN LESS THAN OR EQUAL
+        case 0x1D:                      // SCAN GREATER THAN OR EQUAL
+          {
+            uint8_t statusRegister0 =
+                cmdParams.unitNumber | (cmdParams.physicalSide << 2);
+            if (errorCode != CPCDISK_NO_ERROR) {
+              statusRegister0 = statusRegister0 | 0x40;
+              if (errorCode == CPCDISK_ERROR_NOT_READY)
+                statusRegister0 = statusRegister0 | 0x08;
+              else if (errorCode == CPCDISK_ERROR_WRITE_PROTECTED)
+                statusRegister1 = statusRegister1 | 0x02;
+              else if (errorCode == CPCDISK_ERROR_SECTOR_NOT_FOUND)
+                statusRegister1 = statusRegister1 | 0x05;
+            }
+            sectorBuf[0] = statusRegister0;
+            sectorBuf[1] = statusRegister1;
+            sectorBuf[2] = statusRegister2;
+            sectorBuf[3] = cmdParams.cylinderID;
+            sectorBuf[4] = cmdParams.headID;
+            sectorBuf[5] = cmdParams.sectorID;
+            sectorBuf[6] = cmdParams.sectorSizeCode;
+            totalDataBytes = 7U;
+          }
+          break;
         case 0x04:                      // SENSE DRIVE STATE
           sectorBuf[0] =        // ST3
               cmdParams.unitNumber | (cmdParams.physicalSide << 2)
@@ -97,7 +134,41 @@ namespace CPC464 {
     case 0x11:                          // SCAN EQUAL
     case 0x19:                          // SCAN LESS THAN OR EQUAL
     case 0x1D:                          // SCAN GREATER THAN OR EQUAL
-
+      interruptStatus[cmdParams.unitNumber] =
+          interruptStatus[cmdParams.unitNumber] & 0x3C; // clear /RDY change
+      totalDataBytes = 0U;
+      dataBytesRemaining = 0U;
+      indexPulsesRemaining = 0;
+      executionPhaseFlags = 0x00;
+      statusRegister1 = 0x00;
+      statusRegister2 = 0x00;
+      sectorDelay = -1;
+      physicalSector = 0;
+      if (!driveReady[cmdParams.unitNumber]) {
+        startResultPhase(CPCDISK_ERROR_NOT_READY);
+        break;
+      }
+      if ((cmdParams.commandCode & 0x13) == 0x01) {     // write commands:
+        // FIXME: FORMAT TRACK is not implemented
+        if (getIsWriteProtected(cmdParams.unitNumber) ||
+            (cmdParams.commandCode & 0x1F) == 0x0D) {
+          startResultPhase(CPCDISK_ERROR_WRITE_PROTECTED);
+          break;
+        }
+      }
+      // start execution phase
+      fdcState = 2;
+      dataDirectionIsRead = !(cmdParams.commandCode & 0x01);
+      dataIsNotReady = true;
+      headLoadTimer = (headUnloadTimer > 0 ? uint8_t(0) : headLoadTime);
+      headUnloadTimer = 0;
+      indexPulsesRemaining = 2;
+      if ((cmdParams.commandCode & 0x80) != 0 &&
+          (cmdParams.commandCode & 0x1F) != 0x02 &&
+          (cmdParams.commandCode & 0x1F) != 0x0D) {
+        // set multi-track flag, unless executing READ TRACK or FORMAT TRACK
+        executionPhaseFlags = executionPhaseFlags | 0x80;
+      }
       break;
     case 0x03:                          // SPECIFY PARAMETERS
       fdcState = 0;             // no execution or result phase
@@ -106,6 +177,8 @@ namespace CPC464 {
       startResultPhase(CPCDISK_NO_ERROR);
       break;
     case 0x07:                          // RECALIBRATE / SEEK TO TRACK 0
+      interruptStatus[cmdParams.unitNumber] =
+          interruptStatus[cmdParams.unitNumber] & 0x3C; // clear /RDY change
       presentCylinderNumbers[cmdParams.unitNumber] = 0;
       newCylinderNumbers[cmdParams.unitNumber] = 0;
       if (!driveReady[cmdParams.unitNumber]) {
@@ -125,6 +198,8 @@ namespace CPC464 {
       startResultPhase(CPCDISK_NO_ERROR);
       break;
     case 0x0F:                          // SEEK
+      interruptStatus[cmdParams.unitNumber] =
+          interruptStatus[cmdParams.unitNumber] & 0x3C; // clear /RDY change
       recalibrateSteps[cmdParams.unitNumber] = 0;
       if (!driveReady[cmdParams.unitNumber]) {
         // drive not ready
@@ -145,39 +220,18 @@ namespace CPC464 {
     }
   }
 
-  void FDC765::setMotorState_(bool isEnabled)
-  {
-    updateDrives();
-    motorOn = isEnabled;
-    motorStateChanging = true;
-  }
-
   void FDC765::updateDriveReadyStatus()
   {
-    if (motorSpeed < 100) {
-      for (int i = 0; i < 4; i++) {
-        if (driveReady[i]) {
-          driveReady[i] = false;
-          interruptStatus[i] = interruptStatus[i] | 0xC0;
-          if (newCylinderNumbers[i] != presentCylinderNumbers[i] ||
-              recalibrateSteps[i] != 0) {
-            // abort seek command
-            seekComplete(i, bool(recalibrateSteps[i]), true);
-          }
-        }
-      }
-    }
-    else {
-      for (int i = 0; i < 4; i++) {
-        bool    newState = haveDisk(i);
-        if (newState != driveReady[i]) {
-          driveReady[i] = newState;
-          interruptStatus[i] = interruptStatus[i] | 0xC0;
-          if (newCylinderNumbers[i] != presentCylinderNumbers[i] ||
-              recalibrateSteps[i] != 0) {
-            // abort seek command
-            seekComplete(i, bool(recalibrateSteps[i]), true);
-          }
+    bool    motorOn_ = (motorSpeed >= 100);
+    for (int i = 0; i < 4; i++) {
+      bool    newState = (motorOn_ && haveDisk(i));
+      if (newState != driveReady[i]) {
+        driveReady[i] = newState;
+        interruptStatus[i] = interruptStatus[i] | 0xC0;
+        if (fdcState == 2 && indexPulsesRemaining > 0 &&
+            i == int(cmdParams.unitNumber)) {
+          // abort read/write command in sector search mode
+          startResultPhase(CPCDISK_ERROR_NOT_READY);
         }
       }
     }
@@ -195,63 +249,294 @@ namespace CPC464 {
         | (uint8_t(isNotReady) << 3) | (cmdParams.physicalSide << 2);
   }
 
-  uint32_t FDC765::updateDrives_()
+  bool FDC765::incrementSectorID()
   {
-    uint32_t  dTime = (timeCounter - prvTimeCounter) & uint32_t(0xFFFFFFFFUL);
-    prvTimeCounter = timeCounter;
-    if (dTime < 1U)
-      return 0U;
-    uint32_t  angleChange = (motorOn ? dTime : uint32_t(0));
+    if (((statusRegister1 & 0xB7) | (statusRegister2 & 0x7F)) != 0) {
+      // error ?
+      uint16_t  errorFlags = (uint16_t(statusRegister1 & 0xB7) << 8)
+                             | uint16_t(statusRegister2 & 0x61);
+      uint16_t  successFlags = 0x0000;
+      switch (cmdParams.commandCode & 0x1F) {
+      case 0x02:                        // READ TRACK
+        errorFlags = errorFlags & 0x9100;
+        break;
+      case 0x05:                        // WRITE SECTOR(S)
+      case 0x09:                        // WRITE DELETED SECTOR(S)
+        errorFlags = errorFlags & 0xB700;
+      case 0x06:                        // READ SECTOR(S)
+      case 0x0C:                        // READ DELETED SECTOR(S)
+        errorFlags = errorFlags & 0xB561;
+      case 0x0D:                        // FORMAT TRACK
+        errorFlags = errorFlags & 0x3000;
+      case 0x11:                        // SCAN EQUAL
+      case 0x19:                        // SCAN LESS THAN OR EQUAL
+      case 0x1D:                        // SCAN GREATER THAN OR EQUAL
+        errorFlags = errorFlags & 0xB561;
+        successFlags = uint16_t((statusRegister2 ^ 0x04) & 0x0C);
+        break;
+      }
+      if (errorFlags) {
+        statusRegister2 = statusRegister2 & 0x73;
+        startResultPhase(CPCDISK_ERROR_UNKNOWN);
+        return false;
+      }
+      statusRegister2 = statusRegister2 & 0x7B;
+      if (successFlags) {
+        startResultPhase(CPCDISK_NO_ERROR);
+        return false;
+      }
+    }
+    if (cmdParams.sectorID == cmdParams.lastSectorID) {
+      cmdParams.sectorID = 1;
+      if (cmdParams.commandCode & 0x80) {
+        // MT bit is set: toggle side
+        cmdParams.physicalSide = (~cmdParams.physicalSide) & 0x01;
+        cmdParams.headID = cmdParams.headID ^ 0x01;
+        if (!(cmdParams.headID & 0x01))
+          cmdParams.cylinderID = (cmdParams.cylinderID + 1) & 0xFF;
+      }
+      if ((executionPhaseFlags & 0x80) == 0 ||
+          (cmdParams.headID & 0x01) == 0) {
+        // if multi-track mode is not enabled, or already at end of side 1,
+        // terminate command
+        statusRegister1 = statusRegister1 | 0x80;       // end of cylinder
+        if (cmdParams.commandCode & 0x10)
+          statusRegister2 = statusRegister2 | 0x04;     // scan not satisfied
+        startResultPhase(CPCDISK_ERROR_UNKNOWN);
+        return false;
+      }
+    }
+    else {
+      cmdParams.sectorID = (cmdParams.sectorID + 1) & 0xFF;
+    }
+    // sector search mode
+    dataIsNotReady = true;
+    indexPulsesRemaining = 2;
+    executionPhaseFlags = executionPhaseFlags & 0xFE;
+    sectorDelay = -1;
+    physicalSector = 0;
+    return true;
+  }
+
+  EP128EMU_REGPARM1 void FDC765::runExecutionPhase()
+  {
+    if (indexPulsesRemaining > 0) {
+      // searching for a sector
+      if (!driveReady[cmdParams.unitNumber]) {
+        // drive not ready, abort command
+        startResultPhase(CPCDISK_ERROR_NOT_READY);
+        return;
+      }
+      if (headLoadTimer > 0)    // need to wait until the head is loaded
+        return;
+      // gap 4a, sync, index address mark, gap 1, sync
+      if (rotationAngles[cmdParams.unitNumber]
+          == (6250 - (80 + 12 + 4 + 50 + 12))) {
+        if (--indexPulsesRemaining < 1) {
+          // sector not found after two index pulses
+          startResultPhase(CPCDISK_ERROR_SECTOR_NOT_FOUND);
+          return;
+        }
+      }
+      if (--sectorDelay < 0) {
+        int     nextSector =
+            getPhysicalSector(rotationAngles[cmdParams.unitNumber], 6250);
+        if (nextSector < 0) {
+          // error: no sector is found
+          startResultPhase(CPCDISK_ERROR_SECTOR_NOT_FOUND);
+          return;
+        }
+        physicalSector = uint8_t(nextSector);
+        sectorDelay = getPhysicalSectorPos(nextSector, 6250)
+                      - rotationAngles[cmdParams.unitNumber];
+        // ID address mark, ID, ID CRC
+        sectorDelay = (sectorDelay >= 0 ? (sectorDelay + 4 + 4 + 2)
+                                          : (sectorDelay + 6250 + 4 + 4 + 2));
+      }
+      if (sectorDelay > 0) {
+        // head position is not yet at the ID address mark of the next sector
+        return;
+      }
+      // found a sector, check its ID
+      FDCSectorID sectorID;
+      if (!getPhysicalSectorID(sectorID, physicalSector)) {
+        startResultPhase(CPCDISK_ERROR_SECTOR_NOT_FOUND);
+        return;
+      }
+      uint8_t cmdCode = cmdParams.commandCode & 0x1F;
+      switch (cmdCode) {
+      case 0x02:                        // READ TRACK
+        if (sectorID.cylinderID != cmdParams.cylinderID) {
+          statusRegister1 = statusRegister1 | 0x04;     // no data
+          // wrong cylinder / bad cylinder
+          statusRegister2 =
+              statusRegister2
+              | uint8_t(sectorID.cylinderID == 0xFF ? 0x12 : 0x10);
+        }
+        if (sectorID.headID != cmdParams.headID ||
+            sectorID.sectorID != cmdParams.sectorID ||
+            sectorID.sectorSizeCode != cmdParams.sectorSizeCode) {
+          // sector ID does not match
+          statusRegister1 = statusRegister1 | 0x04;
+        }
+        break;
+        break;
+      case 0x0A:                        // READ SECTOR ID
+        // command is complete now
+        cmdParams.cylinderID = sectorID.cylinderID;
+        cmdParams.headID = sectorID.headID;
+        cmdParams.sectorID = sectorID.sectorID;
+        cmdParams.sectorSizeCode = sectorID.sectorSizeCode;
+        statusRegister1 = sectorID.statusRegister1;
+        statusRegister2 = sectorID.statusRegister2;
+        if (sectorID.statusRegister1 & 0x05)
+          startResultPhase(CPCDISK_ERROR_UNKNOWN);
+        else
+          startResultPhase(CPCDISK_NO_ERROR);
+        return;
+      default:
+        if (sectorID.cylinderID != cmdParams.cylinderID) {
+          // wrong cylinder / bad cylinder
+          statusRegister2 =
+              statusRegister2
+              | uint8_t(sectorID.cylinderID == 0xFF ? 0x12 : 0x10);
+          return;
+        }
+        if (sectorID.headID != cmdParams.headID ||
+            sectorID.sectorID != cmdParams.sectorID ||
+            sectorID.sectorSizeCode != cmdParams.sectorSizeCode) {
+          // sector is not found yet
+          return;
+        }
+        break;
+      }
+      if (((cmdCode == 0x02 || cmdCode == 0x06 || cmdCode >= 0x10) &&
+           (sectorID.statusRegister2 & 0x40) != 0) ||
+          (cmdCode == 0x0C && (sectorID.statusRegister2 & 0x40) == 0)) {
+        // deleted sector flag does not match
+        if (cmdParams.commandCode & 0x20) {
+          // skip flag is set, ignore sector; search for the next one
+          incrementSectorID();
+          return;
+        }
+        else {
+          // read sector, but set control mark bit
+          statusRegister2 = statusRegister2 | 0x40;
+        }
+      }
+      indexPulsesRemaining = 0;
+      // delay until beginning of sector data (gap 2, sync, data address mark)
+      sectorDelay = 22 + 12 + 4;
+      if (cmdParams.sectorSizeCode == 0x00 && cmdCode < 0x10) {
+        totalDataBytes =
+            ((uint32_t(cmdParams.sectorDataLength) + 0x7FU) & 0x7FU) + 1U;
+      }
+      else {
+        totalDataBytes = 0x80U << (cmdParams.sectorSizeCode & 0x07);
+      }
+      dataBytesRemaining = totalDataBytes;
+      if ((cmdCode & 0x13) != 0x01) {
+        // if read or scan command, then read sector data now
+        uint8_t statusRegister1_ = 0x00;
+        uint8_t statusRegister2_ = 0x00;
+        CPCDiskError  errorCode =
+            readSector(physicalSector, statusRegister1_, statusRegister2_);
+        if (errorCode != CPCDISK_NO_ERROR) {
+          statusRegister1_ = statusRegister1_ | 0x20;   // DE
+          statusRegister2_ = statusRegister2_ | 0x20;   // DD
+        }
+        statusRegister1 = statusRegister1 | (statusRegister1_ & 0xA5);
+        statusRegister2 = statusRegister2 | (statusRegister2_ & 0x21);
+        if (cmdCode & 0x10)             // initialize scan command
+          statusRegister2 = (statusRegister2 & 0x73) | 0x08;
+      }
+    }
+    else if (dataBytesRemaining > 0U) {
+      if (sectorDelay > 0) {
+        if (--sectorDelay <= 0) {       // sector data has been reached
+          dataIsNotReady = false;
+          executionPhaseFlags = executionPhaseFlags & 0xFE;
+        }
+        return;
+      }
+      // sector data transfer to/from CPU
+      if (!(executionPhaseFlags & 0x01))
+        statusRegister1 = statusRegister1 | 0x10;       // overrun
+      if (--dataBytesRemaining < 1U) {
+        // data transfer complete
+        if (interruptStatus[cmdParams.unitNumber] >= 0xC0) {
+          // if /RDY has changed, abort command
+          startResultPhase(CPCDISK_ERROR_NOT_READY);
+          return;
+        }
+        if ((cmdParams.commandCode & 0x13) == 0x01) {   // write commands:
+          // write data to disk image
+          uint8_t statusRegister1_ = 0x00;
+          uint8_t statusRegister2_ = (cmdParams.commandCode & 0x08) << 3;
+          CPCDiskError  errorCode =
+              writeSector(physicalSector, statusRegister1_, statusRegister2_);
+          if (errorCode != CPCDISK_NO_ERROR) {
+            statusRegister1_ = statusRegister1_ | 0x20; // DE
+            statusRegister2_ = statusRegister2_ | 0x20; // DD
+          }
+          statusRegister1 = statusRegister1 | (statusRegister1_ & 0xA5);
+          statusRegister2 = statusRegister2 | (statusRegister2_ & 0x21);
+        }
+        incrementSectorID();
+      }
+      else {
+        dataIsNotReady = false;
+        executionPhaseFlags = executionPhaseFlags & 0xFE;
+      }
+    }
+    else {
+      // NOTE: this should not be reached
+      startResultPhase(CPCDISK_ERROR_NOT_READY);
+    }
+  }
+
+  EP128EMU_REGPARM1 void FDC765::updateDrives()
+  {
     if (motorStateChanging) {
       if (motorOn) {
         // motor spinning up
-        if (dTime >= 102U || (uint32_t(motorSpeed) + dTime) >= 102U) {
-          angleChange = angleChange - (uint32_t(102 - motorSpeed) >> 1);
+        if (motorSpeed >= 101) {
           motorSpeed = 102;
           motorStateChanging = false;
         }
-        else {
-          angleChange = angleChange - (dTime >> 1);
-          motorSpeed = motorSpeed + uint8_t(dTime);
+        else if (++motorSpeed == 100) {
+          updateDriveReadyStatus();
         }
-        updateDriveReadyStatus();
       }
       else {
         // motor spinning down
-        if (dTime >= uint32_t(motorSpeed)) {
-          angleChange = angleChange + (uint32_t(motorSpeed) >> 1);
+        if (motorSpeed <= 1) {
           motorSpeed = 0;
           motorStateChanging = false;
         }
-        else {
-          angleChange = angleChange + (dTime >> 1);
-          motorSpeed = motorSpeed - uint8_t(dTime);
+        else if (--motorSpeed == 99) {
+          updateDriveReadyStatus();
         }
-        updateDriveReadyStatus();
       }
     }
     if (headUnloadTimer > 0) {
+      headUnloadTimer--;
       headLoadTimer = 0;
-      if (dTime >= uint32_t(headUnloadTimer))
-        headUnloadTimer = 0;
-      else
-        headUnloadTimer = headUnloadTimer - uint8_t(dTime);
     }
     else if (headLoadTimer > 0) {
-      if (dTime >= uint32_t(headLoadTimer))
-        headLoadTimer = 0;
-      else
-        headLoadTimer = headLoadTimer - uint8_t(dTime);
+      headLoadTimer--;
     }
     for (int i = 0; i < 4; i++) {
-      rotationAngles[i] =
-          uint8_t((uint32_t(rotationAngles[i]) + angleChange) % 100U);
       if (recalibrateSteps[i] > 0) {
         // RECALIBRATE / SEEK TO TRACK 0
         presentCylinderNumbers[i] = 0;
         newCylinderNumbers[i] = 0;
-        if (dTime < uint32_t(seekTimers[i])) {
-          seekTimers[i] = seekTimers[i] - uint8_t(dTime);
+        if (interruptStatus[i] >= 0xC0) {
+          // /RDY has changed: abort seek command
+          seekComplete(i, true, true);
+        }
+        else if (seekTimers[i] > 1) {
+          seekTimers[i]--;
         }
         else if (stepRate < 1) {
           // no seek time emulation
@@ -259,64 +544,57 @@ namespace CPC464 {
           seekComplete(i, true, false);
         }
         else {
-          int     stepCnt =
-              int((dTime - uint32_t(seekTimers[i])) / uint32_t(stepRate)) + 1;
-          seekTimers[i] =
-              uint8_t((dTime - uint32_t(seekTimers[i])) % uint32_t(stepRate));
-          if (stepCnt > int(recalibrateSteps[i]))
-            stepCnt = recalibrateSteps[i];
-          stepOut(i, stepCnt);
-          recalibrateSteps[i] = recalibrateSteps[i] - uint8_t(stepCnt);
+          seekTimers[i] = stepRate;
+          stepOut(i, 1);
+          recalibrateSteps[i]--;
           if (recalibrateSteps[i] < 1 || getIsTrack0(i))
             seekComplete(i, true, false);
         }
       }
       else if (newCylinderNumbers[i] != presentCylinderNumbers[i]) {
         // SEEK
-        if (dTime < uint32_t(seekTimers[i])) {
-          seekTimers[i] = seekTimers[i] - uint8_t(dTime);
+        if (interruptStatus[i] >= 0xC0) {
+          // /RDY has changed: abort seek command
+          seekComplete(i, false, true);
+        }
+        else if (seekTimers[i] > 1) {
+          seekTimers[i]--;
         }
         else if (stepRate < 1) {
           // no seek time emulation
-          int     stepCnt =
-              int(newCylinderNumbers[i]) - int(presentCylinderNumbers[i]);
-          stepIn(i, stepCnt);
+          stepIn(i,
+                 int(newCylinderNumbers[i]) - int(presentCylinderNumbers[i]));
           presentCylinderNumbers[i] = newCylinderNumbers[i];
           seekComplete(i, false, false);
         }
         else {
-          int     stepCnt =
-              int((dTime - uint32_t(seekTimers[i])) / uint32_t(stepRate)) + 1;
-          seekTimers[i] =
-              uint8_t((dTime - uint32_t(seekTimers[i])) % uint32_t(stepRate));
-          int     maxStepCnt =
-              int(newCylinderNumbers[i]) - int(presentCylinderNumbers[i]);
-          if (stepCnt >= std::abs(maxStepCnt))
-            stepCnt = maxStepCnt;
-          else if (maxStepCnt < 0)
-            stepCnt = -stepCnt;
-          stepIn(stepCnt);
-          presentCylinderNumbers[i] =
-              uint8_t(int(presentCylinderNumbers[i]) + stepCnt);
+          seekTimers[i] = stepRate;
+          if (newCylinderNumbers[i] > presentCylinderNumbers[i]) {
+            stepIn(i, 1);
+            presentCylinderNumbers[i]++;
+          }
+          else {
+            stepOut(i, 1);
+            presentCylinderNumbers[i]--;
+          }
           if (presentCylinderNumbers[i] == newCylinderNumbers[i])
             seekComplete(i, false, false);
         }
       }
     }
-    return dTime;
+    timeCounter2ms = 63;
   }
 
   // --------------------------------------------------------------------------
 
   FDC765::FDC765()
-    : timeCounter(0U),
-      prvTimeCounter(0U),
-      totalDataBytes(0U),
+    : totalDataBytes(0U),
       dataBytesRemaining(0U),
       fdcState(0),
       dataDirectionIsRead(false),
       dataIsNotReady(false),
       motorOn(false),
+      timeCounter2ms(1),
       motorSpeed(0),
       motorStateChanging(false),
       stepRate(6),
@@ -324,6 +602,12 @@ namespace CPC464 {
       headLoadTime(2),
       headUnloadTimer(0),
       headLoadTimer(0),
+      indexPulsesRemaining(0),
+      executionPhaseFlags(0x00),
+      statusRegister1(0x00),
+      statusRegister2(0x00),
+      sectorDelay(-1),
+      physicalSector(0),
       sectorBuf((uint8_t *) 0)
   {
     std::memset(&cmdParams, 0x00, sizeof(FDCCommandParams));
@@ -347,7 +631,6 @@ namespace CPC464 {
 
   void FDC765::reset()
   {
-    updateDrives();
     std::memset(&cmdParams, 0x00, sizeof(FDCCommandParams));
     totalDataBytes = 0U;
     dataBytesRemaining = 0U;
@@ -363,6 +646,12 @@ namespace CPC464 {
     headLoadTime = 2;
     headUnloadTimer = 0;
     headLoadTimer = 0;
+    indexPulsesRemaining = 0;
+    executionPhaseFlags = 0x00;
+    statusRegister1 = 0x00;
+    statusRegister2 = 0x00;
+    sectorDelay = -1;
+    physicalSector = 0;
     for (int i = 0; i < 4; i++) {
       newCylinderNumbers[i] = presentCylinderNumbers[i];
       recalibrateSteps[i] = 0;
@@ -371,9 +660,8 @@ namespace CPC464 {
     }
   }
 
-  uint8_t FDC765::readMainStatusRegister()
+  uint8_t FDC765::readMainStatusRegister() const
   {
-    updateDrives();
     uint8_t retval = (uint8_t(fdcState != 0) << 4)
                      | (uint8_t(fdcState == 2) << 5)
                      | (uint8_t(dataDirectionIsRead) << 6)
@@ -390,21 +678,20 @@ namespace CPC464 {
 
   uint8_t FDC765::readDataRegister()
   {
-    updateDrives();
     uint8_t retval = 0xFF;
     if (dataDirectionIsRead && !dataIsNotReady) {
       if (dataBytesRemaining > 0U) {
         retval = sectorBuf[totalDataBytes - dataBytesRemaining];
+        if (fdcState == 2) {            // execution phase of R/W command
+          dataIsNotReady = true;
+          executionPhaseFlags = executionPhaseFlags | 0x01;
+          return retval;
+        }
         dataBytesRemaining--;
       }
-      if (dataBytesRemaining < 1U) {
-        if (fdcState == 2) {            // execution phase of R/W command
-
-        }
-        else {                          // end of result phase
-          fdcState = 0;
-          dataDirectionIsRead = false;
-        }
+      if (dataBytesRemaining < 1U) {    // end of result phase
+        fdcState = 0;
+        dataDirectionIsRead = false;
       }
     }
     return retval;
@@ -412,7 +699,6 @@ namespace CPC464 {
 
   void FDC765::writeDataRegister(uint8_t n)
   {
-    updateDrives();
     if (dataDirectionIsRead || dataIsNotReady)  // wrong data direction
       return;                                   // or not ready to process data
     if (fdcState == 0) {                // start new command
@@ -536,7 +822,9 @@ namespace CPC464 {
             cmdParams.headID = n;
           break;
         case 3U:
-          if (cmdCode == 0x0D)          // FORMAT TRACK
+          if (cmdCode == 0x02)          // READ TRACK
+            cmdParams.sectorID = 1;
+          else if (cmdCode == 0x0D)     // FORMAT TRACK
             cmdParams.gapLen = n;
           else                          // sector ID for any other command
             cmdParams.sectorID = n;
@@ -548,10 +836,7 @@ namespace CPC464 {
             cmdParams.sectorSizeCode = n;
           break;
         case 5U:
-          if (cmdCode == 0x02)          // READ TRACK
-            cmdParams.sectorCnt = n;
-          else                          // last sector ID for any other command
-            cmdParams.lastSectorID = n;
+          cmdParams.lastSectorID = n;
           break;
         case 6U:
           cmdParams.gapLen = n;
@@ -565,22 +850,39 @@ namespace CPC464 {
       if (dataBytesRemaining < 1U)
         processFDCCommand();
     }
-    else if (fdcState == 2) {           // write data
-
+    else if (fdcState == 2) {           // write data in execution phase
+      if (dataBytesRemaining > 0U) {
+        uint8_t *dataPtr = &(sectorBuf[totalDataBytes - dataBytesRemaining]);
+        if (cmdParams.commandCode & 0x10) {     // scan commands:
+          if (n != (*dataPtr) && n != 0xFF && (*dataPtr) != 0xFF) {
+            // clear scan equal hit flag
+            statusRegister2 = statusRegister2 & 0xF7;
+            if ((cmdParams.commandCode & 0x08) == 0 ||
+                ((cmdParams.commandCode & 0x1F) == 0x19 && (*dataPtr) > n) ||
+                ((cmdParams.commandCode & 0x1F) == 0x1D && (*dataPtr) < n)) {
+              // set scan not satisfied flag
+              statusRegister2 = statusRegister2 | 0x04;
+            }
+          }
+        }
+        else {
+          (*dataPtr) = n;
+        }
+        dataIsNotReady = true;
+        executionPhaseFlags = executionPhaseFlags | 0x01;
+      }
     }
   }
 
-  uint8_t FDC765::readDataRegisterDebug()
+  uint8_t FDC765::readDataRegisterDebug() const
   {
-    updateDrives();
     if (dataDirectionIsRead && dataBytesRemaining > 0U && !dataIsNotReady)
       return sectorBuf[totalDataBytes - dataBytesRemaining];
     return 0xFF;
   }
 
-  uint8_t FDC765::debugRead(uint16_t addr)
+  uint8_t FDC765::debugRead(uint16_t addr) const
   {
-    updateDrives();
     switch (addr & 0x001F) {
     case 0x0000:
       return fdcState;
@@ -598,6 +900,14 @@ namespace CPC464 {
       return uint8_t(totalDataBytes & 0xFFU);
     case 0x0007:
       return uint8_t((totalDataBytes >> 8) & 0xFFU);
+    case 0x0008:
+      return cmdParams.cylinderID;
+    case 0x0009:
+      return cmdParams.headID;
+    case 0x000A:
+      return cmdParams.sectorID;
+    case 0x000B:
+      return cmdParams.sectorSizeCode;
     case 0x0018:
     case 0x0019:
     case 0x001A:

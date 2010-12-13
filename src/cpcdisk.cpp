@@ -119,8 +119,6 @@ namespace CPC464 {
     size_t  fileSizeRequired = 256;
     for (int i = 0; i < nTracks; i++) {
       uint8_t trackSizeMSB = buf[i + 52];
-      if (trackSizeMSB < 1)
-        throw Ep128Emu::Exception("invalid CPC disk image file header");
       trackSizeMSBTable[i] = trackSizeMSB;
       fileSizeRequired = fileSizeRequired + (size_t(trackSizeMSB) << 8);
     }
@@ -132,6 +130,14 @@ namespace CPC464 {
     for (int i = 0; i < nTracks; i++) {
       // read all track headers, and calculate the total number of sectors
       trackTable[i].sectorTable = (CPCDiskSectorInfo *) 0;
+      if (trackSizeMSBTable[i] < 1) {
+        // empty track
+        trackTable[i].nSectors = 0;
+        trackTable[i].gapLen = 0x4E;
+        trackTable[i].fillerByte = 0xE5;
+        trackTable[i].sectorTableFileOffset = 0U;
+        continue;
+      }
       readImageFile(buf, filePos, 256);
       for (int j = 0; j < int(sizeof(dskTrackHeader) / sizeof(char)); j++) {
         if (buf[j] != uint8_t(dskTrackHeader[j])) {
@@ -155,6 +161,8 @@ namespace CPC464 {
     size_t  sectorTableBufPos = 0;
     for (int i = 0; i < nTracks; i++) {
       // read all sector headers
+      if (trackSizeMSBTable[i] < 1)
+        continue;
       readImageFile(buf, filePos, 256);
       size_t  nextFilePos = filePos + (size_t(trackSizeMSBTable[i]) << 8);
       filePos = filePos + 256;
@@ -223,13 +231,10 @@ namespace CPC464 {
               err = -err;
           }
         }
-        if (err < 0) {
+        if (err < 0)
           err = -2;
-          std::fclose(imageFile);
-        }
-        else {
+        else
           std::fseek(imageFile, 0L, SEEK_SET);
-        }
       }
     }
     if (err <= 0) {
@@ -373,7 +378,8 @@ namespace CPC464 {
         sectorID.headID = s_.sideNum;
         sectorID.sectorID = s_.sectorNum;
         sectorID.sectorSizeCode = s_.sectorSizeCode;
-        sectorID.isDeleted = bool(s_.statusRegister2 & 0x40);
+        sectorID.statusRegister1 = s_.statusRegister1 & 0xA5;
+        sectorID.statusRegister2 = s_.statusRegister2 & 0x61;
         return true;
       }
     }
@@ -381,7 +387,8 @@ namespace CPC464 {
     sectorID.headID = 0;
     sectorID.sectorID = 0;
     sectorID.sectorSizeCode = 0;
-    sectorID.isDeleted = false;
+    sectorID.statusRegister1 = 0x05;
+    sectorID.statusRegister2 = 0x00;
     return false;
   }
 
@@ -607,22 +614,22 @@ namespace CPC464 {
                cmdParams.physicalSide, s, d);
   }
 
-  FDC765::CPCDiskError FDC765_CPC::readSector(int physicalSector,
-                                              uint8_t& statusRegister1,
-                                              uint8_t& statusRegister2)
+  FDC765::CPCDiskError FDC765_CPC::readSector(int physicalSector_,
+                                              uint8_t& statusRegister1_,
+                                              uint8_t& statusRegister2_)
   {
     return floppyDrives[cmdParams.unitNumber].readSector(
-               sectorBuf, cmdParams.physicalSide, physicalSector,
-               statusRegister1, statusRegister2);
+               sectorBuf, cmdParams.physicalSide, physicalSector_,
+               statusRegister1_, statusRegister2_);
   }
 
-  FDC765::CPCDiskError FDC765_CPC::writeSector(int physicalSector,
-                                               uint8_t& statusRegister1,
-                                               uint8_t& statusRegister2)
+  FDC765::CPCDiskError FDC765_CPC::writeSector(int physicalSector_,
+                                               uint8_t& statusRegister1_,
+                                               uint8_t& statusRegister2_)
   {
     return floppyDrives[cmdParams.unitNumber].writeSector(
-               sectorBuf, cmdParams.physicalSide, physicalSector,
-               statusRegister1, statusRegister2);
+               sectorBuf, cmdParams.physicalSide, physicalSector_,
+               statusRegister1_, statusRegister2_);
   }
 
   void FDC765_CPC::stepIn(int driveNum, int nSteps)
