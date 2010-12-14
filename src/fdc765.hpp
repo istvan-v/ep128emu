@@ -36,8 +36,8 @@ namespace CPC464 {
       uint8_t   sectorSizeCode;         // sector size = 0x80 << sectorSizeCode
       uint8_t   lastSectorID;
       uint8_t   gapLen;
-      uint8_t   sectorDataLength;
-      uint8_t   sectorCnt;
+      uint8_t   sectorDataLength;       // NOTE: this is STP for scan commands
+      uint8_t   sectorCnt;              // for FORMAT TRACK
       uint8_t   fillerByte;
     };
     struct FDCSectorID {
@@ -86,8 +86,7 @@ namespace CPC464 {
     uint8_t   headUnloadTimer;          // head unload time remaining
     uint8_t   headLoadTimer;            // head load time remaining
     uint8_t   indexPulsesRemaining;     // counts down from 2 in search mode
-    uint8_t   executionPhaseFlags;      // bit 7 = 1: multi-track mode
-                                        // bit 0 = 1: data I/O completed by CPU
+    bool      multiTrackFlag;           // true in multi-track mode
     uint8_t   statusRegister1;
     uint8_t   statusRegister2;
     int       sectorDelay;              // time left until sector ID or data
@@ -106,6 +105,7 @@ namespace CPC464 {
     void updateDriveReadyStatus();
     void seekComplete(int driveNum, bool isRecalibrate, bool isNotReady);
     bool incrementSectorID();
+    void checkSectorHeader();
     EP128EMU_REGPARM1 void runExecutionPhase();
     EP128EMU_REGPARM1 void updateDrives();
    public:

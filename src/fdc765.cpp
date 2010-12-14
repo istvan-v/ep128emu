@@ -139,7 +139,7 @@ namespace CPC464 {
       totalDataBytes = 0U;
       dataBytesRemaining = 0U;
       indexPulsesRemaining = 0;
-      executionPhaseFlags = 0x00;
+      multiTrackFlag = false;
       statusRegister1 = 0x00;
       statusRegister2 = 0x00;
       sectorDelay = -1;
@@ -167,7 +167,7 @@ namespace CPC464 {
           (cmdParams.commandCode & 0x1F) != 0x02 &&
           (cmdParams.commandCode & 0x1F) != 0x0D) {
         // set multi-track flag, unless executing READ TRACK or FORMAT TRACK
-        executionPhaseFlags = executionPhaseFlags | 0x80;
+        multiTrackFlag = true;
       }
       break;
     case 0x03:                          // SPECIFY PARAMETERS
@@ -263,11 +263,14 @@ namespace CPC464 {
       case 0x05:                        // WRITE SECTOR(S)
       case 0x09:                        // WRITE DELETED SECTOR(S)
         errorFlags = errorFlags & 0xB700;
+        break;
       case 0x06:                        // READ SECTOR(S)
       case 0x0C:                        // READ DELETED SECTOR(S)
         errorFlags = errorFlags & 0xB561;
+        break;
       case 0x0D:                        // FORMAT TRACK
         errorFlags = errorFlags & 0x3000;
+        break;
       case 0x11:                        // SCAN EQUAL
       case 0x19:                        // SCAN LESS THAN OR EQUAL
       case 0x1D:                        // SCAN GREATER THAN OR EQUAL
@@ -295,8 +298,7 @@ namespace CPC464 {
         if (!(cmdParams.headID & 0x01))
           cmdParams.cylinderID = (cmdParams.cylinderID + 1) & 0xFF;
       }
-      if ((executionPhaseFlags & 0x80) == 0 ||
-          (cmdParams.headID & 0x01) == 0) {
+      if (!multiTrackFlag || (cmdParams.headID & 0x01) == 0) {
         // if multi-track mode is not enabled, or already at end of side 1,
         // terminate command
         statusRegister1 = statusRegister1 | 0x80;       // end of cylinder
@@ -307,15 +309,134 @@ namespace CPC464 {
       }
     }
     else {
-      cmdParams.sectorID = (cmdParams.sectorID + 1) & 0xFF;
+      if (cmdParams.commandCode & 0x10) {
+        // if scan command, use the STP parameter for incrementing sector ID
+        cmdParams.sectorID =
+            (cmdParams.sectorID + (2 - (cmdParams.sectorDataLength & 0x01)))
+            & 0xFF;
+      }
+      else {
+        cmdParams.sectorID = (cmdParams.sectorID + 1) & 0xFF;
+      }
     }
     // sector search mode
     dataIsNotReady = true;
     indexPulsesRemaining = 2;
-    executionPhaseFlags = executionPhaseFlags & 0xFE;
     sectorDelay = -1;
     physicalSector = 0;
     return true;
+  }
+
+  void FDC765::checkSectorHeader()
+  {
+    FDCSectorID sectorID;
+    if (!getPhysicalSectorID(sectorID, physicalSector)) {
+      startResultPhase(CPCDISK_ERROR_SECTOR_NOT_FOUND);
+      return;
+    }
+    uint8_t cmdCode = cmdParams.commandCode & 0x1F;
+    switch (cmdCode) {
+    case 0x02:                          // READ TRACK
+      if (indexPulsesRemaining > cmdParams.sectorID)
+        return;     // wait for an index pulse before reading the first sector
+      if (sectorID.cylinderID != cmdParams.cylinderID) {
+        statusRegister1 = statusRegister1 | 0x04;       // no data
+        // wrong cylinder / bad cylinder
+        statusRegister2 =
+            statusRegister2
+            | uint8_t(sectorID.cylinderID == 0xFF ? 0x12 : 0x10);
+      }
+      if (sectorID.headID != cmdParams.headID ||
+          sectorID.sectorID != cmdParams.sectorID ||
+          sectorID.sectorSizeCode != cmdParams.sectorSizeCode) {
+        // sector ID does not match
+        statusRegister1 = statusRegister1 | 0x04;
+      }
+      break;
+    case 0x0A:                          // READ SECTOR ID
+      // command is complete now
+      cmdParams.cylinderID = sectorID.cylinderID;
+      cmdParams.headID = sectorID.headID;
+      cmdParams.sectorID = sectorID.sectorID;
+      cmdParams.sectorSizeCode = sectorID.sectorSizeCode;
+      statusRegister1 = sectorID.statusRegister1 & 0x7F;
+      statusRegister2 = sectorID.statusRegister2;
+      if (sectorID.statusRegister1 & 0x05)
+        startResultPhase(CPCDISK_ERROR_UNKNOWN);
+      else
+        startResultPhase(CPCDISK_NO_ERROR);
+      return;
+    default:
+      if (sectorID.cylinderID != cmdParams.cylinderID) {
+        // wrong cylinder / bad cylinder
+        statusRegister2 =
+            statusRegister2
+            | uint8_t(sectorID.cylinderID == 0xFF ? 0x12 : 0x10);
+        return;
+      }
+      if (sectorID.headID != cmdParams.headID ||
+          sectorID.sectorID != cmdParams.sectorID ||
+          sectorID.sectorSizeCode != cmdParams.sectorSizeCode) {
+        // sector is not found yet
+        return;
+      }
+      break;
+    }
+    if ((cmdCode & 0x13) == 0x01) {
+      if ((sectorID.statusRegister1 & 0x20)
+          > (sectorID.statusRegister2 & 0x20)) {
+        // CRC error in sector ID for write command
+        incrementSectorID();
+        return;
+      }
+    }
+    else {
+      if (sectorID.statusRegister2 & 0x01) {
+        // missing data address mark for read command
+        incrementSectorID();
+        return;
+      }
+    }
+    if (((cmdCode == 0x02 || cmdCode == 0x06 || cmdCode >= 0x10) &&
+         (sectorID.statusRegister2 & 0x40) != 0) ||
+        (cmdCode == 0x0C && (sectorID.statusRegister2 & 0x40) == 0)) {
+      // deleted sector flag does not match
+      if (cmdParams.commandCode & 0x20) {
+        // skip flag is set, ignore sector; search for the next one
+        incrementSectorID();
+        return;
+      }
+      else {
+        // read sector, but set control mark bit
+        statusRegister2 = statusRegister2 | 0x40;
+      }
+    }
+    indexPulsesRemaining = 0;
+    // delay until beginning of sector data (gap 2, sync, data address mark)
+    sectorDelay = 22 + 12 + 4;
+    if (cmdParams.sectorSizeCode == 0x00 && cmdCode < 0x10) {
+      totalDataBytes =
+          ((uint32_t(cmdParams.sectorDataLength) + 0x7FU) & 0x7FU) + 1U;
+    }
+    else {
+      totalDataBytes = 0x80U << (cmdParams.sectorSizeCode & 0x07);
+    }
+    dataBytesRemaining = totalDataBytes;
+    if ((cmdCode & 0x13) != 0x01) {
+      // if read or scan command, then read sector data now
+      uint8_t statusRegister1_ = 0x00;
+      uint8_t statusRegister2_ = 0x00;
+      CPCDiskError  errorCode =
+          readSector(physicalSector, statusRegister1_, statusRegister2_);
+      if (errorCode != CPCDISK_NO_ERROR) {
+        statusRegister1_ = statusRegister1_ | 0x20;     // DE
+        statusRegister2_ = statusRegister2_ | 0x20;     // DD
+      }
+      statusRegister1 = statusRegister1 | (statusRegister1_ & 0x25);
+      statusRegister2 = statusRegister2 | (statusRegister2_ & 0x21);
+      if (cmdCode & 0x10)               // initialize scan command
+        statusRegister2 = (statusRegister2 & 0x73) | 0x08;
+    }
   }
 
   EP128EMU_REGPARM1 void FDC765::runExecutionPhase()
@@ -358,140 +479,50 @@ namespace CPC464 {
         return;
       }
       // found a sector, check its ID
-      FDCSectorID sectorID;
-      if (!getPhysicalSectorID(sectorID, physicalSector)) {
-        startResultPhase(CPCDISK_ERROR_SECTOR_NOT_FOUND);
+      checkSectorHeader();
+    }
+    else if (dataBytesRemaining > 0U) {
+      if (sectorDelay > 0) {
+        if (--sectorDelay <= 0)         // sector data has been reached
+          dataIsNotReady = false;
         return;
       }
-      uint8_t cmdCode = cmdParams.commandCode & 0x1F;
-      switch (cmdCode) {
-      case 0x02:                        // READ TRACK
-        if (sectorID.cylinderID != cmdParams.cylinderID) {
-          statusRegister1 = statusRegister1 | 0x04;     // no data
-          // wrong cylinder / bad cylinder
-          statusRegister2 =
-              statusRegister2
-              | uint8_t(sectorID.cylinderID == 0xFF ? 0x12 : 0x10);
-        }
-        if (sectorID.headID != cmdParams.headID ||
-            sectorID.sectorID != cmdParams.sectorID ||
-            sectorID.sectorSizeCode != cmdParams.sectorSizeCode) {
-          // sector ID does not match
-          statusRegister1 = statusRegister1 | 0x04;
-        }
-        break;
-        break;
-      case 0x0A:                        // READ SECTOR ID
-        // command is complete now
-        cmdParams.cylinderID = sectorID.cylinderID;
-        cmdParams.headID = sectorID.headID;
-        cmdParams.sectorID = sectorID.sectorID;
-        cmdParams.sectorSizeCode = sectorID.sectorSizeCode;
-        statusRegister1 = sectorID.statusRegister1;
-        statusRegister2 = sectorID.statusRegister2;
-        if (sectorID.statusRegister1 & 0x05)
-          startResultPhase(CPCDISK_ERROR_UNKNOWN);
-        else
-          startResultPhase(CPCDISK_NO_ERROR);
-        return;
-      default:
-        if (sectorID.cylinderID != cmdParams.cylinderID) {
-          // wrong cylinder / bad cylinder
-          statusRegister2 =
-              statusRegister2
-              | uint8_t(sectorID.cylinderID == 0xFF ? 0x12 : 0x10);
-          return;
-        }
-        if (sectorID.headID != cmdParams.headID ||
-            sectorID.sectorID != cmdParams.sectorID ||
-            sectorID.sectorSizeCode != cmdParams.sectorSizeCode) {
-          // sector is not found yet
-          return;
-        }
-        break;
-      }
-      if (((cmdCode == 0x02 || cmdCode == 0x06 || cmdCode >= 0x10) &&
-           (sectorID.statusRegister2 & 0x40) != 0) ||
-          (cmdCode == 0x0C && (sectorID.statusRegister2 & 0x40) == 0)) {
-        // deleted sector flag does not match
-        if (cmdParams.commandCode & 0x20) {
-          // skip flag is set, ignore sector; search for the next one
-          incrementSectorID();
-          return;
-        }
-        else {
-          // read sector, but set control mark bit
-          statusRegister2 = statusRegister2 | 0x40;
-        }
-      }
-      indexPulsesRemaining = 0;
-      // delay until beginning of sector data (gap 2, sync, data address mark)
-      sectorDelay = 22 + 12 + 4;
-      if (cmdParams.sectorSizeCode == 0x00 && cmdCode < 0x10) {
-        totalDataBytes =
-            ((uint32_t(cmdParams.sectorDataLength) + 0x7FU) & 0x7FU) + 1U;
+      // sector data transfer to/from CPU
+      if (!dataIsNotReady)
+        statusRegister1 = statusRegister1 | 0x10;       // overrun
+      if (--dataBytesRemaining < 1U) {
+        // data transfer complete, next sector or result phase after data CRC
+        sectorDelay = 2;
       }
       else {
-        totalDataBytes = 0x80U << (cmdParams.sectorSizeCode & 0x07);
+        // continue with next byte
+        dataIsNotReady = false;
       }
-      dataBytesRemaining = totalDataBytes;
-      if ((cmdCode & 0x13) != 0x01) {
-        // if read or scan command, then read sector data now
+    }
+    else {
+      if (sectorDelay > 0) {
+        if (--sectorDelay > 0)          // 2 bytes delay for data CRC
+          return;
+      }
+      if (interruptStatus[cmdParams.unitNumber] >= 0xC0) {
+        // if /RDY has changed, abort command
+        startResultPhase(CPCDISK_ERROR_NOT_READY);
+        return;
+      }
+      if ((cmdParams.commandCode & 0x13) == 0x01) {     // write commands:
+        // write data to disk image
         uint8_t statusRegister1_ = 0x00;
-        uint8_t statusRegister2_ = 0x00;
+        uint8_t statusRegister2_ = (cmdParams.commandCode & 0x08) << 3;
         CPCDiskError  errorCode =
-            readSector(physicalSector, statusRegister1_, statusRegister2_);
+            writeSector(physicalSector, statusRegister1_, statusRegister2_);
         if (errorCode != CPCDISK_NO_ERROR) {
           statusRegister1_ = statusRegister1_ | 0x20;   // DE
           statusRegister2_ = statusRegister2_ | 0x20;   // DD
         }
-        statusRegister1 = statusRegister1 | (statusRegister1_ & 0xA5);
+        statusRegister1 = statusRegister1 | (statusRegister1_ & 0x25);
         statusRegister2 = statusRegister2 | (statusRegister2_ & 0x21);
-        if (cmdCode & 0x10)             // initialize scan command
-          statusRegister2 = (statusRegister2 & 0x73) | 0x08;
       }
-    }
-    else if (dataBytesRemaining > 0U) {
-      if (sectorDelay > 0) {
-        if (--sectorDelay <= 0) {       // sector data has been reached
-          dataIsNotReady = false;
-          executionPhaseFlags = executionPhaseFlags & 0xFE;
-        }
-        return;
-      }
-      // sector data transfer to/from CPU
-      if (!(executionPhaseFlags & 0x01))
-        statusRegister1 = statusRegister1 | 0x10;       // overrun
-      if (--dataBytesRemaining < 1U) {
-        // data transfer complete
-        if (interruptStatus[cmdParams.unitNumber] >= 0xC0) {
-          // if /RDY has changed, abort command
-          startResultPhase(CPCDISK_ERROR_NOT_READY);
-          return;
-        }
-        if ((cmdParams.commandCode & 0x13) == 0x01) {   // write commands:
-          // write data to disk image
-          uint8_t statusRegister1_ = 0x00;
-          uint8_t statusRegister2_ = (cmdParams.commandCode & 0x08) << 3;
-          CPCDiskError  errorCode =
-              writeSector(physicalSector, statusRegister1_, statusRegister2_);
-          if (errorCode != CPCDISK_NO_ERROR) {
-            statusRegister1_ = statusRegister1_ | 0x20; // DE
-            statusRegister2_ = statusRegister2_ | 0x20; // DD
-          }
-          statusRegister1 = statusRegister1 | (statusRegister1_ & 0xA5);
-          statusRegister2 = statusRegister2 | (statusRegister2_ & 0x21);
-        }
-        incrementSectorID();
-      }
-      else {
-        dataIsNotReady = false;
-        executionPhaseFlags = executionPhaseFlags & 0xFE;
-      }
-    }
-    else {
-      // NOTE: this should not be reached
-      startResultPhase(CPCDISK_ERROR_NOT_READY);
+      incrementSectorID();
     }
   }
 
@@ -603,7 +634,7 @@ namespace CPC464 {
       headUnloadTimer(0),
       headLoadTimer(0),
       indexPulsesRemaining(0),
-      executionPhaseFlags(0x00),
+      multiTrackFlag(false),
       statusRegister1(0x00),
       statusRegister2(0x00),
       sectorDelay(-1),
@@ -647,7 +678,7 @@ namespace CPC464 {
     headUnloadTimer = 0;
     headLoadTimer = 0;
     indexPulsesRemaining = 0;
-    executionPhaseFlags = 0x00;
+    multiTrackFlag = false;
     statusRegister1 = 0x00;
     statusRegister2 = 0x00;
     sectorDelay = -1;
@@ -684,7 +715,6 @@ namespace CPC464 {
         retval = sectorBuf[totalDataBytes - dataBytesRemaining];
         if (fdcState == 2) {            // execution phase of R/W command
           dataIsNotReady = true;
-          executionPhaseFlags = executionPhaseFlags | 0x01;
           return retval;
         }
         dataBytesRemaining--;
@@ -869,7 +899,6 @@ namespace CPC464 {
           (*dataPtr) = n;
         }
         dataIsNotReady = true;
-        executionPhaseFlags = executionPhaseFlags | 0x01;
       }
     }
   }
@@ -891,7 +920,7 @@ namespace CPC464 {
     case 0x0002:
       return uint8_t(motorOn);
     case 0x0003:
-      return cmdParams.physicalSide;
+      return uint8_t((cmdParams.physicalSide << 2) | cmdParams.unitNumber);
     case 0x0004:
       return uint8_t((totalDataBytes - dataBytesRemaining) & 0xFFU);
     case 0x0005:
@@ -908,6 +937,30 @@ namespace CPC464 {
       return cmdParams.sectorID;
     case 0x000B:
       return cmdParams.sectorSizeCode;
+    case 0x000C:
+      if ((cmdParams.commandCode & 0x1F) == 0x0D)       // FORMAT TRACK
+        return cmdParams.sectorCnt;
+      return cmdParams.lastSectorID;
+    case 0x000D:
+      return cmdParams.gapLen;
+    case 0x000E:
+      return cmdParams.sectorDataLength;
+    case 0x000F:
+      return cmdParams.fillerByte;
+    case 0x0010:
+    case 0x0011:
+    case 0x0012:
+    case 0x0013:
+      return sectorBuf[addr & 0x0003];
+    case 0x0014:
+      return statusRegister1;
+    case 0x0015:
+      return statusRegister2;
+    case 0x0016:
+      return uint8_t((((16 - stepRate) & 0x0F) << 4)
+                     | (((headUnloadTime + 1) & 0xF0) >> 4));
+    case 0x0017:
+      return uint8_t(((headLoadTime + 1) & 0xFE) | 0x01);
     case 0x0018:
     case 0x0019:
     case 0x001A:

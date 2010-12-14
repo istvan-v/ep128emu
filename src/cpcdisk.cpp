@@ -219,6 +219,9 @@ namespace CPC464 {
       if (!imageFile) {
         err = -1;
       }
+      else if (nSectorsPerTrack < 8 || nSectorsPerTrack > 11) {
+        err = -2;
+      }
       else {
         std::setvbuf(imageFile, (char *) 0, _IONBF, 0);
         err = -err;
@@ -251,13 +254,16 @@ namespace CPC464 {
     }
     writeProtectFlag = (err == 1);
     int     nTracks = nCylinders * nSides;
+    uint8_t gapLen = uint8_t(nSectorsPerTrack < 10 ?
+                             (nSectorsPerTrack < 9 ? 0x52 : 0x50)
+                             : (nSectorsPerTrack < 11 ? 0x2E : 0x00));
     trackTable = new CPCDiskTrackInfo[size_t(nTracks)];
     sectorTableBuf = new CPCDiskSectorInfo[size_t(nTracks * nSectorsPerTrack)];
     for (int i = 0; i < nTracks; i++) {
       int     sectorTableBufPos = i * nSectorsPerTrack;
       trackTable[i].sectorTable = &(sectorTableBuf[sectorTableBufPos]);
       trackTable[i].nSectors = uint8_t(nSectorsPerTrack);
-      trackTable[i].gapLen = 0x52;
+      trackTable[i].gapLen = gapLen;
       trackTable[i].fillerByte = 0xE5;
       trackTable[i].sectorTableFileOffset = 0U;
       for (int j = 0; j < nSectorsPerTrack; j++) {
