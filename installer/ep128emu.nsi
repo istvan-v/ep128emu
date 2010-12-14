@@ -298,9 +298,9 @@ Section "Download ROM images" SecDLRoms
   StrCmp $R0 "success" downloadDone 0
   StrCmp $R0 "cancel" downloadDone 0
 
-  MessageBox MB_OK "WARNING: download from ep128emu.enterpriseforever.com failed ($R0), trying www.sharemation.com instead"
+  MessageBox MB_OK "WARNING: download from ep128emu.enterpriseforever.com failed ($R0), trying ep128.hu instead"
 
-  NSISdl::download "http://www.sharemation.com/IstvanV/roms/ep128emu_roms.bin" "$INSTDIR\roms\ep128emu_roms.bin"
+  NSISdl::download "http://ep128.hu/Emu/ep128emu_roms.bin" "$INSTDIR\roms\ep128emu_roms.bin"
   Pop $R0
   StrCmp $R0 "success" downloadDone 0
   StrCmp $R0 "cancel" downloadDone 0
