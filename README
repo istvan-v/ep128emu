@@ -82,7 +82,7 @@ Enterprise emulation
     there is also limited (read only) support for EPTE format tape
     files, as well as read-write (although without markers) support for
     sound files like WAV, AIFF, etc.
-  * WD177x (floppy disk controller) emulation for EXDOS
+  * WD177x (floppy drive controller) emulation for EXDOS
   * IDE hard disk emulation; supports up to 4 2 GB disks, image files
     can be in raw or VHD format
   * optional extension ROM (epfileio.rom) that implements a FILE: device
@@ -140,6 +140,13 @@ Amstrad CPC emulation
   * CPC tape files in .cdt (same as Spectrum .tzx) format can be used as
     tape images for read-only hardware level tape emulation, although
     the support for this format is not complete yet
+  * uPD765 (floppy drive controller) emulation; it supports standard and
+    extended .DSK files, and also access to real disks (not very useful
+    in practice, since only PC format disks can be used this way), as
+    well as limited emulation of the timing of disk rotation, stepping,
+    and data transfers. The FORMAT TRACK (0x0D) command is not
+    implemented yet, and some copy protected games and .DSK files with
+    unusual track formats may not work correctly
   * loading SNA snapshot files (v1 or v2; v3 is loaded, but the extra
     information about the internal state of the hardware is currently
     ignored) created by other emulators is supported; however, snapshot
@@ -567,7 +574,7 @@ code, depending on the machine type:
       (pen/color/video mode/memory configuration) can be selected in
       bits 6 and 7 of the address; for example, reading port 7F40H
       returns the color of the currently selected pen
-    - in the address range 0 to 7FH, many I/O registers can be read
+    - in the address range 0 to 9FH, many I/O registers can be read
       directly:
       - 00H-1FH: 6845 CRTC registers
       - 20H-2FH: gate array palette
@@ -599,6 +606,39 @@ code, depending on the machine type:
                  for page 0 and page 3)
       - 79H:     currently selected expansion ROM bank
       - 7AH-7FH: unused, FFH is returned
+      - 80H-9FH: uPD765 floppy drive controller registers and state
+          80H: FDC phase (0: idle, 1: command, 2: execution, 3: result)
+          81H: last command code
+          82H: motor state (last byte written to 0FA7EH & 01H)
+          83H: currently selected physical head (0 or 1) * 4 + drive
+          84H: CPU<->FDC data transfer position LSB
+          85H: CPU<->FDC data transfer position MSB
+          86H: CPU<->FDC data transfer size LSB
+          87H: CPU<->FDC data transfer size MSB
+          88H: logical cylinder ID
+          89H: logical head ID
+          8AH: logical sector ID
+          8BH: sector size code
+          8CH: last sector ID (EOT), or sector count for format track
+          8DH: gap length
+          8EH: sector data length (DTL), or STP for scan commands
+          8FH: filler byte (format track only)
+          90H: first byte in command/data/result buffer
+          91H: second byte in command/data/result buffer
+          92H: third byte in command/data/result buffer
+          93H: fourth byte in command/data/result buffer
+          94H: ST1 for read/write commands
+          95H: ST2 for read/write commands
+          96H: specify parameter 1 (step rate / head unload time)
+          97H: specify parameter 2 (head load time)
+          98H: ST3 for sense drive status on drive 0
+          99H: ST3 for sense drive status on drive 1
+          9AH: ST3 for sense drive status on drive 2
+          9BH: ST3 for sense drive status on drive 3
+          9CH: drive 0 cylinder number (PCN0)
+          9DH: drive 1 cylinder number (PCN1)
+          9EH: drive 2 cylinder number (PCN2)
+          9FH: drive 3 cylinder number (PCN3)
     - unlike the other machine types, I/O watchpoints are set on the
       upper 8 bits of the address
 
