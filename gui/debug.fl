@@ -30,7 +30,7 @@ class Ep128EmuGUI_DebugWindow {open
   decl {Fl_Widget *prvTab;} {}
   decl {uint32_t memoryDumpStartAddress;} {}
   decl {uint32_t memoryDumpViewAddress;} {}
-  decl {bool memoryDumpCPUAddressMode;} {}
+  decl {uint8_t memoryDumpAddressMode;} {}
   decl {int32_t ixViewOffset;} {}
   decl {int32_t iyViewOffset;} {}
   decl {uint32_t disassemblyStartAddress;} {}
@@ -61,7 +61,7 @@ class Ep128EmuGUI_DebugWindow {open
   }
   decl {void updateWindow();} {public
   }
-  decl {void dumpMemory(std::string& buf, uint32_t startAddr, uint32_t endAddr, uint32_t cursorAddr, bool showCursor, bool isCPUAddress);} {}
+  decl {void dumpMemory(std::string& buf, uint32_t startAddr, uint32_t endAddr, uint32_t cursorAddr, bool showCursor, uint8_t addressMode);} {}
   decl {char * dumpMemoryAtRegister(char *bufp, const char *regName, uint16_t addr, int byteCnt, uint32_t cursorAddr = 0xFFFFFFFFU);} {}
   decl {void updateMemoryDumpDisplay();} {}
   decl {void updateIOPortDisplay();} {}
@@ -135,10 +135,15 @@ class Ep128EmuGUI_DebugWindow {open
         tmp += o->value();
         Ep128Emu::tokenizeString(args, tmp.c_str());
       }
+      if (memoryDumpAddressMode > 1) {
+        // cannot search I/O ports, force CPU address mode
+        memoryDumpAddressMode = 1;
+        memoryDumpAddressModeValuator->value(1);
+      }
       int32_t addr = monitor_->searchPattern(
           args, 1, args.size() - 1,
           memoryDumpViewAddress + 1U, memoryDumpViewAddress,
-          memoryDumpCPUAddressMode);
+          bool(memoryDumpAddressMode));
       if (addr >= 0) {
         memoryDumpViewAddress = uint32_t(addr);
         updateMemoryDumpDisplay();
@@ -167,14 +172,15 @@ class Ep128EmuGUI_DebugWindow {open
               code0 {o->cursor_color(FL_BACKGROUND2_COLOR);}
               class Ep128EmuGUI_ScrollableOutput
             }
-            Fl_Light_Button {} {
-              label {CPU address}
+            Fl_Choice memoryDumpAddressModeValuator {
               callback {{
-  memoryDumpCPUAddressMode = (o->value() != 0);
+  memoryDumpAddressMode = uint8_t(o->value());
   updateMemoryDumpDisplay();
-}}
-              tooltip {Select if 16 bit CPU, or 22 bit physical addresses are to be used} xywh {415 375 110 25} value 1 color 50 selection_color 3
-            }
+}} open
+              tooltip {Select if 16 bit CPU, 22 bit physical, or I/O addresses are to be used} xywh {415 375 110 25} down_box BORDER_BOX
+              code0 {o->add("Physical address|CPU address|IO address");}
+              code1 {o->value(1);}
+            } {}
             Fl_Input memoryDumpStartAddressValuator {
               label {Start address}
               callback {{

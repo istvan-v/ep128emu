@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -76,7 +76,7 @@ Ep128EmuGUI_DebugWindow::Ep128EmuGUI_DebugWindow(Ep128EmuGUI& gui_)
   prvTab = (Fl_Widget *) 0;
   memoryDumpStartAddress = 0x00000000U;
   memoryDumpViewAddress = 0x00000000U;
-  memoryDumpCPUAddressMode = true;
+  memoryDumpAddressMode = 1;
   ixViewOffset = 0;
   iyViewOffset = 0;
   disassemblyStartAddress = 0x00000000U;
@@ -254,7 +254,7 @@ void Ep128EmuGUI_DebugWindow::updateWindow()
     uint32_t  tmp = gui.vm.getStackPointer();
     uint32_t  startAddr = (tmp + 0xFFF4U) & 0xFFF8U;
     uint32_t  endAddr = (startAddr + 0x002FU) & 0xFFFFU;
-    dumpMemory(tmpBuffer, startAddr, endAddr, tmp, true, true);
+    dumpMemory(tmpBuffer, startAddr, endAddr, tmp, true, 1);
     stackMemoryDumpDisplay->value(tmpBuffer.c_str());
     tmpBuffer = "";
     updateMemoryDumpDisplay();
@@ -271,50 +271,59 @@ void Ep128EmuGUI_DebugWindow::updateWindow()
 void Ep128EmuGUI_DebugWindow::dumpMemory(std::string& buf,
                                          uint32_t startAddr, uint32_t endAddr,
                                          uint32_t cursorAddr, bool showCursor,
-                                         bool isCPUAddress)
+                                         uint8_t addressMode)
 {
   try {
-    char      tmpBuf[16];
+    char      tmpBuf[48];
     uint8_t   tmpBuf2[8];
     buf.clear();
-    int       cnt = 0;
-    uint32_t  addrMask = uint32_t(isCPUAddress ? 0x0000FFFFU : 0x003FFFFFU);
+    uint32_t  addrMask = uint32_t(addressMode != 0 ? 0x0000FFFFU : 0x003FFFFFU);
+    startAddr &= addrMask;
     endAddr &= addrMask;
     cursorAddr &= addrMask;
-    while (true) {
-      startAddr &= addrMask;
-      if (cnt == 8) {
-        cnt = 0;
-        buf += '\n';
-      }
-      if (!cnt) {
-        Ep128Emu::printHexNumber(&(tmpBuf[0]), startAddr,
-                                 (isCPUAddress ? 2 : 0), (isCPUAddress ? 4 : 6),
-                                 (showCursor ? 0 : 1));
-        buf += &(tmpBuf[0]);
-      }
-      tmpBuf2[cnt] = gui.vm.readMemory(startAddr, isCPUAddress);
-      Ep128Emu::printHexNumber(&(tmpBuf[0]), tmpBuf2[cnt],
-                               (showCursor ? 2 : 1), 2, 0);
-      if (showCursor && startAddr == cursorAddr)
-        tmpBuf[1] = '*';
-      buf += &(tmpBuf[0]);
-      if (cnt == 7 && !showCursor) {
-        tmpBuf[0] = ' ';
-        tmpBuf[1] = ':';
-        for (int i = 2; i < 10; i++) {
-          tmpBuf[i] = char(tmpBuf2[i - 2] & 0x7F);
-          if (tmpBuf[i] < char(0x20) || tmpBuf[i] == char(0x7F))
-            tmpBuf[i] = '.';
-        }
-        tmpBuf[10] = '\0';
-        buf += &(tmpBuf[0]);
-      }
-      if (startAddr == endAddr)
-        break;
-      startAddr++;
-      cnt++;
+    if (addressMode > 1 && !showCursor) {
+      showCursor = true;
+      cursorAddr = 0xFFFFFFFFU;
     }
+    while (true) {
+      char    *bufp = &(tmpBuf[0]);
+      Ep128Emu::printHexNumber(bufp, startAddr, (addressMode != 0 ? 2 : 0),
+                               (addressMode != 0 ? 4 : 6),
+                               (showCursor ? 0 : 1));
+      bufp = bufp + (showCursor ? 6 : 7);
+      int     cnt = 7;
+      do {
+        if (addressMode < 2)
+          tmpBuf2[cnt] = gui.vm.readMemory(startAddr, bool(addressMode));
+        else
+          tmpBuf2[cnt] = gui.vm.readIOPort(uint16_t(startAddr));
+        Ep128Emu::printHexNumber(bufp,
+                                 tmpBuf2[cnt], (showCursor ? 2 : 1), 2, 0);
+        if (showCursor && startAddr == cursorAddr)
+          bufp[1] = '*';
+        bufp = bufp + (showCursor ? 4 : 3);
+        if (startAddr == endAddr)
+          break;
+        startAddr = (startAddr + 1U) & addrMask;
+      } while (--cnt >= 0);
+      if (cnt <= 0 && !showCursor) {
+        bufp[0] = ' ';
+        bufp[1] = ':';
+        for (int i = 2; i < 10; i++) {
+          bufp[i] = char(tmpBuf2[i - 2] & 0x7F);
+          if (bufp[i] < char(0x20) || bufp[i] == char(0x7F))
+            bufp[i] = '.';
+        }
+        bufp[10] = '\0';
+        bufp = bufp + 10;
+      }
+      if (cnt >= 0)
+        break;
+      bufp[0] = '\n';
+      bufp[1] = '\0';
+      buf += &(tmpBuf[0]);
+    }
+    buf += &(tmpBuf[0]);
   }
   catch (std::exception& e) {
     buf.clear();
@@ -344,15 +353,15 @@ void Ep128EmuGUI_DebugWindow::updateMemoryDumpDisplay()
 {
   try {
     uint32_t  addrMask =
-        uint32_t(memoryDumpCPUAddressMode ? 0x00FFFFU : 0x3FFFFFU);
+        uint32_t(memoryDumpAddressMode != 0 ? 0x00FFFFU : 0x3FFFFFU);
     memoryDumpStartAddress &= addrMask;
     memoryDumpViewAddress &= addrMask;
-    const char  *fmt = (memoryDumpCPUAddressMode ? "%04X" : "%06X");
+    const char  *fmt = (memoryDumpAddressMode != 0 ? "%04X" : "%06X");
     char  tmpBuf[64];
     std::sprintf(&(tmpBuf[0]), fmt, (unsigned int) memoryDumpStartAddress);
     memoryDumpStartAddressValuator->value(&(tmpBuf[0]));
     dumpMemory(tmpBuffer, memoryDumpViewAddress, memoryDumpViewAddress + 0x2FU,
-               0U, false, memoryDumpCPUAddressMode);
+               0U, false, memoryDumpAddressMode);
     memoryDumpDisplay->value(tmpBuffer.c_str());
     const Ep128::Z80_REGISTERS& r =
         ((const Ep128Emu::VirtualMachine *) &(gui.vm))->getZ80Registers();
