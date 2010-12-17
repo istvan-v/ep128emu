@@ -196,7 +196,7 @@ namespace Ep128Emu {
                                 display.blendScale, 1.0,
                                 displaySettingsChanged, 0.5, 2.0);
     defineConfigurationVariable(*this, "display.motionBlur",
-                                display.motionBlur, 0.25,
+                                display.motionBlur, 0.2,
                                 displaySettingsChanged, 0.0, 0.95);
     defineConfigurationVariable(*this, "display.width",
                                 display.width, 768,
