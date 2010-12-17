@@ -766,6 +766,8 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
       n = n - 6;
       machineType = 2;
       try {
+        config["display.quality"] = 3;
+        config["display.lineShade"] = 0.5;
         config["sound.volume"] = 0.5;
       }
       catch (Ep128Emu::Exception) {
@@ -882,6 +884,7 @@ class Ep128EmuDisplaySndConfiguration {
  private:
     struct {
       int         quality;
+      double      lineShade;
     } display;
     struct {
       bool        highQuality;
@@ -893,11 +896,13 @@ class Ep128EmuDisplaySndConfiguration {
   Ep128EmuDisplaySndConfiguration(Ep128Emu::ConfigurationDB& config)
   {
     display.quality = 2;
+    display.lineShade = 0.75;
     sound.highQuality = true;
     sound.latency = 0.07;
     sound.hwPeriods = 16;
     sound.volume = 0.7071;
     config.createKey("display.quality", display.quality);
+    config.createKey("display.lineShade", display.lineShade);
     config.createKey("sound.highQuality", sound.highQuality);
     config.createKey("sound.latency", sound.latency);
     config.createKey("sound.hwPeriods", sound.hwPeriods);
