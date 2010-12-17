@@ -37,7 +37,8 @@ namespace CPC464 {
       uint8_t   sectorSizeCode;         // sector size (N); 128 * 2^N bytes
       uint8_t   statusRegister1;        // status register 1 (ST1) & 0xA5
       uint8_t   statusRegister2;        // status register 2 (ST2) & 0x61
-    };
+      uint16_t  physicalPosition;       // offset (in bytes) of ID address mark
+    };                                  // from the IDAM of the first sector
    protected:
     struct CPCDiskTrackInfo {
       CPCDiskSectorInfo *sectorTable;   // array of sector info structures
@@ -45,8 +46,7 @@ namespace CPC464 {
       uint8_t   gapLen;                 // gap 3 length
       uint8_t   fillerByte;             // filler byte (unused)
       uint32_t  sectorTableFileOffset;  // start position of sector table
-                                        // in image file (0: no table/raw file)
-    };
+    };                                  // in image file (0: no table/raw file)
     // ----------------
     CPCDiskTrackInfo  *trackTable;
     CPCDiskSectorInfo *sectorTableBuf;
@@ -60,6 +60,7 @@ namespace CPC464 {
     void readImageFile(uint8_t *buf, size_t filePos, size_t nBytes);
     void parseDSKFileHeaders(uint8_t *buf, size_t fileSize);
     void parseEXTFileHeaders(uint8_t *buf, size_t fileSize);
+    void calculateSectorPositions(CPCDiskTrackInfo& t);
     bool openFloppyDevice(const char *fileName);
    public:
     CPCDiskImage();

@@ -26,6 +26,10 @@ namespace CPC464 {
 
   class FDC765 {
    public:
+    enum {
+      // 0.2s (300 RPM) * 31250 bytes per second
+      CPCDISK_TRACK_SIZE = 6250
+    };
     struct FDCCommandParams {
       uint8_t   commandCode;
       uint8_t   unitNumber;             // drive number (0 to 3)
@@ -98,7 +102,7 @@ namespace CPC464 {
     uint8_t   seekTimers[4];
     bool      driveReady[4];
     uint8_t   interruptStatus[4];
-    int       rotationAngles[4];        // 0 to 6249 (TrkBytes=6250 at 300 RPM)
+    int       rotationAngles[4];        // 0 to CPCDISK_TRACK_SIZE-1
     // ----------------
     void startResultPhase(CPCDiskError errorCode);
     void processFDCCommand();
@@ -119,14 +123,14 @@ namespace CPC464 {
         updateDrives();                 // and head (un)load at 2ms intervals
       if (motorSpeed > (timeCounter2ms + 18)) {
         // update disk rotation angles
-        rotationAngles[0] =
-            (rotationAngles[0] < 6249 ? (rotationAngles[0] + 1) : 0);
-        rotationAngles[1] =
-            (rotationAngles[1] < 6249 ? (rotationAngles[1] + 1) : 0);
-        rotationAngles[2] =
-            (rotationAngles[2] < 6249 ? (rotationAngles[2] + 1) : 0);
-        rotationAngles[3] =
-            (rotationAngles[3] < 6249 ? (rotationAngles[3] + 1) : 0);
+        rotationAngles[0] = (rotationAngles[0] < (CPCDISK_TRACK_SIZE - 1) ?
+                             (rotationAngles[0] + 1) : 0);
+        rotationAngles[1] = (rotationAngles[1] < (CPCDISK_TRACK_SIZE - 1) ?
+                             (rotationAngles[1] + 1) : 0);
+        rotationAngles[2] = (rotationAngles[2] < (CPCDISK_TRACK_SIZE - 1) ?
+                             (rotationAngles[2] + 1) : 0);
+        rotationAngles[3] = (rotationAngles[3] < (CPCDISK_TRACK_SIZE - 1) ?
+                             (rotationAngles[3] + 1) : 0);
       }
       if (fdcState == 2)
         runExecutionPhase();

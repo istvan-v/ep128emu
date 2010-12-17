@@ -105,6 +105,7 @@ namespace CPC464 {
         filePos = filePos + sectorSize;
         sectorTableBufPos++;
       }
+      calculateSectorPositions(trackTable[i]);
     }
   }
 
@@ -200,6 +201,72 @@ namespace CPC464 {
         sectorTableBufPos++;
       }
       filePos = nextFilePos;
+      calculateSectorPositions(trackTable[i]);
+    }
+  }
+
+  void CPCDiskImage::calculateSectorPositions(CPCDiskImage::CPCDiskTrackInfo& t)
+  {
+    int     totalSize = 0;
+    // create initial table, storing sector sizes instead of start positions
+    for (int i = 0; i < int(t.nSectors); i++) {
+      // ID address mark, ID, ID CRC, gap 2, sync, data address mark,
+      // data, data CRC, gap 3, sync
+      t.sectorTable[i].physicalPosition =
+          uint16_t(4 + 4 + 2 + 22 + 12 + 4
+                   + (0x0080 << (t.sectorTable[i].sectorSizeCode & 0x07))
+                   + 2 + int(t.gapLen) + 12);
+      totalSize += int(t.sectorTable[i].physicalPosition);
+    }
+    if (totalSize > FDC765::CPCDISK_TRACK_SIZE && t.nSectors >= 2) {
+      int     bytesNeeded = totalSize - FDC765::CPCDISK_TRACK_SIZE;
+      int     badSectorBytes = 0;
+      for (int i = 0; i < int(t.nSectors); i++) {
+        // sectors with missing data address mark or CRC error may be shortened
+        if (t.sectorTable[i].statusRegister2 & 0x21) {
+          badSectorBytes +=
+              int(0x0080 << (t.sectorTable[i].sectorSizeCode & 0x07));
+          if (t.sectorTable[i].statusRegister2 & 0x01)
+            badSectorBytes += 16;
+        }
+      }
+      if (badSectorBytes > 0) {
+        for (int i = 0; i < int(t.nSectors); i++) {
+          if (t.sectorTable[i].statusRegister2 & 0x21) {
+            int     nBytes = 0x0080 << (t.sectorTable[i].sectorSizeCode & 0x07);
+            if (t.sectorTable[i].statusRegister2 & 0x01)
+              nBytes += 16;
+            int     nBytes_ = nBytes;
+            if (badSectorBytes > bytesNeeded)
+              nBytes_ = int((int64_t(nBytes) * bytesNeeded) / badSectorBytes);
+            t.sectorTable[i].physicalPosition =
+                uint16_t(int(t.sectorTable[i].physicalPosition) - nBytes_);
+            bytesNeeded -= nBytes_;
+            badSectorBytes -= nBytes;
+          }
+        }
+      }
+      int     gapBytes = int(t.nSectors) * int(t.gapLen);
+      if (bytesNeeded > 0 && gapBytes > 0) {
+        // try to reduce gap lengths
+        for (int i = 0; i < int(t.nSectors); i++) {
+          int     nBytes = t.gapLen;
+          if (gapBytes > bytesNeeded)
+            nBytes = int((int64_t(nBytes) * bytesNeeded) / gapBytes);
+          t.sectorTable[i].physicalPosition =
+              uint16_t(int(t.sectorTable[i].physicalPosition) - nBytes);
+          bytesNeeded -= nBytes;
+          gapBytes -= int(t.gapLen);
+        }
+      }
+    }
+    // convert sector sizes to start positions
+    totalSize = 0;
+    for (int i = 0; i < int(t.nSectors); i++) {
+      int     tmp = int(t.sectorTable[i].physicalPosition);
+      // NOTE: this may overflow with invalid disk image files
+      t.sectorTable[i].physicalPosition = uint16_t(totalSize);
+      totalSize += tmp;
     }
   }
 
@@ -278,6 +345,7 @@ namespace CPC464 {
         sectorTableBuf[sectorTableBufPos].statusRegister2 = 0x00;
         sectorTableBufPos++;
       }
+      calculateSectorPositions(trackTable[i]);
     }
     return true;
   }
@@ -407,18 +475,10 @@ namespace CPC464 {
     CPCDiskTrackInfo& t = trackTable[int(currentCylinder) * nSides + h];
     if (t.nSectors < 1)
       return -1;
-    // total track size is 6250 bytes, assuming rotation speed = 300 RPM
-    // and data rate = 250 kbps
-    int     headPosBytes = (n * 6250 + (d >> 1)) / d;
-    int     curPos = 0;
+    int     headPosBytes = (n * FDC765::CPCDISK_TRACK_SIZE + (d >> 1)) / d;
     for (int s = 0; s < int(t.nSectors); s++) {
-      if (curPos >= headPosBytes)
+      if (int(t.sectorTable[s].physicalPosition) >= headPosBytes)
         return s;
-      // ID address mark, ID, ID CRC, gap 2, sync, data address mark,
-      // data, data CRC, gap 3, sync
-      curPos = curPos + (4 + 4 + 2 + 22 + 12 + 4
-                         + (0x0080 << (t.sectorTable[s].sectorSizeCode & 0x07))
-                         + 2 + int(t.gapLen) + 12);
     }
     return 0;
   }
@@ -430,17 +490,8 @@ namespace CPC464 {
     CPCDiskTrackInfo& t = trackTable[int(currentCylinder) * nSides + h];
     if (s < 0 || s >= int(t.nSectors))
       return -1;
-    int     curPos = 0;
-    for (int i = 0; i < s; i++) {
-      // ID address mark, ID, ID CRC, gap 2, sync, data address mark,
-      // data, data CRC, gap 3, sync
-      curPos = curPos + (4 + 4 + 2 + 22 + 12 + 4
-                         + (0x0080 << (t.sectorTable[i].sectorSizeCode & 0x07))
-                         + 2 + int(t.gapLen) + 12);
-    }
-    // total track size is 6250 bytes, assuming rotation speed = 300 RPM
-    // and data rate = 250 kbps
-    return ((curPos * d + 3125) / 6250);
+    return ((int(t.sectorTable[s].physicalPosition) * d
+             + (FDC765::CPCDISK_TRACK_SIZE >> 1)) / FDC765::CPCDISK_TRACK_SIZE);
   }
 
   FDC765::CPCDiskError CPCDiskImage::readSector(

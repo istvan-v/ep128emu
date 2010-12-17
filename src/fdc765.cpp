@@ -452,7 +452,7 @@ namespace CPC464 {
         return;
       // gap 4a, sync, index address mark, gap 1, sync
       if (rotationAngles[cmdParams.unitNumber]
-          == (6250 - (80 + 12 + 4 + 50 + 12))) {
+          == (CPCDISK_TRACK_SIZE - (80 + 12 + 4 + 50 + 12))) {
         if (--indexPulsesRemaining < 1) {
           // sector not found after two index pulses
           startResultPhase(CPCDISK_ERROR_SECTOR_NOT_FOUND);
@@ -461,18 +461,20 @@ namespace CPC464 {
       }
       if (--sectorDelay < 0) {
         int     nextSector =
-            getPhysicalSector(rotationAngles[cmdParams.unitNumber], 6250);
+            getPhysicalSector(rotationAngles[cmdParams.unitNumber],
+                              CPCDISK_TRACK_SIZE);
         if (nextSector < 0) {
           // error: no sector is found
           startResultPhase(CPCDISK_ERROR_SECTOR_NOT_FOUND);
           return;
         }
         physicalSector = uint8_t(nextSector);
-        sectorDelay = getPhysicalSectorPos(nextSector, 6250)
+        sectorDelay = getPhysicalSectorPos(nextSector, CPCDISK_TRACK_SIZE)
                       - rotationAngles[cmdParams.unitNumber];
         // ID address mark, ID, ID CRC
-        sectorDelay = (sectorDelay >= 0 ? (sectorDelay + 4 + 4 + 2)
-                                          : (sectorDelay + 6250 + 4 + 4 + 2));
+        sectorDelay = (sectorDelay >= 0 ?
+                       (sectorDelay + 4 + 4 + 2)
+                       : (sectorDelay + CPCDISK_TRACK_SIZE + 4 + 4 + 2));
       }
       if (sectorDelay > 0) {
         // head position is not yet at the ID address mark of the next sector
