@@ -124,26 +124,7 @@ namespace CPC464 {
       sendAudioOutput(soundOutputSignal);
     }
     videoRenderer.runOneCycle();
-    bool    crtcPrvHSyncState = crtc.getHSyncState();
-    bool    crtcPrvVSyncState = crtc.getVSyncState();
     crtc.runOneCycle();
-    if (uint8_t(crtc.getHSyncState()) < uint8_t(crtcPrvHSyncState)) {
-      gateArrayIRQCounter++;
-      if (gateArrayVSyncDelay > 0) {
-        if (--gateArrayVSyncDelay == 0) {
-          if (gateArrayIRQCounter >= 32)
-            z80.triggerInterrupt();
-          gateArrayIRQCounter = 0;
-        }
-      }
-      if (gateArrayIRQCounter >= 52) {
-        gateArrayIRQCounter = 0;
-        z80.triggerInterrupt();
-      }
-    }
-    if (uint8_t(crtc.getVSyncState()) > uint8_t(crtcPrvVSyncState)) {
-      gateArrayVSyncDelay = 2;
-    }
     crtcCyclesRemainingH--;
     z80OpcodeHalfCycles = z80OpcodeHalfCycles - 8;
   }
@@ -737,6 +718,36 @@ namespace CPC464 {
     return retval;
   }
 
+  EP128EMU_REGPARM2 void CPC464VM::hSyncStateChangeCallback(void *userData,
+                                                            bool newState)
+  {
+    CPC464VM&  vm = *(reinterpret_cast<CPC464VM *>(userData));
+    if (!newState) {
+      vm.gateArrayIRQCounter++;
+      if (vm.gateArrayVSyncDelay > 0) {
+        if (--vm.gateArrayVSyncDelay == 0) {
+          if (vm.gateArrayIRQCounter >= 32)
+            vm.z80.triggerInterrupt();
+          vm.gateArrayIRQCounter = 0;
+        }
+      }
+      if (vm.gateArrayIRQCounter >= 52) {
+        vm.gateArrayIRQCounter = 0;
+        vm.z80.triggerInterrupt();
+      }
+    }
+    vm.videoRenderer.crtcHSyncStateChange(newState);
+  }
+
+  EP128EMU_REGPARM2 void CPC464VM::vSyncStateChangeCallback(void *userData,
+                                                            bool newState)
+  {
+    CPC464VM&  vm = *(reinterpret_cast<CPC464VM *>(userData));
+    if (newState)
+      vm.gateArrayVSyncDelay = 2;
+    vm.videoRenderer.crtcVSyncStateChange(newState);
+  }
+
   void CPC464VM::tapeCallback(void *userData)
   {
     CPC464VM&  vm = *(reinterpret_cast<CPC464VM *>(userData));
@@ -1030,6 +1041,8 @@ namespace CPC464 {
     ioPorts.setReadCallback(&ioPortReadCallback);
     ioPorts.setWriteCallback(&ioPortWriteCallback);
     ioPorts.setDebugReadCallback(&ioPortDebugReadCallback);
+    crtc.setHSyncStateChangeCallback(&hSyncStateChangeCallback, (void *) this);
+    crtc.setVSyncStateChangeCallback(&vSyncStateChangeCallback, (void *) this);
     // hack to get some programs using interrupt mode 2 working
     z80.setVectorBase(0xFF);
     // use CPC gate array colormap
@@ -1542,6 +1555,11 @@ namespace CPC464 {
                      tmpBuf[4], tmpBuf[5], tmpBuf[6], tmpBuf[7],
                      tmpBuf[8], tmpBuf[9], tmpBuf[10], tmpBuf[11],
                      tmpBuf[12], tmpBuf[13], tmpBuf[14], tmpBuf[15]);
+    if (!(crtcRegisterSelected & 0x10)) {
+      bufp[((int(crtcRegisterSelected) & 15) * 3)
+           + ((int(crtcRegisterSelected) & 12) >> 2)
+           + ((crtcRegisterSelected & 8) == 0 ? 9 : 18)] = '>';
+    }
     bufp = bufp + n;
     n = std::sprintf(bufp,
                      "8255 PPI: AO: %02X AI: %02X  BO: %02X BI: %02X\n"
@@ -1559,10 +1577,9 @@ namespace CPC464 {
       int     yPos = 0;
       getVideoPosition(xPos, yPos);
       n = std::sprintf(bufp,
-                       "AY3 sel.: %02X  Mem: %04X  VidXY: %3d,%3d\n",
-                       (unsigned int) ayRegisterSelected,
+                       "Mem: %04X  VidXY:%3d,%3d  CRTC MA: %04X\n",
                        (unsigned int) (memory.getPaging() ^ 0x00C0),
-                       xPos, yPos);
+                       xPos, yPos, (unsigned int) crtc.getMemoryAddress());
     }
     bufp = bufp + n;
     for (uint8_t i = 0; i < 16; i++)
@@ -1574,6 +1591,9 @@ namespace CPC464 {
                      tmpBuf[4], tmpBuf[5], tmpBuf[6], tmpBuf[7],
                      tmpBuf[8], tmpBuf[9], tmpBuf[10], tmpBuf[11],
                      tmpBuf[12], tmpBuf[13], tmpBuf[14], tmpBuf[15]);
+    bufp[((int(ayRegisterSelected) & 15) * 3)
+         + ((int(ayRegisterSelected) & 12) >> 2)
+         + ((ayRegisterSelected & 8) == 0 ? 9 : 18)] = '>';
     bufp = bufp + n;
     buf = &(tmpBuf2[0]);
   }
