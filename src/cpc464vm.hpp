@@ -177,6 +177,10 @@ namespace CPC464 {
     static void ioPortWriteCallback(void *userData,
                                     uint16_t addr, uint8_t value);
     static uint8_t ioPortDebugReadCallback(void *userData, uint16_t addr);
+    static EP128EMU_REGPARM2 void hSyncStateChangeCallback(void *userData,
+                                                           bool newState);
+    static EP128EMU_REGPARM2 void vSyncStateChangeCallback(void *userData,
+                                                           bool newState);
     static void tapeCallback(void *userData);
     static void demoPlayCallback(void *userData);
     static void demoRecordCallback(void *userData);
