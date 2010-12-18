@@ -32,15 +32,17 @@ namespace CPC464 {
     int       hSyncCnt;
     uint8_t   crtcHSyncCnt;
     uint8_t   vSyncCnt;
-    uint8_t   videoDelayBufPos;         // 0 or 4
+    uint8_t   videoDelayBufPos; // 0 or 4
     uint8_t   videoModeLatched;
     // sync (delay=1), displayEnabled (d=2), videoByte0 (d=2), videoByte1 (d=2)
     uint8_t   videoDelayBuf[8];
     const uint8_t *videoMemory;
-    uint8_t   *lineBuf;     // 48 * 9 = 432 bytes allocated as 108 uint32_t's
+    uint8_t   *lineBuf;         // 448 bytes (112 uint32_t's) for 49 characters
     uint8_t   palette[16];
     uint8_t   borderColor;
     uint8_t   videoMode;
+    uint8_t   hSyncMax;
+    uint8_t   hSyncLen;
     // --------
     /*!
      * drawLine() is called after rendering each line.
@@ -85,6 +87,31 @@ namespace CPC464 {
     void setColor(uint8_t penNum, uint8_t c);   // penNum >= 16 is border
     uint8_t getColor(uint8_t penNum) const;
     EP128EMU_REGPARM1 void runOneCycle();
+   private:
+    EP128EMU_REGPARM1 void shiftLineBuffer();
+   public:
+    EP128EMU_INLINE void crtcHSyncStateChange(bool newState)
+    {
+      if (!newState) {
+        if (crtcHSyncCnt <= 7) {
+          if (crtcHSyncCnt >= 4)
+            hSyncLen = crtcHSyncCnt - 3;
+          videoModeLatched = videoMode;
+          if (vSyncCnt > 0) {
+            if (--vSyncCnt == 21)       // VSync start (delayed by 5 lines)
+              vsyncStateChange(true, (crtc.getVSyncInterlace() ? 34U : 6U));
+            if (vSyncCnt == 0)          // VSync end
+              vsyncStateChange(false, 6U);
+          }
+        }
+      }
+      crtcHSyncCnt = uint8_t(newState);
+    }
+    EP128EMU_INLINE void crtcVSyncStateChange(bool newState)
+    {
+      if (newState && vSyncCnt == 0)
+        vSyncCnt = 26;
+    }
     void reset();
   };
 

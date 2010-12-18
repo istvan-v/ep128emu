@@ -78,7 +78,7 @@ namespace CPC464 {
   CPCVideo::CPCVideo(const CRTC6845& crtc_, const uint8_t *videoMemory_)
     : crtc(crtc_),
       lineBufPtr((uint8_t *) 0),
-      hSyncCnt(0),
+      hSyncCnt(1),
       crtcHSyncCnt(0),
       vSyncCnt(0),
       videoDelayBufPos(0),
@@ -86,14 +86,16 @@ namespace CPC464 {
       videoMemory(videoMemory_),
       lineBuf((uint8_t *) 0),
       borderColor(0x00),
-      videoMode(0)
+      videoMode(0),
+      hSyncMax(107),
+      hSyncLen(4)
   {
     for (size_t i = 0; i < 8; i++)
       videoDelayBuf[i] = 0x00;
     for (size_t i = 0; i < 16; i++)
       palette[i] = 0x00;
-    lineBuf = reinterpret_cast<uint8_t *>(new uint32_t[108]);
-    for (size_t i = 0; i < 432; i++)
+    lineBuf = reinterpret_cast<uint8_t *>(new uint32_t[112]);
+    for (size_t i = 0; i < 448; i++)
       lineBuf[i] = uint8_t((~i) & 0x01);
     lineBufPtr = lineBuf;
   }
@@ -128,7 +130,7 @@ namespace CPC464 {
 
   EP128EMU_REGPARM1 void CPCVideo::runOneCycle()
   {
-    if ((unsigned int) hSyncCnt < 48U) {
+    if ((unsigned int) hSyncCnt < 97U) {
       if (videoDelayBuf[videoDelayBufPos ^ 4] != 0) {
         lineBufPtr[0] = 0x01;           // sync
         lineBufPtr[1] = 0x14;
@@ -190,15 +192,23 @@ namespace CPC464 {
         lineBufPtr = lineBufPtr + 2;
       }
     }
-    hSyncCnt++;
-    if (crtc.getHSyncState()) {         // horizontal sync
-      if (crtcHSyncCnt <= 6) {
-        if (crtcHSyncCnt == 2) {
-          if (hSyncCnt >= 49)
-            hSyncCnt = -13;
+    hSyncCnt += 2;
+    if (crtcHSyncCnt) {                 // horizontal sync
+      if (crtcHSyncCnt <= 7) {
+        if (crtcHSyncCnt == 3) {
+          if (hSyncCnt >= (int(hSyncMax) - 8)) {
+            if (hSyncCnt & 1)
+              drawLine(lineBuf, size_t(lineBufPtr - lineBuf));
+            else
+              shiftLineBuffer();
+            lineBufPtr = lineBuf;
+            hSyncCnt = -21 - int(hSyncLen);
+            hSyncMax = 111 - hSyncLen;
+          }
         }
-        if (crtcHSyncCnt == 6) {
+        else if (crtcHSyncCnt == 7) {
           videoModeLatched = videoMode;
+          hSyncLen = 4;
           if (vSyncCnt > 0) {
             if (--vSyncCnt == 21)       // VSync start (delayed by 5 lines)
               vsyncStateChange(true, (crtc.getVSyncInterlace() ? 34U : 6U));
@@ -209,45 +219,267 @@ namespace CPC464 {
         crtcHSyncCnt++;
       }
     }
-    else if (crtcHSyncCnt > 0) {
-      if (crtcHSyncCnt <= 6) {
-        videoModeLatched = videoMode;
-        if (vSyncCnt > 0) {
-          if (--vSyncCnt == 21)         // VSync start (delayed by 5 lines)
-            vsyncStateChange(true, (crtc.getVSyncInterlace() ? 34U : 6U));
-          if (vSyncCnt == 0)            // VSync end
-            vsyncStateChange(false, 6U);
-        }
-      }
-      crtcHSyncCnt = 0;
-    }
-    if ((unsigned int) (hSyncCnt + 2) < 50U) {
-      if (hSyncCnt == 0)
+    if ((unsigned int) (hSyncCnt + 4) >= 101U) {
+      if (hSyncCnt >= int(hSyncMax)) {
+        if (hSyncCnt & 1)
+          drawLine(lineBuf, size_t(lineBufPtr - lineBuf));
+        else
+          shiftLineBuffer();
         lineBufPtr = lineBuf;
-      if (crtc.getVSyncState()) {
-        if (vSyncCnt == 0)
-          vSyncCnt = 26;                // CRTC vertical sync
+        hSyncCnt = int(hSyncMax) - 132;
       }
-      videoDelayBuf[videoDelayBufPos] =
-          uint8_t(crtc.getHSyncState()) | vSyncCnt;
-      bool    displayEnabled = crtc.getDisplayEnabled();
-      videoDelayBuf[videoDelayBufPos + 1] = uint8_t(displayEnabled);
-      if (displayEnabled) {
-        unsigned int  videoAddr =
-            ((unsigned int) (crtc.getRowAddress() & 0x07) << 11)
-            | ((unsigned int) (crtc.getMemoryAddress() & 0x03FF) << 1)
-            | ((unsigned int) (crtc.getMemoryAddress() & 0x3000) << 2);
-        videoDelayBuf[videoDelayBufPos + 2] = videoMemory[videoAddr];
-        videoDelayBuf[videoDelayBufPos + 3] = videoMemory[videoAddr + 1U];
+      return;
+    }
+    videoDelayBuf[videoDelayBufPos] = crtcHSyncCnt | vSyncCnt;
+    bool    displayEnabled = crtc.getDisplayEnabled();
+    videoDelayBuf[videoDelayBufPos + 1] = uint8_t(displayEnabled);
+    if (displayEnabled) {
+      unsigned int  videoAddr =
+          ((unsigned int) (crtc.getRowAddress() & 0x07) << 11)
+          | ((unsigned int) (crtc.getMemoryAddress() & 0x03FF) << 1)
+          | ((unsigned int) (crtc.getMemoryAddress() & 0x3000) << 2);
+      videoDelayBuf[videoDelayBufPos + 2] = videoMemory[videoAddr];
+      videoDelayBuf[videoDelayBufPos + 3] = videoMemory[videoAddr + 1U];
+    }
+    videoDelayBufPos = (~videoDelayBufPos) & 4;
+  }
+
+  EP128EMU_REGPARM1 void CPCVideo::shiftLineBuffer()
+  {
+    uint32_t  tmpBuf[108];              // 432 bytes (48 characters * 9)
+    uint8_t   *p = reinterpret_cast<uint8_t *>(&(tmpBuf[0]));
+    const uint8_t *p1 = &(lineBuf[0]);
+    uint8_t   flagByte1 = *p1;
+    const uint8_t *p2 = p1 + (int(flagByte1) + 1);
+    for (int i = 0; i < 48; i++) {
+      uint8_t flagByte2 = *p2;
+      switch ((flagByte1 << 2) ^ flagByte2) {
+      case 0x05:                        // 1, 1
+        p[0] = 0x02;
+        p[1] = p1[1];
+        p[2] = p2[1];
+        p = p + 3;
+        p1 = p2;
+        p2 = p2 + 2;
+        break;
+      case 0x00:                        // 1, 4
+        p[0] = 0x04;
+        {
+          uint8_t tmp = p1[1];
+          p[1] = tmp;
+          p[2] = tmp;
+        }
+        p[3] = p2[1];
+        p[4] = p2[2];
+        p = p + 5;
+        p1 = p2;
+        p2 = p2 + 5;
+        break;
+      case 0x02:                        // 1, 6
+        p[0] = 0x06;
+        p[1] = p1[1];
+        p[2] = 0x00;
+        p[3] = 0x00;
+        p[4] = p2[1];
+        p[5] = p2[2];
+        p[6] = p2[3];
+        p = p + 7;
+        p1 = p2;
+        p2 = p2 + 7;
+        break;
+      case 0x0C:                        // 1, 8
+        p[0] = 0x08;
+        {
+          uint8_t tmp = p1[1];
+          p[1] = tmp;
+          p[2] = tmp;
+          p[3] = tmp;
+          p[4] = tmp;
+        }
+        p[5] = p2[1];
+        p[6] = p2[2];
+        p[7] = p2[3];
+        p[8] = p2[4];
+        p = p + 9;
+        p1 = p2;
+        p2 = p2 + 9;
+        break;
+      case 0x11:                        // 4, 1
+        p[0] = 0x04;
+        p[1] = p1[3];
+        p[2] = p1[4];
+        {
+          uint8_t tmp = p2[1];
+          p[3] = tmp;
+          p[4] = tmp;
+        }
+        p = p + 5;
+        p1 = p2;
+        p2 = p2 + 2;
+        break;
+      case 0x14:                        // 4, 4
+        p[0] = 0x04;
+        p[1] = p1[3];
+        p[2] = p1[4];
+        p[3] = p2[1];
+        p[4] = p2[2];
+        p = p + 5;
+        p1 = p2;
+        p2 = p2 + 5;
+        break;
+      case 0x16:                        // 4, 6
+        p[0] = 0x06;
+        p[1] = p1[3];
+        p[2] = p1[4];
+        p[3] = 0x0F;
+        p[4] = p2[1];
+        p[5] = p2[2];
+        p[6] = p2[3];
+        p = p + 7;
+        p1 = p2;
+        p2 = p2 + 7;
+        break;
+      case 0x18:                        // 4, 8
+        p[0] = 0x08;
+        {
+          uint8_t tmp = p1[3];
+          p[1] = tmp;
+          p[2] = tmp;
+          tmp = p1[4];
+          p[3] = tmp;
+          p[4] = tmp;
+        }
+        p[5] = p2[1];
+        p[6] = p2[2];
+        p[7] = p2[3];
+        p[8] = p2[4];
+        p = p + 9;
+        p1 = p2;
+        p2 = p2 + 9;
+        break;
+      case 0x19:                        // 6, 1
+        p[0] = 0x06;
+        p[1] = p1[4];
+        p[2] = p1[5];
+        p[3] = p1[6];
+        p[4] = p2[1];
+        p[5] = 0x00;
+        p[6] = 0x00;
+        p = p + 7;
+        p1 = p2;
+        p2 = p2 + 2;
+        break;
+      case 0x1C:                        // 6, 4
+        p[0] = 0x06;
+        p[1] = p1[4];
+        p[2] = p1[5];
+        p[3] = p1[6];
+        p[4] = p2[1];
+        p[5] = p2[2];
+        p[6] = 0x0F;
+        p = p + 7;
+        p1 = p2;
+        p2 = p2 + 5;
+        break;
+      case 0x1E:                        // 6, 6
+        p[0] = 0x06;
+        p[1] = p1[4];
+        p[2] = p1[5];
+        p[3] = p1[6];
+        p[4] = p2[1];
+        p[5] = p2[2];
+        p[6] = p2[3];
+        p = p + 7;
+        p1 = p2;
+        p2 = p2 + 7;
+        break;
+      case 0x10:                        // 6, 8
+        p[0] = 0x06;                    // FIXME: this conversion is lossy
+        p[1] = p1[4];
+        p[2] = p1[5];
+        p[3] = p1[6];
+        p[4] = p2[1];
+        p[5] = p2[3];
+        p[6] = 0x0F;
+        p = p + 7;
+        p1 = p2;
+        p2 = p2 + 9;
+        break;
+      case 0x21:                        // 8, 1
+        p[0] = 0x08;
+        p[1] = p1[5];
+        p[2] = p1[6];
+        p[3] = p1[7];
+        p[4] = p1[8];
+        {
+          uint8_t tmp = p2[1];
+          p[5] = tmp;
+          p[6] = tmp;
+          p[7] = tmp;
+          p[8] = tmp;
+        }
+        p = p + 9;
+        p1 = p2;
+        p2 = p2 + 2;
+        break;
+      case 0x24:                        // 8, 4
+        p[0] = 0x08;
+        p[1] = p1[5];
+        p[2] = p1[6];
+        p[3] = p1[7];
+        p[4] = p1[8];
+        {
+          uint8_t tmp = p2[1];
+          p[5] = tmp;
+          p[6] = tmp;
+          tmp = p2[2];
+          p[7] = tmp;
+          p[8] = tmp;
+        }
+        p = p + 9;
+        p1 = p2;
+        p2 = p2 + 5;
+        break;
+      case 0x26:                        // 8, 6
+        p[0] = 0x06;                    // FIXME: this conversion is lossy
+        p[1] = p1[5];
+        p[2] = p1[7];
+        p[3] = 0x0F;
+        p[4] = p2[1];
+        p[5] = p2[2];
+        p[6] = p2[3];
+        p = p + 7;
+        p1 = p2;
+        p2 = p2 + 7;
+        break;
+      case 0x28:                        // 8, 8
+        p[0] = 0x08;
+        p[1] = p1[5];
+        p[2] = p1[6];
+        p[3] = p1[7];
+        p[4] = p1[8];
+        p[5] = p2[1];
+        p[6] = p2[2];
+        p[7] = p2[3];
+        p[8] = p2[4];
+        p = p + 9;
+        p1 = p2;
+        p2 = p2 + 9;
+        break;
+      default:
+        for ( ; i < 48; i++) {          // NOTE: this should not be reached
+          p[0] = 0x01;
+          p[1] = 0x14;
+          p = p + 2;
+        }
+        drawLine(reinterpret_cast<uint8_t *>(&(tmpBuf[0])),
+                 size_t(p - reinterpret_cast<uint8_t *>(&(tmpBuf[0]))));
+        return;
       }
-      videoDelayBufPos = (~videoDelayBufPos) & 4;
+      flagByte1 = flagByte2;
     }
-    else {
-      if (hSyncCnt >= 53)
-        hSyncCnt = -13;
-      if (hSyncCnt == 48)
-        drawLine(lineBuf, size_t(lineBufPtr - lineBuf));
-    }
+    drawLine(reinterpret_cast<uint8_t *>(&(tmpBuf[0])),
+             size_t(p - reinterpret_cast<uint8_t *>(&(tmpBuf[0]))));
   }
 
   void CPCVideo::reset()
