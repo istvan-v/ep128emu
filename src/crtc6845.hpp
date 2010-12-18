@@ -73,8 +73,11 @@ namespace CPC464 {
     uint16_t    cursorAddress;
     uint8_t     rowAddressMask;         // 0x1E if R8 == 3, 0x1F otherwise
     uint8_t     cursorFlashCnt;
-    bool        endOfFrameFlag;
-    uint8_t     verticalAdjustCnt;
+    // 0x00 = last character row was not reached yet
+    // 0x80 = start vertical total adjust in next line
+    // 0x01 = vertical total adjust is active
+    uint8_t     endOfFrameFlag;
+    uint8_t     verticalTotalAdjustLatched;
     // bit 0: current cursor enable output
     // bit 1: current display enable output
     // bit 2: cursor enable delayed by one cycle
@@ -86,8 +89,17 @@ namespace CPC464 {
     uint8_t     displayEnableMask;
     // 1, 4, 16, or 0 depending on bits 6 and 7 of register 8
     uint8_t     cursorEnableMask;
+    EP128EMU_REGPARM2 void (*hSyncStateChangeCallback)(void *userData,
+                                                       bool newState);
+    void        *hSyncChangeCallbackUserData;
+    EP128EMU_REGPARM2 void (*vSyncStateChangeCallback)(void *userData,
+                                                       bool newState);
+    void        *vSyncChangeCallbackUserData;
     // --------
+    EP128EMU_REGPARM1 void checkFrameEnd();
     EP128EMU_REGPARM1 void lineEnd();
+    EP128EMU_REGPARM2 void updateHSyncFlag(bool newState);
+    EP128EMU_REGPARM2 void updateVSyncFlag(bool newState);
    public:
     CRTC6845();
     virtual ~CRTC6845();
@@ -102,10 +114,10 @@ namespace CPC464 {
         horizontalPos = (horizontalPos + 1) & 0xFF;
         characterAddress = (characterAddress + 1) & 0x3FFF;
       }
-      if (hSyncCnt > 0) {
+      if (syncFlags & 0x01) {
         // horizontal sync
-        if (--hSyncCnt == 0)
-          syncFlags = syncFlags & 0x02;
+        if (!((++hSyncCnt ^ this->registers[3]) & 0x0F))
+          updateHSyncFlag(false);
       }
       if (horizontalPos == this->registers[1]) {
         // display end / horizontal
@@ -115,10 +127,10 @@ namespace CPC464 {
       }
       if (horizontalPos == this->registers[2]) {
         // horizontal sync start
-        syncFlags = syncFlags | 0x01;
-        hSyncCnt = this->registers[3] & 0x0F;
-        // FIXME: sync width 0 is interpreted as 1
-        hSyncCnt = hSyncCnt | uint8_t(hSyncCnt == 0x00);
+        updateHSyncFlag(true);
+        hSyncCnt = 0;
+        if (!(this->registers[3] & 0x0F))
+          updateHSyncFlag(false);       // HSync width = 0
       }
       skewShiftRegister = (skewShiftRegister << 2) | displayEnableFlags
                           | uint8_t(characterAddress == cursorAddress);
@@ -166,6 +178,12 @@ namespace CPC464 {
     EP128EMU_REGPARM2 uint8_t readRegister(uint16_t addr) const;
     EP128EMU_REGPARM3 void writeRegister(uint16_t addr, uint8_t value);
     EP128EMU_REGPARM2 uint8_t readRegisterDebug(uint16_t addr) const;
+    void setHSyncStateChangeCallback(
+        EP128EMU_REGPARM2 void (*func)(void *userData, bool newState),
+        void *userData_);
+    void setVSyncStateChangeCallback(
+        EP128EMU_REGPARM2 void (*func)(void *userData, bool newState),
+        void *userData_);
     // --------
     void saveState(Ep128Emu::File::Buffer&);
     void saveState(Ep128Emu::File&);
