@@ -336,7 +336,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.display.motionBlur = o->value();
   gui.config.displaySettingsChanged = true;
 }}
-          tooltip {Amount of temporal filtering in OpenGL / single buffered mode} xywh {195 374 120 21} type Horizontal color 47 selection_color 52 labelsize 12 align 8 maximum 0.95 value 0.25
+          tooltip {Amount of temporal filtering in OpenGL / single buffered mode} xywh {195 374 120 21} type Horizontal color 47 selection_color 52 labelsize 12 align 8 maximum 0.95 value 0.2
         }
       }
       Fl_Button {} {
@@ -362,7 +362,7 @@ class Ep128EmuGUI_DisplayConfigWindow {open
   gui.config.display.blue.gamma = 1.0;
   gui.config.display.lineShade = 0.75;
   gui.config.display.blendScale = 1.0;
-  gui.config.display.motionBlur = 0.25;
+  gui.config.display.motionBlur = 0.2;
   gui.config.display.pixelAspectRatio = 1.0;
   updateWindow();
 }}
