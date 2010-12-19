@@ -16,7 +16,7 @@ BEGIN
     BEGIN
       VALUE "Comments", "Home page: http://sourceforge.net/projects/ep128emu/"
       VALUE "CompanyName", "Istvan Varga"
-      VALUE "FileDescription", "ep128emu - Enterprise 64/128, Spectrum 48/128, and CPC 464 emulator"
+      VALUE "FileDescription", "ep128emu - Enterprise 64/128, Spectrum 48/128, and CPC 464/664/6128 emulator"
       VALUE "FileVersion", "2.0.9.0"
       VALUE "InternalName", "ep128emu"
       VALUE "LegalCopyright", "Copyright (C) 2003-2010, GPL v2 or later"
