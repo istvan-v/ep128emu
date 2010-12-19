@@ -32,6 +32,7 @@
 ;Interface Settings
 
   !define MUI_ABORTWARNING
+  !define MUI_COMPONENTSPAGE_NODESC
 
 ;--------------------------------
 ;Pages
@@ -57,7 +58,7 @@
 ;--------------------------------
 ;Installer Sections
 
-Section "ep128emu2" SecMain
+Section "ep128emu binaries" SecMain
 
   SectionIn RO
 
@@ -89,6 +90,7 @@ Section "ep128emu2" SecMain
 
   File "..\disk\disk.zip"
   File "..\disk\ide126m.vhd.bz2"
+  File "..\disk\ide189m.vhd.bz2"
 
   SetOutPath "$INSTDIR\files"
 
@@ -130,14 +132,14 @@ Section "ep128emu2" SecMain
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - Software - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -no-opengl -colorscheme 1' "$INSTDIR\ep128emu.exe" 1
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - Software - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -no-opengl -colorscheme 2' "$INSTDIR\ep128emu.exe" 1
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator\zx128emu - Software - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-zx -no-opengl -colorscheme 3' "$INSTDIR\ep128emu.exe" 1
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - GL - default theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl' "$INSTDIR\ep128emu.exe" 2
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - GL - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl -colorscheme 1' "$INSTDIR\ep128emu.exe" 2
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - GL - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl -colorscheme 2' "$INSTDIR\ep128emu.exe" 2
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - GL - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl -colorscheme 3' "$INSTDIR\ep128emu.exe" 2
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - Software - default theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl' "$INSTDIR\ep128emu.exe" 2
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - Software - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 1' "$INSTDIR\ep128emu.exe" 2
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - Software - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 2' "$INSTDIR\ep128emu.exe" 2
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc464emu - Software - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 3' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc6128emu - GL - default theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc6128emu - GL - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl -colorscheme 1' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc6128emu - GL - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl -colorscheme 2' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc6128emu - GL - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl -colorscheme 3' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc6128emu - Software - default theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc6128emu - Software - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 1' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc6128emu - Software - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 2' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc6128emu - Software - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 3' "$INSTDIR\ep128emu.exe" 2
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\README.lnk" "$INSTDIR\readme.txt"
     SetOutPath "$INSTDIR\tape"
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Tape editor.lnk" "$INSTDIR\tapeedit.exe"
@@ -149,7 +151,7 @@ Section "ep128emu2" SecMain
 
 SectionEnd
 
-Section "Source code" SecSrc
+Section "ep128emu source code" SecSrc
 
   SetOutPath "$INSTDIR\src"
 
@@ -274,13 +276,18 @@ Section "Associate Spectrum .TZX and .Z80 files with ep128emu" SecAssocZX
 
 SectionEnd
 
-Section "Associate CPC .CDT and .SNA files with ep128emu" SecAssocCPC
+Section "Associate CPC .CDT, .DSK and .SNA files with ep128emu" SecAssocCPC
 
   WriteRegStr HKCR ".cdt" "" "Ep128Emu.CDTFile"
   WriteRegStr HKCR "Ep128Emu.CDTFile" "" "Ep128Emu CPC tape file"
   WriteRegStr HKCR "Ep128Emu.CDTFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,2"
   WriteRegStr HKCR "Ep128Emu.CDTFile\shell" "" "open"
   WriteRegStr HKCR "Ep128Emu.CDTFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -cpc "tape.imageFile=%1"'
+  WriteRegStr HKCR ".dsk" "" "Ep128Emu.DSKFile"
+  WriteRegStr HKCR "Ep128Emu.DSKFile" "" "Ep128Emu CPC disk image"
+  WriteRegStr HKCR "Ep128Emu.DSKFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,2"
+  WriteRegStr HKCR "Ep128Emu.DSKFile\shell" "" "open"
+  WriteRegStr HKCR "Ep128Emu.DSKFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -cpc "floppy.a.imageFile=%1"'
   WriteRegStr HKCR ".sna" "" "Ep128Emu.SNAFile"
   WriteRegStr HKCR "Ep128Emu.SNAFile" "" "Ep128Emu CPC snapshot file"
   WriteRegStr HKCR "Ep128Emu.SNAFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,2"
@@ -289,7 +296,7 @@ Section "Associate CPC .CDT and .SNA files with ep128emu" SecAssocCPC
 
 SectionEnd
 
-Section "Download ROM images" SecDLRoms
+Section "Download and install ROM images" SecDLRoms
 
   SetOutPath "$INSTDIR\roms"
 
@@ -328,7 +335,7 @@ SectionEnd
   LangString DESC_SecSrc ${LANG_ENGLISH} "ep128emu source code"
   LangString DESC_SecAssocFiles ${LANG_ENGLISH} "Associate snapshot and demo files with ep128emu"
   LangString DESC_SecAssocZX ${LANG_ENGLISH} "Associate Spectrum .TZX and .Z80 files with ep128emu"
-  LangString DESC_SecAssocCPC ${LANG_ENGLISH} "Associate CPC .CDT and .SNA files with ep128emu"
+  LangString DESC_SecAssocCPC ${LANG_ENGLISH} "Associate CPC .CDT, .DSK and .SNA files with ep128emu"
   LangString DESC_SecDLRoms ${LANG_ENGLISH} "Download and install ROM images"
   LangString DESC_SecInstCfg ${LANG_ENGLISH} "Install configuration files"
 
@@ -504,6 +511,7 @@ Section "Uninstall"
   RMDir "$INSTDIR\demo"
   Delete "$INSTDIR\disk\disk.zip"
   Delete "$INSTDIR\disk\ide126m.vhd.bz2"
+  Delete "$INSTDIR\disk\ide189m.vhd.bz2"
   RMDir "$INSTDIR\disk"
   RMDir "$INSTDIR\files"
   RMDir "$INSTDIR\progs"
@@ -601,6 +609,14 @@ Section "Uninstall"
   Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc464emu - Software - Win2000 theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc464emu - Software - plastic theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc464emu - Software - Gtk+ theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc6128emu - GL - default theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc6128emu - GL - Win2000 theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc6128emu - GL - plastic theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc6128emu - GL - Gtk+ theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc6128emu - Software - default theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc6128emu - Software - Win2000 theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc6128emu - Software - plastic theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc6128emu - Software - Gtk+ theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\ep128emu - GL - Win2000 theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\ep128emu - GL - plastic theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\README.lnk"
