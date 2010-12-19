@@ -490,8 +490,11 @@ namespace CPC464 {
         return;
       }
       // sector data transfer to/from CPU
-      if (!dataIsNotReady)
+      if (!dataIsNotReady) {
         statusRegister1 = statusRegister1 | 0x10;       // overrun
+        if ((cmdParams.commandCode & 0x13) == 0x01)
+          sectorBuf[totalDataBytes - dataBytesRemaining] = 0x00;
+      }
       if (--dataBytesRemaining < 1U) {
         // data transfer complete, next sector or result phase after data CRC
         sectorDelay = 2;
