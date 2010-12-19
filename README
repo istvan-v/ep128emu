@@ -2,9 +2,9 @@ ep128emu 2.0.9 beta
 ===================
 
 ep128emu is an open source, portable emulator of the Enterprise 128,
-ZX Spectrum 48/128, and Amstrad CPC 464 computers, written in C++, and
-supporting Windows and POSIX platforms (32 bit Windows, 32 and 64 bit
-Linux, and MacOS X have been tested).
+ZX Spectrum 48/128, and Amstrad CPC 464/664/6128 computers, written in
+C++, and supporting Windows and POSIX platforms (32 bit Windows, 32 and
+64 bit Linux, and MacOS X have been tested).
 It implements accurate, high quality hardware emulation, however, the
 system requirements are higher than that of most other emulators.
 
@@ -200,7 +200,7 @@ When installing the first time, you also need to set up configuration
 files and ROM images:
 
   * download
-    http://ep128emu.enterpriseforever.org/roms/ep128emu_roms.bin,
+    http://ep128emu.enterpriseforever.com/roms/ep128emu_roms.bin,
     and copy it to ~/.ep128emu/roms (or, in the case of MacOS X,
     ~/Library/Application Support/ep128emu/roms)
   * after installing the ROM package, run 'makecfg', and click OK to the
@@ -219,7 +219,7 @@ download page:
 To install, just run the executable, and follow the instructions.
 The installer can automatically download the ROM images needed for
 running the emulator, but these can also be installed manually by
-downloading http://ep128emu.enterpriseforever.org/roms/ep128emu_roms.7z,
+downloading http://ep128emu.enterpriseforever.com/roms/ep128emu_roms.7z,
 and extracting it to roms\ under the selected installation folder.
 When asked if configuration files should be reinstalled, click 'OK'
 when installing the first time, but this step can be skipped in later
@@ -947,6 +947,6 @@ Credits
 Thanks to:
 
 Zozosoft    - hardware testing and information
-MrPrise     - ep128emu.enterpriseforever.org web site
+MrPrise     - ep128emu.enterpriseforever.com web site
 Attus       - Linux binary packages
 
