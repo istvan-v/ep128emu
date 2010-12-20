@@ -225,6 +225,20 @@ When asked if configuration files should be reinstalled, click 'OK'
 when installing the first time, but this step can be skipped in later
 installations to preserve the configuration.
 
+WARNING: on Windows, there may be timing problems when using some dual
+core CPUs, or power management features that change the clock frequency
+of the CPU while the emulator is running. These issues can result in
+slow or erratic emulation speed, not running at 100% speed in real-time
+mode, or temporary lockups. If you encounter such problems, forcing the
+emulator to run on a single core (by setting the CPU affinity for
+ep128emu.exe), and/or disabling dynamic changes to the CPU clock
+frequency by power management could fix the timing issues. Installing
+and using an utility like AMD Dual Core Optimizer may also solve the
+problem.
+Note that bad emulation performance might also be caused by display or
+audio drivers, so it is recommended to check (and upgrade, if necessary)
+those as well.
+
 Usage
 =====
 
