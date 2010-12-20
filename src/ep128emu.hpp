@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -105,9 +105,13 @@ namespace Ep128Emu {
 #  define EP128EMU_REGPARM3
 #endif
 #if defined(__GNUC__) && (__GNUC__ >= 3) && !defined(__ICC)
-#  define EP128EMU_INLINE   __attribute__ ((__always_inline__)) inline
+#  define EP128EMU_INLINE         __attribute__ ((__always_inline__)) inline
+#  define EP128EMU_EXPECT(x__)    __builtin_expect((x__), 1)
+#  define EP128EMU_UNLIKELY(x__)  __builtin_expect((x__), 0)
 #else
-#  define EP128EMU_INLINE   inline
+#  define EP128EMU_INLINE         inline
+#  define EP128EMU_EXPECT(x__)    x__
+#  define EP128EMU_UNLIKELY(x__)  x__
 #endif
 
 #include "fileio.hpp"
