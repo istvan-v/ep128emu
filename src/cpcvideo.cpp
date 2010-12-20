@@ -80,8 +80,8 @@ namespace CPC464 {
       lineBufPtr((uint8_t *) 0),
       hSyncCnt(1),
       crtcHSyncCnt(0),
+      crtcHSyncState(0),
       vSyncCnt(0),
-      videoDelayBufPos(0),
       videoModeLatched(0),
       videoMemory(videoMemory_),
       lineBuf((uint8_t *) 0),
@@ -90,8 +90,8 @@ namespace CPC464 {
       hSyncMax(107),
       hSyncLen(4)
   {
-    for (size_t i = 0; i < 8; i++)
-      videoDelayBuf[i] = 0x00;
+    videoDelayBuf[0] = 0U;
+    videoDelayBuf[1] = 0U;
     for (size_t i = 0; i < 16; i++)
       palette[i] = 0x00;
     lineBuf = reinterpret_cast<uint8_t *>(new uint32_t[112]);
@@ -130,15 +130,18 @@ namespace CPC464 {
 
   EP128EMU_REGPARM1 void CPCVideo::runOneCycle()
   {
-    if ((unsigned int) hSyncCnt < 97U) {
-      if (videoDelayBuf[videoDelayBufPos ^ 4] != 0) {
+    if (EP128EMU_EXPECT((unsigned int) hSyncCnt < 97U)) {
+      if (EP128EMU_UNLIKELY((reinterpret_cast<unsigned char *>(
+                                 &(videoDelayBuf[0])))[0] != 0)) {
         lineBufPtr[0] = 0x01;           // sync
         lineBufPtr[1] = 0x14;
         lineBufPtr = lineBufPtr + 2;
       }
-      else if (videoDelayBuf[videoDelayBufPos + 1] != 0) {
-        uint8_t videoByte0 = videoDelayBuf[videoDelayBufPos + 2];
-        uint8_t videoByte1 = videoDelayBuf[videoDelayBufPos + 3];
+      else if ((reinterpret_cast<unsigned char *>(&(videoDelayBuf[0])))[1]) {
+        uint8_t videoByte0 =
+            (reinterpret_cast<unsigned char *>(&(videoDelayBuf[0])))[2];
+        uint8_t videoByte1 =
+            (reinterpret_cast<unsigned char *>(&(videoDelayBuf[0])))[3];
         switch (videoModeLatched) {
         case 0:                         // 16 color mode
           {
@@ -193,35 +196,34 @@ namespace CPC464 {
       }
     }
     hSyncCnt += 2;
-    if (crtcHSyncCnt) {                 // horizontal sync
-      if (crtcHSyncCnt <= 7) {
-        if (crtcHSyncCnt == 3) {
-          if (hSyncCnt >= (int(hSyncMax) - 8)) {
-            if (hSyncCnt & 1)
-              drawLine(lineBuf, size_t(lineBufPtr - lineBuf));
-            else
-              shiftLineBuffer();
-            lineBufPtr = lineBuf;
-            hSyncCnt = -21 - int(hSyncLen);
-            hSyncMax = 111 - hSyncLen;
-          }
+    if (EP128EMU_UNLIKELY(crtcHSyncCnt)) {      // horizontal sync
+      if (crtcHSyncCnt == 3) {
+        if (hSyncCnt >= (int(hSyncMax) - 8)) {
+          if (EP128EMU_EXPECT(hSyncCnt & 1))
+            drawLine(lineBuf, size_t(lineBufPtr - lineBuf));
+          else
+            shiftLineBuffer();
+          lineBufPtr = lineBuf;
+          hSyncCnt = -21 - int(hSyncLen);
+          hSyncMax = 111 - hSyncLen;
         }
-        else if (crtcHSyncCnt == 7) {
-          videoModeLatched = videoMode;
-          hSyncLen = 4;
-          if (vSyncCnt > 0) {
-            if (--vSyncCnt == 21)       // VSync start (delayed by 5 lines)
-              vsyncStateChange(true, (crtc.getVSyncInterlace() ? 34U : 6U));
-            if (vSyncCnt == 0)          // VSync end
-              vsyncStateChange(false, 6U);
-          }
-        }
-        crtcHSyncCnt++;
       }
+      else if (crtcHSyncCnt == 7) {
+        videoModeLatched = videoMode;
+        hSyncLen = 4;
+        if (vSyncCnt) {
+          if (--vSyncCnt == 21)         // VSync start (delayed by 5 lines)
+            vsyncStateChange(true, (crtc.getVSyncInterlace() ? 34U : 6U));
+          else if (vSyncCnt == 15)      // VSync end
+            vsyncStateChange(false, 6U);
+        }
+        crtcHSyncCnt = 0xFF;            // will overflow to 0
+      }
+      crtcHSyncCnt++;
     }
     if ((unsigned int) (hSyncCnt + 4) >= 101U) {
-      if (hSyncCnt >= int(hSyncMax)) {
-        if (hSyncCnt & 1)
+      if (EP128EMU_UNLIKELY(hSyncCnt >= int(hSyncMax))) {
+        if (EP128EMU_EXPECT(hSyncCnt & 1))
           drawLine(lineBuf, size_t(lineBufPtr - lineBuf));
         else
           shiftLineBuffer();
@@ -230,18 +232,22 @@ namespace CPC464 {
       }
       return;
     }
-    videoDelayBuf[videoDelayBufPos] = crtcHSyncCnt | vSyncCnt;
+    videoDelayBuf[0] = videoDelayBuf[1];
+    (reinterpret_cast<unsigned char *>(&(videoDelayBuf[0])))[0] =
+        crtcHSyncState | vSyncCnt;
     bool    displayEnabled = crtc.getDisplayEnabled();
-    videoDelayBuf[videoDelayBufPos + 1] = uint8_t(displayEnabled);
+    (reinterpret_cast<unsigned char *>(&(videoDelayBuf[0])))[5] =
+        uint8_t(displayEnabled);
     if (displayEnabled) {
       unsigned int  videoAddr =
           ((unsigned int) (crtc.getRowAddress() & 0x07) << 11)
           | ((unsigned int) (crtc.getMemoryAddress() & 0x03FF) << 1)
           | ((unsigned int) (crtc.getMemoryAddress() & 0x3000) << 2);
-      videoDelayBuf[videoDelayBufPos + 2] = videoMemory[videoAddr];
-      videoDelayBuf[videoDelayBufPos + 3] = videoMemory[videoAddr + 1U];
+      (reinterpret_cast<unsigned char *>(&(videoDelayBuf[0])))[6] =
+          videoMemory[videoAddr];
+      (reinterpret_cast<unsigned char *>(&(videoDelayBuf[0])))[7] =
+          videoMemory[videoAddr + 1U];
     }
-    videoDelayBufPos = (~videoDelayBufPos) & 4;
   }
 
   EP128EMU_REGPARM1 void CPCVideo::shiftLineBuffer()
@@ -484,10 +490,9 @@ namespace CPC464 {
 
   void CPCVideo::reset()
   {
-    videoDelayBufPos = 0;
     videoModeLatched = 0;
-    for (size_t i = 0; i < 8; i++)
-      videoDelayBuf[i] = 0x00;
+    videoDelayBuf[0] = 0U;
+    videoDelayBuf[1] = 0U;
     for (size_t i = 0; i < 16; i++)
       palette[i] = 0x00;
     borderColor = 0x00;

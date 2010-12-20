@@ -31,11 +31,12 @@ namespace CPC464 {
     uint8_t   *lineBufPtr;
     int       hSyncCnt;
     uint8_t   crtcHSyncCnt;
+    uint8_t   crtcHSyncState;
     uint8_t   vSyncCnt;
-    uint8_t   videoDelayBufPos; // 0 or 4
     uint8_t   videoModeLatched;
     // sync (delay=1), displayEnabled (d=2), videoByte0 (d=2), videoByte1 (d=2)
-    uint8_t   videoDelayBuf[8];
+    // NOTE: for sync delay, only ((uint8_t *) videoDelayBuf)[0] is used
+    uint32_t  videoDelayBuf[2];
     const uint8_t *videoMemory;
     uint8_t   *lineBuf;         // 448 bytes (112 uint32_t's) for 49 characters
     uint8_t   palette[16];
@@ -93,23 +94,24 @@ namespace CPC464 {
     EP128EMU_INLINE void crtcHSyncStateChange(bool newState)
     {
       if (!newState) {
-        if (crtcHSyncCnt <= 7) {
+        if (EP128EMU_UNLIKELY(crtcHSyncCnt)) {
           if (crtcHSyncCnt >= 4)
             hSyncLen = crtcHSyncCnt - 3;
           videoModeLatched = videoMode;
-          if (vSyncCnt > 0) {
+          if (vSyncCnt) {
             if (--vSyncCnt == 21)       // VSync start (delayed by 5 lines)
               vsyncStateChange(true, (crtc.getVSyncInterlace() ? 34U : 6U));
-            if (vSyncCnt == 0)          // VSync end
+            else if (vSyncCnt == 15)    // VSync end
               vsyncStateChange(false, 6U);
           }
         }
       }
       crtcHSyncCnt = uint8_t(newState);
+      crtcHSyncState = uint8_t(newState);
     }
     EP128EMU_INLINE void crtcVSyncStateChange(bool newState)
     {
-      if (newState && vSyncCnt == 0)
+      if (newState && !vSyncCnt)
         vSyncCnt = 26;
     }
     void reset();
