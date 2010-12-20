@@ -1,6 +1,57 @@
 Changes in version 2.0.9
 ------------------------
 
+  * implemented CPC floppy drive controller (uPD765) emulation:
+    - it supports standard and extended .DSK image files, as well as
+      using a real disk in the PC floppy drive (the latter is not very
+      useful in practice, since it is limited to standard PC format DD
+      (720K) disks, which are not supported by AMSDOS)
+    - 4 drives can be emulated (although AMSDOS will only use 2)
+    - there is (not perfect) emulation of the timing of disk rotation,
+      stepping, head (un)load, and data transfers; however, this may
+      not work if the image file includes a track format that is not
+      possible on a real DD disk (~6250 bytes per track)
+    - the FORMAT TRACK (0x0D) command is unimplemented - it will always
+      report a write protect error
+    - the floppy drive emulation has not been tested extensively yet,
+      so there may be problems with unusual disk formats, rarely used
+      FDC commands and parameters, and some copy protections
+    - reading the I/O ports 80H-9FH in the debugger will return some
+      debugging information about the FDC emulation (see the README file
+      for details)
+    - changes to the installer/packaging: new machine configuration
+      files have been added that include AMSDOS (the default is now
+      CPC 6128 with AMSDOS), the disk.zip package includes an empty CPC
+      disk image, and on Windows .DSK files can be associated with the
+      emulator
+  * the CPC video emulation now supports half-character resolution
+    scrolling by changing the horizontal sync width
+  * improved 6845 CRTC emulation accuracy, fixing problems in some CPC
+    games
+  * it is possible to disable software control of the tape motor (this
+    is useful mainly to work around some buggy Enterprise software)
+  * when using the PC floppy drive and a real disk for WD177x emulation,
+    the geometry parameters are now also queried from the system on
+    Linux
+  * if the WD177x emulation detects a valid FAT header at the beginning
+    of a disk or image, it checks the geometry stored there, and if it
+    does not match the emulated hardware geometry, an error is reported;
+    this can be disabled by specifying all three parameters manually
+  * the Windows installer uses new download locations for the ROM
+    package, since the previous ones no longer work
+  * the ROM package has been updated (new versions of Enterprise ROMs)
+  * minor fixes/improvements in DAVE and NICK emulation
+  * on the first page of the debugger window, the memory dump can now
+    also display I/O ports
+  * the debug display of I/O registers has been changed slightly for CPC
+    (shows the currently selected CRTC register, and the CRTC memory
+    address)
+  * the monitor emulation allows less difference from the standard
+    vertical refresh rate than in the previous versions
+  * a 189 MB (12x15.75 MB FAT12 partitions) .VHD file has been added to
+    the disk image packages
+  * some optimizations in Enterprise and CPC emulation
+
 Changes in version 2.0.8.1
 --------------------------
 
