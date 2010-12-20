@@ -484,18 +484,19 @@ namespace CPC464 {
       checkSectorHeader();
     }
     else if (dataBytesRemaining > 0U) {
-      if (sectorDelay > 0) {
+      if (EP128EMU_UNLIKELY(sectorDelay > 0)) {
         if (--sectorDelay <= 0)         // sector data has been reached
           dataIsNotReady = false;
         return;
       }
       // sector data transfer to/from CPU
-      if (!dataIsNotReady) {
+      if (EP128EMU_UNLIKELY(!dataIsNotReady)) {
         statusRegister1 = statusRegister1 | 0x10;       // overrun
         if ((cmdParams.commandCode & 0x13) == 0x01)
           sectorBuf[totalDataBytes - dataBytesRemaining] = 0x00;
       }
-      if (--dataBytesRemaining < 1U) {
+      dataBytesRemaining--;
+      if (EP128EMU_UNLIKELY(dataBytesRemaining < 1U)) {
         // data transfer complete, next sector or result phase after data CRC
         sectorDelay = 2;
       }
