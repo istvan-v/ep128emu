@@ -178,8 +178,10 @@ namespace ZX128 {
 
   EP128EMU_REGPARM1 void ZX128VM::Z80_::executeInterrupt()
   {
-    if (vm.ula.getInterruptFlag(int(vm.z80OpcodeHalfCycles) - 2))
+    if (EP128EMU_UNLIKELY(vm.ula.getInterruptFlag(int(vm.z80OpcodeHalfCycles)
+                                                  - 2))) {
       Ep128::Z80::executeInterrupt();
+    }
   }
 
   EP128EMU_REGPARM2 uint8_t ZX128VM::Z80_::readMemory(uint16_t addr)

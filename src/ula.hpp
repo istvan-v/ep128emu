@@ -122,7 +122,7 @@ namespace ZX128 {
     }
     EP128EMU_INLINE bool getInterruptFlag(int timeOffs = 0) const
     {
-      if (currentLine < 247 || currentLine >= 250)
+      if (EP128EMU_EXPECT(currentLine < 247 || currentLine >= 250))
         return false;
       return getInterruptFlag_(timeOffs);
     }

@@ -106,7 +106,7 @@ namespace CPC464 {
     void reset();
     EP128EMU_INLINE void runOneCycle()
     {
-      if (horizontalPos == this->registers[0]) {
+      if (EP128EMU_UNLIKELY(horizontalPos == this->registers[0])) {
         // end of line
         this->lineEnd();
       }
@@ -129,7 +129,7 @@ namespace CPC464 {
         // horizontal sync start
         updateHSyncFlag(true);
         hSyncCnt = 0;
-        if (!(this->registers[3] & 0x0F))
+        if (EP128EMU_UNLIKELY(!(this->registers[3] & 0x0F)))
           updateHSyncFlag(false);       // HSync width = 0
       }
       skewShiftRegister = (skewShiftRegister << 2) | displayEnableFlags
