@@ -22,7 +22,7 @@
 
 #include "ep128emu.hpp"
 
-#define EP128EMU_VSYNC_MIN_LINES        296
+#define EP128EMU_VSYNC_MIN_LINES        290
 #define EP128EMU_VSYNC_MAX_LINES        351
 #define EP128EMU_VSYNC_OFFSET           21
 
