@@ -48,10 +48,10 @@ else:
 ep128emuLibEnvironment.Append(LINKFLAGS = Split(linkFlags))
 if win32CrossCompile:
     ep128emuLibEnvironment['AR'] = 'wine C:/MinGW/bin/ar.exe'
-    ep128emuLibEnvironment['CC'] = 'wine C:/MinGW/bin/gcc-sjlj.exe'
-    ep128emuLibEnvironment['CPP'] = 'wine C:/MinGW/bin/cpp-sjlj.exe'
-    ep128emuLibEnvironment['CXX'] = 'wine C:/MinGW/bin/g++-sjlj.exe'
-    ep128emuLibEnvironment['LINK'] = 'wine C:/MinGW/bin/g++-sjlj.exe'
+    ep128emuLibEnvironment['CC'] = 'wine C:/MinGW/bin/gcc.exe'
+    ep128emuLibEnvironment['CPP'] = 'wine C:/MinGW/bin/cpp.exe'
+    ep128emuLibEnvironment['CXX'] = 'wine C:/MinGW/bin/g++.exe'
+    ep128emuLibEnvironment['LINK'] = 'wine C:/MinGW/bin/g++.exe'
     ep128emuLibEnvironment['RANLIB'] = 'wine C:/MinGW/bin/ranlib.exe'
     ep128emuLibEnvironment.Append(LIBS = ['comdlg32', 'ole32', 'uuid',
                                           'ws2_32', 'winmm', 'gdi32',
@@ -243,7 +243,7 @@ if enableGLShaders:
 haveDotconf = configure.CheckCHeader('dotconf.h')
 if configure.CheckCHeader('stdint.h'):
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_STDINT_H'])
-if sys.platform[:5] == 'linux':
+if sys.platform[:5] == 'linux' and not win32CrossCompile:
     if configure.CheckCHeader('linux/fd.h'):
         ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_LINUX_FD_H'])
 if not disableSDL:
@@ -420,7 +420,7 @@ if win32CrossCompile:
         ['resource/ep128emu.rc', 'resource/cpc464em.ico',
          'resource/ep128emu.ico', 'resource/zx128emu.ico'],
         'wine C:/MinGW/bin/windres.exe -v --use-temp-file '
-        + '--preprocessor="C:/MinGW/bin/gcc-sjlj.exe -E -xc -DRC_INVOKED" '
+        + '--preprocessor="C:/MinGW/bin/gcc.exe -E -xc -DRC_INVOKED" '
         + '-o $TARGET resource/ep128emu.rc')
     ep128emuSources += [ep128emuResourceObject]
 ep128emu = ep128emuEnvironment.Program('ep128emu', ep128emuSources)
@@ -460,7 +460,7 @@ else:
         'resource/te_resrc.o',
         ['resource/tapeedit.rc', 'resource/tapeedit.ico'],
         'wine C:/MinGW/bin/windres.exe -v --use-temp-file '
-        + '--preprocessor="C:/MinGW/bin/gcc-sjlj.exe -E -xc -DRC_INVOKED" '
+        + '--preprocessor="C:/MinGW/bin/gcc.exe -E -xc -DRC_INVOKED" '
         + '-o $TARGET resource/tapeedit.rc')
     tapeeditSources += [tapeeditResourceObject]
 tapeedit = tapeeditEnvironment.Program('tapeedit', tapeeditSources)
