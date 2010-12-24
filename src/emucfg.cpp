@@ -228,7 +228,7 @@ namespace Ep128Emu {
                                 soundSettingsChanged, 2.0, 16.0);
     defineConfigurationVariable(*this, "sound.swPeriods",
                                 sound.swPeriods, int(3),
-                                soundSettingsChanged, 2.0, 16.0);
+                                soundSettingsChanged, 1.0, 16.0);
     defineConfigurationVariable(*this, "sound.file",
                                 sound.file, std::string(""),
                                 soundSettingsChanged);
