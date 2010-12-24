@@ -130,7 +130,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
   o->value(double(gui.config.sound.swPeriods));
   gui.config.soundSettingsChanged = true;
 }}
-          tooltip {Number of buffers in emulator ring buffer; click and drag to change the value} xywh {200 125 35 25} align 8 when 4 minimum 2 maximum 16 step 1 value 3
+          tooltip {Number of buffers in emulator ring buffer; click and drag to change the value} xywh {200 125 35 25} align 8 when 4 minimum 1 maximum 16 step 1 value 3
           code0 {o->cursor_color(Fl_Color(3));}
         }
       }
@@ -260,7 +260,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
         callback {{
   gui.config.soundSettingsChanged = true;
   gui.config.sound.enabled = true;
-  gui.config.sound.highQuality = false;
+  gui.config.sound.highQuality = true;
   gui.config.sound.device = 0;
   gui.config.sound.sampleRate = 48000.0;
   gui.config.sound.latency = 0.07;
