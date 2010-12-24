@@ -1,0 +1,199 @@
+diff -r -d -N -U4 portaudio.old/Makefile portaudio/Makefile
+--- portaudio.old/Makefile	1970-01-01 01:00:00.000000000 +0100
++++ portaudio/Makefile	2010-12-24 17:24:43.000000000 +0100
+@@ -0,0 +1,73 @@
++# Generated automatically from Makefile.in by configure.
++#
++# PortAudio V19 Makefile.in
++#
++# Dominic Mazzoni
++#
++
++PREFIX = /usr/local
++CC = wine C:/MinGW/bin/gcc.exe
++CPP = wine C:/MinGW/bin/cpp.exe
++CXX = wine C:/MinGW/bin/g++.exe
++CFLAGS = -Wall -O2 -march=i686 -mtune=generic -fomit-frame-pointer -frename-registers -fno-strict-aliasing -fwrapv -mthreads -pipe -DPIC -DPA_LITTLE_ENDIAN=1 -DWINDOWS -DWIN32 -DPA_LSB_IS_NATIVE_=1 -I. -I./include -I./src/common -I./src/hostapi/wasapi/mingw-include -I./src/os/win -DSIZEOF_SHORT=2 -DSIZEOF_INT=4 -DSIZEOF_LONG=4 -DPA_NO_ASIO=1
++LIBS = -lm
++AR = wine C:/MinGW/bin/ar.exe
++RANLIB = wine C:/MinGW/bin/ranlib.exe
++INSTALL = /usr/bin/install -c
++SHARED_FLAGS = -shared -mthreads
++DLL_LIBS =  -lwinmm -lm -ldsound -lole32 -lwinmm -lm -lstdc++ -lole32 -luuid -lwinmm -lm -lstdc++ -lole32 -luuid -lwinmm -lm -luuid -lsetupapi -lole32
++CPPFLAGS = $(CFLAGS)
++CXXFLAGS = $(CFLAGS)
++NASM =
++NASMOPT =
++
++OTHER_OBJS =	src/hostapi/dsound/pa_win_ds.o			\
++		src/hostapi/dsound/pa_win_ds_dynlink.o		\
++		src/hostapi/wasapi/pa_win_wasapi.o		\
++		src/hostapi/wdmks/pa_win_wdmks.o		\
++		src/hostapi/wmme/pa_win_wmme.o			\
++		src/os/win/pa_win_hostapis.o			\
++		src/os/win/pa_win_util.o			\
++		src/os/win/pa_win_waveformat.o
++
++PALIB = libportaudio.a
++PADLL = portaudio.dll
++PADLLV = $(PADLL).0.0.19
++PAINC = include/portaudio.h
++
++COMMON_OBJS =	src/common/pa_allocation.o			\
++		src/common/pa_converters.o			\
++		src/common/pa_cpuload.o				\
++		src/common/pa_debugprint.o			\
++		src/common/pa_dither.o				\
++		src/common/pa_front.o				\
++		src/common/pa_process.o				\
++		src/common/pa_skeleton.o			\
++		src/common/pa_stream.o				\
++		src/common/pa_trace.o
++
++OBJS = $(COMMON_OBJS) $(OTHER_OBJS)
++
++all: lib/$(PADLLV)
++
++lib/$(PADLLV): lib/ $(OBJS) Makefile $(PAINC)
++	$(CC) $(SHARED_FLAGS) -o lib/$(PADLLV) $(OBJS) $(DLL_LIBS)
++
++clean:
++	rm -f $(OBJS) lib/*
++
++%.o: %.c Makefile $(PAINC)
++	$(CC) -c $(CFLAGS) $< -o $@
++
++%.o: %.cpp Makefile $(PAINC)
++	$(CXX) -c $(CXXFLAGS) $< -o $@
++
++%.o: %.asm
++	$(NASM) $(NASMOPT) -o $@ $<
++
++bin:
++	mkdir bin
++
++lib:
++	mkdir lib
++
+diff -r -d -N -U4 portaudio.old/src/common/pa_front.c portaudio/src/common/pa_front.c
+--- portaudio.old/src/common/pa_front.c	2008-11-03 20:31:30.000000000 +0100
++++ portaudio/src/common/pa_front.c	2010-12-24 16:44:09.000000000 +0100
+@@ -84,14 +84,14 @@
+ #include "pa_endianness.h"
+ #include "pa_types.h"
+ #include "pa_hostapi.h"
+ #include "pa_stream.h"
+-#include "pa_trace.h" /* still usefull?*/
++#include "pa_trace.h" /* still useful? */
+ #include "pa_debugprint.h"
+ 
+ 
+ #define PA_VERSION_  1899
+-#define PA_VERSION_TEXT_ "PortAudio V19-devel (built " __DATE__  " " __TIME__ ")"
++#define PA_VERSION_TEXT_ "PortAudio V19-devel (built " __DATE__ ")"
+ 
+ 
+ 
+ 
+diff -r -d -N -U4 portaudio.old/src/hostapi/dsound/pa_win_ds.c portaudio/src/hostapi/dsound/pa_win_ds.c
+--- portaudio.old/src/hostapi/dsound/pa_win_ds.c	2010-08-03 23:02:52.000000000 +0200
++++ portaudio/src/hostapi/dsound/pa_win_ds.c	2010-12-24 16:42:21.000000000 +0100
+@@ -2665,16 +2665,14 @@
+ 
+     if( stream->streamRepresentation.streamCallback )
+     {
+         /* Create timer that will wake us up so we can fill the DSound buffer. */
+-        int resolution;
+         int framesPerWakeup = stream->framesPerDSBuffer / 4;
+         int msecPerWakeup = MSEC_PER_SECOND * framesPerWakeup / (int) stream->streamRepresentation.streamInfo.sampleRate;
+         if( msecPerWakeup < 10 ) msecPerWakeup = 10;
+         else if( msecPerWakeup > 100 ) msecPerWakeup = 100;
+-        resolution = msecPerWakeup/4;
+-        stream->timerID = timeSetEvent( msecPerWakeup, resolution, (LPTIMECALLBACK) TimerCallback,
+-                                             (DWORD_PTR) stream, TIME_PERIODIC | TIME_KILL_SYNCHRONOUS );
++        stream->timerID = timeSetEvent( msecPerWakeup, 1U, (LPTIMECALLBACK) TimerCallback,
++                                             (DWORD_PTR) stream, TIME_PERIODIC | /* TIME_KILL_SYNCHRONOUS */ 0x0100 );
+     
+         if( stream->timerID == 0 )
+         {
+             stream->isActive = 0;
+diff -r -d -N -U4 portaudio.old/src/hostapi/wasapi/mingw-include/ksmedia.h portaudio/src/hostapi/wasapi/mingw-include/ksmedia.h
+--- portaudio.old/src/hostapi/wasapi/mingw-include/ksmedia.h	2010-08-24 19:44:00.000000000 +0200
++++ portaudio/src/hostapi/wasapi/mingw-include/ksmedia.h	2010-12-24 16:42:21.000000000 +0100
+@@ -670,9 +670,9 @@
+   KSDATAFORMAT DataFormat;
+   WAVEFORMATEX WaveFormatEx;
+ } KSDATAFORMAT_WAVEFORMATEX,*PKSDATAFORMAT_WAVEFORMATEX;
+ 
+-#ifndef _WAVEFORMATEXTENSIBLE_
++#if 0
+ #define _WAVEFORMATEXTENSIBLE_
+ typedef struct {
+   WAVEFORMATEX Format;
+   union {
+diff -r -d -N -U4 portaudio.old/src/hostapi/wdmks/pa_win_wdmks.c portaudio/src/hostapi/wdmks/pa_win_wdmks.c
+--- portaudio.old/src/hostapi/wdmks/pa_win_wdmks.c	2009-05-14 16:37:37.000000000 +0200
++++ portaudio/src/hostapi/wdmks/pa_win_wdmks.c	2010-12-24 16:50:06.000000000 +0100
+@@ -1755,9 +1755,9 @@
+ PaError PaWinWdm_Initialize( PaUtilHostApiRepresentation **hostApi, PaHostApiIndex hostApiIndex )
+ {
+     PaError result = paNoError;
+     int i, deviceCount;
+-    PaWinWdmHostApiRepresentation *wdmHostApi;
++    PaWinWdmHostApiRepresentation *wdmHostApi = NULL;
+     PaWinWdmDeviceInfo *deviceInfoArray;
+     PaWinWdmFilter* pFilter;
+     PaWinWdmDeviceInfo *wdmDeviceInfo;
+     PaDeviceInfo *deviceInfo;
+@@ -2438,9 +2438,9 @@
+     /* Record the buffer length */
+     if(inputParameters)
+     {
+         /* Calculate the frames from the user's value - add a bit to round up */
+-            stream->framesPerHostIBuffer = (unsigned long)((inputParameters->suggestedLatency*sampleRate)+0.0001);
++        stream->framesPerHostIBuffer = framesPerBuffer;
+         if(stream->framesPerHostIBuffer > (unsigned long)sampleRate)
+         { /* Upper limit is 1 second */
+               stream->framesPerHostIBuffer = (unsigned long)sampleRate;
+         }
+@@ -2453,9 +2453,9 @@
+ 
+     if(outputParameters)
+     {
+         /* Calculate the frames from the user's value - add a bit to round up */
+-        stream->framesPerHostOBuffer = (unsigned long)((outputParameters->suggestedLatency*sampleRate)+0.0001);
++        stream->framesPerHostOBuffer = framesPerBuffer;
+         if(stream->framesPerHostOBuffer > (unsigned long)sampleRate)
+         { /* Upper limit is 1 second */
+                   stream->framesPerHostOBuffer = (unsigned long)sampleRate;
+         }
+@@ -3300,5 +3300,5 @@
+ 
+     /* IMPLEMENT ME, see portaudio.h for required behavior*/
+     PA_LOGL_;
+     return 0;
+-}
+\ No newline at end of file
++}
+diff -r -d -N -U4 portaudio.old/src/os/win/pa_win_hostapis.c portaudio/src/os/win/pa_win_hostapis.c
+--- portaudio.old/src/os/win/pa_win_hostapis.c	2010-02-16 10:46:08.000000000 +0100
++++ portaudio/src/os/win/pa_win_hostapis.c	2010-12-24 16:48:20.000000000 +0100
+@@ -80,16 +80,14 @@
+         PaAsio_Initialize,
+ #endif
+ 
+ #ifndef PA_NO_WASAPI
+-		PaWasapi_Initialize,
++        PaWasapi_Initialize,
+ #endif
+ 
+-/*
+ #ifndef PA_NO_WDMKS
+-       PaWinWdm_Initialize,
++        PaWinWdm_Initialize,
+ #endif
+-*/
+ 
+         //PaSkeleton_Initialize, /* just for testing */
+ 
+         0   /* NULL terminated array */
