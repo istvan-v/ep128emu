@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -100,7 +100,7 @@ namespace Ep128Emu {
     size_t        writeBufIndex;
     size_t        readBufIndex;
     PaStream      *paStream;
-    long          bufferSize;           // total buffer size in sample frames
+    long          latencyFramesHW;
     Timer         timer_;
     double        nextTime;
     ThreadLock    closeDeviceLock;

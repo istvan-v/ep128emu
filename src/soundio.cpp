@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -90,7 +90,7 @@ namespace Ep128Emu {
                      (totalLatency_ < 0.5f ? totalLatency_ : 0.5f)
                      : 0.005f);
     nPeriodsHW_ = (nPeriodsHW_ > 2 ? (nPeriodsHW_ < 16 ? nPeriodsHW_ : 16) : 2);
-    nPeriodsSW_ = (nPeriodsSW_ > 2 ? (nPeriodsSW_ < 16 ? nPeriodsSW_ : 16) : 2);
+    nPeriodsSW_ = (nPeriodsSW_ > 1 ? (nPeriodsSW_ < 16 ? nPeriodsSW_ : 16) : 1);
     if (deviceNumber_ == deviceNumber &&
         sampleRate_ == sampleRate &&
         totalLatency_ == totalLatency &&
@@ -212,7 +212,7 @@ namespace Ep128Emu {
       writeBufIndex(0),
       readBufIndex(0),
       paStream((PaStream *) 0),
-      bufferSize(4096L),
+      latencyFramesHW(4096L),
       nextTime(0.0),
       closeDeviceLock(true)
   {
@@ -254,7 +254,7 @@ namespace Ep128Emu {
         double  t = nextTime - timer_.getRealTime();
         double  periodTime = double(long(nFrames)) / double(sampleRate);
         long    framesToWrite = Pa_GetStreamWriteAvailable(paStream);
-        switch (int((framesToWrite << 3) / bufferSize)) {
+        switch (int((framesToWrite << 3) / latencyFramesHW)) {
         case 0:
           periodTime = periodTime * 2.0;
           break;
@@ -476,30 +476,42 @@ namespace Ep128Emu {
     if (devIndex >= devCnt)
       throw Exception("device number is out of range");
     usingBlockingInterface = false;
+    int     nPeriodsHW_ = nPeriodsHW;
 #ifndef USING_OLD_PORTAUDIO_API
+    int     nPeriodsSW_ = nPeriodsSW;
     const PaDeviceInfo  *devInfo = Pa_GetDeviceInfo(PaDeviceIndex(devIndex));
     if (devInfo) {
       const PaHostApiInfo *hostApiInfo = Pa_GetHostApiInfo(devInfo->hostApi);
       if (hostApiInfo) {
-        if (hostApiInfo->type == paDirectSound ||
-            hostApiInfo->type == paMME ||
-            hostApiInfo->type == paOSS ||
-            hostApiInfo->type == paALSA) {
-          disableRingBuffer = true;
-          if (hostApiInfo->type != paDirectSound)
-            usingBlockingInterface = true;
+        if ((1UL << uint8_t(hostApiInfo->type))
+            & ((1UL << uint8_t(paMME)) | (1UL << uint8_t(paOSS))
+               | (1UL << uint8_t(paALSA)) | (1UL << uint8_t(paWASAPI)))) {
+          nPeriodsHW_++;
+          nPeriodsSW_ = 1;
+          usingBlockingInterface = true;
+        }
+#  ifdef WIN32
+        else if (hostApiInfo->type == paDirectSound) {
+          nPeriodsSW_ = 1;
+        }
+        else if (hostApiInfo->type == paWDMKS) {
+          nPeriodsHW_ = 2;
+        }
+#  endif
+        else {
+          nPeriodsSW_ = (nPeriodsSW_ >= 2 ? nPeriodsSW_ : 2);
         }
       }
     }
 #else
-    disableRingBuffer = true;
+    int     nPeriodsSW_ = 1;
 #endif
     // calculate buffer size
-    int   nPeriodsSW_ = (disableRingBuffer ? 1 : nPeriodsSW);
-    int   periodSize =
+    disableRingBuffer = (nPeriodsSW_ < 2);
+    int     periodSize =
         int(totalLatency * (usingBlockingInterface ? 1.4142f : 0.7071f)
             * sampleRate + 0.5f)
-        / (nPeriodsHW + nPeriodsSW_ - 2);
+        / (nPeriodsHW_ + nPeriodsSW_ - 2);
     for (int i = 16; i < 16384; i <<= 1) {
       if (i >= periodSize) {
         periodSize = i;
@@ -508,11 +520,10 @@ namespace Ep128Emu {
     }
     if (periodSize > 16384)
       periodSize = 16384;
-    bufferSize = long(nPeriodsHW) * long(periodSize);
+    latencyFramesHW = long(nPeriodsHW_ - 1) * long(periodSize);
     if (disableRingBuffer) {
-      paLockTimeout =
-          (unsigned int) (double(bufferSize) * 1000.0 / double(sampleRate)
-                          + 0.999);
+      paLockTimeout = (unsigned int) (double(latencyFramesHW) * 1000.0
+                                      / double(sampleRate) + 0.999);
     }
     else {
       paLockTimeout = 0U;
@@ -531,8 +542,8 @@ namespace Ep128Emu {
     streamParams.device = PaDeviceIndex(devNum);
     streamParams.channelCount = 2;
     streamParams.sampleFormat = paInt16;
-    streamParams.suggestedLatency = PaTime(double(periodSize) * nPeriodsHW
-                                           / sampleRate);
+    streamParams.suggestedLatency =
+        PaTime(double(periodSize) * (nPeriodsHW_ - 1) / sampleRate);
     streamParams.hostApiSpecificStreamInfo = (void *) 0;
     PaError err = paNoError;
     if (usingBlockingInterface)
@@ -550,7 +561,7 @@ namespace Ep128Emu {
         long    tmp = long(double(streamInfo->outputLatency)
                            * streamInfo->sampleRate + 0.5);
         if (tmp >= 16L && tmp <= 262144L)
-          bufferSize = tmp;
+          latencyFramesHW = tmp;
       }
     }
 #else
@@ -558,7 +569,7 @@ namespace Ep128Emu {
         Pa_OpenStream(&paStream,
                       paNoDevice, 0, paInt16, (void *) 0,
                       PaDeviceID(devNum), 2, paInt16, (void *) 0,
-                      sampleRate, unsigned(periodSize), unsigned(nPeriodsHW),
+                      sampleRate, unsigned(periodSize), unsigned(nPeriodsHW_),
                       paNoFlag, &portAudioCallback, (void *) this);
 #endif
     if (isPortAudioError("calling Pa_OpenStream()", err)) {
