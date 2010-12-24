@@ -183,8 +183,10 @@ GNU C/C++ compiler, binutils, etc.), you need the following packages:
   * PortAudio (http://www.portaudio.com/download.html), version 18 and
     19 are supported, but v19 is recommended
   * libsndfile (http://www.mega-nerd.com/libsndfile/#Download)
-  * dotconf (http://www.azzit.de/dotconf/) (optional, but recommended as
-    it is used for reading ASCII format configuration files)
+  * dotconf (version 1.0.13 from http://www.azzit.de/dotconf/, or 1.3
+    from https://github.com/williamh/dotconf/archives/master - the
+    latter was not tested yet) (optional, but recommended as it is used
+    for reading ASCII format configuration files)
   * SDL (http://www.libsdl.org/) 1.2 for joystick input (optional);
     NOTE: on Linux, version 1.2.10 and newer do not work, so using 1.2.9
     is recommended
@@ -960,7 +962,8 @@ Credits
 
 Thanks to:
 
-Zozosoft    - hardware testing and information
-MrPrise     - ep128emu.enterpriseforever.com web site
-Attus       - Linux binary packages
+Zozosoft      - hardware testing and information
+MrPrise       - ep128emu.enterpriseforever.com web site
+Attus         - Linux binary packages
+Martin Bantz  - PCLinuxOS RPM spec file
 
