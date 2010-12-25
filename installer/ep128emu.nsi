@@ -163,6 +163,7 @@ Section "ep128emu source code" SecSrc
   File "..\SConstruct"
   File "..\*.patch"
   File "..\*.sh"
+  File "..\*.spec"
 
   SetOutPath "$INSTDIR\src\Fl_Native_File_Chooser"
 
