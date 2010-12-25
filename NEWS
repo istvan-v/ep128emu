@@ -50,6 +50,10 @@ Changes in version 2.0.9
     vertical refresh rate than in the previous versions
   * a 189 MB (12x15.75 MB FAT12 partitions) .VHD file has been added to
     the disk image packages
+  * the Windows installer now includes LuaJIT 2.0.0 beta5 in addition to
+    the stable 1.1.6 version. To use the faster beta version, copy or
+    rename lua51-2.dll to lua51.dll, removing or renaming the original
+    lua51.dll file
   * some optimizations in Enterprise and CPC emulation
 
 Changes in version 2.0.8.1
