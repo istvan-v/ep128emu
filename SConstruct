@@ -53,8 +53,8 @@ if win32CrossCompile:
     ep128emuLibEnvironment['CXX'] = 'wine C:/MinGW/bin/g++.exe'
     ep128emuLibEnvironment['LINK'] = 'wine C:/MinGW/bin/g++.exe'
     ep128emuLibEnvironment['RANLIB'] = 'wine C:/MinGW/bin/ranlib.exe'
-    ep128emuLibEnvironment.Append(LIBS = ['comdlg32', 'ole32', 'uuid',
-                                          'ws2_32', 'winmm', 'gdi32',
+    ep128emuLibEnvironment.Append(LIBS = ['comdlg32', 'comctl32', 'ole32',
+                                          'uuid', 'ws2_32', 'winmm', 'gdi32',
                                           'user32', 'kernel32'])
     ep128emuLibEnvironment.Prepend(CCFLAGS = ['-mthreads'])
     ep128emuLibEnvironment.Prepend(LINKFLAGS = ['-mthreads'])
