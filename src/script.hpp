@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -45,8 +45,6 @@ namespace Ep128Emu {
     bool        haveBreakPointCallback;
     // --------
 #ifdef HAVE_LUA_H
-    static void *allocFunc(void *userData,
-                           void *ptr, size_t oldSize, size_t newSize);
     static int luaFunc_AND(lua_State *lst);
     static int luaFunc_OR(lua_State *lst);
     static int luaFunc_XOR(lua_State *lst);

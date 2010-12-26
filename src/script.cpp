@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -33,13 +33,6 @@ extern "C" {
 #  ifdef USING_OLD_LUA_API
 // if using old Lua 5.0.x API:
 typedef intptr_t lua_Integer;
-typedef void *(*lua_Alloc)(void *, void *, size_t, size_t);
-static inline lua_State *lua_newstate(lua_Alloc f, void *ud)
-{
-  (void) f;
-  (void) ud;
-  return lua_open();
-}
 static inline lua_Integer lua_tointeger(lua_State *L, int idx)
 {
   return lua_Integer(lua_tonumber(L, idx));
@@ -86,21 +79,6 @@ static inline void luaL_openlibs(lua_State *L)
 namespace Ep128Emu {
 
 #ifdef HAVE_LUA_H
-
-  void * LuaScript::allocFunc(void *userData,
-                              void *ptr, size_t oldSize, size_t newSize)
-  {
-    (void) userData;
-    (void) oldSize;
-    if (newSize == 0) {
-      if (ptr)
-        std::free(ptr);
-      return (void *) 0;
-    }
-    if (!ptr)
-      return std::malloc(newSize);
-    return std::realloc(ptr, newSize);
-  }
 
   int LuaScript::luaFunc_AND(lua_State *lst)
   {
@@ -1525,7 +1503,11 @@ namespace Ep128Emu {
     if (s == (char *) 0 || s[0] == '\0')
       return;
 #ifdef HAVE_LUA_H
-    luaState = lua_newstate(&allocFunc, (void *) this);
+#  ifdef USING_OLD_LUA_API
+    luaState = lua_open();
+#  else
+    luaState = luaL_newstate();
+#  endif
     if (!luaState) {
       errorCallback("error allocating Lua state");
       return;
