@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -106,10 +106,10 @@ void Ep128EmuGUI::init_()
 void Ep128EmuGUI::updateDisplay_windowTitle()
 {
   if (oldPauseFlag) {
-    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.9 (paused)");
+    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.9.1 (paused)");
   }
   else {
-    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.9 (%d%%)",
+    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.9.1 (%d%%)",
                  int(oldSpeedPercentage));
   }
   mainWindow->label(&(windowTitleBuf[0]));
@@ -328,7 +328,7 @@ void Ep128EmuGUI::updateDisplay(double t)
   uint32_t  newFloppyDriveLEDState = vmThreadStatus.floppyDriveLEDState;
   if (newFloppyDriveLEDState != oldFloppyDriveLEDState) {
     oldFloppyDriveLEDState = newFloppyDriveLEDState;
-    Fl_Color  ledColors_[16] = {
+    static const Fl_Color ledColors_[16] = {
       FL_BLACK,      Fl_Color(92),  FL_GREEN,      Fl_Color(87),
       Fl_Color(128), Fl_Color(92),  FL_GREEN,      Fl_Color(87),
       FL_BLACK,      Fl_Color(92),  FL_GREEN,      Fl_Color(87),
@@ -800,16 +800,10 @@ int Ep128EmuGUI::handleFLTKEvent(void *userData, int event)
         n = 15;
         break;
       case (FL_KP + '0'):
-        n = 16;
-        break;
       case (FL_KP + '1'):
-        n = 17;
-        break;
       case (FL_KP + '3'):
-        n = 18;
-        break;
       case (FL_KP + '4'):
-        n = 19;
+        n = 16 + (keyCode - (FL_KP + '0'));
         break;
       case 0x2C:                // ','
         n = 20;
@@ -817,59 +811,15 @@ int Ep128EmuGUI::handleFLTKEvent(void *userData, int event)
       case 0x2E:                // '.'
         n = 21;
         break;
-      case 0x61:                // 'A'
-        n = 22;
-        break;
-      case 0x62:                // 'B'
-        n = 23;
-        break;
-      case 0x63:                // 'C'
-        n = 24;
-        break;
-      case 0x64:                // 'D'
-        n = 25;
-        break;
-      case 0x65:                // 'E'
-        n = 26;
-        break;
-      case 0x66:                // 'F'
-        n = 27;
-        break;
-      case 0x68:                // 'H'
-        n = 28;
-        break;
-      case 0x69:                // 'I'
-        n = 29;
-        break;
-      case 0x6B:                // 'K'
-        n = 30;
-        break;
-      case 0x6C:                // 'L'
-        n = 31;
-        break;
-      case 0x6F:                // 'O'
-        n = 32;
-        break;
-      case 0x70:                // 'P'
-        n = 33;
-        break;
-      case 0x71:                // 'Q'
-        n = 34;
-        break;
-      case 0x72:                // 'R'
-        n = 35;
-        break;
-      case 0x73:                // 'S'
-        n = 36;
-        break;
-      case 0x74:                // 'T'
-        n = 37;
-        break;
-      case 0x75:                // 'U'
-        n = 38;
-        break;
-      case 0x77:                // 'W'
-        n = 39;
+      default:                  // 'A' to 'W'
+        if (keyCode >= 0x61 && keyCode <= 0x77) {
+          // 'G', 'J', 'M', 'N', and 'V' are not used
+          static const unsigned char altKeyMap_[0x17] = {
+            23, 24, 25, 26, 27, 28,  0, 29, 30,  0, 31, 32,
+             0,  0, 33, 34, 35, 36, 37, 38, 39,  0, 40
+          };
+          n = int(altKeyMap_[keyCode - 0x61]) - 1;
+        }
         break;
       }
       if (n >= 20) {
@@ -989,6 +939,8 @@ int Ep128EmuGUI::handleFLTKEvent(void *userData, int event)
         }
       }
     }
+    return 1;
+  case FL_SHORTCUT:
     return 1;
   }
   return 0;
