@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -32,54 +32,45 @@ namespace Ep128Emu {
                          uint8_t segment_, uint16_t addr_, int priority_)
   {
     n_ = (r_ ? 0x01000000U : 0x00000000U)
-         + (w_ ? 0x02000000U : 0x00000000U)
-         + (x_ ? 0x04000000U : 0x00000000U);
-    if (!(n_))
-      n_ = 0x07000000U;
-    n_ += (priority_ > 0 ?
-           (priority_ < 3 ? (uint32_t(priority_) << 22) : 0x00C00000U)
-           : 0x00000000U);
+         | (w_ ? 0x02000000U : 0x00000000U)
+         | (x_ ? 0x04000000U : 0x00000000U)
+         | (ignoreFlag_ ? 0x20000000U : 0x00000000U);
+    n_ = (n_ != 0U ? n_ : 0x07000000U)
+         | (priority_ > 0 ?
+            (priority_ < 3 ? (uint32_t(priority_) << 22) : 0x00C00000U)
+            : 0x00000000U);
     if (isIO_) {
-      n_ += (0x10000000U + uint32_t(addr_ & 0xFFFF));
-      n_ = n_ & 0xFBFFFFFFU;
+      n_ = (n_ & 0xDBFFFFFFU) | 0x10000000U
+           | ((n_ & 0x03000000U) != 0U ? 0x00000000U : 0x03000000U)
+           | uint32_t(addr_ & 0xFFFF);
     }
     else if (haveSegment_) {
-      n_ += (0x08000000U
-             + (uint32_t(segment_ & 0xFF) << 14) + uint32_t(addr_ & 0x3FFF));
+      n_ = n_ | 0x08000000U
+           | (uint32_t(segment_ & 0xFF) << 14) | uint32_t(addr_ & 0x3FFF);
     }
     else {
-      n_ += (0x00000000U + uint32_t(addr_ & 0xFFFF));
+      n_ = n_ | uint32_t(addr_ & 0xFFFF);
     }
-    if (ignoreFlag_)
-      n_ = (n_ & 0xEFFFFFFFU) | 0x27C00000U;
   }
 
   BreakPointList::BreakPointList(const std::string& lst)
   {
-    std::vector<std::string>  tokens;
+    std::map<uint32_t, BreakPoint>  bpList;
     std::string curToken = "";
-    char        ch = '\0';
-    bool        wasSpace = true;
 
     for (size_t i = 0; i < lst.length(); i++) {
-      ch = lst[i];
-      bool  isSpace = (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n');
-      if (isSpace && wasSpace)
-        continue;
-      if (isSpace) {
-        tokens.push_back(curToken);
-        curToken = "";
+      {
+        char    ch = lst[i];
+        if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
+          if (curToken.length() < 1)
+            continue;
+        }
+        else {
+          curToken += ch;
+          if ((i + 1) < lst.length())
+            continue;
+        }
       }
-      else
-        curToken += ch;
-      wasSpace = isSpace;
-    }
-    if (!wasSpace)
-      tokens.push_back(curToken);
-
-    std::map<uint32_t, BreakPoint>  bpList;
-
-    for (size_t i = 0; i < tokens.size(); i++) {
       size_t    j;
       uint16_t  addr = 0, lastAddr;
       uint8_t   segment = 0;
@@ -89,7 +80,6 @@ namespace Ep128Emu {
       int       priority = -1;
       uint32_t  n;
 
-      curToken = tokens[i];
       n = 0;
       for (j = 0; j < curToken.length(); j++) {
         char    c = curToken[j];
@@ -187,56 +177,61 @@ namespace Ep128Emu {
         if (isRead || isWrite || isExecute || priority >= 0)
           throw Exception("read/write flags and priority are not allowed "
                           "for ignore breakpoints");
-        priority = 3;
+        priority = 0;
       }
-      if (isIO && isExecute)
+      else if (isIO && isExecute) {
         throw Exception("execute flag is not allowed for I/O breakpoints");
-      if (!isRead && !isWrite && !isExecute) {
+      }
+      else if (!isRead && !isWrite && !isExecute) {
         isRead = true;
         isWrite = true;
         isExecute = !isIO;
       }
-      if (priority < 0)
-        priority = 2;
+      priority = (priority >= 0 ? priority : 2);
+      uint32_t  addr_ = addr;
+      if (isIO)
+        addr_ |= uint32_t(0x80000000UL);
+      else if (haveSegment)
+        addr_ |= (uint32_t(0x40000000UL) | (uint32_t(segment) << 14));
+      BreakPoint  bp(isIO, haveSegment, isRead, isWrite, isExecute, isIgnore,
+                     segment, addr, priority);
       while (true) {
-        uint32_t    addr_ = 0U;
-        if (isIO)
-          addr_ = uint32_t(0x80000000UL) | uint32_t(addr & 0xFF);
-        else if (haveSegment)
-          addr_ = uint32_t(0x40000000UL)
-                  | ((uint32_t(segment & 0xFF) << 14)
-                     | uint32_t(addr & 0x3FFF));
-        else
-          addr_ = uint32_t(addr & 0xFFFF);
         std::map<uint32_t, BreakPoint>::iterator  i_ = bpList.find(addr_);
         if (i_ == bpList.end()) {
           // add new breakpoint
-          BreakPoint  bp(isIO, haveSegment, isRead, isWrite, isExecute,
-                         isIgnore, segment, addr, priority);
           bpList.insert(std::pair<uint32_t, BreakPoint>(addr_, bp));
         }
         else {
           // update existing breakpoint
           BreakPoint  *bpp = &((*i_).second);
-          BreakPoint  bp(isIO, haveSegment,
-                         (isRead || bpp->isRead()),
-                         (isWrite || bpp->isWrite()),
-                         (isExecute || bpp->isExecute()),
-                         (isIgnore && bpp->isIgnore()),
-                         segment, addr,
-                         (priority > bpp->priority() ?
-                          priority : bpp->priority()));
-          (*bpp) = bp;
+          if (isIgnore) {
+            (*bpp) = bp;
+          }
+          else {
+            // isIO, haveSegment, priority, segment, address
+            // (only the priorities may differ)
+            uint32_t  tmp1 = bpp->n_ & 0x18FFFFFFU;
+            uint32_t  tmp2 = bp.n_ & 0x18FFFFFFU;
+            // combine read, write, execute, and ignore flags
+            bpp->n_ = ((bpp->n_ | bp.n_) & 0x27000000U)
+                      | (tmp1 >= tmp2 ? tmp1 : tmp2);
+          }
         }
-        if (addr == lastAddr)
+        if (addr >= lastAddr)
           break;
         addr++;
+        addr_++;
+        bp.n_++;
       }
+      curToken.clear();
     }
 
-    std::map<uint32_t, BreakPoint>::iterator  i_;
-    for (i_ = bpList.begin(); i_ != bpList.end(); i_++)
-      lst_.push_back((*i_).second);
+    if (bpList.size() > 0) {
+      lst_.reserve(bpList.size());
+      std::map<uint32_t, BreakPoint>::iterator  i_;
+      for (i_ = bpList.begin(); i_ != bpList.end(); i_++)
+        lst_.push_back((*i_).second);
+    }
   }
 
   void BreakPointList::addMemoryBreakPoint(uint8_t segment, uint16_t addr,
@@ -259,108 +254,77 @@ namespace Ep128Emu {
                                        bool r, bool w, int priority)
   {
     lst_.push_back(BreakPoint(true, false, r, w, false, false,
-                              0, addr, priority));
+                              0, addr & 0xFF, priority));
   }
 
   std::string BreakPointList::getBreakPointList()
   {
     std::ostringstream  lst;
-    BreakPoint          prv_bp(false, false, false, false, false, false,
-                               0, 0, 0);
-    size_t              i;
-    uint16_t            firstAddr = 0;
-
     lst << std::hex << std::uppercase << std::right << std::setfill('0');
-    std::stable_sort(lst_.begin(), lst_.end());
-    for (i = 0; i < lst_.size(); i++) {
-      BreakPoint  bp(lst_[i]);
-      if (!i) {
+    if (lst_.size() > 0) {
+      std::stable_sort(lst_.begin(), lst_.end());
+      BreakPoint  prv_bp(lst_[0]);
+      uint16_t    firstAddr = prv_bp.addr();
+      for (size_t i = 1; i < lst_.size(); i++) {
+        BreakPoint  bp(lst_[i]);
+        uint16_t    lastAddr = prv_bp.addr();
+        if (i >= (lst_.size() - 1)) {
+          lastAddr = bp.addr();
+        }
+        else {
+          if ((bp.addr() == (lastAddr + 1U) || bp.addr() == lastAddr) &&
+              bp.isIO() == prv_bp.isIO() &&
+              bp.haveSegment() == prv_bp.haveSegment() &&
+              bp.isRead() == prv_bp.isRead() &&
+              bp.isWrite() == prv_bp.isWrite() &&
+              bp.isExecute() == prv_bp.isExecute() &&
+              bp.isIgnore() == prv_bp.isIgnore() &&
+              bp.priority() == prv_bp.priority() &&
+              bp.segment() == prv_bp.segment()) {
+            prv_bp = bp;
+            continue;
+          }
+        }
+        if (prv_bp.haveSegment())
+          lst << std::setw(2) << uint32_t(prv_bp.segment()) << ":";
+        // bit 0 = read, bit 1 = write, bit 2 = execute
+        uint8_t rwxFlags = uint8_t((prv_bp.n_ & 0x07000000U) >> 24);
+        if (prv_bp.isIO()) {
+          rwxFlags = rwxFlags & 3;
+          rwxFlags = (rwxFlags != 0 ? rwxFlags : uint8_t(3));
+        }
+        else {
+          if (prv_bp.isIgnore()) {
+            lst << std::setw(4) << firstAddr;
+            if (lastAddr != firstAddr)
+              lst << "-" << std::setw(4) << lastAddr;
+            lst << "i\n";
+            if (rwxFlags != 0 && prv_bp.haveSegment())
+              lst << std::setw(2) << uint32_t(prv_bp.segment()) << ":";
+          }
+          else {
+            rwxFlags = (rwxFlags != 0 ? rwxFlags : uint8_t(7));
+          }
+        }
+        if (rwxFlags) {
+          lst << std::setw(prv_bp.isIO() ? 2 : 4) << firstAddr;
+          if (lastAddr != firstAddr)
+            lst << "-" << std::setw(prv_bp.isIO() ? 2 : 4) << lastAddr;
+          if ((rwxFlags | (uint8_t(prv_bp.isIO()) << 2)) != 7) {
+            if (rwxFlags & 1)
+              lst << "r";
+            if (rwxFlags & 2)
+              lst << "w";
+            if (rwxFlags & 4)
+              lst << "x";
+          }
+          if (prv_bp.priority() != 2)
+            lst << "p" << std::setw(1) << prv_bp.priority();
+          lst << "\n";
+        }
         prv_bp = bp;
         firstAddr = bp.addr();
-        continue;
       }
-      if ((bp.addr() == (prv_bp.addr() + 1) || bp.addr() == prv_bp.addr()) &&
-          bp.isIO() == prv_bp.isIO() &&
-          bp.haveSegment() == prv_bp.haveSegment() &&
-          bp.isRead() == prv_bp.isRead() &&
-          bp.isWrite() == prv_bp.isWrite() &&
-          bp.isExecute() == prv_bp.isExecute() &&
-          bp.isIgnore() == prv_bp.isIgnore() &&
-          bp.priority() == prv_bp.priority() &&
-          bp.segment() == prv_bp.segment()) {
-        prv_bp = bp;
-        continue;
-      }
-      uint16_t  lastAddr = lst_[i - 1].addr();
-      if (prv_bp.haveSegment())
-        lst << std::setw(2) << uint32_t(prv_bp.segment()) << ":";
-      if (prv_bp.isIO()) {
-        lst << std::setw(2) << (firstAddr & 0xFF);
-        if (lastAddr != firstAddr)
-          lst << "-" << std::setw(2) << (lastAddr & 0xFF);
-      }
-      else {
-        lst << std::setw(4) << firstAddr;
-        if (lastAddr != firstAddr)
-          lst << "-" << std::setw(4) << lastAddr;
-      }
-      if (!prv_bp.isIgnore()) {
-        bool    r = prv_bp.isRead();
-        bool    w = prv_bp.isWrite();
-        bool    x = prv_bp.isExecute();
-        if (prv_bp.isIO())
-          x = r;
-        if (!((r && w && x) || !(r || w || x))) {
-          if (r)
-            lst << "r";
-          if (w)
-            lst << "w";
-          if (x && !prv_bp.isIO())
-            lst << "x";
-        }
-        if (prv_bp.priority() != 2)
-          lst << "p" << std::setw(1) << prv_bp.priority();
-      }
-      else
-        lst << "i";
-      lst << "\n";
-      prv_bp = bp;
-      firstAddr = bp.addr();
-    }
-    if (i) {
-      uint16_t  lastAddr = lst_[i - 1].addr();
-      if (prv_bp.haveSegment())
-        lst << std::setw(2) << uint32_t(prv_bp.segment()) << ":";
-      if (prv_bp.isIO()) {
-        lst << std::setw(2) << (firstAddr & 0xFF);
-        if (lastAddr != firstAddr)
-          lst << "-" << std::setw(2) << (lastAddr & 0xFF);
-      }
-      else {
-        lst << std::setw(4) << firstAddr;
-        if (lastAddr != firstAddr)
-          lst << "-" << std::setw(4) << lastAddr;
-      }
-      if (!prv_bp.isIgnore()) {
-        bool    r = prv_bp.isRead();
-        bool    w = prv_bp.isWrite();
-        bool    x = prv_bp.isExecute();
-        if (prv_bp.isIO())
-          x = r;
-        if (!((r && w && x) || !(r || w || x))) {
-          if (r)
-            lst << "r";
-          if (w)
-            lst << "w";
-          if (x && !prv_bp.isIO())
-            lst << "x";
-        }
-        if (prv_bp.priority() != 2)
-          lst << "p" << std::setw(1) << prv_bp.priority();
-      }
-      else
-        lst << "i";
-      lst << "\n";
     }
     lst << "\n";
     return lst.str();

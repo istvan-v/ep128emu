@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -85,6 +85,7 @@ namespace Ep128Emu {
     {
       return (this->n_ < bp.n_);
     }
+    friend class BreakPointList;
   };
 
   class BreakPointList {
