@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -54,14 +54,14 @@ namespace CPC464 {
   {
     const uint8_t *tbl = breakPointTable;
     if (tbl != (uint8_t *) 0 &&
-        tbl[addr] >= breakPointPriorityThreshold && (tbl[addr] & 33) == 1) {
+        tbl[addr] >= breakPointPriorityThreshold && (tbl[addr] & 1) != 0) {
       breakPointCallback(false, addr, value);
     }
     else {
       uint16_t  offs = addr & 0x3FFF;
       tbl = segmentBreakPointTable[pageTableR[page]];
       if (tbl != (uint8_t *) 0 &&
-          tbl[offs] >= breakPointPriorityThreshold && (tbl[offs] & 33) == 1) {
+          tbl[offs] >= breakPointPriorityThreshold && (tbl[offs] & 1) != 0) {
         breakPointCallback(false, addr, value);
       }
     }
@@ -71,14 +71,14 @@ namespace CPC464 {
   {
     const uint8_t *tbl = breakPointTable;
     if (tbl != (uint8_t *) 0 &&
-        tbl[addr] >= breakPointPriorityThreshold && (tbl[addr] & 34) == 2) {
+        tbl[addr] >= breakPointPriorityThreshold && (tbl[addr] & 2) != 0) {
       breakPointCallback(true, addr, value);
     }
     else {
       uint16_t  offs = addr & 0x3FFF;
       tbl = segmentBreakPointTable[pageTableW[page]];
       if (tbl != (uint8_t *) 0 &&
-          tbl[offs] >= breakPointPriorityThreshold && (tbl[offs] & 34) == 2) {
+          tbl[offs] >= breakPointPriorityThreshold && (tbl[offs] & 2) != 0) {
         breakPointCallback(true, addr, value);
       }
     }
