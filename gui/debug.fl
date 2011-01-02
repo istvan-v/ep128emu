@@ -75,6 +75,10 @@ class Ep128EmuGUI_DebugWindow {open
   } {
     Fl_Window window {
       callback {{
+  if (breakPointEditor->changed()) {
+    breakPointEditor->clear_changed();
+    breakPointEditor->do_callback();
+  }
   focusWidget = (Fl_Widget *) 0;
   gui.vm.setSingleStepMode(0);
   this->hide();
