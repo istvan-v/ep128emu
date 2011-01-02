@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -213,36 +213,38 @@ namespace Ep128Emu {
       return 0;
     }
     try {
-      BreakPointList  bpList;
       int       bpType = int(lua_tointeger(lst, 1));
       uint32_t  bpAddr = uint32_t(lua_tointeger(lst, 2));
       int       bpPriority = int(lua_tointeger(lst, 3));
-      if ((bpType & (~(int(31)))) == 0 && (bpType & 7) < 5) {
-        bool    readFlag = ((bpType & 7) != 2 && (bpType & 7) != 4);
-        bool    writeFlag = ((bpType & 7) != 1 && (bpType & 7) != 4);
-        bool    executeFlag = ((bpType & 7) != 1 && (bpType & 7) != 2);
-        bool    addr22BitFlag = bool(bpType & 8) || (bpAddr >= 0x00010000U);
-        bool    ignoreFlag = bool(bpType & 16);
-        if (!addr22BitFlag) {
-          bpList.addMemoryBreakPoint(uint16_t(bpAddr & 0xFFFFU),
-                                     readFlag, writeFlag, executeFlag,
-                                     ignoreFlag, bpPriority);
-        }
-        else {
-          bpList.addMemoryBreakPoint(uint8_t((bpAddr >> 14) & 0xFFU),
-                                     uint16_t(bpAddr & 0x3FFFU),
-                                     readFlag, writeFlag, executeFlag,
-                                     ignoreFlag, bpPriority);
-        }
-      }
-      else if (bpType >= 5 && bpType <= 7) {
-        bpList.addIOBreakPoint(uint16_t(bpAddr & 0xFFU),
-                               bool(bpType & 1), bool(bpType & 2), bpPriority);
-      }
-      else {
+      bool      ioFlag = ((bpType & 7) >= 5);
+      bool      addr22BitFlag = bool(bpType & 8) | (bpAddr >= 0x00010000U);
+      bool      readFlag = bool(bpType & 1);
+      bool      writeFlag = bool(bpType & 2);
+      bool      executeFlag = ((bpType & 7) == 4);
+      bool      ignoreFlag = bool(bpType & 16);
+      uint8_t   bpSegment = 0x00;
+      bool      bpEnabled = (bpPriority >= 0);
+      if ((bpType & (~(int(31)))) != 0 ||
+          (ioFlag && (addr22BitFlag | executeFlag | ignoreFlag))) {
         throw Exception("invalid breakpoint type");
       }
-      this_.vm.setBreakPoints(bpList);
+      if (ioFlag) {
+        bpAddr = bpAddr & 0xFFU;
+      }
+      else {
+        if (readFlag == (writeFlag | executeFlag)) {
+          readFlag = true;
+          writeFlag = true;
+          executeFlag = true;
+        }
+        if (addr22BitFlag) {
+          bpSegment = uint8_t((bpAddr >> 14) & 0xFFU);
+          bpAddr = bpAddr & 0x3FFFU;
+        }
+      }
+      BreakPoint  bp(ioFlag, addr22BitFlag, readFlag, writeFlag, executeFlag,
+                     ignoreFlag, bpSegment, uint16_t(bpAddr), bpPriority);
+      this_.vm.setBreakPoint(bp, bpEnabled);
     }
     catch (std::exception& e) {
       this_.luaError(e.what());
