@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -367,14 +367,10 @@ namespace Ep128 {
     virtual void tapeRecord();
     // ------------------------------ DEBUGGING -------------------------------
     /*!
-     * Add breakpoints from the specified breakpoint list (see also
-     * bplist.hpp).
+     * Add or delete a single breakpoint (see also bplist.hpp).
      */
-    virtual void setBreakPoints(const Ep128Emu::BreakPointList& bpList);
-    /*!
-     * Returns the currently defined breakpoints.
-     */
-    virtual Ep128Emu::BreakPointList getBreakPoints();
+    virtual void setBreakPoint(const Ep128Emu::BreakPoint& bp,
+                               bool isEnabled = true);
     /*!
      * Clear all breakpoints.
      */

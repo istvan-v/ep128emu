@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -1702,10 +1702,21 @@ namespace Ep128 {
       stopDemo();
   }
 
-  void Ep128VM::setBreakPoints(const Ep128Emu::BreakPointList& bpList)
+  void Ep128VM::setBreakPoint(const Ep128Emu::BreakPoint& bp, bool isEnabled)
   {
-    for (size_t i = 0; i < bpList.getBreakPointCnt(); i++) {
-      const Ep128Emu::BreakPoint& bp = bpList.getBreakPoint(i);
+    if (EP128EMU_UNLIKELY(!isEnabled)) {
+      if (bp.isIO()) {
+        ioPorts.setBreakPoint(bp.addr(), 0, false, false);
+      }
+      else if (bp.haveSegment()) {
+        memory.setBreakPoint(bp.segment(), bp.addr(), 0,
+                             false, false, false, false);
+      }
+      else {
+        memory.setBreakPoint(bp.addr(), 0, false, false, false, false);
+      }
+    }
+    else {
       if (bp.isIO()) {
         ioPorts.setBreakPoint(bp.addr(), bp.priority(),
                               bp.isRead(), bp.isWrite());
@@ -1721,17 +1732,6 @@ namespace Ep128 {
                              bp.isIgnore());
       }
     }
-  }
-
-  Ep128Emu::BreakPointList Ep128VM::getBreakPoints()
-  {
-    Ep128Emu::BreakPointList  bpl1(ioPorts.getBreakPointList());
-    Ep128Emu::BreakPointList  bpl2(memory.getBreakPointList());
-    for (size_t i = 0; i < bpl1.getBreakPointCnt(); i++) {
-      const Ep128Emu::BreakPoint& bp = bpl1.getBreakPoint(i);
-      bpl2.addIOBreakPoint(bp.addr(), bp.isRead(), bp.isWrite(), bp.priority());
-    }
-    return bpl2;
   }
 
   void Ep128VM::clearBreakPoints()
