@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -89,8 +89,6 @@ namespace CPC464 {
     // end of frame
     endOfFrameFlag = 0x00;
     displayEnableFlags = 0xC2;
-    updateVSyncFlag(false);
-    vSyncCnt = 0;
     oddField = !oddField;
     rowAddress = (~rowAddressMask) & uint8_t(oddField);
     verticalPos = 0;
@@ -125,9 +123,6 @@ namespace CPC464 {
     horizontalPos = 0;
     displayEnableFlags = (displayEnableFlags | 0x40)
                          | ((displayEnableFlags & 0x80) >> 6);
-    if (syncFlags & 0x01)
-      updateHSyncFlag(false);
-    hSyncCnt = 0;
     characterAddress = characterAddressLatch;
     if (((rowAddress ^ registers[11]) & rowAddressMask) == 0) {
       // cursor end line
