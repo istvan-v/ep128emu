@@ -1,3 +1,12 @@
+Changes in version 2.0.9.1
+--------------------------
+
+  * some debugger changes related to ignore breakpoints
+  * it is possible to delete single breakpoints in Lua scripts by using
+    a negative priority value
+  * minor 6845 CRTC emulation bug fix
+  * fixed bugs in closing the debugger window with the Esc key
+
 Changes in version 2.0.9
 ------------------------
 
