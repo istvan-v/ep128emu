@@ -216,35 +216,27 @@ namespace Ep128Emu {
       int       bpType = int(lua_tointeger(lst, 1));
       uint32_t  bpAddr = uint32_t(lua_tointeger(lst, 2));
       int       bpPriority = int(lua_tointeger(lst, 3));
-      bool      ioFlag = ((bpType & 7) >= 5);
-      bool      addr22BitFlag = bool(bpType & 8) | (bpAddr >= 0x00010000U);
-      bool      readFlag = bool(bpType & 1);
-      bool      writeFlag = bool(bpType & 2);
-      bool      executeFlag = ((bpType & 7) == 4);
-      bool      ignoreFlag = bool(bpType & 16);
+      bool      ioFlag = ((unsigned int) (bpType & (~(int(0x18)))) >= 5U);
+      bool      addr22BitFlag = bool((uint32_t(bpType) & 8U)
+                                     | (bpAddr & 0xFFFF0000U));
       uint8_t   bpSegment = 0x00;
-      bool      bpEnabled = (bpPriority >= 0);
-      if ((bpType & (~(int(31)))) != 0 ||
-          (ioFlag && (addr22BitFlag | executeFlag | ignoreFlag))) {
-        throw Exception("invalid breakpoint type");
-      }
       if (ioFlag) {
+        if (bpType & (~(int(7))))
+          throw Exception("invalid breakpoint type");
         bpAddr = bpAddr & 0xFFU;
       }
       else {
-        if (readFlag == (writeFlag | executeFlag)) {
-          readFlag = true;
-          writeFlag = true;
-          executeFlag = true;
-        }
+        if ((bpType & 0x17) == 0x00 || (bpType & 0x17) == 0x03)
+          bpType = bpType | 0x07;
         if (addr22BitFlag) {
           bpSegment = uint8_t((bpAddr >> 14) & 0xFFU);
           bpAddr = bpAddr & 0x3FFFU;
         }
       }
-      BreakPoint  bp(ioFlag, addr22BitFlag, readFlag, writeFlag, executeFlag,
-                     ignoreFlag, bpSegment, uint16_t(bpAddr), bpPriority);
-      this_.vm.setBreakPoint(bp, bpEnabled);
+      BreakPoint  bp(ioFlag, addr22BitFlag, bool(bpType & 1), bool(bpType & 2),
+                     bool(bpType & 4), bool(bpType & 16),
+                     bpSegment, uint16_t(bpAddr), bpPriority);
+      this_.vm.setBreakPoint(bp, (bpPriority >= 0));
     }
     catch (std::exception& e) {
       this_.luaError(e.what());
