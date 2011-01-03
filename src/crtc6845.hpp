@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -114,18 +114,18 @@ namespace CPC464 {
         horizontalPos = (horizontalPos + 1) & 0xFF;
         characterAddress = (characterAddress + 1) & 0x3FFF;
       }
-      if (syncFlags & 0x01) {
+      if (EP128EMU_UNLIKELY(syncFlags & 0x01)) {
         // horizontal sync
-        if (!((++hSyncCnt ^ this->registers[3]) & 0x0F))
+        if (EP128EMU_UNLIKELY(!((++hSyncCnt ^ this->registers[3]) & 0x0F)))
           updateHSyncFlag(false);
       }
-      if (horizontalPos == this->registers[1]) {
+      if (EP128EMU_UNLIKELY(horizontalPos == this->registers[1])) {
         // display end / horizontal
         displayEnableFlags = displayEnableFlags & 0x80;
         if (((rowAddress ^ this->registers[9]) & rowAddressMask) == 0)
           characterAddressLatch = characterAddress;
       }
-      if (horizontalPos == this->registers[2]) {
+      if (EP128EMU_UNLIKELY(horizontalPos == this->registers[2])) {
         // horizontal sync start
         updateHSyncFlag(true);
         hSyncCnt = 0;

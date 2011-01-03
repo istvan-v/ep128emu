@@ -81,22 +81,26 @@ namespace CPC464 {
   EP128EMU_INLINE void CPC464VM::memoryWait()
   {
     updateCPUHalfCycles(((~(int(z80OpcodeHalfCycles) + 3)) & 6) + 5);
-    while (z80OpcodeHalfCycles >= 8)
+    do {
       runOneCycle();
+    } while (EP128EMU_UNLIKELY(z80OpcodeHalfCycles >= 8));
   }
 
   EP128EMU_INLINE void CPC464VM::memoryWaitM1()
   {
     updateCPUHalfCycles(((~(int(z80OpcodeHalfCycles) + 3)) & 6) + 4);
-    while (z80OpcodeHalfCycles >= 8)
+    // assume z80OpcodeHalfCycles is always even here, so it should be >= 8
+    do {
       runOneCycle();
+    } while (EP128EMU_UNLIKELY(z80OpcodeHalfCycles >= 8));
   }
 
   EP128EMU_INLINE void CPC464VM::ioPortWait()
   {
     updateCPUHalfCycles(((~(int(z80OpcodeHalfCycles) + 5)) & 6) + 7);
-    while (z80OpcodeHalfCycles >= 8)
+    do {
       runOneCycle();
+    } while (z80OpcodeHalfCycles >= 8);
   }
 
   EP128EMU_REGPARM1 void CPC464VM::runOneCycle()
@@ -1102,9 +1106,9 @@ namespace CPC464 {
     crtcCyclesRemainingL =
         uint32_t(uint64_t(crtcCyclesRemaining) & 0xFFFFFFFFUL);
     crtcCyclesRemainingH = int32_t(crtcCyclesRemaining >> 32);
-    while (crtcCyclesRemainingH > 0) {
+    while (EP128EMU_EXPECT(crtcCyclesRemainingH > 0)) {
       z80.executeInstruction();
-      while (z80OpcodeHalfCycles >= 8)
+      while (EP128EMU_UNLIKELY(z80OpcodeHalfCycles >= 8))
         runOneCycle();
     }
   }

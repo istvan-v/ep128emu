@@ -978,10 +978,13 @@ namespace ZX128 {
            / int64_t(15625));   // 10^6 / 2^6
     ulaCyclesRemainingL = uint32_t(uint64_t(ulaCyclesRemaining) & 0xFFFFFFFFUL);
     ulaCyclesRemainingH = int32_t(ulaCyclesRemaining >> 32);
-    while (ulaCyclesRemainingH > 0) {
+    while (EP128EMU_EXPECT(ulaCyclesRemainingH > 0)) {
       z80.executeInstruction();
-      while (z80OpcodeHalfCycles >= 8)
-        runOneCycle();
+      if (EP128EMU_EXPECT(z80OpcodeHalfCycles >= 8)) {
+        do {
+          runOneCycle();
+        } while (z80OpcodeHalfCycles >= 8);
+      }
     }
   }
 

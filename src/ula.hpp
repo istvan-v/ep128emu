@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -40,7 +40,7 @@ namespace ZX128 {
     int       linesPerFrame;
     const uint8_t *ld1Ptr;              // attribute data pointer
     const uint8_t *ld2Ptr;              // bitmap data pointer
-    uint8_t   *lineBuf;                 // 57 slots = 456 pixels
+    uint8_t   *lineBuf;                 // 48 slots = 384 pixels
     uint8_t   *lineBufPtr;
     const uint8_t *videoRAMPtr;         // pointer to video RAM segment
     uint16_t  audioOutput;

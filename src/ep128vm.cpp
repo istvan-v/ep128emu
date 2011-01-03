@@ -1459,7 +1459,7 @@ namespace Ep128 {
     nickCyclesRemaining +=
         ((int64_t(microseconds) << 26) * int64_t(nickFrequency)
          / int64_t(15625));     // 10^6 / 2^6
-    if (nickCyclesRemaining < (int64_t(1) << 32))
+    if (EP128EMU_UNLIKELY(nickCyclesRemaining < (int64_t(1) << 32)))
       return;
     int     cycleCnt = int(nickCyclesRemaining >> 32);
     nickCyclesRemaining -= (int64_t(cycleCnt) << 32);
@@ -1471,16 +1471,18 @@ namespace Ep128 {
         p = nxt;
       }
       daveCyclesRemaining += daveCyclesPerNickCycle;
-      while (daveCyclesRemaining >= 0L) {
-        daveCyclesRemaining -= (int64_t(1) << 32);
-        soundOutputSignal = dave.runOneCycle();
-        sendAudioOutput(soundOutputSignal + externalDACOutput);
+      if (daveCyclesRemaining >= 0L) {
+        do {
+          daveCyclesRemaining -= (int64_t(1) << 32);
+          soundOutputSignal = dave.runOneCycle();
+          sendAudioOutput(soundOutputSignal + externalDACOutput);
+        } while (EP128EMU_UNLIKELY(daveCyclesRemaining >= 0L));
       }
       cpuCyclesRemaining += cpuCyclesPerNickCycle;
       while (cpuCyclesRemaining >= 0L)
         z80.executeInstruction();
       nick.runOneSlot();
-    } while (--cycleCnt);
+    } while (EP128EMU_EXPECT(--cycleCnt));
   }
 
   void Ep128VM::reset(bool isColdReset)

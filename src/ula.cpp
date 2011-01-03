@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -36,11 +36,11 @@ namespace ZX128 {
     ula.lineBufPtr[1] = ula.borderColor;
     ula.lineBufPtr = ula.lineBufPtr + 2;
     ula.currentSlot++;
-    if (ula.currentSlot == 40) {
+    if (EP128EMU_UNLIKELY(ula.currentSlot == 40)) {
       ula.runOneSlot_ = &ULA::videoFunc_TBorderHBlank;
       ula.drawLine(ula.lineBuf, size_t(ula.lineBufPtr - ula.lineBuf));
     }
-    else if (ula.currentSlot == ula.slotsPerLine) {
+    else if (EP128EMU_UNLIKELY(ula.currentSlot == ula.slotsPerLine)) {
       ula.currentSlot = 0;
     }
   }
@@ -48,13 +48,10 @@ namespace ZX128 {
   void EP128EMU_REGPARM1 ULA::videoFunc_TBorderHBlank(void *userData)
   {
     ULA&    ula = *(reinterpret_cast<ULA *>(userData));
-    ula.lineBufPtr[0] = 0x01;
-    ula.lineBufPtr[1] = 0x00;
-    ula.lineBufPtr = ula.lineBufPtr + 2;
     ula.currentSlot++;
-    if (ula.currentSlot == ula.hSyncEndSlot) {
+    if (EP128EMU_UNLIKELY(ula.currentSlot == ula.hSyncEndSlot)) {
       ula.currentLine++;
-      if (ula.currentLine == ula.linesPerFrame) {
+      if (EP128EMU_UNLIKELY(ula.currentLine == ula.linesPerFrame)) {
         ula.currentLine = 0;
         ula.ld1Ptr = &(ula.videoRAMPtr[0x1800]);
         ula.ld2Ptr = ula.videoRAMPtr;
@@ -74,7 +71,7 @@ namespace ZX128 {
     ula.lineBufPtr[1] = ula.borderColor;
     ula.lineBufPtr = ula.lineBufPtr + 2;
     ula.currentSlot++;
-    if (ula.currentSlot == ula.slotsPerLine) {
+    if (EP128EMU_UNLIKELY(ula.currentSlot == ula.slotsPerLine)) {
       ula.currentSlot = 0;
       ula.runOneSlot_ = &ULA::videoFunc_Display;
     }
@@ -87,7 +84,7 @@ namespace ZX128 {
     uint8_t b = ula.ld2Ptr[ula.currentSlot];
     uint8_t c0 = (a & 0x78) >> 3;
     uint8_t c1 = (a & 0x07) | ((a & 0x40) >> 3);
-    if ((a & ula.flashCnt) & 0x80) {
+    if (EP128EMU_UNLIKELY((a & ula.flashCnt) & 0x80)) {
       uint8_t tmp = c0;
       c0 = c1;
       c1 = tmp;
@@ -98,7 +95,7 @@ namespace ZX128 {
     ula.lineBufPtr[3] = b;
     ula.lineBufPtr = ula.lineBufPtr + 4;
     ula.currentSlot++;
-    if (ula.currentSlot == 32)
+    if (EP128EMU_UNLIKELY(ula.currentSlot == 32))
       ula.runOneSlot_ = &ULA::videoFunc_DisplayRBorder;
   }
 
@@ -109,7 +106,7 @@ namespace ZX128 {
     ula.lineBufPtr[1] = ula.borderColor;
     ula.lineBufPtr = ula.lineBufPtr + 2;
     ula.currentSlot++;
-    if (ula.currentSlot == 40) {
+    if (EP128EMU_UNLIKELY(ula.currentSlot == 40)) {
       ula.runOneSlot_ = &ULA::videoFunc_DisplayHBlank;
       ula.drawLine(ula.lineBuf, size_t(ula.lineBufPtr - ula.lineBuf));
     }
@@ -118,20 +115,17 @@ namespace ZX128 {
   void EP128EMU_REGPARM1 ULA::videoFunc_DisplayHBlank(void *userData)
   {
     ULA&    ula = *(reinterpret_cast<ULA *>(userData));
-    ula.lineBufPtr[0] = 0x01;
-    ula.lineBufPtr[1] = 0x00;
-    ula.lineBufPtr = ula.lineBufPtr + 2;
     ula.currentSlot++;
-    if (ula.currentSlot == ula.hSyncEndSlot) {
+    if (EP128EMU_UNLIKELY(ula.currentSlot == ula.hSyncEndSlot)) {
       ula.currentLine++;
-      if (ula.currentLine == 192) {
+      if (EP128EMU_UNLIKELY(ula.currentLine == 192)) {
         ula.runOneSlot_ = &ULA::videoFunc_BBorder;
       }
       else {
-        if ((ula.currentLine & 7) != 0) {
+        if (EP128EMU_EXPECT((ula.currentLine & 7) != 0)) {
           ula.ld2Ptr = ula.ld2Ptr + 0x0100;
         }
-        else if ((ula.currentLine & 63) != 0) {
+        else if (EP128EMU_EXPECT((ula.currentLine & 63) != 0)) {
           ula.ld1Ptr = ula.ld1Ptr + 0x0020;
           ula.ld2Ptr = ula.ld2Ptr - 0x06E0;
         }
@@ -152,11 +146,11 @@ namespace ZX128 {
     ula.lineBufPtr[1] = ula.borderColor;
     ula.lineBufPtr = ula.lineBufPtr + 2;
     ula.currentSlot++;
-    if (ula.currentSlot == 40) {
+    if (EP128EMU_UNLIKELY(ula.currentSlot == 40)) {
       ula.runOneSlot_ = &ULA::videoFunc_BBorderHBlank;
       ula.drawLine(ula.lineBuf, size_t(ula.lineBufPtr - ula.lineBuf));
     }
-    else if (ula.currentSlot == ula.slotsPerLine) {
+    else if (EP128EMU_UNLIKELY(ula.currentSlot == ula.slotsPerLine)) {
       ula.currentSlot = 0;
     }
   }
@@ -164,13 +158,10 @@ namespace ZX128 {
   void EP128EMU_REGPARM1 ULA::videoFunc_BBorderHBlank(void *userData)
   {
     ULA&    ula = *(reinterpret_cast<ULA *>(userData));
-    ula.lineBufPtr[0] = 0x01;
-    ula.lineBufPtr[1] = 0x00;
-    ula.lineBufPtr = ula.lineBufPtr + 2;
     ula.currentSlot++;
-    if (ula.currentSlot == ula.hSyncEndSlot) {
+    if (EP128EMU_UNLIKELY(ula.currentSlot == ula.hSyncEndSlot)) {
       ula.currentLine++;
-      if (ula.currentLine == 241)
+      if (EP128EMU_UNLIKELY(ula.currentLine == 241))
         ula.runOneSlot_ = &ULA::videoFunc_VBlank;
       else
         ula.runOneSlot_ = &ULA::videoFunc_BBorder;
@@ -185,11 +176,11 @@ namespace ZX128 {
     ula.lineBufPtr[1] = 0x00;
     ula.lineBufPtr = ula.lineBufPtr + 2;
     ula.currentSlot++;
-    if (ula.currentSlot == 40) {
+    if (EP128EMU_UNLIKELY(ula.currentSlot == 40)) {
       ula.runOneSlot_ = &ULA::videoFunc_VBlankHBlank;
       ula.drawLine(ula.lineBuf, size_t(ula.lineBufPtr - ula.lineBuf));
     }
-    else if (ula.currentSlot == ula.slotsPerLine) {
+    else if (EP128EMU_UNLIKELY(ula.currentSlot == ula.slotsPerLine)) {
       ula.currentSlot = 0;
     }
   }
@@ -197,13 +188,10 @@ namespace ZX128 {
   void EP128EMU_REGPARM1 ULA::videoFunc_VBlankHBlank(void *userData)
   {
     ULA&    ula = *(reinterpret_cast<ULA *>(userData));
-    ula.lineBufPtr[0] = 0x01;
-    ula.lineBufPtr[1] = 0x00;
-    ula.lineBufPtr = ula.lineBufPtr + 2;
     ula.currentSlot++;
-    if (ula.currentSlot == ula.hSyncEndSlot) {
+    if (EP128EMU_UNLIKELY(ula.currentSlot == ula.hSyncEndSlot)) {
       ula.currentLine++;
-      if (ula.currentLine == 258)
+      if (EP128EMU_UNLIKELY(ula.currentLine == 258))
         ula.runOneSlot_ = &ULA::videoFunc_TBorder;
       else
         ula.runOneSlot_ = &ULA::videoFunc_VBlank;
@@ -229,9 +217,9 @@ namespace ZX128 {
   void ULA::clearLineBuffer()
   {
     uint32_t  *p = reinterpret_cast<uint32_t *>(lineBuf);
-    for (int i = 0; i < 57; i++)
+    for (int i = 0; i < 48; i++)
       p[i] = 0U;
-    for (int i = 0; i < 114; i += 2) {
+    for (int i = 0; i < 96; i += 2) {
       lineBuf[i] = 0x01;
       lineBuf[i + 1] = borderColor;
     }
@@ -251,8 +239,8 @@ namespace ZX128 {
     int     x = 0;
     int     y = 0;
     getVideoPosition(x, y, timeOffs + 6);
-    if (y < 0 || y >= 192)
-      return 0;
+    if (EP128EMU_UNLIKELY(y < 0 || y >= 192))
+      return 0;         // this was already checked in getWaitHalfCycles()
     if (x >= 256)
       return 0;
     return ((x & 14) < 12 ? (12 - (x & 14)) : 0);
@@ -307,10 +295,14 @@ namespace ZX128 {
       else
         runOneSlot_ = &videoFunc_VBlankHBlank;
     }
-    if (currentSlot < hSyncEndSlot)
-      lineBufPtr = &(lineBuf[(currentSlot + 8) << 1]);
-    else
+    if (currentSlot >= hSyncEndSlot)
       lineBufPtr = &(lineBuf[(currentSlot - hSyncEndSlot) << 1]);
+    else if (currentSlot < 32)
+      lineBufPtr = &(lineBuf[(currentSlot << 2) + 16]);
+    else if (currentSlot < 40)
+      lineBufPtr = &(lineBuf[(currentSlot << 1) + 80]);
+    else
+      lineBufPtr = &(lineBuf[160]);
     ld1Ptr = videoRAMPtr + 0x1800;
     ld2Ptr = videoRAMPtr;
     if (currentLine < 192) {
@@ -351,7 +343,7 @@ namespace ZX128 {
   {
     for (int i = 0; i < 8; i++)
       keyboardState[i] = 0xFF;
-    uint32_t  *p = new uint32_t[57];    // for 228 bytes (57 * 4)
+    uint32_t  *p = new uint32_t[48];    // for 192 bytes (48 * 4)
     lineBuf = reinterpret_cast<uint8_t *>(p);
     clearLineBuffer();
   }
