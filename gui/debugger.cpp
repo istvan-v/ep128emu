@@ -310,7 +310,7 @@ void Ep128EmuGUI_DebugWindow::dumpMemory(std::string& buf,
         bufp[0] = ' ';
         bufp[1] = ':';
         for (int i = 2; i < 10; i++) {
-          bufp[i] = char(tmpBuf2[i - 2] & 0x7F);
+          bufp[i] = char(tmpBuf2[9 - i] & 0x7F);
           if (bufp[i] < char(0x20) || bufp[i] == char(0x7F))
             bufp[i] = '.';
         }
