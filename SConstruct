@@ -290,8 +290,13 @@ def fluidCompile(flNames):
         if flName.endswith('.fl'):
             cppName = flName[:-3] + '_fl.cpp'
             hppName = flName[:-3] + '_fl.hpp'
-            Command([cppName, hppName], flName,
-                    'fluid -c -o %s -h %s $SOURCES' % (cppName, hppName))
+            if not win32CrossCompile:
+              Command([cppName, hppName], flName,
+                      'fluid -c -o %s -h %s $SOURCES' % (cppName, hppName))
+            else:
+              Command([cppName, hppName], flName,
+                      'wine C:/MinGW/bin/fluid.exe -c -o %s -h %s $SOURCES' \
+                      % (cppName, hppName))
             cppNames += [cppName]
     return cppNames
 
