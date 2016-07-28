@@ -3,4 +3,8 @@
 config.log
 *.o
 *.a
+*_fl.cpp
+*_fl.hpp
 ep128emu
+makecfg
+tapeedit
