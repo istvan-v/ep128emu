@@ -137,7 +137,7 @@ void Ep128EmuGUI::updateDisplay_windowMode()
     statusDisplayGroup->show();
     mainMenuBar->resize(0, 2, 300, 26);
     mainMenuBar->show();
-    if (typeid(vm) == typeid(Ep128::Ep128VM)) {
+    if (typeid(vm) != typeid(ZX128::ZX128VM)) {
       diskStatusDisplayGroup->resize(345, 0, 30, 30);
       diskStatusDisplayGroup->show();
     }
