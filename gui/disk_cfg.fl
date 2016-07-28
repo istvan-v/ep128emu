@@ -98,7 +98,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   gui.config.floppyAChanged = true;
   o->value(double(gui.config.floppy.a.tracks));
 }}
-              xywh {30 92 40 23} align 8 when 4 minimum -1 maximum 240 step 1 value -1
+              xywh {30 92 40 23} align 8 when 4 minimum -1 maximum 254 step 1 value -1
               code0 {o->cursor_color(Fl_Color(3));}
             }
             Fl_Value_Input floppyASidesValuator {
@@ -184,7 +184,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   gui.config.floppyBChanged = true;
   o->value(double(gui.config.floppy.b.tracks));
 }}
-              xywh {30 182 40 23} align 8 when 4 minimum -1 maximum 240 step 1 value -1
+              xywh {30 182 40 23} align 8 when 4 minimum -1 maximum 254 step 1 value -1
               code0 {o->cursor_color(Fl_Color(3));}
             }
             Fl_Value_Input floppyBSidesValuator {
@@ -254,7 +254,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   gui.config.floppyCChanged = true;
   o->value(double(gui.config.floppy.c.tracks));
 }}
-              xywh {30 272 40 23} align 8 when 4 minimum -1 maximum 240 step 1 value -1
+              xywh {30 272 40 23} align 8 when 4 minimum -1 maximum 254 step 1 value -1
               code0 {o->cursor_color(Fl_Color(3));}
             }
             Fl_Value_Input floppyCSidesValuator {
@@ -324,7 +324,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
   gui.config.floppyDChanged = true;
   o->value(double(gui.config.floppy.d.tracks));
 }}
-              xywh {30 362 40 23} align 8 when 4 minimum -1 maximum 240 step 1 value -1
+              xywh {30 362 40 23} align 8 when 4 minimum -1 maximum 254 step 1 value -1
               code0 {o->cursor_color(Fl_Color(3));}
             }
             Fl_Value_Input floppyDSidesValuator {
