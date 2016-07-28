@@ -3635,7 +3635,7 @@ namespace Ep128 {
       break;
     case 0x071:
       {
-        doOut(R.BC.W, 0);
+        doOut(R.BC.W, 255);
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
