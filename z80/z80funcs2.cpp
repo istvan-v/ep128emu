@@ -21,6 +21,7 @@
 
 #include "z80.hpp"
 #include "z80macros.hpp"
+#include "system.hpp"
 
 namespace Ep128 {
 
@@ -164,6 +165,19 @@ namespace Ep128 {
   Z80::Z80()
   {
     std::memset(&R, 0, sizeof(Z80_REGISTERS));
+	int     seed = 0;
+    Ep128Emu::setRandomSeed(seed, Ep128Emu::Timer::getRandomSeedFromTime());
+    R.AF.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+	R.BC.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+	R.DE.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+	R.HL.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+	R.IX.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+	R.IY.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+	R.SP.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+	R.altAF.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+	R.altBC.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+	R.altDE.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+	R.altHL.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
     this->reset();
   }
 
@@ -176,10 +190,6 @@ namespace Ep128 {
     R.IFF2 = 0;
     R.RBit7 = 0;
     R.R = 0;
-    R.AF.W = 0xFFFF;
-    R.SP.W = 0xFFFF;
-    R.IX.W = 0xFFFF;
-    R.IY.W = 0xFFFF;
     R.Flags &= ~
         (Z80_EXECUTING_HALT_FLAG |
          Z80_CHECK_INTERRUPT_FLAG |
