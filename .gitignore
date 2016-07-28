@@ -1,0 +1,6 @@
+.sconf_temp
+.sconsign.dblite
+config.log
+*.o
+*.a
+ep128emu
