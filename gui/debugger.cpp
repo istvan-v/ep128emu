@@ -384,7 +384,7 @@ void Ep128EmuGUI_DebugWindow::updateMemoryDumpDisplay()
     for (int i = 0; i < 6; i++) {
       char      *bufp = &(tmpBuf[0]);
       uint16_t  addr = uint16_t(i < 3 ? r.IX.W : r.IY.W);
-      int32_t   offs = (i < 3 ? ixViewOffset : iyViewOffset)
+      int32_t   offs = (i < 3 ? ixViewOffset : (iyViewOffset - 24))
                        + int32_t((i - 1) * 8);
       *(bufp++) = ' ';
       *(bufp++) = 'I';
