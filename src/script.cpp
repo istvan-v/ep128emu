@@ -148,14 +148,14 @@ namespace Ep128Emu {
     lua_Integer result = lua_tointeger(lst, 1);
     lua_Integer n = lua_tointeger(lst, 2);
     if (n > 0) {
-      if (n >= lua_Integer(sizeof(lua_Integer) * 4))
+      if (n >= lua_Integer(sizeof(lua_Integer) * 8))
         result = 0;
       else
         result = result << int(n);
     }
     else if (n < 0) {
       n = -n;
-      if (n >= lua_Integer(sizeof(lua_Integer) * 4))
+      if (n >= lua_Integer(sizeof(lua_Integer) * 8))
         result = 0;
       else
         result = result >> int(n);
@@ -181,14 +181,14 @@ namespace Ep128Emu {
     lua_Integer result = lua_tointeger(lst, 1);
     lua_Integer n = lua_tointeger(lst, 2);
     if (n > 0) {
-      if (n >= lua_Integer(sizeof(lua_Integer) * 4))
+      if (n >= lua_Integer(sizeof(lua_Integer) * 8))
         result = 0;
       else
         result = result >> int(n);
     }
     else if (n < 0) {
       n = -n;
-      if (n >= lua_Integer(sizeof(lua_Integer) * 4))
+      if (n >= lua_Integer(sizeof(lua_Integer) * 8))
         result = 0;
       else
         result = result << int(n);
