@@ -34,6 +34,114 @@
 #  include <linux/fd.h>
 #endif
 
+#ifdef WIN32
+
+#define fopen ep_fopen
+#define fclose ep_fclose
+#define fseek ep_fseek
+#define ftell ep_ftell
+#define fread ep_fread
+#define fwrite ep_fwrite
+#define setvbuf ep_setvbuf
+
+namespace std {
+
+FILE* ep_fopen ( const char * filename, const char * mode )
+{
+	HANDLE hF= 0;
+
+	if (!strcmp(mode,"rb"))
+	{
+		hF= CreateFile(filename,GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL|FILE_FLAG_WRITE_THROUGH|FILE_FLAG_NO_BUFFERING,0);
+	}
+	else if (!strcmp(mode,"r+b"))
+	{
+		hF= CreateFile(filename,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL|FILE_FLAG_WRITE_THROUGH|FILE_FLAG_NO_BUFFERING,0);
+
+		if (filename[0] == '\\' && filename[1] == '\\' && filename[2] == '.' && filename[3] == '\\')
+		{
+			DWORD bytes;
+
+			BOOL ret= DeviceIoControl(hF,FSCTL_LOCK_VOLUME,0,0,0,0,&bytes,0);
+
+			if (!ret)
+			{
+				CloseHandle(hF);
+
+				hF= 0;
+			}
+		}
+	}
+
+	return (FILE*)(hF);
+}
+
+int ep_fclose ( FILE* stream )
+{
+	if (CloseHandle(HANDLE(stream)))
+		return 0;
+	else
+		return EOF;
+}
+
+int ep_fseek ( FILE* stream, long int offset, int origin )
+{
+	DWORD method= 0;
+
+	switch(origin)
+	{
+	case SEEK_SET:
+		method= FILE_BEGIN;
+		break;
+	case SEEK_CUR:
+		method= FILE_CURRENT;
+		break;
+	case SEEK_END:
+		method= FILE_END;
+		break;
+	}
+
+	DWORD ret= SetFilePointer(HANDLE(stream),offset,0,method);
+
+	return ret!=INVALID_SET_FILE_POINTER?0:1;
+}
+
+long int ep_ftell ( FILE* stream )
+{
+	DWORD ret= SetFilePointer(HANDLE(stream),0,0,FILE_CURRENT);
+
+	return ret;
+}
+
+size_t ep_fread ( void * ptr, size_t size, size_t count, FILE* stream )
+{
+	DWORD num= 0;
+
+	ReadFile(HANDLE(stream),ptr,size*count,&num,0);
+
+	return num;
+}
+
+size_t ep_fwrite ( const void * ptr, size_t size, size_t count, FILE* stream )
+{
+	DWORD num= 0;
+
+	WriteFile(HANDLE(stream),ptr,size*count,&num,0);
+
+	FlushFileBuffers(HANDLE(stream));
+
+	return num;
+}
+
+int ep_setvbuf ( FILE* stream, char * buffer, int mode, size_t size )
+{
+	return 0;
+}
+
+}
+
+#endif
+
 namespace Ep128Emu {
 
   int checkFloppyDisk(const char *fileName,
@@ -80,7 +188,7 @@ namespace Ep128Emu {
       errorFlag = true;
     }
     if (diskGeometry.Cylinders.QuadPart < (LONGLONG) 1 ||
-        diskGeometry.Cylinders.QuadPart > (LONGLONG) 240 ||
+        diskGeometry.Cylinders.QuadPart > (LONGLONG) 254 ||
         diskGeometry.TracksPerCylinder < (DWORD) 1 ||
         diskGeometry.TracksPerCylinder > (DWORD) 2 ||
         diskGeometry.SectorsPerTrack < (DWORD) 1 ||
@@ -88,7 +196,7 @@ namespace Ep128Emu {
         diskGeometry.BytesPerSector != (DWORD) 512) {
       errorFlag = true;
     }
-    if (nTracks >= 1 && nTracks <= 240) {
+    if (nTracks >= 1 && nTracks <= 254) {
       if (nTracks != int(diskGeometry.Cylinders.QuadPart))
         errorFlag = true;
     }
@@ -130,14 +238,14 @@ namespace Ep128Emu {
       return 0;                 // not a floppy device
     }
     close(fd);
-    if (floppyParams.track < 1U || floppyParams.track > 240U ||
+    if (floppyParams.track < 1U || floppyParams.track > 254U ||
         floppyParams.head < 1U || floppyParams.head > 2U ||
         floppyParams.sect < 1U || floppyParams.sect > 240U ||
         floppyParams.size != (floppyParams.track * floppyParams.head
                               * floppyParams.sect)) {
       return -2;
     }
-    if ((nTracks >= 1 && nTracks <= 240 &&
+    if ((nTracks >= 1 && nTracks <= 254 &&
          nTracks != int(floppyParams.track)) ||
         (nSides >= 1 && nSides <= 2 && nSides != int(floppyParams.head)) ||
         (nSectorsPerTrack >= 1 && nSectorsPerTrack <= 240 &&
@@ -290,7 +398,7 @@ namespace Ep128Emu {
     if (fileName_ == "")
       return;
     unsigned char tmpBuf[512];
-    bool    nTracksValid = (nTracks_ >= 1 && nTracks_ <= 240);
+    bool    nTracksValid = (nTracks_ >= 1 && nTracks_ <= 254);
     bool    nSidesValid = (nSides_ >= 1 && nSides_ <= 2);
     bool    nSectorsPerTrackValid =
                 (nSectorsPerTrack_ >= 1 && nSectorsPerTrack_ <= 240);
@@ -327,7 +435,7 @@ namespace Ep128Emu {
       long    fileSize = -1L;
       if (std::fseek(imageFile, 0L, SEEK_END) >= 0)
         fileSize = std::ftell(imageFile);
-      if (fileSize >= 512L && fileSize <= (240L * 2L * 240L * 512L)) {
+      if (fileSize >= 512L && fileSize <= (254L * 2L * 240L * 512L)) {
         long    nSectors_ = fileSize / 512L;
         if (!nTracksValid && nSidesValid && nSectorsPerTrackValid) {
           nTracks_ = int(nSectors_ / (long(nSides_) * long(nSectorsPerTrack_)));
@@ -364,7 +472,7 @@ namespace Ep128Emu {
             if ((fatSectors % long(fatSides * fatSectorsPerTrack)) == 0L) {
               long    fatTracks =
                   fatSectors / long(fatSides * fatSectorsPerTrack);
-              if (fatTracks >= 1L && fatTracks <= 240L) {
+              if (fatTracks >= 1L && fatTracks <= 254L) {
                 // found a valid FAT header, set or check geometry parameters
                 if (!nTracksValid)
                   nTracks_ = int(fatTracks);
@@ -382,7 +490,7 @@ namespace Ep128Emu {
           }
         }
       }
-      if (!(nTracks_ >= 1 && nTracks_ <= 240 &&
+      if (!(nTracks_ >= 1 && nTracks_ <= 254 &&
             nSides_ >= 1 && nSides_ <= 2 &&
             nSectorsPerTrack_ >= 1 && nSectorsPerTrack_ <= 240))
         throw Exception("wd177x: cannot determine size of disk image");
