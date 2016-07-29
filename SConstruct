@@ -1,14 +1,16 @@
 # vim: syntax=python
 
-import sys
+import sys, os
 
-win32CrossCompile = 0
+win32CrossCompile = ARGUMENTS.get('win32', 0)
 linux32CrossCompile = 0
 disableSDL = 0          # set this to 1 on Linux with SDL version >= 1.2.10
 disableLua = 0
 enableGLShaders = 1
 enableDebug = 0
 buildRelease = 1
+
+#env = Environment(ENV = os.environ)
 
 compilerFlags = ''
 if buildRelease:
@@ -47,6 +49,7 @@ else:
     linkFlags = ' -m32 -L. -L/usr/X11R6/lib '
 ep128emuLibEnvironment.Append(LINKFLAGS = Split(linkFlags))
 if win32CrossCompile:
+    ep128emuLibEnvironment['DISPLAY'] = os.environ['DISPLAY']
     ep128emuLibEnvironment['AR'] = 'wine C:/MinGW/bin/ar.exe'
     ep128emuLibEnvironment['CC'] = 'wine C:/MinGW/bin/gcc.exe'
     ep128emuLibEnvironment['CPP'] = 'wine C:/MinGW/bin/cpp.exe'

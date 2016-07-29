@@ -8,3 +8,4 @@ config.log
 ep128emu
 makecfg
 tapeedit
+*.exe
