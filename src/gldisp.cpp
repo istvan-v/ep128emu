@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2015 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -153,6 +153,19 @@ static bool queryGLShaderFunctions()
 
 #ifdef ENABLE_GL_SHADERS
 
+static const char *shaderSourceQ3[1] = {
+  "uniform sampler2D textureHandle;\n"
+  "uniform float lineShade;\n"
+  "void main()\n"
+  "{\n"
+  "  float txc = gl_TexCoord[0][0];\n"
+  "  float tyc = gl_TexCoord[0][1] + 0.015625;\n"
+  "  vec4 p0  = texture2D(textureHandle, vec2(txc, tyc));\n"
+  "  p0 = p0 * mix(cos(tyc * 100.531) * -0.5 + 0.5, 1.0, lineShade);\n"
+  "  gl_FragColor = vec4(p0.r, p0.g, p0.b, 1.0);\n"
+  "}\n"
+};
+
 static const char *shaderSourcePAL[1] = {
   "uniform sampler2D textureHandle;\n"
   "uniform float lineShade;\n"
@@ -261,8 +274,10 @@ namespace Ep128Emu {
       shaderHandle = 0UL;
       return false;
     }
-    glShaderSource_(GLuint(shaderHandle),
-                    GLsizei(1), &(shaderSourcePAL[0]), (GLint *) 0);
+    glShaderSource_(GLuint(shaderHandle), GLsizei(1),
+                    (shaderMode_ == 2 ?
+                     &(shaderSourcePAL[0]) : &(shaderSourceQ3[0])),
+                    (GLint *) 0);
     glAttachShader_(GLuint(programHandle), GLuint(shaderHandle));
     shaderMode = shaderMode_;
     glCompileShader_(GLuint(shaderHandle));
@@ -694,107 +709,87 @@ namespace Ep128Emu {
                                          double x0, double y0,
                                          double x1, double y1, bool oddFrame_)
   {
-    if (displayParameters.lineShade >= 0.9925f) {
+    if (shaderMode != 1) {
+      if (!compileShader(1)) {
+        displayParameters.displayQuality = 2;
+        drawFrame_quality2(lineBuffers_, x0, y0, x1, y1, oddFrame_);
+        return;
+      }
+    }
+    if (!enableShader()) {
+      deleteShader();
+      displayParameters.displayQuality = 2;
       drawFrame_quality2(lineBuffers_, x0, y0, x1, y1, oddFrame_);
       return;
     }
     unsigned char lineBuf1[768];
-    unsigned char lineBuf2[768];
+    GLfloat txtycf0 = GLfloat(1.0 / 16.0);
+    GLfloat txtycf1 = GLfloat(15.0 / 16.0);
+    if (oddFrame_) {
+      // interlace
+      txtycf0 -= GLfloat(0.5 / 16.0);
+      txtycf1 -= GLfloat(0.5 / 16.0);
+    }
     unsigned char *curLine_ = &(lineBuf1[0]);
-    unsigned char *prvLine_ = &(lineBuf2[0]);
-    // full horizontal resolution, interlace (768x576)
-    int     cnt = -2;
-    for (size_t yc = 0; yc < 590; yc++) {
-      bool    haveLineDataInPrvLine = false;
-      bool    haveLineDataInCurLine = false;
-      bool    haveLineDataInNxtLine = false;
-      if ((yc & 1) == size_t(oddFrame_)) {
-        if (yc < 578)
-          haveLineDataInCurLine = bool(lineBuffers_[yc]);
-      }
-      else {
-        if (yc > 0 && yc < 579)
-          haveLineDataInPrvLine = bool(lineBuffers_[yc - 1]);
-        if (yc < 577)
-          haveLineDataInNxtLine = bool(lineBuffers_[yc + 1]);
-      }
-      if (haveLineDataInCurLine | haveLineDataInNxtLine) {
-        unsigned char *tmp = curLine_;
-        curLine_ = prvLine_;
-        prvLine_ = tmp;
+    // full horizontal resolution, interlace with shader (768x288)
+    for (size_t yc = 0; yc < 588; yc += 28) {
+      for (size_t offs = size_t(oddFrame_); offs < 32; offs += 2) {
         // decode video data
         const unsigned char *bufp = (unsigned char *) 0;
         size_t  nBytes = 0;
-        if (haveLineDataInCurLine)
-          lineBuffers_[yc]->getLineData(bufp, nBytes);
+        if ((yc + offs) < 578) {
+          if (lineBuffers_[yc + offs])
+            lineBuffers_[yc + offs]->getLineData(bufp, nBytes);
+        }
+        if (bufp)
+          decodeLine(curLine_, bufp, nBytes);
         else
-          lineBuffers_[yc + 1]->getLineData(bufp, nBytes);
-        decodeLine(curLine_, bufp, nBytes);
-      }
-      // build 16-bit texture
-      uint16_t  *txtp = &(textureBuffer16[(yc & 15) * 768]);
-      if (haveLineDataInCurLine) {
+          std::memset(curLine_, 0, 768);
+        // build 16-bit texture
+        uint16_t  *txtp = &(textureBuffer16[(offs >> 1) * 768]);
         for (size_t xc = 0; xc < 768; xc++)
           txtp[xc] = colormap(curLine_[xc]);
       }
-      else if (haveLineDataInPrvLine && haveLineDataInNxtLine) {
-        for (size_t xc = 0; xc < 768; xc++)
-          txtp[xc] = colormap(prvLine_[xc], curLine_[xc]);
+      // load texture
+      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 16,
+                      GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
+                      (GLvoid *) textureBuffer16);
+      // update display
+      double  ycf0 = y0 + ((double(int(yc)) * (1.0 / 576.0)) * (y1 - y0));
+      double  ycf1 = y0 + ((double(int(yc + 28)) * (1.0 / 576.0)) * (y1 - y0));
+      if (yc == 560) {
+        ycf1 -= ((y1 - y0) * (12.0 / 576.0));
+        txtycf1 -= GLfloat(6.0 / 16.0);
       }
-      else if (haveLineDataInPrvLine || haveLineDataInNxtLine) {
-        for (size_t xc = 0; xc < 768; xc++)
-          txtp[xc] = colormap(0, curLine_[xc]);
-      }
-      else {
-        for (size_t xc = 0; xc < 768; xc++)
-          txtp[xc] = colormap(0);
-      }
-      if (++cnt == 14) {
-        cnt = 0;
-        // load texture
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 768, 16,
-                        GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
-                        (GLvoid *) textureBuffer16);
-        // update display
-        double  ycf0 = y0 + ((double(int(yc - 15)) * (1.0 / 576.0))
-                             * (y1 - y0));
-        double  ycf1 = y0 + ((double(int(yc - 1)) * (1.0 / 576.0))
-                             * (y1 - y0));
-        double  txtycf0 = double(int((yc - 14) & 15)) * (1.0 / 16.0);
-        double  txtycf1 = txtycf0 + (14.0 / 16.0);
-        if (yc == 589) {
-          ycf1 -= ((y1 - y0) * (12.0 / 576.0));
-          txtycf1 -= (12.0 / 16.0);
-        }
-        glBegin(GL_QUADS);
-        glTexCoord2f(GLfloat(0.0), GLfloat(txtycf0));
-        glVertex2f(GLfloat(x0), GLfloat(ycf0));
-        glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(txtycf0));
-        glVertex2f(GLfloat(x1), GLfloat(ycf0));
-        glTexCoord2f(GLfloat(768.0 / 1024.0), GLfloat(txtycf1));
-        glVertex2f(GLfloat(x1), GLfloat(ycf1));
-        glTexCoord2f(GLfloat(0.0), GLfloat(txtycf1));
-        glVertex2f(GLfloat(x0), GLfloat(ycf1));
-        glEnd();
-      }
+      glBegin(GL_QUADS);
+      glTexCoord2f(GLfloat(0.0), txtycf0);
+      glVertex2f(GLfloat(x0), GLfloat(ycf0));
+      glTexCoord2f(GLfloat(768.0 / 1024.0), txtycf0);
+      glVertex2f(GLfloat(x1), GLfloat(ycf0));
+      glTexCoord2f(GLfloat(768.0 / 1024.0), txtycf1);
+      glVertex2f(GLfloat(x1), GLfloat(ycf1));
+      glTexCoord2f(GLfloat(0.0), txtycf1);
+      glVertex2f(GLfloat(x0), GLfloat(ycf1));
+      glEnd();
     }
+    disableShader();
   }
 
   void OpenGLDisplay::drawFrame_quality4(Message_LineData **lineBuffers_,
                                          double x0, double y0,
                                          double x1, double y1, bool oddFrame_)
   {
-    if (shaderMode == 0) {
-      if (!compileShader(1)) {
-        displayParameters.displayQuality = 3;
-        drawFrame_quality3(lineBuffers_, x0, y0, x1, y1, oddFrame_);
+    if (shaderMode != 2) {
+      if (!compileShader(2)) {
+        displayParameters.displayQuality = 2;
+        drawFrame_quality2(lineBuffers_, x0, y0, x1, y1, oddFrame_);
         return;
       }
     }
     if (!enableShader()) {
       deleteShader();
-      displayParameters.displayQuality = 3;
-      drawFrame_quality3(lineBuffers_, x0, y0, x1, y1, oddFrame_);
+      displayParameters.displayQuality = 2;
+      drawFrame_quality2(lineBuffers_, x0, y0, x1, y1, oddFrame_);
       return;
     }
     double  yOffs = (y1 - y0) * (-2.0 / 576.0);
