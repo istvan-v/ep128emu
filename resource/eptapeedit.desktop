@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=eptapeedit
+Comment=ep128 tape editor
+Comment[hu]=ep128 szalag szerkesztő
+Exec=tapeedit
+Icon=tapeedit
+Categories=Game;Emulator;

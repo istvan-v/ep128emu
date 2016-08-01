@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=EP128emu
+Comment=Enterprise 64/128 emulator
+Comment[hu]=Enterprise 64/128 emulátor
+Exec=ep128emu
+Icon=ep128emu
+Categories=Game;Emulator;
