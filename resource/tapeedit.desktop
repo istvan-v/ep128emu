@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=tapeedit
+GenericName=zx128emu
+GenericName[hu]=zx128
+Comment=ep128 tape editor
+Comment[hu]=ep128 szalag szerkesztő
+Exec=tapeedit
+Icon=tapeedit
+Categories=Game;Emulator;
