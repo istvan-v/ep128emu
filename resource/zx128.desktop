@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=zx128emu
+Comment=Sinclair Spectrum zx128 emulator
+Comment[hu]=Sinclair Spectrum zx128 emulátor
+Exec=zx128emu
+Icon=zx128emu
+Categories=Game;Emulator;

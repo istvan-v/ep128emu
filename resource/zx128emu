@@ -1,0 +1,3 @@
+#!/bin/sh
+
+ep128emu -zx $@
