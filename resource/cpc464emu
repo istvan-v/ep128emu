@@ -1,3 +1,3 @@
 #!/bin/sh
 
-ep128emu -cpc
+ep128emu -cpc $@
