@@ -1,0 +1,15 @@
+#!/bin/sh
+if [ x$HOME = x ]; then
+	echo "No HOME variable is set" >&2
+	exit 1
+fi
+if [ ! -d $HOME/.ep128emu/roms ]; then
+	echo "Creating directories $HOME/.ep128emu and $HOME/.ep128emu/roms"
+	mkdir -p $HOME/.ep128emu/roms || exit 1
+fi
+rom="$HOME/.ep128emu/roms/ep128emu_roms.bin"
+if [ ! -s "$rom" ]; then
+	echo "Downloading ROM to $rom"
+	wget -O "$rom" http://ep128emu.enterpriseforever.com/roms/ep128emu_roms.bin || exit 1
+fi
+exec $0.bin

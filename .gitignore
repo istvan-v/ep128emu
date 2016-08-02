@@ -10,3 +10,4 @@ makecfg
 tapeedit
 *.exe
 ep128emu_roms.bin
+.build_cache
