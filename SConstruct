@@ -11,6 +11,7 @@ enableDebug = 0
 buildRelease = 1
 
 #env = Environment(ENV = os.environ)
+#CacheDir("./.build_cache/win32" if win32CrossCompile else "./.build_cache/native")
 
 compilerFlags = ''
 if buildRelease:
@@ -49,7 +50,6 @@ else:
     linkFlags = ' -m32 -L. -L/usr/X11R6/lib '
 ep128emuLibEnvironment.Append(LINKFLAGS = Split(linkFlags))
 if win32CrossCompile:
-    ep128emuLibEnvironment['DISPLAY'] = os.environ['DISPLAY']
     ep128emuLibEnvironment['AR'] = 'wine C:/MinGW/bin/ar.exe'
     ep128emuLibEnvironment['CC'] = 'wine C:/MinGW/bin/gcc.exe'
     ep128emuLibEnvironment['CPP'] = 'wine C:/MinGW/bin/cpp.exe'
@@ -425,7 +425,7 @@ ep128emuSources += ['gui/debugger.cpp', 'gui/monitor.cpp', 'gui/main.cpp']
 if win32CrossCompile:
     ep128emuResourceObject = ep128emuEnvironment.Command(
         'resource/resource.o',
-        ['resource/ep128emu.rc', 'resource/cpc464em.ico',
+        ['resource/ep128emu.rc', 'resource/cpc464emu.ico',
          'resource/ep128emu.ico', 'resource/zx128emu.ico'],
         'wine C:/MinGW/bin/windres.exe -v --use-temp-file '
         + '--preprocessor="C:/MinGW/bin/gcc.exe -E -xc -DRC_INVOKED" '
