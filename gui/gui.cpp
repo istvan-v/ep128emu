@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -106,10 +106,10 @@ void Ep128EmuGUI::init_()
 void Ep128EmuGUI::updateDisplay_windowTitle()
 {
   if (oldPauseFlag) {
-    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.9.1 (paused)");
+    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.9.2 (paused)");
   }
   else {
-    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.9.1 (%d%%)",
+    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.9.2 (%d%%)",
                  int(oldSpeedPercentage));
   }
   mainWindow->label(&(windowTitleBuf[0]));

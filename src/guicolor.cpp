@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -22,7 +22,21 @@
 
 #include <cmath>
 #include <FL/Fl.H>
+#include <FL/Enumerations.H>
 #include <FL/Fl_Window.H>
+
+#ifdef HAVE_FLTK_1_3_3
+#  undef HAVE_FLTK_1_3_3
+#endif
+#if defined(FL_MAJOR_VERSION) && defined(FL_MINOR_VERSION) &&   \
+    defined(FL_PATCH_VERSION)
+#  if (FL_MAJOR_VERSION > 1) ||                                 \
+      ((FL_MAJOR_VERSION == 1) &&                               \
+       ((FL_MINOR_VERSION > 3) ||                               \
+        ((FL_MINOR_VERSION == 3) && (FL_PATCH_VERSION >= 3))))
+#    define HAVE_FLTK_1_3_3     1
+#  endif
+#endif
 
 #ifdef WIN32
 
@@ -46,7 +60,173 @@ static const char *windowClassTable[14] = {
   "EPError"
 };
 
-#endif  // WIN32
+#elif defined(HAVE_FLTK_1_3_3)
+
+#include <FL/Fl_Pixmap.H>
+#include <FL/Fl_RGB_Image.H>
+
+static const char * const iconPixmapData_0[] = {        // ep128emu.ico
+  /* columns rows colors chars-per-pixel */
+  "32 32 14 1 ",
+  "  c #012909",
+  ". c #02390C",
+  "X c #01560D",
+  "o c #026D10",
+  "O c #007E12",
+  "+ c #028F14",
+  "@ c #089B13",
+  "# c #00B518",
+  "$ c #00B01C",
+  "% c #39D24E",
+  "& c #6DE07E",
+  "* c #9BEDAA",
+  "= c #B5F2C0",
+  "- c #FBFFF9",
+  /* pixels */
+  "O++++++++++++++++++++++++++++++O",
+  "+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+",
+  "+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+",
+  "+@@@@@@@++OOOOOOOOOOOOooO+@@@@@+",
+  "+@@@@@++@$############$@ooO+@@@+",
+  "+@@@@++$#################+Xo+@@+",
+  "+@@@++$###################+Xo+@+",
+  "+@@@+$##&-----#*--------###o.O++",
+  "+@@+@###&-----#*--------###@.X++",
+  "+@@+$###%**---#&*****---####X.O+",
+  "+@@+$######---#######---####o.o+",
+  "+@+O$######---#######---####O o+",
+  "+@+O$######---#######===####O X+",
+  "+@+O$######---###%%%########O XO",
+  "+@+O$######---&&&===########O XO",
+  "+@+O$######---------########O XO",
+  "+@+O$######---------########O XO",
+  "+@+O$######---&&&===########O XO",
+  "+@+O$######---###%%%########O XO",
+  "+@+O$######---#######===####O XO",
+  "+@+O$######---#######---####O XO",
+  "+@+O$######---#######---####O XO",
+  "+@+O$###%**---#&*****---####o X+",
+  "+@@O@###&-----#*--------####. o+",
+  "+@@O+###&-----#*--------###@ .o+",
+  "+@@+o@#####################X .O+",
+  "+@@+oo@###################o .o++",
+  "+@@@+oX+################$X  XO++",
+  "+@@@@OXXo+@@@@@@@@@@@@@o.  Xo+@+",
+  "+@@@@++oX.............   .Xo+@@+",
+  "+@@@@@@+OoX............XXoO+@@@+",
+  "O++++++++++OOOoooooooOOO+++++++O"
+};
+
+static const char * const iconPixmapData_1[] = {        // zx128emu.ico
+  /* columns rows colors chars-per-pixel */
+  "32 32 15 1 ",
+  "  c black",
+  ". c #191911",
+  "X c #242318",
+  "o c #353323",
+  "O c #43412D",
+  "+ c #4C4932",
+  "@ c #57543B",
+  "# c #615C43",
+  "$ c #6A6746",
+  "% c #6E6A48",
+  "& c red",
+  "* c green",
+  "= c yellow",
+  "- c #00D9D9",
+  "; c white",
+  /* pixels */
+  "+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+",
+  "@##############################@",
+  "@##############################@",
+  "@#######@@++++++++++++OO+@#####@",
+  "@#####@@#$%%%%%%%%%%%%$#OO+@###@",
+  "@####@@$%%%%%%%%%%%%%%%%%@oO@##@",
+  "@###@@$%%%%%%%%%%%%%%%%%%%@oO@#@",
+  "@###@$%%%%%%%%%%%%%%%%%%%%%OX+@@",
+  "@##@#%%%%%%%%%%%%%%%%%%%%%%#Xo@@",
+  "@##@$%%%%%%%%%%%%%%%%%%%%%%%oX+@",
+  "@##@$           %    %%%    OXO@",
+  "@#@+$ ;;;;;;;;; % ;; %%% ;; +.O@",
+  "@#@+$ ;      ;; = ;;  *  ;; -.o@",
+  "@#@+$   %&  ;;  =  ;;   ;;  -.o+",
+  "@#@+$%%%&  ;;  ===  ;; ;;  --.o+",
+  "@#@+$%%&  ;;  ===**  ;;;  --+.o+",
+  "@#@+$%&  ;;  ===****  ;  --%+.o+",
+  "@#@+$&  ;;  ===****  ;;;  %%+.o+",
+  "@#@+&  ;;  ===****  ;; ;;  %+.o+",
+  "@#@+& ;;  ===   *  ;;   ;;  +.o+",
+  "@#@+& ;;      ; * ;;  -  ;; +.o+",
+  "@#@+$ ;;;;;;;;; % ;; %%% ;; +.o+",
+  "@#@+$           %    %%%    O.o@",
+  "@##+#%%%%%%%%%%%%%%%%%%%%%%%X.O@",
+  "@##+@%%%%%%%%%%%%%%%%%%%%%%#.XO@",
+  "@##@O#%%%%%%%%%%%%%%%%%%%%%o.X+@",
+  "@##@OO#%%%%%%%%%%%%%%%%%%%O.XO@@",
+  "@###@Oo@%%%%%%%%%%%%%%%%$o..o+@@",
+  "@####+ooO@#############OX..oO@#@",
+  "@####@@OoXXXXXXXXXXXXX...XoO@##@",
+  "@######@+OoXXXXXXXXXXXXooO+@###@",
+  "+@@@@@@@@@@+++OOOOOOO+++@@@@@@@+"
+};
+
+static const char * const iconPixmapData_2[] = {        // cpc464emu.ico
+  /* columns rows colors chars-per-pixel */
+  "32 32 12 1 ",
+  "  c black",
+  ". c #101010",
+  "X c gray9",
+  "o c gray13",
+  "O c #2A2A2A",
+  "+ c #2F2F2F",
+  "@ c #373737",
+  "# c #3E3E3E",
+  "$ c gray26",
+  "% c gray27",
+  "& c #E00028",
+  "* c white",
+  /* pixels */
+  "+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+",
+  "@##############################@",
+  "@##############################@",
+  "@#######@@++++++++++++OO+@#####@",
+  "@#####@@#$%%%%%%%%%%%%$#OO+@###@",
+  "@####@@$%%%%%%%%%%%%%%%%%@oO@##@",
+  "@###@@$%%%%%%%%%%%%%%%%%%%@oO@#@",
+  "@###@$%%%%%%%%%%&&&&&&&&%%%OX+@@",
+  "@##@#%%%%%%%%%%%&&&&&&&&%%%#Xo@@",
+  "@##@$%%%%%%%%%%&&&&&&&&%%%%%oX+@",
+  "@##@$%     %       &&&     %OXO@",
+  "@#@+$  ***   *****  &  ***  +.O@",
+  "@#@+  *****  ******   *****  .o@",
+  "@#@+ **   ** **   ** **   ** .o+",
+  "@#@+ ** %    ** & ** ** %    .o+",
+  "@#@+ ** %%%% **   ** ** %%%%+.o+",
+  "@#@+ ** %%%% ******  ** %%%%+.o+",
+  "@#@+ ** %    *****   ** %    .o+",
+  "@#@+ **   ** **    % **   ** .o+",
+  "@#@+  *****  ** &&%%  *****  .o+",
+  "@#@+$  ***   ** &&%%%  ***  +.o+",
+  "@#@+$%     &    &%%%%%     %+.o+",
+  "@#@+$%%%%&&&&&&&&%%%%%%%%%%%O.o@",
+  "@##+#%%%&&&&&&&&%%%%%%%%%%%%X.O@",
+  "@##+@%%%&&&&&&&&%%%%%%%%%%%#.XO@",
+  "@##@O#%%%%%%%%%%%%%%%%%%%%%o.X+@",
+  "@##@OO#%%%%%%%%%%%%%%%%%%%O.XO@@",
+  "@###@Oo@%%%%%%%%%%%%%%%%$o..o+@@",
+  "@####+ooO@#############OX..oO@#@",
+  "@####@@OoXXXXXXXXXXXXX...XoO@##@",
+  "@######@+OoXXXXXXXXXXXXooO+@###@",
+  "+@@@@@@@@@@+++OOOOOOO+++@@@@@@@+"
+};
+
+static const char * const * const iconPixmapData[3] = {
+  iconPixmapData_0,                                     // ep128emu.ico
+  iconPixmapData_1,                                     // zx128emu.ico
+  iconPixmapData_2                                      // cpc464emu.ico
+};
+
+#endif                  // HAVE_FLTK_1_3_3 && !WIN32
 
 static const unsigned char colorTable[24] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -175,8 +355,28 @@ namespace Ep128Emu {
       }
     }
     w->icon(reinterpret_cast<char *>(iconHandle));
+#elif defined(HAVE_FLTK_1_3_3)
+    if (iconNum >= 0 &&
+        size_t(iconNum)
+        < (sizeof(iconPixmapData) / sizeof(const char * const *))) {
+      // ignore invalid icon numbers
+      Fl_Pixmap     *p = (Fl_Pixmap *) 0;
+      Fl_RGB_Image  *img = (Fl_RGB_Image *) 0;
+      try {
+        p = new Fl_Pixmap(iconPixmapData[iconNum]);
+        img = new Fl_RGB_Image(p);
+        w->icon(img);
+      }
+      catch (...) {
+        // FIXME: errors are ignored
+      }
+      if (img)
+        delete img;
+      if (p)
+        delete p;
+    }
 #else
-    // TODO: implement window icons for non-Windows platforms
+    // TODO: implement window icons for non-Windows platforms with FLTK < 1.3.3
     (void) w;
     (void) iconNum;
 #endif

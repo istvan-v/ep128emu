@@ -230,7 +230,7 @@ if configure.CheckCXXHeader('FL/Fl_Cairo.H'):
     if sys.platform[:5] == 'linux' and not win32CrossCompile:
         ep128emuGUIEnvironment.Append(LIBS = ['Xinerama', 'Xft'])
         ep128emuGLGUIEnvironment.Append(LIBS = ['Xinerama', 'Xft'])
-    print 'WARNING: using FLTK 1.3.x - this may not work reliably yet'
+    # print 'WARNING: using FLTK 1.3.x - this may not work reliably yet'
 else:
     ep128emuLibEnvironment.Append(CPPPATH = ['./Fl_Native_File_Chooser'])
     ep128emuGUIEnvironment.Append(CPPPATH = ['./Fl_Native_File_Chooser'])

@@ -1,5 +1,5 @@
-ep128emu 2.0.9.1
-================
+ep128emu 2.0.9.2 beta
+=====================
 
 ep128emu is an open source, portable emulator of the Enterprise 128,
 ZX Spectrum 48/128, and Amstrad CPC 464/664/6128 computers, written in
@@ -189,8 +189,8 @@ GNU C/C++ compiler, binutils, etc.), you need the following packages:
     latter was not tested yet) (optional, but recommended as it is used
     for reading ASCII format configuration files)
   * SDL (http://www.libsdl.org/) 1.2 for joystick input (optional);
-    NOTE: on Linux, version 1.2.10 and newer do not work, so using 1.2.9
-    is recommended
+    NOTE: on Linux, version 1.2.10 does not work, so using 1.2.9 or the
+    latest version (currently 1.2.15) is recommended
   * Lua (http://www.lua.org/ or http://www.luajit.org/) for scripting in
     the debugger (optional); version 5.1 is recommended, but 5.0 is also
     supported

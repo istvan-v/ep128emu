@@ -14,7 +14,7 @@
 
   ;Name and file
   Name "ep128emu"
-  OutFile "ep128emu-2.0.9.1.exe"
+  OutFile "ep128emu-2.0.9.2-beta.exe"
 
   ;Default installation folder
   InstallDir "$PROGRAMFILES\ep128emu2"
@@ -224,6 +224,12 @@ Section "ep128emu source code" SecSrc
 
   File "..\resource\*.rc"
   File "..\resource\*.ico"
+  File "..\resource\*.png"
+  File "..\resource\*.desktop"
+  File "..\resource\Makefile"
+  File "..\resource\cpc464emu"
+  File "..\resource\zx128emu"
+  File "..\resource\makecfg-wrapper"
 
   SetOutPath "$INSTDIR\src\roms"
 
