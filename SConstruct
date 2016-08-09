@@ -254,11 +254,23 @@ if not disableSDL:
 else:
     haveSDL = 0
 oldLuaVersion = 0
+luaPkgName = ''
 if not disableLua:
     haveLua = configure.CheckCHeader('lua.h')
     haveLua = haveLua and configure.CheckCHeader('lauxlib.h')
     haveLua = haveLua and configure.CheckCHeader('lualib.h')
-    if haveLua:
+    if not haveLua and sys.platform[:5] == 'linux' and not win32CrossCompile:
+        for pkgName in ['lua-5.1', 'lua51', 'lua']:
+            try:
+                if not ep128emuLibEnvironment.ParseConfig(
+                           'pkg-config --cflags ' + pkgName):
+                    raise Exception()
+            except:
+                continue
+            luaPkgName = pkgName
+            haveLua = 1
+            break
+    elif haveLua:
         if not configure.CheckType('lua_Integer',
                                    '#include <lua.h>\n#include <lauxlib.h>'):
             oldLuaVersion = 1
@@ -399,7 +411,12 @@ if haveDotconf:
         # in libdotconf.a
         ep128emuEnvironment.Append(LIBS = ['mingwex'])
     ep128emuEnvironment.Append(LIBS = ['dotconf'])
-if haveLua:
+if luaPkgName:
+    # using pkg-config
+    if not ep128emuEnvironment.ParseConfig('pkg-config --libs ' + luaPkgName):
+        print ' *** error: Lua library is not found'
+        Exit(-1)
+elif haveLua:
     ep128emuEnvironment.Append(LIBS = ['lua'])
     if oldLuaVersion:
         ep128emuEnvironment.Append(LIBS = ['lualib'])

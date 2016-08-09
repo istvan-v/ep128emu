@@ -430,13 +430,15 @@ int Ep128EmuGUI::getMenuItemIndex(int n)
 
 void Ep128EmuGUI::createMenus()
 {
-  Ep128Emu::setWindowIcon(mainWindow,
-                          (typeid(vm) == typeid(Ep128::Ep128VM) ?
-                           0 : (typeid(vm) == typeid(ZX128::ZX128VM) ? 1 : 2)));
-  Ep128Emu::setWindowIcon(diskConfigWindow->window, 1);
-  Ep128Emu::setWindowIcon(displaySettingsWindow->window, 2);
-  Ep128Emu::setWindowIcon(keyboardConfigWindow->window, 3);
-  Ep128Emu::setWindowIcon(machineConfigWindow->window, 3);
+  {
+    int     iconNum = (typeid(vm) == typeid(Ep128::Ep128VM) ?
+                       0 : (typeid(vm) == typeid(ZX128::ZX128VM) ? 1 : 2));
+    Ep128Emu::setWindowIcon(mainWindow, iconNum);
+    Ep128Emu::setWindowIcon(diskConfigWindow->window, iconNum);
+    Ep128Emu::setWindowIcon(displaySettingsWindow->window, iconNum);
+    Ep128Emu::setWindowIcon(keyboardConfigWindow->window, iconNum);
+    Ep128Emu::setWindowIcon(machineConfigWindow->window, iconNum);
+  }
   Ep128Emu::setWindowIcon(aboutWindow->window, 10);
   Ep128Emu::setWindowIcon(errorMessageWindow, 12);
   mainMenuBar->add("File/Configuration/Load from ASCII file (Alt+Q)",

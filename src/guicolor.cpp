@@ -45,8 +45,8 @@
 
 static const char *windowClassTable[14] = {
   "EPMainWindow",
-  (char *) 0,
-  (char *) 0,
+  "ZXMainWindow",
+  "CPCMainWindow",
   (char *) 0,
   (char *) 0,
   (char *) 0,
