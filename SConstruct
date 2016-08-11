@@ -296,8 +296,10 @@ if not fltkVersion13:
 
 ep128emuGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
 ep128emuGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
+ep128emuGUIEnvironment['CPPPATH'] = ep128emuLibEnvironment['CPPPATH']
 ep128emuGLGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
 ep128emuGLGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
+ep128emuGLGUIEnvironment['CPPPATH'] = ep128emuLibEnvironment['CPPPATH']
 
 def fluidCompile(flNames):
     cppNames = []
