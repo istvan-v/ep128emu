@@ -302,7 +302,7 @@ Section "Associate CPC .CDT, .DSK and .SNA files with ep128emu" SecAssocCPC
   WriteRegStr HKCR "Ep128Emu.SNAFile" "" "Ep128Emu CPC snapshot file"
   WriteRegStr HKCR "Ep128Emu.SNAFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,2"
   WriteRegStr HKCR "Ep128Emu.SNAFile\shell" "" "open"
-  WriteRegStr HKCR "Ep128Emu.SNAFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -cpc -snapshot "%1"'
+  WriteRegStr HKCR "Ep128Emu.SNAFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -snapshot "%1"'
 
 SectionEnd
 

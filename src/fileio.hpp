@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -133,6 +133,14 @@ namespace Ep128Emu {
     File();
     File(const char *fileName, bool useHomeDirectory = false);
     ~File();
+    inline size_t getBufferDataSize() const
+    {
+      return buf.getDataSize();
+    }
+    inline const unsigned char *getBufferData() const
+    {
+      return buf.getData();
+    }
   };
 
 }       // namespace Ep128Emu

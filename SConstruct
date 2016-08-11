@@ -4,7 +4,7 @@ import sys, os
 
 win32CrossCompile = ARGUMENTS.get('win32', 0)
 linux32CrossCompile = 0
-disableSDL = 0          # set this to 1 on Linux with SDL version >= 1.2.10
+disableSDL = 0          # set this to 1 on Linux with SDL version 1.2.10
 disableLua = 0
 enableGLShaders = 1
 enableDebug = 0
@@ -36,7 +36,8 @@ except:
     print 'WARNING: using old SCons version'
     oldSConsVersion = 1
 
-ep128emuLibEnvironment = Environment()
+ep128emuLibEnvironment = Environment(ENV = { 'PATH' : os.environ['PATH'],
+                                             'HOME' : os.environ['HOME'] })
 if linux32CrossCompile:
     compilerFlags = ' -m32 ' + compilerFlags
 ep128emuLibEnvironment.Append(CCFLAGS = Split(compilerFlags))
@@ -261,9 +262,10 @@ if not disableLua:
     haveLua = haveLua and configure.CheckCHeader('lualib.h')
     if not haveLua and sys.platform[:5] == 'linux' and not win32CrossCompile:
         for pkgName in ['lua-5.1', 'lua51', 'lua']:
+            print 'Checking for Lua package ' + pkgName + '...'
             try:
                 if not ep128emuLibEnvironment.ParseConfig(
-                           'pkg-config --cflags ' + pkgName):
+                           'pkg-config --silence-errors --cflags ' + pkgName):
                     raise Exception()
             except:
                 continue
@@ -295,11 +297,15 @@ if not fltkVersion13:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DFLTK1'])
 
 ep128emuGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
-ep128emuGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
 ep128emuGUIEnvironment['CPPPATH'] = ep128emuLibEnvironment['CPPPATH']
+ep128emuGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
 ep128emuGLGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
-ep128emuGLGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
 ep128emuGLGUIEnvironment['CPPPATH'] = ep128emuLibEnvironment['CPPPATH']
+ep128emuGLGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
+
+if buildRelease:
+    ep128emuGUIEnvironment.Append(LINKFLAGS = ['-s'])
+    ep128emuGLGUIEnvironment.Append(LINKFLAGS = ['-s'])
 
 def fluidCompile(flNames):
     cppNames = []

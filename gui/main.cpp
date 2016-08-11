@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -45,6 +45,23 @@ static void cfgErrorFunc(void *userData, const char *msg)
 }
 #endif
 
+int8_t getSnapshotType(const Ep128Emu::File& f)
+{
+  if (f.getBufferDataSize() < 40)
+    throw Ep128Emu::Exception("invalid snapshot file");
+  const unsigned char   *buf = f.getBufferData();
+  if (buf[0] != 0x45 || buf[1] != 0x50 || buf[2] != 0x80)
+    throw Ep128Emu::Exception("invalid snapshot file");
+  // check LSB of chunk type (0x455080xx, see src/fileio.hpp)
+  if ((buf[3] & 0xF0) == 0x20)          // Spectrum
+    return 1;
+  if ((buf[3] & 0xF0) == 0x30)          // CPC
+    return 2;
+  if (buf[3] >= 0x0B)                   // Plus/4
+    throw Ep128Emu::Exception("unsupported machine type in snapshot file");
+  return 0;                             // Enterprise
+}
+
 int main(int argc, char **argv)
 {
   Fl_Window *w = (Fl_Window *) 0;
@@ -54,10 +71,11 @@ int main(int argc, char **argv)
       (Ep128Emu::EmulatorConfiguration *) 0;
   Ep128Emu::VMThread        *vmThread = (Ep128Emu::VMThread *) 0;
   Ep128EmuGUI               *gui_ = (Ep128EmuGUI *) 0;
-  const char  *cfgFileName = "ep128cfg.dat";
+  const char      *cfgFileName = "ep128cfg.dat";
+  Ep128Emu::File  *snapshotFile = (Ep128Emu::File *) 0;
   int       snapshotNameIndex = 0;
   int       colorScheme = 0;
-  uint8_t   machineType = 0;            // 0: EP, 1: ZX, 2: CPC
+  int8_t    machineType = -1;           // 0: EP (default), 1: ZX, 2: CPC
   int8_t    retval = 0;
   bool      glEnabled = true;
   bool      glCanDoSingleBuf = false;
@@ -155,6 +173,11 @@ int main(int argc, char **argv)
     if (!glEnabled)
       w = new Ep128Emu::FLTKDisplay(32, 32, 384, 288, "");
     w->end();
+    if (snapshotNameIndex > 0) {
+      snapshotFile = new Ep128Emu::File(argv[snapshotNameIndex], false);
+      if (machineType < 0)
+        machineType = getSnapshotType(*snapshotFile);
+    }
     if (machineType == 1) {
       vm = new ZX128::ZX128VM(*(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
                               *audioOutput);
@@ -258,10 +281,11 @@ int main(int argc, char **argv)
       }
     }
     config->applySettings();
-    if (snapshotNameIndex > 0) {
-      Ep128Emu::File  f(argv[snapshotNameIndex], false);
-      vm->registerChunkTypes(f);
-      f.processAllChunks();
+    if (snapshotFile) {
+      vm->registerChunkTypes(*snapshotFile);
+      snapshotFile->processAllChunks();
+      delete snapshotFile;
+      snapshotFile = (Ep128Emu::File *) 0;
     }
     vmThread = new Ep128Emu::VMThread(*vm);
     gui_ = new Ep128EmuGUI(*(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
@@ -269,6 +293,10 @@ int main(int argc, char **argv)
     gui_->run();
   }
   catch (std::exception& e) {
+    if (snapshotFile) {
+      delete snapshotFile;
+      snapshotFile = (Ep128Emu::File *) 0;
+    }
     if (gui_) {
       gui_->errorMessage(e.what());
     }
