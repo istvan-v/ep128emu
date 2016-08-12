@@ -29,6 +29,31 @@ fltkConfig = 'fltk-config'
 
 # -----------------------------------------------------------------------------
 
+programNamePrefix = ""
+buildingLinuxPackage = 0
+if not win32CrossCompile:
+    if sys.platform[:5] == 'linux':
+        try:
+            instPrefix = os.environ["UB_INSTALLDIR"]
+            if instPrefix:
+                instPrefix += "/usr"
+                buildingLinuxPackage = 1
+        except:
+            pass
+    if not buildingLinuxPackage:
+        instPrefix = os.environ["HOME"]
+        instShareDir = instPrefix + "/.local/share"
+    else:
+        instShareDir = instPrefix + "/share"
+    instBinDir = instPrefix + "/bin"
+    instDataDir = instShareDir + "/ep128emu"
+    instPixmapDir = instShareDir + "/pixmaps"
+    instDesktopDir = instShareDir + "/applications"
+    instROMDir = instDataDir + "/roms"
+    instConfDir = instDataDir + "/config"
+    instDiskDir = instDataDir + "/disk"
+    programNamePrefix = "ep"
+
 oldSConsVersion = 0
 try:
     EnsureSConsVersion(0, 97)
@@ -525,11 +550,52 @@ if not win32CrossCompile:
 else:
     makecfgEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
 
-makecfg = makecfgEnvironment.Program('makecfg',
+makecfg = makecfgEnvironment.Program(programNamePrefix + 'makecfg',
     ['installer/makecfg.cpp'] + fluidCompile(['installer/mkcfg.fl']))
 Depends(makecfg, ep128emuLib)
 
 if sys.platform[:6] == 'darwin':
     Command('ep128emu.app/Contents/MacOS/makecfg', 'makecfg',
             'mkdir -p ep128emu.app/Contents/MacOS ; cp -pf $SOURCES $TARGET')
+
+# -----------------------------------------------------------------------------
+
+if not win32CrossCompile:
+    if buildingLinuxPackage:
+        makecfgEnvironment.InstallAs([instBinDir + "/ep128emu.bin",
+                                      instBinDir + "/ep128emu"],
+                                     [ep128emu, "installer/ep128emu"])
+    else:
+        makecfgEnvironment.Install(instBinDir, ep128emu)
+    makecfgEnvironment.Install(instBinDir,
+                               [tapeedit, makecfg,
+                                "resource/cpc464emu", "resource/zx128emu"])
+    makecfgEnvironment.Install(instPixmapDir,
+                               ["resource/cpc464emu.png",
+                                "resource/ep128emu.png",
+                                "resource/tapeedit.png",
+                                "resource/zx128emu.png"])
+    makecfgEnvironment.Install(instDesktopDir,
+                               ["resource/cpc464emu.desktop",
+                                "resource/ep128.desktop",
+                                "resource/eptapeedit.desktop",
+                                "resource/zx128.desktop"])
+    makecfgEnvironment.Command(
+        instROMDir + "/ep128emu_roms.bin", None,
+        ['curl -o "' + instROMDir + '/ep128emu_roms.bin" '
+         + 'http://ep128emu.enterpriseforever.com/roms/ep128emu_roms.bin'])
+    if not buildingLinuxPackage:
+        makecfgEnvironment.Command(
+            instROMDir + "/exos232uk.rom",
+            [makecfg, instROMDir + "/ep128emu_roms.bin"],
+            ['./' + programNamePrefix + 'makecfg -f "' + instDataDir + '"'])
+    makecfgEnvironment.Install(instConfDir,
+                               ["config/clearkbd.cfg", "config/ep_keys.cfg"])
+    makecfgEnvironment.Install(instDiskDir,
+                               ["disk/disk.zip", "disk/ide126m.vhd.bz2",
+                                "disk/ide189m.vhd.bz2"])
+    makecfgEnvironment.Alias("install",
+                             [instBinDir, instPixmapDir, instDesktopDir,
+                              instDataDir, instROMDir, instConfDir,
+                              instDiskDir])
 

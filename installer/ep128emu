@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if test ! -f ~/.ep128emu/roms/exos232uk.rom
+then
+mkdir -p ~/.ep128emu/roms
+cp /usr/share/ep128emu/roms/ep128emu_roms.bin ~/.ep128emu/roms/
+epmakecfg "$HOME/.ep128emu"
+fi
+exec ep128emu.bin "$@"

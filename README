@@ -207,12 +207,13 @@ files and ROM images:
     http://ep128emu.enterpriseforever.com/roms/ep128emu_roms.bin,
     and copy it to ~/.ep128emu/roms (or, in the case of MacOS X,
     ~/Library/Application Support/ep128emu/roms)
-  * after installing the ROM package, run 'makecfg', and click OK to the
-    windows that pop up asking for the base directory of configuration
-    and data files, and if configuration files should be installed
+  * after installing the ROM package, run 'epmakecfg', and click OK to
+    the windows that pop up asking for the base directory of
+    configuration and data files, and if configuration files should be
+    installed
 
 It is possible to reinstall configuration files later by running the
-'makecfg' utility.
+'epmakecfg' utility.
 
 Windows
 -------

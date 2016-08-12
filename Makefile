@@ -1,7 +1,7 @@
 NSI	= installer/ep128emu.nsi
 INSTEXE = $(dir $(NSI))/$(shell awk '$$1 == "OutFile" { gsub("[^a-zA-Z0-9_.-]","",$$2);print $$2 }' $(NSI))
 EMUEXES = ep128emu.exe makecfg.exe tapeedit.exe
-EMUELFS = ep128emu makecfg tapeedit
+EMUELFS = ep128emu epmakecfg tapeedit
 
 IPREFIX		= /usr/local
 BINDIR		= $(IPREFIX)/bin
@@ -45,7 +45,7 @@ install:
 	cp roms/*.rom $(DATADIR)/roms/
 	cp ep128emu tapeedit resource/zx128emu resource/cpc464emu $(BINDIR)/
 	cp resource/makecfg-wrapper $(BINDIR)/makecfg-ep128emu
-	cp makecfg $(BINDIR)/makecfg-ep128emu.bin
+	cp epmakecfg $(BINDIR)/makecfg-ep128emu.bin
 	chmod +x $(BINDIR)/makecfg-ep128emu.bin $(BINDIR)/makecfg-ep128emu $(BINDIR)/ep128emu $(BINDIR)/tapeedit $(BINDIR)/zx128emu $(BINDIR)/cpc464emu
 
 win32:

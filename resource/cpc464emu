@@ -1,3 +1,3 @@
 #!/bin/sh
 
-exec ep128emu -cpc $@
+exec ep128emu -cpc "$@"

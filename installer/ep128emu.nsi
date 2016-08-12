@@ -195,6 +195,7 @@ Section "ep128emu source code" SecSrc
 
   File "..\installer\*.nsi"
   File "..\installer\*.fl"
+  File "..\installer\ep128emu"
   File "..\installer\makecfg.cpp"
 
   SetOutPath "$INSTDIR\src\msvc"
