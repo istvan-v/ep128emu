@@ -580,15 +580,17 @@ if not win32CrossCompile:
                                 "resource/ep128.desktop",
                                 "resource/eptapeedit.desktop",
                                 "resource/zx128.desktop"])
-    makecfgEnvironment.Command(
-        instROMDir + "/ep128emu_roms.bin", None,
-        ['curl -o "' + instROMDir + '/ep128emu_roms.bin" '
-         + 'http://ep128emu.enterpriseforever.com/roms/ep128emu_roms.bin'])
     if not buildingLinuxPackage:
+        makecfgEnvironment.Command(
+            instROMDir + "/ep128emu_roms.bin", None,
+            ['curl -o "' + instROMDir + '/ep128emu_roms.bin" '
+             + 'http://ep128emu.enterpriseforever.com/roms/ep128emu_roms.bin'])
         makecfgEnvironment.Command(
             instROMDir + "/exos232uk.rom",
             [makecfg, instROMDir + "/ep128emu_roms.bin"],
             ['./' + programNamePrefix + 'makecfg -f "' + instDataDir + '"'])
+    else:
+        makecfgEnvironment.Command(instROMDir, None, [])
     makecfgEnvironment.Install(instConfDir,
                                ["config/clearkbd.cfg", "config/ep_keys.cfg"])
     makecfgEnvironment.Install(instDiskDir,
