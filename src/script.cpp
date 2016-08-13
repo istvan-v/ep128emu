@@ -1443,7 +1443,7 @@ namespace Ep128Emu {
   {
     lua_pushlightuserdata(luaState, (void *) this);
     lua_pushcclosure(luaState, f, 1);
-    lua_setfield(luaState, LUA_GLOBALSINDEX, name);
+    lua_setglobal(luaState, name);
   }
 
   bool LuaScript::runBreakPointCallback_(int type, uint16_t addr, uint8_t value)
@@ -1612,7 +1612,7 @@ namespace Ep128Emu {
         errorCallback("error running Lua script");
       return;
     }
-    lua_getfield(luaState, LUA_GLOBALSINDEX, "breakPointCallback");
+    lua_getglobal(luaState, "breakPointCallback");
     if (!lua_isfunction(luaState, -1))
       lua_pop(luaState, 1);
     else
