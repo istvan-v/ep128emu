@@ -3,6 +3,11 @@
 if test ! -f ~/.ep128emu/roms/exos232uk.rom
 then
 mkdir -p ~/.ep128emu/roms
+if test ! -f ~/.ep128emu/roms/ep128emu_roms.bin
+then
+curl -o "$HOME/.ep128emu/roms/ep128emu_roms.bin"        \
+    "http://ep128emu.enterpriseforever.com/roms/ep128emu_roms.bin"
+fi
 cp /usr/share/ep128emu/roms/ep128emu_roms.bin ~/.ep128emu/roms/
 epmakecfg "$HOME/.ep128emu"
 fi
