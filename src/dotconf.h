@@ -212,7 +212,7 @@ extern "C" {
 	side effects: the char* returned by dotconf_read_arg is malloc() before, hence that pointer
                   will have to be free()ed later.
 */
-	char *dotconf_read_arg(configfile_t * configfile, signed char **line);
+	char *dotconf_read_arg(configfile_t * configfile, char **line);
 
 /* ------ dotconf_handle_command() - parse, substitute, find, invoke the command found in buffer  */
 	const char *dotconf_handle_command(configfile_t * configfile,

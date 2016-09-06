@@ -86,18 +86,18 @@ static configoption_t dotconf_options[] = {
 	LAST_CONTEXT_OPTION
 };
 
-static void skip_whitespace(signed char **cp, int n, char term)
+static void skip_whitespace(char **cp, int n, char term)
 {
-	signed char *cp1 = *cp;
+	char *cp1 = *cp;
 	while (isspace((int)*cp1) && *cp1 != term && n--)
 		cp1++;
 	*cp = cp1;
 }
 
-static void copy_word(signed char **dest, signed char **src, int max, char term)
+static void copy_word(char **dest, char **src, int max, char term)
 {
-	signed char *cp1 = *src;
-	signed char *cp2 = *dest;
+	char *cp1 = *src;
+	char *cp2 = *dest;
 	while (max-- && !isspace((int)*cp1) && *cp1 != term)
 		*cp2++ = *cp1++;
 	*cp2 = 0;
@@ -370,11 +370,11 @@ const char *dotconf_invoke_command(configfile_t * configfile, command_t * cmd)
 	return error;
 }
 
-char *dotconf_read_arg(configfile_t * configfile, signed char **line)
+char *dotconf_read_arg(configfile_t * configfile, char **line)
 {
 	int sq = 0, dq = 0;	/* single quote, double quote */
 	int done;
-	signed char *cp1 = *line;
+	char *cp1 = *line;
 	char *cp2, *eos;
 	char buf[CFG_MAX_VALUE];
 
@@ -425,7 +425,7 @@ char *dotconf_read_arg(configfile_t * configfile, signed char **line)
 		/* unquoted, unescaped comment-hash ; break out, unless NO_INLINE_COMMENTS is set */
 		else if (*cp1 == '#' && !dq && !sq
 			 && !(configfile->flags & NO_INLINE_COMMENTS)) {
-			/* 
+			/*
 			 * NOTE: 1.0.8a got the NO_INLINE_COMMENTS feature wrong: it
 			 * skipped every argument starting with a #, instead of simply eating it!
 			 */
@@ -493,10 +493,10 @@ configoption_t *dotconf_find_command(configfile_t * configfile,
 }
 
 void dotconf_set_command(configfile_t * configfile,
-			 const configoption_t * option, signed char *args,
+			 const configoption_t * option, char *args,
 			 command_t * cmd)
 {
-	signed char *eob = args + strlen(args);
+	char *eob = args + strlen(args);
 
 	/* fill in the command_t structure with values we already know */
 	cmd->name = option->type == ARG_NAME ? name : option->name;
@@ -511,7 +511,7 @@ void dotconf_set_command(configfile_t * configfile,
 		   callback now */
 		cmd->data.str = strdup(args);
 	} else if (option->type == ARG_STR) {
-		signed char *cp = args;
+		char *cp = args;
 
 		/* check if it's a here-document and act accordingly */
 		skip_whitespace(&cp, eob - cp, 0);
@@ -624,10 +624,10 @@ void dotconf_free_command(command_t * command)
 
 const char *dotconf_handle_command(configfile_t * configfile, char *buffer)
 {
-	signed char *cp1;
-	signed char *cp2;
+	char *cp1;
+	char *cp2;
 	/* generic char pointer      */
-	signed char *eob;	/* end of buffer; end of string  */
+	char *eob;		/* end of buffer; end of string  */
 	const char *error;	/* error message we'll return */
 	const char *context_error;	/* error message returned by contextchecker */
 	command_t command;	/* command structure */
