@@ -239,7 +239,9 @@ Section "ep128emu source code" SecSrc
 
   SetOutPath "$INSTDIR\src\src"
 
+  File "..\src\*.c"
   File "..\src\*.cpp"
+  File "..\src\*.h"
   File "..\src\*.hpp"
 
   SetOutPath "$INSTDIR\src\tapeutil"
