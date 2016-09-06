@@ -48,7 +48,7 @@
 #include <time.h>
 #include <sys/stat.h>
 
-#ifndef WIN32
+#if 1 /* ndef WIN32 */		/* IstvanV: this also works on Win32 / MinGW */
 
 #include <dirent.h>
 #include <unistd.h>
