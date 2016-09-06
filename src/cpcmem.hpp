@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -69,6 +69,7 @@ namespace CPC464 {
     inline uint8_t readRaw(uint32_t addr) const;
     inline void write(uint16_t addr, uint8_t value);
     inline void writeRaw(uint32_t addr, uint8_t value);
+    inline void writeROM(uint32_t addr, uint8_t value);
     // set memory paging:
     //   bits 0 to 5:  RAM expansion configuration
     //   bit 6:        internal ROM (0000h-3FFFh) enable
@@ -139,6 +140,13 @@ namespace CPC464 {
   {
     uint8_t segment = uint8_t(addr >> 14);
     if (!segmentROMTable[segment])
+      segmentTable[segment][addr & 0x3FFF] = value;
+  }
+
+  inline void Memory::writeROM(uint32_t addr, uint8_t value)
+  {
+    uint8_t segment = uint8_t(addr >> 14);
+    if (segmentTable[segment])
       segmentTable[segment][addr & 0x3FFF] = value;
   }
 

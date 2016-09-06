@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -641,6 +641,12 @@ namespace Ep128Emu {
     (void) addr;
     (void) value;
     (void) isCPUAddress;
+  }
+
+  void VirtualMachine::writeROM(uint32_t addr, uint8_t value)
+  {
+    (void) addr;
+    (void) value;
   }
 
   uint8_t VirtualMachine::readIOPort(uint16_t addr) const

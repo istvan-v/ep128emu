@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -427,6 +427,44 @@ namespace Ep128Emu {
     uint16_t  n = uint16_t(lua_tointeger(lst, 2) & 0xFFFF);
     this_.vm.writeMemory(addr, uint8_t(n & 0xFF), false);
     this_.vm.writeMemory(addr + 1U, uint8_t(n >> 8), false);
+    return 0;
+  }
+
+  int LuaScript::luaFunc_writeROM(lua_State *lst)
+  {
+    LuaScript&  this_ =
+        *(reinterpret_cast<LuaScript *>(lua_touserdata(lst,
+                                                       lua_upvalueindex(1))));
+    if (lua_gettop(lst) != 2) {
+      this_.luaError("invalid number of arguments for writeROM()");
+      return 0;
+    }
+    if (!(lua_isnumber(lst, 1) && lua_isnumber(lst, 2))) {
+      this_.luaError("invalid argument type for writeROM()");
+      return 0;
+    }
+    this_.vm.writeROM(uint32_t(lua_tointeger(lst, 1) & 0x3FFFFF),
+                      uint8_t(lua_tointeger(lst, 2) & 0xFF));
+    return 0;
+  }
+
+  int LuaScript::luaFunc_writeWordROM(lua_State *lst)
+  {
+    LuaScript&  this_ =
+        *(reinterpret_cast<LuaScript *>(lua_touserdata(lst,
+                                                       lua_upvalueindex(1))));
+    if (lua_gettop(lst) != 2) {
+      this_.luaError("invalid number of arguments for writeWordROM()");
+      return 0;
+    }
+    if (!(lua_isnumber(lst, 1) && lua_isnumber(lst, 2))) {
+      this_.luaError("invalid argument type for writeWordROM()");
+      return 0;
+    }
+    uint32_t  addr = uint32_t(lua_tointeger(lst, 1) & 0x3FFFFF);
+    uint16_t  n = uint16_t(lua_tointeger(lst, 2) & 0xFFFF);
+    this_.vm.writeROM(addr, uint8_t(n & 0xFF));
+    this_.vm.writeROM(addr + 1U, uint8_t(n >> 8));
     return 0;
   }
 
@@ -1392,6 +1430,32 @@ namespace Ep128Emu {
     return 0;
   }
 
+  int LuaScript::luaFunc_loadROMSegment(lua_State *lst)
+  {
+    LuaScript&  this_ =
+        *(reinterpret_cast<LuaScript *>(lua_touserdata(lst,
+                                                       lua_upvalueindex(1))));
+    if (lua_gettop(lst) != 3) {
+      this_.luaError("invalid number of arguments for loadROMSegment()");
+      return 0;
+    }
+    if (!(lua_isnumber(lst, 1) && lua_isstring(lst, 2) &&
+          lua_isnumber(lst, 3))) {
+      this_.luaError("invalid argument type for loadROMSegment()");
+      return 0;
+    }
+    try {
+      this_.vm.loadROMSegment(uint8_t(lua_tointeger(lst, 1) & 0xFF),
+                              lua_tolstring(lst, 2, (size_t *) 0),
+                              uint32_t(lua_tointeger(lst, 3) & 0x7FFFFFFF));
+    }
+    catch (std::exception& e) {
+      this_.luaError(e.what());
+      return 0;
+    }
+    return 0;
+  }
+
   int LuaScript::luaFunc_mprint(lua_State *lst)
   {
     LuaScript&  this_ =
@@ -1535,6 +1599,8 @@ namespace Ep128Emu {
     registerLuaFunction(&luaFunc_writeWord, "writeWord");
     registerLuaFunction(&luaFunc_readWordRaw, "readWordRaw");
     registerLuaFunction(&luaFunc_writeWordRaw, "writeWordRaw");
+    registerLuaFunction(&luaFunc_writeROM, "writeROM");
+    registerLuaFunction(&luaFunc_writeWordROM, "writeWordROM");
     registerLuaFunction(&luaFunc_readIOPort, "readIOPort");
     registerLuaFunction(&luaFunc_writeIOPort, "writeIOPort");
     registerLuaFunction(&luaFunc_getPC, "getPC");
@@ -1592,6 +1658,7 @@ namespace Ep128Emu {
     registerLuaFunction(&luaFunc_getRawAddress, "getRawAddress");
     registerLuaFunction(&luaFunc_loadMemory, "loadMemory");
     registerLuaFunction(&luaFunc_saveMemory, "saveMemory");
+    registerLuaFunction(&luaFunc_loadROMSegment, "loadROMSegment");
     registerLuaFunction(&luaFunc_mprint, "mprint");
     err = lua_pcall(luaState, 0, 0, 0);
     if (err != 0) {

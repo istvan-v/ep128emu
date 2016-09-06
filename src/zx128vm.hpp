@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -323,6 +323,13 @@ namespace ZX128 {
      */
     virtual void writeMemory(uint32_t addr, uint8_t value,
                              bool isCPUAddress = false);
+    /*!
+     * Write a byte to any memory (RAM or ROM). Bits 14 to 21 of 'addr' define
+     * the segment number, while bits 0 to 13 are the offset (0 to 0x3FFF)
+     * within the segment.
+     * NOTE: calling this function will stop any demo recording or playback.
+     */
+    virtual void writeROM(uint32_t addr, uint8_t value);
     /*!
      * Read a byte from I/O port 'addr'.
      */

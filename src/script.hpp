@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -61,6 +61,8 @@ namespace Ep128Emu {
     static int luaFunc_writeWord(lua_State *lst);
     static int luaFunc_readWordRaw(lua_State *lst);
     static int luaFunc_writeWordRaw(lua_State *lst);
+    static int luaFunc_writeROM(lua_State *lst);
+    static int luaFunc_writeWordROM(lua_State *lst);
     static int luaFunc_readIOPort(lua_State *lst);
     static int luaFunc_writeIOPort(lua_State *lst);
     static int luaFunc_getPC(lua_State *lst);
@@ -118,6 +120,7 @@ namespace Ep128Emu {
     static int luaFunc_getRawAddress(lua_State *lst);
     static int luaFunc_loadMemory(lua_State *lst);
     static int luaFunc_saveMemory(lua_State *lst);
+    static int luaFunc_loadROMSegment(lua_State *lst);
     static int luaFunc_mprint(lua_State *lst);
     void registerLuaFunction(lua_CFunction f, const char *name);
     bool runBreakPointCallback_(int type, uint16_t addr, uint8_t value);

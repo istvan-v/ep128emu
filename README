@@ -810,9 +810,12 @@ scripts:
   writeWord(addr, value)
   readWordRaw(addr)
   writeWordRaw(addr, value)
+  writeROM(addr, value)
+  writeWordROM(addr, value)
 
     These are similar to the memory read/write functions above, but read
     and write 16-bit LSB-first words instead of single bytes.
+    The 'writeROM' functions can write to both RAM and ROM segments.
 
   readIOPort(addr)
 
@@ -905,6 +908,12 @@ scripts:
     false) or hexadecimal dump (if 'asciiMode' is true) format.
     'cpuAddressMode' selects the use of 16 bit CPU (if true) or 22 bit
     physical (if false) addresses.
+
+  loadROMSegment(segment, fname, offset)
+
+    Load a file to the specified segment as ROM, skipping 'offset' bytes
+    at the beginning of the file. An empty file name deletes the
+    segment.
 
   mprint(...)
 

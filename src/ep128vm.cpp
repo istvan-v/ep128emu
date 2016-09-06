@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -1852,6 +1852,15 @@ namespace Ep128 {
     else
       addr &= uint32_t(0x003FFFFF);
     memory.writeRaw(addr, value);
+  }
+
+  void Ep128VM::writeROM(uint32_t addr, uint8_t value)
+  {
+    if (isRecordingDemo | isPlayingDemo) {
+      stopDemoPlayback();
+      stopDemoRecording(false);
+    }
+    memory.writeROM(addr & uint32_t(0x003FFFFF), value);
   }
 
   uint8_t Ep128VM::readIOPort(uint16_t addr) const
