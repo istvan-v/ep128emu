@@ -189,8 +189,8 @@ GNU C/C++ compiler, binutils, etc.), you need the following packages:
     NOTE: on Linux, version 1.2.10 does not work, so using 1.2.9 or the
     latest version (currently 1.2.15) is recommended
   * Lua (http://www.lua.org/ or http://www.luajit.org/) for scripting in
-    the debugger (optional); version 5.1 is recommended, but 5.0 and 5.2
-    are also supported
+    the debugger (optional); version 5.1 or newer is recommended, but
+    5.0 is also supported
 
 Once these are installed, you can edit the file 'SConstruct' in the top
 level source directory for setting compiler flags etc., and run the

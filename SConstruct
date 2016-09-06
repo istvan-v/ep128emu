@@ -285,7 +285,8 @@ if not disableLua:
     haveLua = haveLua and configure.CheckCHeader('lauxlib.h')
     haveLua = haveLua and configure.CheckCHeader('lualib.h')
     if not haveLua and sys.platform[:5] == 'linux' and not win32CrossCompile:
-        for pkgName in ['lua-5.1', 'lua51', 'lua-5.2', 'lua52', 'lua']:
+        for pkgName in ['lua-5.1', 'lua51', 'lua-5.3', 'lua53',
+                        'lua-5.2', 'lua52', 'lua']:
             print 'Checking for Lua package ' + pkgName + '...'
             try:
                 if not ep128emuLibEnvironment.ParseConfig(
