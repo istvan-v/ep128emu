@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -26,10 +26,8 @@
 #include <cmath>
 #include <typeinfo>
 
-#ifdef HAVE_DOTCONF_H
-#  include <stdio.h>
-#  include <dotconf.h>
-#endif
+#include <stdio.h>
+#include "dotconf.h"
 
 namespace Ep128Emu {
 
@@ -395,8 +393,6 @@ namespace Ep128Emu {
 
 }       // namespace Ep128Emu
 
-#ifdef HAVE_DOTCONF_H
-
 static const char * dotconfCommandCallback(command_t *cmd, context_t *context_)
 {
   (void) context_;
@@ -427,8 +423,6 @@ static const char * dotconfCommandCallback(command_t *cmd, context_t *context_)
   }
   return (char *) 0;
 }
-
-#endif
 
 namespace Ep128Emu {
 
@@ -770,7 +764,6 @@ namespace Ep128Emu {
 
   void ConfigurationDB::loadState(const char *fileName, bool useHomeDirectory)
   {
-#ifdef HAVE_DOTCONF_H
     if (fileName == (char *) 0 || fileName[0] == '\0')
       throw Exception("invalid file name");
     std::string fullName;
@@ -813,12 +806,6 @@ namespace Ep128Emu {
       // FIXME: should include more information in the error message
       throw Exception("error reading configuration file");
     }
-#else
-    (void) fileName;
-    (void) useHomeDirectory;
-    throw Exception("loading ASCII format configuration files "
-                    "is not supported");
-#endif
   }
 
   // --------------------------------------------------------------------------

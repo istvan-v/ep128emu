@@ -269,7 +269,6 @@ if enableGLShaders:
                                '#include <GL/gl.h>\n#include <GL/glext.h>'):
         enableGLShaders = 0
         print 'WARNING: disabling GL shader support'
-haveDotconf = configure.CheckCHeader('dotconf.h')
 if configure.CheckCHeader('stdint.h'):
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_STDINT_H'])
 if sys.platform[:5] == 'linux' and not win32CrossCompile:
@@ -308,8 +307,6 @@ configure.Finish()
 
 if not havePortAudioV19:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DUSING_OLD_PORTAUDIO_API'])
-if haveDotconf:
-    ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_DOTCONF_H'])
 if haveSDL:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_SDL_H'])
 if haveLua:
@@ -353,6 +350,7 @@ ep128emuLibSources = Split('''
     src/cfg_db.cpp
     src/debuglib.cpp
     src/display.cpp
+    src/dotconf.c
     src/emucfg.cpp
     src/fileio.cpp
     src/fldisp.cpp
@@ -438,12 +436,6 @@ if not oldSConsVersion:
 else:
     ep128emuEnvironment = ep128emuGLGUIEnvironment.Copy()
 ep128emuEnvironment.Append(CPPPATH = ['./z80', './gui'])
-if haveDotconf:
-    if win32CrossCompile:
-        # hack to work around binary incompatible dirent functions
-        # in libdotconf.a
-        ep128emuEnvironment.Append(LIBS = ['mingwex'])
-    ep128emuEnvironment.Append(LIBS = ['dotconf'])
 if luaPkgName:
     # using pkg-config
     if not ep128emuEnvironment.ParseConfig('pkg-config --libs ' + luaPkgName):
@@ -499,12 +491,6 @@ else:
     tapeeditEnvironment = ep128emuGUIEnvironment.Copy()
 tapeeditEnvironment.Append(CPPPATH = ['./tapeutil'])
 tapeeditEnvironment.Prepend(LIBS = ['ep128emu'])
-if haveDotconf:
-    if win32CrossCompile:
-        # hack to work around binary incompatible dirent functions
-        # in libdotconf.a
-        tapeeditEnvironment.Append(LIBS = ['mingwex'])
-    tapeeditEnvironment.Append(LIBS = ['dotconf'])
 if haveSDL:
     tapeeditEnvironment.Append(LIBS = ['SDL'])
 tapeeditEnvironment.Append(LIBS = ['sndfile'])
@@ -536,12 +522,6 @@ else:
     makecfgEnvironment = ep128emuGUIEnvironment.Copy()
 makecfgEnvironment.Append(CPPPATH = ['./installer'])
 makecfgEnvironment.Prepend(LIBS = ['ep128emu'])
-if haveDotconf:
-    if win32CrossCompile:
-        # hack to work around binary incompatible dirent functions
-        # in libdotconf.a
-        makecfgEnvironment.Append(LIBS = ['mingwex'])
-    makecfgEnvironment.Append(LIBS = ['dotconf'])
 if haveSDL:
     makecfgEnvironment.Append(LIBS = ['SDL'])
 makecfgEnvironment.Append(LIBS = ['sndfile'])

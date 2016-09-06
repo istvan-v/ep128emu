@@ -12,7 +12,7 @@ Source1:		%{name}-32.png
 %define	romname		ep128emu_roms.bin
 Source2:		%{romname}
 BuildRequires:		libSDL-devel libgtk+2.0_0-devel
-BuildRequires:		scons libfltk-devel libportaudio2-devel libsndfile-devel libdotconf-devel liblua-devel
+BuildRequires:		scons libfltk-devel libportaudio2-devel libsndfile-devel liblua-devel
 BuildRoot:		%{_tmppath}/%{name}-%{version}
 
 %description
