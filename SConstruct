@@ -6,6 +6,7 @@ win32CrossCompile = ARGUMENTS.get('win32', 0)
 linux32CrossCompile = 0
 disableSDL = 0          # set this to 1 on Linux with SDL version 1.2.10
 disableLua = 0
+buildUtilities = 0
 enableGLShaders = 1
 enableDebug = 0
 buildRelease = 1
@@ -538,6 +539,68 @@ Depends(makecfg, ep128emuLib)
 if sys.platform[:6] == 'darwin':
     Command('ep128emu.app/Contents/MacOS/makecfg', 'makecfg',
             'mkdir -p ep128emu.app/Contents/MacOS ; cp -pf $SOURCES $TARGET')
+
+# -----------------------------------------------------------------------------
+
+if buildUtilities:
+    if not oldSConsVersion:
+        compressLibEnvironment = ep128emuLibEnvironment.Clone()
+    else:
+        compressLibEnvironment = ep128emuLibEnvironment.Copy()
+    compressLibEnvironment.Append(CPPPATH = ['./util/epcompress/src'])
+    compressLib = compressLibEnvironment.StaticLibrary(
+                      'epcompress', Split('''
+                          util/epcompress/src/archive.cpp
+                          util/epcompress/src/compress0.cpp
+                          util/epcompress/src/compress2.cpp
+                          util/epcompress/src/compress3.cpp
+                          util/epcompress/src/compress.cpp
+                          util/epcompress/src/decompress0.cpp
+                          util/epcompress/src/decompress2.cpp
+                          util/epcompress/src/decompress3.cpp
+                          util/epcompress/src/sfxcode.cpp
+                          util/epcompress/src/sfxdecomp.cpp
+                      '''))
+    if not oldSConsVersion:
+        epcompressEnvironment = compressLibEnvironment.Clone()
+    else:
+        epcompressEnvironment = compressLibEnvironment.Copy()
+    epcompressEnvironment.Prepend(LIBS = [compressLib])
+    if buildRelease:
+        epcompressEnvironment.Append(LINKFLAGS = ['-s'])
+    epcompress = epcompressEnvironment.Program(
+                     'epcompress', ['util/epcompress/src/main.cpp'])
+    Depends(epcompress, compressLib)
+    if not oldSConsVersion:
+        dtfEnvironment = epcompressEnvironment.Clone()
+    else:
+        dtfEnvironment = epcompressEnvironment.Copy()
+    dtf = dtfEnvironment.Program('dtf', ['util/dtf/dtf.cpp'])
+    Depends(dtf, compressLib)
+    if not oldSConsVersion:
+        epimgconvEnvironment = epcompressEnvironment.Clone()
+    else:
+        epimgconvEnvironment = epcompressEnvironment.Copy()
+    epimgconvEnvironment['CCFLAGS'] = ep128emuGUIEnvironment['CCFLAGS']
+    epimgconvEnvironment['CPPPATH'] = ep128emuGUIEnvironment['CPPPATH']
+    epimgconvEnvironment['CXXFLAGS'] = ep128emuGUIEnvironment['CXXFLAGS']
+    epimgconvEnvironment['LIBS'] = ep128emuGUIEnvironment['LIBS']
+    epimgconvEnvironment.Append(CPPPATH = ['./util/epcompress/src'])
+    epimgconvEnvironment.Prepend(LIBS = [compressLib])
+    epimgconv = epimgconvEnvironment.Program(
+                    'epimgconv', Split('''
+                        util/epimgconv/src/attr16.cpp
+                        util/epimgconv/src/epimgconv.cpp
+                        util/epimgconv/src/imageconv.cpp
+                        util/epimgconv/src/imgwrite.cpp
+                        util/epimgconv/src/main.cpp
+                        util/epimgconv/src/pixel16_1.cpp
+                        util/epimgconv/src/pixel16_2.cpp
+                        util/epimgconv/src/pixel256.cpp
+                        util/epimgconv/src/pixel2.cpp
+                        util/epimgconv/src/pixel4.cpp
+                    '''))
+    Depends(epimgconv, compressLib)
 
 # -----------------------------------------------------------------------------
 
