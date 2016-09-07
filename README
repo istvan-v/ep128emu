@@ -723,7 +723,9 @@ scripts:
   AND(...)    OR(...)    XOR(...)    SHL(a, b)    SHR(a, b)
 
     These simple helper functions implement bitwise operations that are
-    not available in the Lua language by default.
+    not available in versions 5.2 and older of the Lua language by
+    default. If the emulator is built with Lua 5.3 or newer, then using
+    the operators &, |, ~, <<, and >> is recommended.
     AND, OR, and XOR can take any number of integer arguments, and
     return the bitwise AND, OR, and XOR of the values, respectively. In
     the case of zero arguments, OR and XOR return zero, while AND
@@ -806,16 +808,19 @@ scripts:
     space; the most significant 8 bits of 'addr' select the segment
     number.
 
+  writeROM(addr, value)
+
+    This function is similar to writeMemoryRaw(), but it can write to
+    any valid segment, even if it is ROM.
+
   readWord(addr)
   writeWord(addr, value)
   readWordRaw(addr)
   writeWordRaw(addr, value)
-  writeROM(addr, value)
   writeWordROM(addr, value)
 
     These are similar to the memory read/write functions above, but read
     and write 16-bit LSB-first words instead of single bytes.
-    The 'writeROM' functions can write to both RAM and ROM segments.
 
   readIOPort(addr)
 
