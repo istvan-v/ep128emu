@@ -1,6 +1,6 @@
 
 // epimgconv: Enterprise 128 image converter utility
-// Copyright (C) 2008-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2008-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -141,6 +141,8 @@ namespace Ep128ImgConv {
   {
     double  bestError = 1000000000.0;
     int     bestPalette[2];
+    bestPalette[0] = 0;
+    bestPalette[1] = 0;
     for (int l = 0; l < optimizeLevel; l++) {
       randomizePalette(yc, l + 1);
       double  minErr = calculateLineError(yc);
@@ -179,6 +181,8 @@ namespace Ep128ImgConv {
   {
     double  bestError = 1000000000.0;
     int     bestPalette[2];
+    bestPalette[0] = 0;
+    bestPalette[1] = 0;
     int     progressCnt = 0;
     int     progressMax = optimizeLevel * 3 * 2 * 256;
     for (int l = 0; l < optimizeLevel; l++) {

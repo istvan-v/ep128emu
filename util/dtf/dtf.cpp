@@ -1,6 +1,6 @@
 
 // dtf.cpp
-// Copyright (C) 2008-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2008-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -27,21 +27,14 @@
 #include <list>
 #include <map>
 
-#include "epcompress/ep128emu.hpp"
-#include "epcompress/compress.hpp"
-#include "epcompress/compress0.hpp"
-#include "epcompress/compress0.cpp"
-#include "epcompress/compress2.hpp"
-#include "epcompress/compress2.cpp"
-#include "epcompress/compress3.hpp"
-#include "epcompress/compress3.cpp"
-#include "epcompress/decompress0.hpp"
-#include "epcompress/decompress0.cpp"
-#include "epcompress/decompress2.hpp"
-#include "epcompress/decompress2.cpp"
-#include "epcompress/decompress3.hpp"
-#include "epcompress/decompress3.cpp"
-#include "epcompress/compress.cpp"
+#include "ep128emu.hpp"
+#include "compress.hpp"
+#include "compress0.hpp"
+#include "compress2.hpp"
+#include "compress3.hpp"
+#include "decompress0.hpp"
+#include "decompress2.hpp"
+#include "decompress3.hpp"
 
 using Ep128Emu::Exception;
 
