@@ -2,21 +2,23 @@
 
 import sys, os
 
-win32CrossCompile = ARGUMENTS.get('win32', 0)
+win64CrossCompile = ARGUMENTS.get('win64', 0)
+mingwCrossCompile = win64CrossCompile or ARGUMENTS.get('win32', 0)
 linux32CrossCompile = 0
 disableSDL = 0          # set this to 1 on Linux with SDL version 1.2.10
 disableLua = 0
-buildUtilities = 0
+buildUtilities = 1
 enableGLShaders = 1
 enableDebug = 0
 buildRelease = 1
+useLuaJIT = 0           # for mingwCrossCompile, use LuaJIT instead of Lua 5.3
 
 #env = Environment(ENV = os.environ)
-#CacheDir("./.build_cache/win32" if win32CrossCompile else "./.build_cache/native")
+#CacheDir("./.build_cache/win32" if mingwCrossCompile else "./.build_cache/native")
 
 compilerFlags = ''
 if buildRelease:
-    if linux32CrossCompile or win32CrossCompile:
+    if linux32CrossCompile or (mingwCrossCompile and not win64CrossCompile):
         compilerFlags = ' -march=pentium2 -mtune=generic '
 if enableDebug and not buildRelease:
     compilerFlags = ' -Wno-long-long -Wshadow -Winline -g -O2 ' + compilerFlags
@@ -32,7 +34,7 @@ fltkConfig = 'fltk-config'
 
 programNamePrefix = ""
 buildingLinuxPackage = 0
-if not win32CrossCompile:
+if not mingwCrossCompile:
     if sys.platform[:5] == 'linux':
         try:
             instPrefix = os.environ["UB_INSTALLDIR"]
@@ -68,7 +70,8 @@ if linux32CrossCompile:
     compilerFlags = ' -m32 ' + compilerFlags
 ep128emuLibEnvironment.Append(CCFLAGS = Split(compilerFlags))
 ep128emuLibEnvironment.Append(CPPPATH = ['.', './src'])
-ep128emuLibEnvironment.Append(CPPPATH = ['/usr/local/include'])
+if not mingwCrossCompile:
+    ep128emuLibEnvironment.Append(CPPPATH = ['/usr/local/include'])
 if sys.platform[:6] == 'darwin':
     ep128emuLibEnvironment.Append(CPPPATH = ['/usr/X11R6/include'])
 if not linux32CrossCompile:
@@ -76,13 +79,34 @@ if not linux32CrossCompile:
 else:
     linkFlags = ' -m32 -L. -L/usr/X11R6/lib '
 ep128emuLibEnvironment.Append(LINKFLAGS = Split(linkFlags))
-if win32CrossCompile:
-    ep128emuLibEnvironment['AR'] = 'wine C:/MinGW/bin/ar.exe'
-    ep128emuLibEnvironment['CC'] = 'wine C:/MinGW/bin/gcc.exe'
-    ep128emuLibEnvironment['CPP'] = 'wine C:/MinGW/bin/cpp.exe'
-    ep128emuLibEnvironment['CXX'] = 'wine C:/MinGW/bin/g++.exe'
-    ep128emuLibEnvironment['LINK'] = 'wine C:/MinGW/bin/g++.exe'
-    ep128emuLibEnvironment['RANLIB'] = 'wine C:/MinGW/bin/ranlib.exe'
+if mingwCrossCompile:
+    if not win64CrossCompile:
+        mingwPrefix = 'C:/mingw32'
+        ep128emuLibEnvironment.Prepend(CCFLAGS = ['-m32'])
+        ep128emuLibEnvironment.Append(CPPPATH = ['C:/mingw32/include'])
+    else:
+        mingwPrefix = 'C:/mingw64'
+        ep128emuLibEnvironment.Prepend(CCFLAGS = ['-m64'])
+        ep128emuLibEnvironment.Append(CPPPATH = ['C:/mingw64/include'])
+    if sys.platform[:3] == 'win':
+        toolNamePrefix = ''
+    elif win64CrossCompile:
+        toolNamePrefix = 'x86_64-w64-mingw32-'
+    else:
+        toolNamePrefix = 'i686-w64-mingw32-'
+    ep128emuLibEnvironment['AR'] = toolNamePrefix + 'ar'
+    ep128emuLibEnvironment['CC'] = toolNamePrefix + 'gcc'
+    ep128emuLibEnvironment['CPP'] = toolNamePrefix + 'cpp'
+    ep128emuLibEnvironment['CXX'] = toolNamePrefix + 'g++'
+    ep128emuLibEnvironment['LINK'] = toolNamePrefix + 'g++'
+    ep128emuLibEnvironment['RANLIB'] = toolNamePrefix + 'ranlib'
+    if not disableLua:
+        if useLuaJIT:
+            ep128emuLibEnvironment.Append(
+                CPPPATH = [mingwPrefix + '/include/lua5.1'])
+        else:
+            ep128emuLibEnvironment.Append(
+                CPPPATH = [mingwPrefix + '/include/lua5.3'])
     ep128emuLibEnvironment.Append(LIBS = ['comdlg32', 'comctl32', 'ole32',
                                           'uuid', 'ws2_32', 'winmm', 'gdi32',
                                           'user32', 'kernel32'])
@@ -93,7 +117,7 @@ if not oldSConsVersion:
     ep128emuGUIEnvironment = ep128emuLibEnvironment.Clone()
 else:
     ep128emuGUIEnvironment = ep128emuLibEnvironment.Copy()
-if win32CrossCompile:
+if mingwCrossCompile:
     ep128emuGUIEnvironment.Prepend(LIBS = ['fltk'])
 else:
     try:
@@ -112,7 +136,7 @@ if not oldSConsVersion:
     ep128emuGLGUIEnvironment = ep128emuLibEnvironment.Clone()
 else:
     ep128emuGLGUIEnvironment = ep128emuLibEnvironment.Copy()
-if win32CrossCompile:
+if mingwCrossCompile:
     ep128emuGLGUIEnvironment.Prepend(LIBS = ['fltk_gl', 'fltk',
                                              'glu32', 'opengl32'])
 else:
@@ -254,7 +278,7 @@ if not configure.CheckCXXHeader('FL/Fl.H'):
 fltkVersion13 = 0
 if configure.CheckCXXHeader('FL/Fl_Cairo.H'):
     fltkVersion13 = 1
-    if sys.platform[:5] == 'linux' and not win32CrossCompile:
+    if sys.platform[:5] == 'linux' and not mingwCrossCompile:
         ep128emuGUIEnvironment.Append(LIBS = ['Xinerama', 'Xft'])
         ep128emuGLGUIEnvironment.Append(LIBS = ['Xinerama', 'Xft'])
     # print 'WARNING: using FLTK 1.3.x - this may not work reliably yet'
@@ -272,7 +296,7 @@ if enableGLShaders:
         print 'WARNING: disabling GL shader support'
 if configure.CheckCHeader('stdint.h'):
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_STDINT_H'])
-if sys.platform[:5] == 'linux' and not win32CrossCompile:
+if sys.platform[:5] == 'linux' and not mingwCrossCompile:
     if configure.CheckCHeader('linux/fd.h'):
         ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_LINUX_FD_H'])
 if not disableSDL:
@@ -285,7 +309,7 @@ if not disableLua:
     haveLua = configure.CheckCHeader('lua.h')
     haveLua = haveLua and configure.CheckCHeader('lauxlib.h')
     haveLua = haveLua and configure.CheckCHeader('lualib.h')
-    if not haveLua and sys.platform[:5] == 'linux' and not win32CrossCompile:
+    if not haveLua and sys.platform[:5] == 'linux' and not mingwCrossCompile:
         for pkgName in ['lua-5.1', 'lua51', 'lua-5.3', 'lua53',
                         'lua-5.2', 'lua52', 'lua']:
             print 'Checking for Lua package ' + pkgName + '...'
@@ -337,13 +361,8 @@ def fluidCompile(flNames):
         if flName.endswith('.fl'):
             cppName = flName[:-3] + '_fl.cpp'
             hppName = flName[:-3] + '_fl.hpp'
-            if not win32CrossCompile:
-              Command([cppName, hppName], flName,
-                      'fluid -c -o %s -h %s $SOURCES' % (cppName, hppName))
-            else:
-              Command([cppName, hppName], flName,
-                      'wine C:/MinGW/bin/fluid.exe -c -o %s -h %s $SOURCES' \
-                      % (cppName, hppName))
+            Command([cppName, hppName], flName,
+                    'fluid -c -o %s -h %s $SOURCES' % (cppName, hppName))
             cppNames += [cppName]
     return cppNames
 
@@ -444,13 +463,18 @@ if luaPkgName:
         print ' *** error: Lua library is not found'
         Exit(-1)
 elif haveLua:
-    ep128emuEnvironment.Append(LIBS = ['lua'])
+    if not mingwCrossCompile:
+        ep128emuEnvironment.Append(LIBS = ['lua'])
+    elif not useLuaJIT:
+        ep128emuEnvironment.Append(LIBS = ['lua53'])
+    else:
+        ep128emuEnvironment.Append(LIBS = ['lua51'])
     if oldLuaVersion:
         ep128emuEnvironment.Append(LIBS = ['lualib'])
 if haveSDL:
     ep128emuEnvironment.Append(LIBS = ['SDL'])
 ep128emuEnvironment.Append(LIBS = ['portaudio', 'sndfile'])
-if not win32CrossCompile:
+if not mingwCrossCompile:
     if not oldSConsVersion:
         checkPortAudioLib(ep128emuEnvironment)
     ep128emuEnvironment.Append(LIBS = ['pthread'])
@@ -466,13 +490,13 @@ ep128emuSources += fluidCompile(['gui/gui.fl', 'gui/disk_cfg.fl',
                                  'gui/snd_cfg.fl', 'gui/vm_cfg.fl',
                                  'gui/debug.fl', 'gui/about.fl'])
 ep128emuSources += ['gui/debugger.cpp', 'gui/monitor.cpp', 'gui/main.cpp']
-if win32CrossCompile:
+if mingwCrossCompile:
     ep128emuResourceObject = ep128emuEnvironment.Command(
         'resource/resource.o',
         ['resource/ep128emu.rc', 'resource/cpc464emu.ico',
          'resource/ep128emu.ico', 'resource/zx128emu.ico'],
-        'wine C:/MinGW/bin/windres.exe -v --use-temp-file '
-        + '--preprocessor="C:/MinGW/bin/gcc.exe -E -xc -DRC_INVOKED" '
+        toolNamePrefix + 'windres -v --use-temp-file '
+        + '--preprocessor="gcc.exe -E -xc -DRC_INVOKED" '
         + '-o $TARGET resource/ep128emu.rc')
     ep128emuSources += [ep128emuResourceObject]
 ep128emu = ep128emuEnvironment.Program('ep128emu', ep128emuSources)
@@ -498,15 +522,15 @@ if haveSDL:
 tapeeditEnvironment.Append(LIBS = ['sndfile'])
 tapeeditSources = fluidCompile(['tapeutil/tapeedit.fl'])
 tapeeditSources += ['tapeutil/tapeio.cpp']
-if not win32CrossCompile:
+if not mingwCrossCompile:
     tapeeditEnvironment.Append(LIBS = ['pthread'])
 else:
     tapeeditEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
     tapeeditResourceObject = tapeeditEnvironment.Command(
         'resource/te_resrc.o',
         ['resource/tapeedit.rc', 'resource/tapeedit.ico'],
-        'wine C:/MinGW/bin/windres.exe -v --use-temp-file '
-        + '--preprocessor="C:/MinGW/bin/gcc.exe -E -xc -DRC_INVOKED" '
+        toolNamePrefix + 'windres -v --use-temp-file '
+        + '--preprocessor="gcc.exe -E -xc -DRC_INVOKED" '
         + '-o $TARGET resource/tapeedit.rc')
     tapeeditSources += [tapeeditResourceObject]
 tapeedit = tapeeditEnvironment.Program('tapeedit', tapeeditSources)
@@ -527,7 +551,7 @@ makecfgEnvironment.Prepend(LIBS = ['ep128emu'])
 if haveSDL:
     makecfgEnvironment.Append(LIBS = ['SDL'])
 makecfgEnvironment.Append(LIBS = ['sndfile'])
-if not win32CrossCompile:
+if not mingwCrossCompile:
     makecfgEnvironment.Append(LIBS = ['pthread'])
 else:
     makecfgEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
@@ -586,7 +610,11 @@ if buildUtilities:
     epimgconvEnvironment['CXXFLAGS'] = ep128emuGUIEnvironment['CXXFLAGS']
     epimgconvEnvironment['LIBS'] = ep128emuGUIEnvironment['LIBS']
     epimgconvEnvironment.Append(CPPPATH = ['./util/epcompress/src'])
-    epimgconvEnvironment.Prepend(LIBS = [compressLib])
+    if not mingwCrossCompile:
+        epimgconvEnvironment.Prepend(LIBS = [compressLib])
+    else:
+        epimgconvEnvironment.Prepend(LIBS = [compressLib, 'fltk_images',
+                                             'fltk_png', 'fltk_jpeg', 'z'])
     epimgconv = epimgconvEnvironment.Program(
                     'epimgconv', Split('''
                         util/epimgconv/src/attr16.cpp
@@ -604,7 +632,7 @@ if buildUtilities:
 
 # -----------------------------------------------------------------------------
 
-if not win32CrossCompile:
+if not mingwCrossCompile:
     if buildingLinuxPackage:
         makecfgEnvironment.InstallAs([instBinDir + "/ep128emu.bin",
                                       instBinDir + "/ep128emu"],
