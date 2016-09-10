@@ -31,6 +31,7 @@
 #  include <sys/types.h>
 #  include <sys/stat.h>
 #else
+#  include <windows.h>
 #  include <direct.h>
 #endif
 
@@ -1340,6 +1341,26 @@ int main(int argc, char **argv)
     std::string tmp = "";
 #ifndef WIN32
     tmp = Ep128Emu::getEp128EmuHomeDirectory();
+#else
+    {
+      // try to get installation directory from registry
+      char    installDir[256];
+      HKEY    regKey = 0;
+      DWORD   regType = 0;
+      DWORD   bufSize = 256;
+      if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+                       "Software\\ep128emu2\\InstallDirectory", 0,
+                       KEY_QUERY_VALUE | KEY_WOW64_32KEY, &regKey)
+          == ERROR_SUCCESS) {
+        if (RegQueryValueEx(regKey, "", (LPDWORD) 0, &regType,
+                            (LPBYTE) installDir, &bufSize)
+            == ERROR_SUCCESS && regType == REG_SZ && bufSize < 256) {
+          installDir[bufSize] = '\0';
+          tmp = installDir;
+        }
+        RegCloseKey(regKey);
+      }
+    }
 #endif
 #if defined(__linux) || defined(__linux__)
     // use FLTK file chooser to work around bugs in the new 1.3.3 GTK chooser
@@ -1552,7 +1573,25 @@ int main(int argc, char **argv)
       try {
         std::string fileName = configDirectory;
         fileName += machineConfigFileNames[i];
-        config->saveState(fileName.c_str(), false);
+#ifdef WIN32
+        try
+#endif
+        {
+          config->saveState(fileName.c_str(), false);
+        }
+#ifdef WIN32
+        catch (Ep128Emu::Exception) {
+          // hack to work around errors due to lack of write access to
+          // Program Files if makecfg is run as a normal user; if the
+          // file already exists, then the error is ignored
+          // FIXME: this also ignores write errors (e.g. disk full)
+          std::FILE *f = std::fopen(fileName.c_str(), "rb");
+          if (!f)
+            throw;
+          else
+            std::fclose(f);
+        }
+#endif
       }
       catch (std::exception& e) {
         gui->errorMessage(e.what());
