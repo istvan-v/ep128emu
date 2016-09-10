@@ -642,6 +642,8 @@ if not mingwCrossCompile:
     makecfgEnvironment.Install(instBinDir,
                                [tapeedit, makecfg,
                                 "resource/cpc464emu", "resource/zx128emu"])
+    if buildUtilities:
+        makecfgEnvironment.Install(instBinDir, [dtf, epcompress, epimgconv])
     makecfgEnvironment.Install(instPixmapDir,
                                ["resource/cpc464emu.png",
                                 "resource/ep128emu.png",
