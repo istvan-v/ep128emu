@@ -1303,6 +1303,43 @@ static bool unpackROMFiles(const std::string& romDir)
 
 // ----------------------------------------------------------------------------
 
+static void saveConfigurationFile(Ep128Emu::ConfigurationDB& config,
+                                  const std::string& dirName,
+                                  const char *fileName,
+                                  Ep128EmuConfigInstallerGUI& gui)
+{
+  try {
+    std::string fullName = dirName;
+    fullName += fileName;
+#ifdef WIN32
+    try
+#endif
+    {
+      config.saveState(fullName.c_str(), false);
+    }
+#ifdef WIN32
+    catch (Ep128Emu::Exception& e) {
+      if (std::strncmp(e.what(), "error opening ", 14) == 0) {
+        // hack to work around errors due to lack of write access to
+        // Program Files if makecfg is run as a normal user; if the
+        // file already exists, then the error is ignored
+        std::FILE *f = std::fopen(fullName.c_str(), "rb");
+        if (!f)
+          throw;
+        else
+          std::fclose(f);
+      }
+      else {
+        throw;
+      }
+    }
+#endif
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}
+
 int main(int argc, char **argv)
 {
   if ((sizeof(machineConfigs) / sizeof(uint64_t))
@@ -1570,32 +1607,8 @@ int main(int argc, char **argv)
          i++) {
       config = new Ep128Emu::ConfigurationDB();
       mCfg = new Ep128EmuMachineConfiguration(*config, i, romDirectory);
-      try {
-        std::string fileName = configDirectory;
-        fileName += machineConfigFileNames[i];
-#ifdef WIN32
-        try
-#endif
-        {
-          config->saveState(fileName.c_str(), false);
-        }
-#ifdef WIN32
-        catch (Ep128Emu::Exception) {
-          // hack to work around errors due to lack of write access to
-          // Program Files if makecfg is run as a normal user; if the
-          // file already exists, then the error is ignored
-          // FIXME: this also ignores write errors (e.g. disk full)
-          std::FILE *f = std::fopen(fileName.c_str(), "rb");
-          if (!f)
-            throw;
-          else
-            std::fclose(f);
-        }
-#endif
-      }
-      catch (std::exception& e) {
-        gui->errorMessage(e.what());
-      }
+      saveConfigurationFile(*config,
+                            configDirectory, machineConfigFileNames[i], *gui);
       delete config;
       delete mCfg;
       config = (Ep128Emu::ConfigurationDB *) 0;
@@ -1604,15 +1617,10 @@ int main(int argc, char **argv)
     for (int i = 0; i < 8; i++) {
       if (keyboardConfigFileNames[i] != (char *) 0) {
         config = new Ep128Emu::ConfigurationDB();
-        try {
-          setKeyboardConfiguration(*config, i);
-          std::string fileName = configDirectory;
-          fileName += keyboardConfigFileNames[i];
-          config->saveState(fileName.c_str(), false);
-        }
-        catch (std::exception& e) {
-          gui->errorMessage(e.what());
-        }
+        setKeyboardConfiguration(*config, i);
+        saveConfigurationFile(*config,
+                              configDirectory, keyboardConfigFileNames[i],
+                              *gui);
         delete config;
         config = (Ep128Emu::ConfigurationDB *) 0;
       }
