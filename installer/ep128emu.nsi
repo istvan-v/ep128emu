@@ -12,20 +12,23 @@
 ;--------------------------------
 ;General
 
-  ;Name and file
-  Name "ep128emu"
   ;Use "makensis.exe /DWIN64" to create x64 installer
   !ifndef WIN64
+  ;Name and file
+  Name "ep128emu"
   OutFile "ep128emu-2.0.9.2-x86-beta.exe"
-  !else
-  OutFile "ep128emu-2.0.9.2-x64-beta.exe"
-  !endif
-
   ;Default installation folder
   InstallDir "$PROGRAMFILES\ep128emu2"
+  !else
+  Name "ep128emu (x64)"
+  OutFile "ep128emu-2.0.9.2-x64-beta.exe"
+  InstallDir "$PROGRAMFILES64\ep128emu2"
+  !endif
+
+  RequestExecutionLevel admin
 
   ;Get installation folder from registry if available
-  InstallDirRegKey HKCU "Software\ep128emu2\InstallDirectory" ""
+  InstallDirRegKey HKLM "Software\ep128emu2\InstallDirectory" ""
 
 ;--------------------------------
 ;Variables
@@ -46,7 +49,7 @@
   !insertmacro MUI_PAGE_COMPONENTS
   !insertmacro MUI_PAGE_DIRECTORY
   ;Start Menu Folder Page Configuration
-  !define MUI_STARTMENUPAGE_REGISTRY_ROOT "HKCU"
+  !define MUI_STARTMENUPAGE_REGISTRY_ROOT "HKLM"
   !define MUI_STARTMENUPAGE_REGISTRY_KEY "Software\ep128emu2"
   !define MUI_STARTMENUPAGE_REGISTRY_VALUENAME "Start Menu Folder"
   !insertmacro MUI_PAGE_STARTMENU Application $STARTMENU_FOLDER
@@ -120,12 +123,14 @@ Section "ep128emu binaries" SecMain
   SetOutPath "$INSTDIR\tape"
 
   ;Store installation folder
-  WriteRegStr HKCU "Software\ep128emu2\InstallDirectory" "" $INSTDIR
+  WriteRegStr HKLM "Software\ep128emu2\InstallDirectory" "" $INSTDIR
 
   ;Create uninstaller
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
+
+    SetShellVarContext all
 
     ;Create shortcuts
     CreateDirectory "$SMPROGRAMS\$STARTMENU_FOLDER"
@@ -444,6 +449,8 @@ SectionEnd
 
 Section "Uninstall"
 
+  SetShellVarContext all
+
   Delete "$INSTDIR\COPYING"
   Delete "$INSTDIR\LICENSE.FLTK"
   Delete "$INSTDIR\LICENSE.Lua"
@@ -453,7 +460,10 @@ Section "Uninstall"
   Delete "$INSTDIR\LICENSE.libsndfile"
   Delete "$INSTDIR\news.txt"
   Delete "$INSTDIR\readme.txt"
+  Delete "$INSTDIR\dtf.exe"
   Delete "$INSTDIR\ep128emu.exe"
+  Delete "$INSTDIR\epcompress.exe"
+  Delete "$INSTDIR\epimgconv.exe"
   Delete "$INSTDIR\libgcc_s_dw2-1.dll"
   Delete "$INSTDIR\libgcc_s_seh-1.dll"
   Delete "$INSTDIR\libsndfile-1.dll"
@@ -733,8 +743,8 @@ Section "Uninstall"
     StrCmp $MUI_TEMP $SMPROGRAMS startMenuDeleteLoopDone startMenuDeleteLoop
   startMenuDeleteLoopDone:
 
-  DeleteRegKey /ifempty HKCU "Software\ep128emu2\InstallDirectory"
-  DeleteRegKey /ifempty HKCU "Software\ep128emu2"
+  DeleteRegKey /ifempty HKLM "Software\ep128emu2\InstallDirectory"
+  DeleteRegKey /ifempty HKLM "Software\ep128emu2"
 
   Delete "$INSTDIR\Uninstall.exe"
   RMDir "$INSTDIR"
