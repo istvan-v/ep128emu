@@ -212,7 +212,11 @@ int main(int argc, char **argv)
             }
           }
           cmdLine.resize(i);
+#if defined(__linux) || defined(__linux__)
+          cmdLine += "epmakecfg\"";
+#else
           cmdLine += "makecfg\"";
+#endif
 #ifdef __APPLE__
           cmdLine += " -f";
 #endif
