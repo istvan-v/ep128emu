@@ -5,7 +5,10 @@
 *.a
 *_fl.cpp
 *_fl.hpp
+/dtf
 /ep128emu
+/epcompress
+/epimgconv
 /epmakecfg
 /tapeedit
 *.exe
