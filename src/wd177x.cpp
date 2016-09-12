@@ -50,7 +50,7 @@ namespace std {
   {
     HANDLE  hF = 0;
 
-    if (!strcmp(mode,"rb")) {
+    if (!strcmp(mode, "rb")) {
       hF = CreateFile(filename, GENERIC_READ,
                       FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING,
                       FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH
@@ -133,7 +133,7 @@ namespace std {
     return 0;
   }
 
-}       // using namespace std
+}       // namespace std
 
 #endif  // WIN32
 
