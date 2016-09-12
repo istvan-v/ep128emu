@@ -83,11 +83,10 @@ if mingwCrossCompile:
     if not win64CrossCompile:
         mingwPrefix = 'C:/mingw32'
         ep128emuLibEnvironment.Prepend(CCFLAGS = ['-m32'])
-        ep128emuLibEnvironment.Append(CPPPATH = ['C:/mingw32/include'])
     else:
         mingwPrefix = 'C:/mingw64'
         ep128emuLibEnvironment.Prepend(CCFLAGS = ['-m64'])
-        ep128emuLibEnvironment.Append(CPPPATH = ['C:/mingw64/include'])
+    ep128emuLibEnvironment.Append(CPPPATH = [mingwPrefix + '/include'])
     if sys.platform[:3] == 'win':
         toolNamePrefix = ''
     elif win64CrossCompile:
@@ -151,7 +150,8 @@ else:
         if not oldSConsVersion:
             ep128emuGLGUIEnvironment.Append(LIBS = ['fltk_jpeg', 'fltk_png',
                                                     'fltk_z'])
-    ep128emuGLGUIEnvironment.Append(LIBS = ['GL', 'X11'])
+    if sys.platform[:5] == 'linux':
+        ep128emuGLGUIEnvironment.Append(LIBS = ['GL', 'X11'])
 
 ep128emuLibEnvironment['CPPPATH'] = ep128emuGLGUIEnvironment['CPPPATH']
 
