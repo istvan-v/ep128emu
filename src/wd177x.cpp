@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -46,101 +46,96 @@
 
 namespace std {
 
-FILE* ep_fopen ( const char * filename, const char * mode )
-{
-	HANDLE hF= 0;
+  FILE *ep_fopen(const char *filename, const char *mode)
+  {
+    HANDLE  hF = 0;
 
-	if (!strcmp(mode,"rb"))
-	{
-		hF= CreateFile(filename,GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL|FILE_FLAG_WRITE_THROUGH|FILE_FLAG_NO_BUFFERING,0);
-	}
-	else if (!strcmp(mode,"r+b"))
-	{
-		hF= CreateFile(filename,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL|FILE_FLAG_WRITE_THROUGH|FILE_FLAG_NO_BUFFERING,0);
+    if (!strcmp(mode,"rb")) {
+      hF = CreateFile(filename, GENERIC_READ,
+                      FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING,
+                      FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH
+                      | FILE_FLAG_NO_BUFFERING, 0);
+    }
+    else if (!strcmp(mode, "r+b")) {
+      hF = CreateFile(filename, GENERIC_READ | GENERIC_WRITE,
+                      FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING,
+                      FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH
+                      | FILE_FLAG_NO_BUFFERING, 0);
 
-		if (filename[0] == '\\' && filename[1] == '\\' && filename[2] == '.' && filename[3] == '\\')
-		{
-			DWORD bytes;
+      if (filename[0] == '\\' && filename[1] == '\\' &&
+          filename[2] == '.' && filename[3] == '\\') {
+        DWORD bytes;
+        BOOL  ret = DeviceIoControl(hF, FSCTL_LOCK_VOLUME,
+                                    0, 0, 0, 0, &bytes, 0);
 
-			BOOL ret= DeviceIoControl(hF,FSCTL_LOCK_VOLUME,0,0,0,0,&bytes,0);
+        if (!ret) {
+          CloseHandle(hF);
+          hF = 0;
+        }
+      }
+    }
 
-			if (!ret)
-			{
-				CloseHandle(hF);
+    return (FILE *) hF;
+  }
 
-				hF= 0;
-			}
-		}
-	}
+  int ep_fclose(FILE *stream)
+  {
+    if (CloseHandle(HANDLE(stream)))
+      return 0;
+    else
+      return EOF;
+  }
 
-	return (FILE*)(hF);
-}
+  int ep_fseek(FILE *stream, long int offset, int origin)
+  {
+    DWORD method = 0;
 
-int ep_fclose ( FILE* stream )
-{
-	if (CloseHandle(HANDLE(stream)))
-		return 0;
-	else
-		return EOF;
-}
+    switch (origin) {
+    case SEEK_SET:
+      method = FILE_BEGIN;
+      break;
+    case SEEK_CUR:
+      method = FILE_CURRENT;
+      break;
+    case SEEK_END:
+      method = FILE_END;
+      break;
+    }
 
-int ep_fseek ( FILE* stream, long int offset, int origin )
-{
-	DWORD method= 0;
+    DWORD ret = SetFilePointer(HANDLE(stream), offset, 0, method);
 
-	switch(origin)
-	{
-	case SEEK_SET:
-		method= FILE_BEGIN;
-		break;
-	case SEEK_CUR:
-		method= FILE_CURRENT;
-		break;
-	case SEEK_END:
-		method= FILE_END;
-		break;
-	}
+    return (ret != INVALID_SET_FILE_POINTER ? 0 : 1);
+  }
 
-	DWORD ret= SetFilePointer(HANDLE(stream),offset,0,method);
+  long int ep_ftell(FILE *stream)
+  {
+    DWORD ret = SetFilePointer(HANDLE(stream), 0, 0, FILE_CURRENT);
+    return ret;
+  }
 
-	return ret!=INVALID_SET_FILE_POINTER?0:1;
-}
+  size_t ep_fread(void *ptr, size_t size, size_t count, FILE *stream)
+  {
+    DWORD num = 0;
+    ReadFile(HANDLE(stream), ptr, size * count, &num, 0);
+    return num;
+  }
 
-long int ep_ftell ( FILE* stream )
-{
-	DWORD ret= SetFilePointer(HANDLE(stream),0,0,FILE_CURRENT);
+  size_t ep_fwrite(const void *ptr, size_t size, size_t count, FILE *stream)
+  {
+    DWORD num = 0;
+    WriteFile(HANDLE(stream), ptr, size * count, &num, 0);
+    FlushFileBuffers(HANDLE(stream));
+    return num;
+  }
 
-	return ret;
-}
+  int ep_setvbuf(FILE *stream, char *buffer, int mode, size_t size)
+  {
+    return 0;
+  }
 
-size_t ep_fread ( void * ptr, size_t size, size_t count, FILE* stream )
-{
-	DWORD num= 0;
+}       // using namespace std
 
-	ReadFile(HANDLE(stream),ptr,size*count,&num,0);
-
-	return num;
-}
-
-size_t ep_fwrite ( const void * ptr, size_t size, size_t count, FILE* stream )
-{
-	DWORD num= 0;
-
-	WriteFile(HANDLE(stream),ptr,size*count,&num,0);
-
-	FlushFileBuffers(HANDLE(stream));
-
-	return num;
-}
-
-int ep_setvbuf ( FILE* stream, char * buffer, int mode, size_t size )
-{
-	return 0;
-}
-
-}
-
-#endif
+#endif  // WIN32
 
 namespace Ep128Emu {
 
