@@ -163,11 +163,9 @@ Linux
 On Linux and other POSIX platforms, the emulator is installed from the
 source code, available at the SourceForge download page
   http://sourceforge.net/project/showfiles.php?group_id=128766
-or the most recent state of the code can be downloaded from CVS with the
+or the most recent state of the code can be downloaded from Git with the
 following command:
-  cvs -z3 -d                                                        \
-  :pserver:anonymous@ep128emu.cvs.sourceforge.net:/cvsroot/ep128emu \
-  checkout -P ep128emu2
+  git clone https://github.com/istvan-v/ep128emu.git
 In addition to the standard development tools (a recent version of the
 GNU C/C++ compiler, binutils, etc.), you need the following packages:
 
