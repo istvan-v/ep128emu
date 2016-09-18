@@ -212,7 +212,7 @@ int main(int argc, char **argv)
             }
           }
           cmdLine.resize(i);
-#if defined(__linux) || defined(__linux__)
+#ifndef WIN32
           cmdLine += "epmakecfg\"";
 #else
           cmdLine += "makecfg\"";
