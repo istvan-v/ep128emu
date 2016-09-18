@@ -161,8 +161,8 @@ Linux
 -----
 
 On Linux and other POSIX platforms, the emulator is installed from the
-source code, available at the SourceForge download page
-  http://sourceforge.net/project/showfiles.php?group_id=128766
+source code, available at the GitHub download page
+  https://github.com/istvan-v/ep128emu/releases/
 or the most recent state of the code can be downloaded from Git with the
 following command:
   git clone https://github.com/istvan-v/ep128emu.git
@@ -213,9 +213,9 @@ It is possible to reinstall configuration files later by running the
 Windows
 -------
 
-A binary package with an installer is available at the SourceForge
-download page:
-  http://sourceforge.net/project/showfiles.php?group_id=128766
+A binary package with an installer is available at the GitHub download
+page:
+  https://github.com/istvan-v/ep128emu/releases/
 To install, just run the executable, and follow the instructions.
 The installer can automatically download the ROM images needed for
 running the emulator, but these can also be installed manually by

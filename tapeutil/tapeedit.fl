@@ -190,8 +190,8 @@ class TapeEditorGUI {open
   fileDir = ".";
   copyrightText = new Fl_Text_Buffer;
   copyrightText->append("ep128emu -- portable Enterprise 128 emulator\\n");
-  copyrightText->append("Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>\\n");
-  copyrightText->append("http://sourceforge.net/projects/ep128emu/\\n");
+  copyrightText->append("Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>\\n");
+  copyrightText->append("https://github.com/istvan-v/ep128emu/\\n");
   copyrightText->append("Z80 emulation is based on ENTER emulator, Copyright (C) 1999-2001 by\\n");
   copyrightText->append("Kevin Thacker, and ep32 (C) by Vincze B\\351la Gy\\366rgy.\\n");
   copyrightText->append("\\n");

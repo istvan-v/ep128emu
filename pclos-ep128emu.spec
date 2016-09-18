@@ -6,7 +6,7 @@ Release:		%mkrel 1
 Summary:		Enterprise 64/128, ZX Spectrum 48/128, and Amstrad CPC 464/664/6128 emulator
 License:		GPLv2+
 Group:			Emulators
-URL:			http://sourceforge.net/projects/ep128emu
+URL:			https://github.com/istvan-v/ep128emu/
 Source0:		%{name}/%{name}-%{version}.tar.xz
 Source1:		%{name}-32.png
 %define	romname		ep128emu_roms.bin
@@ -17,7 +17,7 @@ BuildRoot:		%{_tmppath}/%{name}-%{version}
 
 %description
 ep128emu is a portable emulator of the Enterprise 64/128, ZX Spectrum 48/128, and Amstrad CPC 464/664/6128 computers
-http://sourceforge.net/projects/ep128emu/files/ep128emu2
+https://github.com/istvan-v/ep128emu/releases/
 
 %prep
 %setup -q 

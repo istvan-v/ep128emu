@@ -14,7 +14,7 @@ BEGIN
   BEGIN
     BLOCK "040904E4"
     BEGIN
-      VALUE "Comments", "Home page: http://sourceforge.net/projects/ep128emu/"
+      VALUE "Comments", "Home page: https://github.com/istvan-v/ep128emu/"
       VALUE "CompanyName", "Istvan Varga"
       VALUE "FileDescription", "ep128emu tape editor utility"
       VALUE "FileVersion", "2.0.9.2"
