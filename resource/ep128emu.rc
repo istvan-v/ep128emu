@@ -2,8 +2,8 @@
 #include <winver.h>
 
 VS_VERSION_INFO VERSIONINFO
-  FILEVERSION     2, 0, 9, 2
-  PRODUCTVERSION  2, 0, 9, 2
+  FILEVERSION     2, 0, 10, 0
+  PRODUCTVERSION  2, 0, 10, 0
   FILEFLAGSMASK   0
   FILEFLAGS       0
   FILEOS          VOS__WINDOWS32
@@ -17,12 +17,12 @@ BEGIN
       VALUE "Comments", "Home page: https://github.com/istvan-v/ep128emu/"
       VALUE "CompanyName", "Istvan Varga"
       VALUE "FileDescription", "ep128emu - Enterprise 64/128, Spectrum 48/128, and CPC 464/664/6128 emulator"
-      VALUE "FileVersion", "2.0.9.2"
+      VALUE "FileVersion", "2.0.10.0"
       VALUE "InternalName", "ep128emu"
       VALUE "LegalCopyright", "Copyright (C) 2003-2016, GPL v2 or later"
       VALUE "OriginalFilename", "ep128emu"
       VALUE "ProductName", "Ep128Emu"
-      VALUE "ProductVersion", "2.0.9.2"
+      VALUE "ProductVersion", "2.0.10.0"
     END
   END
   BLOCK "VarFileInfo"

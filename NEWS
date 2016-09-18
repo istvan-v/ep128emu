@@ -1,5 +1,5 @@
-Changes in version 2.0.9.2
---------------------------
+Changes in version 2.0.10
+-------------------------
 
   * when loading a snapshot from the command line, the machine type is
     autodetected from the file if not specified
