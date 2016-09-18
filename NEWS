@@ -8,6 +8,7 @@ Changes in version 2.0.10
   * new Lua functions: writeROM(), writeWordROM(), and loadROMSegment()
   * building with Lua 5.2 or 5.3 is now supported
   * added support for building 64-bit Windows binaries
+  * epimgconv and other utilities are included with the emulator package
   * various minor bug fixes
 
 Changes in version 2.0.9.1
