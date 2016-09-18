@@ -216,6 +216,8 @@ Windows
 A binary package with an installer is available at the GitHub download
 page:
   https://github.com/istvan-v/ep128emu/releases/
+Older (pre-2.0.10) versions can be downloaded from SourceForge:
+  https://sourceforge.net/projects/ep128emu/files/
 To install, just run the executable, and follow the instructions.
 The installer can automatically download the ROM images needed for
 running the emulator, but these can also be installed manually by
