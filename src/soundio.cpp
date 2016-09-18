@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -494,13 +494,16 @@ namespace Ep128Emu {
         else if (hostApiInfo->type == paDirectSound) {
           nPeriodsSW_ = 1;
         }
-        else if (hostApiInfo->type == paWDMKS) {
+        else {
+          // ASIO or WDM-KS: force double buffering
           nPeriodsHW_ = 2;
+          nPeriodsSW_ = (nPeriodsSW_ >= 2 ? nPeriodsSW_ : 2);
         }
-#  endif
+#  else
         else {
           nPeriodsSW_ = (nPeriodsSW_ >= 2 ? nPeriodsSW_ : 2);
         }
+#  endif
       }
     }
 #else
