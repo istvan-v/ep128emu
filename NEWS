@@ -7,6 +7,7 @@ Changes in version 2.0.10
     emulator is built with FLTK 1.3.3 or newer
   * new Lua functions: writeROM(), writeWordROM(), and loadROMSegment()
   * building with Lua 5.2 or 5.3 is now supported
+  * added support for building 64-bit Windows binaries
   * various minor bug fixes
 
 Changes in version 2.0.9.1
@@ -332,7 +333,8 @@ Changes in version 2.0.0
 ------------------------
 
   * removed Plus/4 emulation (moved to a separate plus4emu project at
-    http://sourceforge.net/projects/plus4emu/)
+    https://github.com/istvan-v/plus4emu/, older versions are available
+    at http://sourceforge.net/projects/plus4emu/)
   * implemented new video mode that resamples the video output to the
     refresh rate of the monitor; enabling this allows smoother display
     update at the expense of higher CPU usage and some latency in the
