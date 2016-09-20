@@ -206,7 +206,7 @@ void Ep128EmuGUI::updateDisplay_windowSize()
     float   h = float(emulatorWindow->h());
     if ((w * config.display.pixelAspectRatio / h) < 1.333333f) {
       // aspect ratio < 4:3, using full window width
-      mouseXScale = 768.0f / w;
+      mouseXScale = 384.0f / w;
       mouseXOffset = 0.001f;
       mouseYScale = mouseXScale / config.display.pixelAspectRatio;
       mouseYOffset = ((w * 0.75f * config.display.pixelAspectRatio) - h)
@@ -214,7 +214,7 @@ void Ep128EmuGUI::updateDisplay_windowSize()
     }
     else {
       // aspect ratio >= 4:3, using full window height
-      mouseYScale = 576.0f / h;
+      mouseYScale = 288.0f / h;
       mouseYOffset = 0.001f;
       mouseXScale = mouseYScale * config.display.pixelAspectRatio;
       mouseXOffset = ((h * 1.333333f / config.display.pixelAspectRatio) - w)
@@ -761,16 +761,9 @@ void Ep128EmuGUI::sendMouseEvent(bool enableButtons, bool mouseWheelEvent)
   if (enableButtons) {
     int     tmp = Fl::event_buttons();
     buttonState = (((tmp & FL_BUTTON1) ? 1 : 0)
-                   | ((tmp & FL_BUTTON2) ? 2 : 0)
-                   | ((tmp & FL_BUTTON3) ? 4 : 0));
+                   | ((tmp & FL_BUTTON2) ? 4 : 0)
+                   | ((tmp & FL_BUTTON3) ? 2 : 0));
   }
-  if (!mouseWheelEvent && xPos == prvMouseXPos && yPos == prvMouseYPos &&
-      buttonState == prvMouseButtonState) {
-    return;
-  }
-  prvMouseXPos = xPos;
-  prvMouseYPos = yPos;
-  prvMouseButtonState = buttonState;
   if (mouseWheelEvent) {
     int     dX = Fl::event_dx();
     int     dY = Fl::event_dy();
@@ -783,7 +776,26 @@ void Ep128EmuGUI::sendMouseEvent(bool enableButtons, bool mouseWheelEvent)
     else if (dX > 0)
       mouseWheelEvents = mouseWheelEvents | 0x08;
   }
-  vmThread.setMouseState(xPos, yPos, buttonState, mouseWheelEvents);
+  else if (xPos == prvMouseXPos && yPos == prvMouseYPos &&
+           buttonState == prvMouseButtonState) {
+    return;
+  }
+  int     dX = prvMouseXPos - xPos;
+  int     dY = prvMouseYPos - yPos;
+  dX = (dX > -128 ? (dX < 127 ? dX : 127) : -128);
+  dY = (dY > -128 ? (dY < 127 ? dY : 127) : -128);
+  prvMouseXPos = xPos;
+  prvMouseYPos = yPos;
+  prvMouseButtonState = buttonState;
+  if (xPos < 16 && !dX)
+    dX = 16;
+  if (xPos >= 368 && !dX)
+    dX = -16;
+  if (yPos < 16 && !dY)
+    dY = 16;
+  if (yPos >= 272 && !dY)
+    dY = -16;
+  vmThread.setMouseState(int8_t(dX), int8_t(dY), buttonState, mouseWheelEvents);
 }
 
 int Ep128EmuGUI::handleFLTKEvent(void *userData, int event)
@@ -800,8 +812,6 @@ int Ep128EmuGUI::handleFLTKEvent(void *userData, int event)
     catch (std::exception& e) {
       gui_.errorMessage(e.what());
     }
-    // set mouse buttons to released state
-    gui_.sendMouseEvent(false, false);
     return 1;
   case FL_ENTER:
   case FL_LEAVE:

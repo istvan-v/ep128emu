@@ -152,8 +152,8 @@ namespace Ep128 {
     //   uint64_t   deltaTime   (in NICK cycles, stored as MSB first dynamic
     //                          length (1 to 8 bytes) value)
     //   uint8_t    eventType   (currently allowed values are 0 for end of
-    //                          demo (zero data bytes), 1 for key press, and
-    //                          2 for key release)
+    //                          demo (zero data bytes), 1 for key press,
+    //                          2 for key release, and 3 for mouse event)
     //   uint8_t    dataLength  number of event data bytes
     //   ...        eventData   (dataLength bytes)
     // the event data for event types 1 and 2 is the key code with a length of
@@ -202,6 +202,14 @@ namespace Ep128 {
     int       videoMemoryLatency_M1;    //      -"-
     int       videoMemoryLatency_IO;    //      -"-
     IDEInterface  *ideInterface;
+    bool      mouseEmulationEnabled;    // cleared on reset, set on RTS toggle
+    uint8_t   prvB7PortState;
+    uint32_t  mouseTimer;               // NICK slots, counts down from 1500 us
+    uint64_t  mouseData;                // data buffer (b60..b63 = next nibble)
+    int8_t    mouseDeltaX;
+    int8_t    mouseDeltaY;
+    uint8_t   mouseButtonState;
+    uint8_t   mouseWheelDelta;          // b0..b3: vertical, b4..b7: horizontal
     // ----------------
     void updateTimingParameters();
     void setMemoryWaitTiming();
@@ -233,6 +241,9 @@ namespace Ep128 {
     static uint8_t ideDriveIOReadCallback(void *userData, uint16_t addr);
     static void ideDriveIOWriteCallback(void *userData,
                                         uint16_t addr, uint8_t value);
+    static void mouseRTSWriteCallback(void *userData,
+                                      uint16_t addr, uint8_t value);
+    static void mouseTimerCallback(void *userData);
     static void tapeCallback(void *userData);
     static void demoPlayCallback(void *userData);
     static void demoRecordCallback(void *userData);
@@ -292,18 +303,23 @@ namespace Ep128 {
      */
     virtual void setKeyboardState(int keyCode, bool isPressed);
     /*!
-     * Send mouse event to the emulated machine. 'xPos' and 'yPos' are the
-     * current coordinates of the mouse pointer, increasing these values moves
-     * the pointer to the right and down, respectively.
+     * Send mouse event to the emulated machine. 'dX' and 'dY' are the
+     * horizontal and vertical motion of the pointer relative to the position
+     * at the time of the previous call, positive values move to the left and
+     * up, respectively.
      * Each bit of 'buttonState' corresponds to the current state of a mouse
-     * button (bit 0 is set if button 1 is pressed, etc.). 'mouseWheelEvents'
-     * can be the sum of any of the following:
+     * button (1 = pressed):
+     *   b0 = left button
+     *   b1 = right button
+     *   b2 = middle button
+     *   b3..b7 = buttons 4 to 8
+     * 'mouseWheelEvents' can be the sum of any of the following:
      *   1: mouse wheel up
      *   2: mouse wheel down
      *   4: mouse wheel left
      *   8: mouse wheel right
      */
-    virtual void setMouseState(int xPos, int yPos,
+    virtual void setMouseState(int8_t dX, int8_t dY,
                                uint8_t buttonState, uint8_t mouseWheelEvents);
     /*!
      * Returns status information about the emulated machine (see also
