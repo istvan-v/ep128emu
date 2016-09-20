@@ -1594,6 +1594,12 @@ namespace Ep128 {
     }
   }
 
+  void Ep128VM::setMouseState(int xPos, int yPos,
+                              uint8_t buttonState, uint8_t mouseWheelEvents)
+  {
+    // TODO: implement this
+  }
+
   void Ep128VM::getVMStatus(VMStatus& vmStatus_)
   {
     vmStatus_.tapeReadOnly = getIsTapeReadOnly();

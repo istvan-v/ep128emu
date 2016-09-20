@@ -341,6 +341,15 @@ namespace Ep128Emu {
     (void) isPressed;
   }
 
+  void VirtualMachine::setMouseState(int xPos, int yPos, uint8_t buttonState,
+                                     uint8_t mouseWheelEvents)
+  {
+    (void) xPos;
+    (void) yPos;
+    (void) buttonState;
+    (void) mouseWheelEvents;
+  }
+
   void VirtualMachine::getVMStatus(VMStatus& vmStatus_)
   {
     vmStatus_.tapeReadOnly = getIsTapeReadOnly();

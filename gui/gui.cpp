@@ -77,6 +77,13 @@ void Ep128EmuGUI::init_()
   debugWindow = (Ep128EmuGUI_DebugWindow *) 0;
   aboutWindow = (Ep128EmuGUI_AboutWindow *) 0;
   savedSpeedPercentage = 0U;
+  mouseXScale = 1.0f;
+  mouseXOffset = 0.0f;
+  mouseYScale = 1.0f;
+  mouseYOffset = 0.0f;
+  prvMouseXPos = -32768;
+  prvMouseYPos = -32768;
+  prvMouseButtonState = 0xFF;
   std::string defaultDir_(".");
   snapshotDirectory = defaultDir_;
   demoDirectory = defaultDir_;
@@ -164,33 +171,56 @@ void Ep128EmuGUI::updateDisplay_windowSize()
 {
   int     newWindowWidth = mainWindow->w();
   int     newWindowHeight = mainWindow->h();
-  if ((displayMode & 1) == 0) {
-    int   h = newWindowHeight - (newWindowWidth >= 745 ? 30 : 60);
-    emulatorWindow->resize(0, 30, newWindowWidth, h);
-    if ((displayMode & 2) == 0) {
-      config.display.width = newWindowWidth;
-      config.display.height = h;
+  if (newWindowWidth != oldWindowWidth || newWindowHeight != oldWindowHeight) {
+    if ((displayMode & 1) == 0) {
+      int   h = newWindowHeight - (newWindowWidth >= 745 ? 30 : 60);
+      emulatorWindow->resize(0, 30, newWindowWidth, h);
+      if ((displayMode & 2) == 0) {
+        config.display.width = newWindowWidth;
+        config.display.height = h;
+      }
+      statusDisplayGroup->resize(newWindowWidth - 360,
+                                 (newWindowWidth >= 745 ?
+                                  0 : (newWindowHeight - 30)),
+                                 360, 30);
+      mainMenuBar->resize(0, 2, 300, 26);
+      diskStatusDisplayGroup->resize(345, 0, 30, 30);
     }
-    statusDisplayGroup->resize(newWindowWidth - 360,
-                               (newWindowWidth >= 745 ?
-                                0 : (newWindowHeight - 30)),
-                               360, 30);
-    mainMenuBar->resize(0, 2, 300, 26);
-    diskStatusDisplayGroup->resize(345, 0, 30, 30);
+    else {
+      emulatorWindow->resize(0, 0, newWindowWidth, newWindowHeight);
+      if ((displayMode & 2) == 0) {
+        config.display.width = newWindowWidth;
+        config.display.height = newWindowHeight;
+      }
+    }
+    oldWindowWidth = newWindowWidth;
+    oldWindowHeight = newWindowHeight;
+    mainWindow->redraw();
+    mainMenuBar->redraw();
+    diskStatusDisplayGroup->redraw();
+    statusDisplayGroup->redraw();
   }
-  else {
-    emulatorWindow->resize(0, 0, newWindowWidth, newWindowHeight);
-    if ((displayMode & 2) == 0) {
-      config.display.width = newWindowWidth;
-      config.display.height = newWindowHeight;
+  {
+    // update mouse coordinate translation parameters
+    float   w = float(emulatorWindow->w());
+    float   h = float(emulatorWindow->h());
+    if ((w * config.display.pixelAspectRatio / h) < 1.333333f) {
+      // aspect ratio < 4:3, using full window width
+      mouseXScale = 768.0f / w;
+      mouseXOffset = 0.001f;
+      mouseYScale = mouseXScale / config.display.pixelAspectRatio;
+      mouseYOffset = ((w * 0.75f * config.display.pixelAspectRatio) - h)
+                     * 0.5f * mouseYScale + 0.001f;
+    }
+    else {
+      // aspect ratio >= 4:3, using full window height
+      mouseYScale = 576.0f / h;
+      mouseYOffset = 0.001f;
+      mouseXScale = mouseYScale * config.display.pixelAspectRatio;
+      mouseXOffset = ((h * 1.333333f / config.display.pixelAspectRatio) - w)
+                     * 0.5f * mouseXScale + 0.001f;
     }
   }
-  oldWindowWidth = newWindowWidth;
-  oldWindowHeight = newWindowHeight;
-  mainWindow->redraw();
-  mainMenuBar->redraw();
-  diskStatusDisplayGroup->redraw();
-  statusDisplayGroup->redraw();
 }
 
 void Ep128EmuGUI::updateDisplay(double t)
@@ -722,6 +752,40 @@ void Ep128EmuGUI::resizeWindow(int w, int h)
     emulatorWindow->cursor(FL_CURSOR_NONE);
 }
 
+void Ep128EmuGUI::sendMouseEvent(bool enableButtons, bool mouseWheelEvent)
+{
+  int     xPos = int(float(Fl::event_x()) * mouseXScale + mouseXOffset);
+  int     yPos = int(float(Fl::event_y()) * mouseYScale + mouseYOffset);
+  uint8_t buttonState = 0x00;
+  uint8_t mouseWheelEvents = 0x00;
+  if (enableButtons) {
+    int     tmp = Fl::event_buttons();
+    buttonState = (((tmp & FL_BUTTON1) ? 1 : 0)
+                   | ((tmp & FL_BUTTON2) ? 2 : 0)
+                   | ((tmp & FL_BUTTON3) ? 4 : 0));
+  }
+  if (!mouseWheelEvent && xPos == prvMouseXPos && yPos == prvMouseYPos &&
+      buttonState == prvMouseButtonState) {
+    return;
+  }
+  prvMouseXPos = xPos;
+  prvMouseYPos = yPos;
+  prvMouseButtonState = buttonState;
+  if (mouseWheelEvent) {
+    int     dX = Fl::event_dx();
+    int     dY = Fl::event_dy();
+    if (dY < 0)
+      mouseWheelEvents = mouseWheelEvents | 0x01;
+    else if (dY > 0)
+      mouseWheelEvents = mouseWheelEvents | 0x02;
+    if (dX < 0)
+      mouseWheelEvents = mouseWheelEvents | 0x04;
+    else if (dX > 0)
+      mouseWheelEvents = mouseWheelEvents | 0x08;
+  }
+  vmThread.setMouseState(xPos, yPos, buttonState, mouseWheelEvents);
+}
+
 int Ep128EmuGUI::handleFLTKEvent(void *userData, int event)
 {
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(userData));
@@ -736,12 +800,23 @@ int Ep128EmuGUI::handleFLTKEvent(void *userData, int event)
     catch (std::exception& e) {
       gui_.errorMessage(e.what());
     }
+    // set mouse buttons to released state
+    gui_.sendMouseEvent(false, false);
+    return 1;
+  case FL_ENTER:
+  case FL_LEAVE:
+    return 1;
+  case FL_MOVE:
+    gui_.sendMouseEvent(false, false);
+    return 1;
+  case FL_MOUSEWHEEL:
+    gui_.sendMouseEvent(true, true);
     return 1;
   case FL_PUSH:
   case FL_DRAG:
     gui_.emulatorWindow->take_focus();
-    return 1;
   case FL_RELEASE:
+    gui_.sendMouseEvent(true, false);
     return 1;
   case FL_KEYUP:
   case FL_KEYDOWN:
@@ -1088,6 +1163,7 @@ void Ep128EmuGUI::applyEmulatorConfiguration(bool updateWindowFlag_)
       }
       if (updateMenuFlag_)
         updateMenu();
+      updateDisplay_windowSize();
     }
     catch (...) {
       unlockVMThread();

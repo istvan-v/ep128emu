@@ -82,6 +82,13 @@ class Ep128EmuGUI {open
   decl {Ep128Emu::Timer statsTimer;} {}
   decl {char windowTitleBuf[48];} {}
   decl {unsigned int savedSpeedPercentage;} {}
+  decl {float mouseXScale;} {}
+  decl {float mouseXOffset;} {}
+  decl {float mouseYScale;} {}
+  decl {float mouseYOffset;} {}
+  decl {int prvMouseXPos;} {}
+  decl {int prvMouseYPos;} {}
+  decl {int prvMouseButtonState;} {}
   decl {void init_();} {}
   decl {void updateDisplay_windowTitle();} {}
   decl {void updateDisplay_windowMode();} {}
@@ -96,6 +103,7 @@ class Ep128EmuGUI {open
   decl {void run();} {public
   }
   decl {void resizeWindow(int w, int h);} {}
+  decl {void sendMouseEvent(bool enableButtons, bool mouseWheelEvent);} {}
   decl {static int handleFLTKEvent(void *userData, int event);} {}
   decl {bool lockVMThread(size_t t = 2000);} {public
   }

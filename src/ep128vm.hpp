@@ -292,6 +292,20 @@ namespace Ep128 {
      */
     virtual void setKeyboardState(int keyCode, bool isPressed);
     /*!
+     * Send mouse event to the emulated machine. 'xPos' and 'yPos' are the
+     * current coordinates of the mouse pointer, increasing these values moves
+     * the pointer to the right and down, respectively.
+     * Each bit of 'buttonState' corresponds to the current state of a mouse
+     * button (bit 0 is set if button 1 is pressed, etc.). 'mouseWheelEvents'
+     * can be the sum of any of the following:
+     *   1: mouse wheel up
+     *   2: mouse wheel down
+     *   4: mouse wheel left
+     *   8: mouse wheel right
+     */
+    virtual void setMouseState(int xPos, int yPos,
+                               uint8_t buttonState, uint8_t mouseWheelEvents);
+    /*!
      * Returns status information about the emulated machine (see also
      * struct VMStatus above, and the comments for functions that return
      * individual status values).
