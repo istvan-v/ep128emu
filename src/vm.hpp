@@ -192,18 +192,23 @@ namespace Ep128Emu {
      */
     virtual void setKeyboardState(int keyCode, bool isPressed);
     /*!
-     * Send mouse event to the emulated machine. 'xPos' and 'yPos' are the
-     * current coordinates of the mouse pointer, increasing these values moves
-     * the pointer to the right and down, respectively.
+     * Send mouse event to the emulated machine. 'dX' and 'dY' are the
+     * horizontal and vertical motion of the pointer relative to the position
+     * at the time of the previous call, positive values move to the left and
+     * up, respectively.
      * Each bit of 'buttonState' corresponds to the current state of a mouse
-     * button (bit 0 is set if button 1 is pressed, etc.). 'mouseWheelEvents'
-     * can be the sum of any of the following:
+     * button (1 = pressed):
+     *   b0 = left button
+     *   b1 = right button
+     *   b2 = middle button
+     *   b3..b7 = buttons 4 to 8
+     * 'mouseWheelEvents' can be the sum of any of the following:
      *   1: mouse wheel up
      *   2: mouse wheel down
      *   4: mouse wheel left
      *   8: mouse wheel right
      */
-    virtual void setMouseState(int xPos, int yPos,
+    virtual void setMouseState(int8_t dX, int8_t dY,
                                uint8_t buttonState, uint8_t mouseWheelEvents);
     /*!
      * Returns status information about the emulated machine (see also

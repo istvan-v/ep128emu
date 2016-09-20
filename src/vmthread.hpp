@@ -119,21 +119,26 @@ namespace Ep128Emu {
      */
     void setKeyboardState(uint8_t keyCode_, bool isPressed_);
     /*!
-     * Send mouse event to the emulated machine. 'xPos' and 'yPos' are the
-     * current coordinates of the mouse pointer, increasing these values moves
-     * the pointer to the right and down, respectively.
+     * Send mouse event to the emulated machine. 'dX' and 'dY' are the
+     * horizontal and vertical motion of the pointer relative to the position
+     * at the time of the previous call, positive values move to the left and
+     * up, respectively.
      * Each bit of 'buttonState' corresponds to the current state of a mouse
-     * button (bit 0 is set if button 1 is pressed, etc.). 'mouseWheelEvents'
-     * can be the sum of any of the following:
+     * button (1 = pressed):
+     *   b0 = left button
+     *   b1 = right button
+     *   b2 = middle button
+     *   b3..b7 = buttons 4 to 8
+     * 'mouseWheelEvents' can be the sum of any of the following:
      *   1: mouse wheel up
      *   2: mouse wheel down
      *   4: mouse wheel left
      *   8: mouse wheel right
      */
-    void setMouseState(int xPos, int yPos,
+    void setMouseState(int8_t dX, int8_t dY,
                        uint8_t buttonState, uint8_t mouseWheelEvents);
     /*!
-     * Set state of all keys to released.
+     * Set state of all keys and mouse buttons to released.
      */
     void resetKeyboard();
     /*!
@@ -230,34 +235,33 @@ namespace Ep128Emu {
     };
     class Message_MouseEvent : public Message {
      private:
-      uint32_t  mousePosition;
-      uint32_t  mouseButtons;
+      uint32_t  mouseData;
      public:
-      Message_MouseEvent(VMThread& vmThread_,
-                         uint32_t mousePosition_, uint32_t mouseButtons_)
+      Message_MouseEvent(VMThread& vmThread_, uint32_t mouseData_)
         : Message(vmThread_),
-          mousePosition(mousePosition_),
-          mouseButtons(mouseButtons_)
+          mouseData(mouseData_)
       {
       }
       virtual ~Message_MouseEvent();
       virtual void process();
-      static inline uint32_t packMousePosition(int xPos, int yPos)
+      static inline uint32_t packMouseEvent(int8_t dX, int8_t dY,
+                                            uint8_t buttonState,
+                                            uint8_t mouseWheelEvents)
       {
-        return (uint32_t(xPos & 0xFFFF) | (uint32_t(yPos & 0xFFFF) << 16));
+        uint32_t  mouseData_ = 0U;
+        ((unsigned char *) &mouseData_)[0] = uint8_t(dX);
+        ((unsigned char *) &mouseData_)[1] = uint8_t(dY);
+        ((unsigned char *) &mouseData_)[2] = buttonState;
+        ((unsigned char *) &mouseData_)[3] = mouseWheelEvents;
+        return mouseData_;
       }
-      static inline uint32_t packMouseButtons(uint8_t buttonState,
-                                              uint8_t mouseWheelEvents)
-      {
-        return (uint32_t(buttonState) | (uint32_t(mouseWheelEvents) << 8));
-      }
-      inline void unpackMouseEvent(int& xPos, int& yPos, uint8_t& buttonState,
+      inline void unpackMouseEvent(int8_t& dX, int8_t& dY, uint8_t& buttonState,
                                    uint8_t& mouseWheelEvents) const
       {
-        xPos = int(int16_t(mousePosition & 0xFFFFU));
-        yPos = int(int16_t(mousePosition >> 16));
-        buttonState = uint8_t(mouseButtons & 0xFFU);
-        mouseWheelEvents = uint8_t(mouseButtons >> 8);
+        dX = int8_t(uint8_t(((unsigned char *) &mouseData)[0]));
+        dY = int8_t(uint8_t(((unsigned char *) &mouseData)[1]));
+        buttonState = ((unsigned char *) &mouseData)[2];
+        mouseWheelEvents = ((unsigned char *) &mouseData)[3];
       }
     };
     class Message_ResetKeyboard : public Message {

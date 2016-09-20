@@ -343,13 +343,12 @@ namespace Ep128Emu {
                      keyCode_, isPressed_));
   }
 
-  void VMThread::setMouseState(int xPos, int yPos,
+  void VMThread::setMouseState(int8_t dX, int8_t dY,
                                uint8_t buttonState, uint8_t mouseWheelEvents)
   {
-    queueMessage(allocateMessage<Message_MouseEvent, uint32_t, uint32_t>(
-                     Message_MouseEvent::packMousePosition(xPos, yPos),
-                     Message_MouseEvent::packMouseButtons(buttonState,
-                                                          mouseWheelEvents)));
+    queueMessage(allocateMessage<Message_MouseEvent, uint32_t>(
+                     Message_MouseEvent::packMouseEvent(dX, dY, buttonState,
+                                                        mouseWheelEvents)));
   }
 
   void VMThread::resetKeyboard()
@@ -491,12 +490,12 @@ namespace Ep128Emu {
 
   void VMThread::Message_MouseEvent::process()
   {
-    int     xPos = 0;
-    int     yPos = 0;
+    int8_t  dX = 0;
+    int8_t  dY = 0;
     uint8_t buttonState = 0x00;
     uint8_t mouseWheelEvents = 0x00;
-    unpackMouseEvent(xPos, yPos, buttonState, mouseWheelEvents);
-    vmThread.vm.setMouseState(xPos, yPos, buttonState, mouseWheelEvents);
+    unpackMouseEvent(dX, dY, buttonState, mouseWheelEvents);
+    vmThread.vm.setMouseState(dX, dY, buttonState, mouseWheelEvents);
   }
 
   VMThread::Message_ResetKeyboard::~Message_ResetKeyboard()
@@ -511,6 +510,7 @@ namespace Ep128Emu {
         vmThread.vm.setKeyboardState(i, false);
       }
     }
+    vmThread.vm.setMouseState(0, 0, 0x00, 0x00);
   }
 
   VMThread::Message_TapePlay::~Message_TapePlay()
