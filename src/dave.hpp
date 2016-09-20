@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2007 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -144,6 +144,10 @@ namespace Ep128 {
     int     tape_input_level;
     int     keyboardRow;
     uint8_t keyboardState[16];
+    // b0..b3 = current nibble
+    // b4 = button 1 (left) state
+    // b5 = button 2 (right) state
+    uint8_t mouseInput;                 // 0xFF = mouse input inactive
     // ----------------
     inline void triggerIntSnd();
     inline void triggerInt1Hz();
@@ -220,12 +224,16 @@ namespace Ep128 {
      * +------+-------+-------+-------+-------+-------+-------+-------+-------+
      * | 0x48 |     I |       |     O |     @ |     P |     [ |       |       |
      * +------+-------+-------+-------+-------+-------+-------+-------+-------+
-     * | 0x70 | JOY1R | JOY1L | JOY1D | JOY1U | JOY1F |       |       |       |
+     * | 0x70 | JOY1R | JOY1L | JOY1D | JOY1U | JOY1F | JOY1F2|       |       |
      * +------+-------+-------+-------+-------+-------+-------+-------+-------+
-     * | 0x78 | JOY2R | JOY2L | JOY2D | JOY2U | JOY2F |       |       |       |
+     * | 0x78 | JOY2R | JOY2L | JOY2D | JOY2U | JOY2F | JOY2F2|       |       |
      * +------+-------+-------+-------+-------+-------+-------+-------+-------+
      */
     void setKeyboardState(int keyCode, int state);
+    inline void setMouseInput(uint8_t value)
+    {
+      mouseInput = value;
+    }
     /*!
      * Reset DAVE.
      */

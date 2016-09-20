@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -674,18 +674,28 @@ namespace Ep128 {
       return keyboardState[keyboardRow];
     case 0x16:
       {
-        uint8_t n = 0x01;
+        // tape input
+        uint8_t n =
+            uint8_t(((tape_input_level - 1) & 0x40) | ((tape_input - 1) & 0x80)
+                    | 0x0F);
         if (keyboardRow < 5) {
+          if (mouseInput != 0xFF) {
+            // EnterMice data input
+            n &= uint8_t(0xFD | ((mouseInput << 1)
+                                 >> (keyboardRow > 0 ? (keyboardRow - 1) : 4)));
+            n &= uint8_t(0xFB | (keyboardRow == 0 ? (mouseInput >> 3) : 0x04));
+          }
           // external joystick 1 (mapped to keyboard row 14)
-          n = uint8_t((unsigned int) keyboardState[14] >> (4 - keyboardRow));
+          n &= uint8_t((keyboardState[14] >> (4 - keyboardRow)) | 0xFE);
+          n &= uint8_t((keyboardRow == 0 ? (keyboardState[14] >> 5) : 0x02)
+                       | 0xFD);
         }
         else if (keyboardRow < 10) {
           // external joystick 2 (mapped to keyboard row 15)
-          n = uint8_t((unsigned int) keyboardState[15] >> (9 - keyboardRow));
+          n &= uint8_t((keyboardState[15] >> (9 - keyboardRow)) | 0xFE);
+          n &= uint8_t((keyboardRow == 5 ? (keyboardState[15] >> 5) : 0x02)
+                       | 0xFD);
         }
-        // tape input
-        n = uint8_t((n & 0x01) | 0x0E | ((tape_input_level - 1) & 0x40)
-                    | ((tape_input - 1) & 0x80));
         return n;
       }
     }
@@ -826,6 +836,7 @@ namespace Ep128 {
     keyboardRow = 0;
     for (int i = 0; i < 16; i++)
       keyboardState[i] = 0xFF;
+    mouseInput = 0xFF;
   }
 
   Dave::~Dave()
@@ -856,6 +867,7 @@ namespace Ep128 {
       for (int i = 0; i < 16; i++)
         keyboardState[i] = 0xFF;
     }
+    mouseInput = 0xFF;
   }
 
   void Dave::setTapeInput(int state, int level)
@@ -901,7 +913,7 @@ namespace Ep128 {
   void Dave::saveState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
-    buf.writeUInt32(0x01000000);        // version number
+    buf.writeUInt32(0x01000001);        // version number
     buf.writeByte(uint8_t(clockDiv));
     buf.writeByte(uint8_t(clockCnt));
     if (polycntVL_table == t.polycnt9_table)
@@ -1042,6 +1054,7 @@ namespace Ep128 {
     buf.writeByte(uint8_t(keyboardRow));
     for (size_t i = 0; i < 16; i++)
       buf.writeByte(keyboardState[i]);
+    buf.writeByte(mouseInput);
   }
 
   void Dave::saveState(Ep128Emu::File& f)
@@ -1056,7 +1069,7 @@ namespace Ep128 {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
-    if (version != 0x01000000) {
+    if (!(version >= 0x01000000 && version <= 0x01000001)) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible Dave snapshot format");
     }
@@ -1244,6 +1257,10 @@ namespace Ep128 {
     keyboardRow = buf.readByte() & 0x0F;
     for (size_t i = 0; i < 16; i++)
       keyboardState[i] = buf.readByte();
+    if (version >= 0x01000001)
+      mouseInput = buf.readByte();
+    else
+      mouseInput = 0xFF;
     if (buf.getPosition() != buf.getDataSize())
       throw Ep128Emu::Exception("trailing garbage at end of "
                                 "Dave snapshot data");
