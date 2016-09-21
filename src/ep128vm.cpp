@@ -1697,24 +1697,12 @@ namespace Ep128 {
     mouseDeltaY = int8_t(dY_ > -128 ? (dY_ < 127 ? dY_ : 127) : -128);
     mouseButtonState = buttonState;
     if (mouseWheelEvents) {
-      if ((mouseWheelEvents & 0x01) && ((mouseWheelDelta & 0x0F) != 0x07)) {
-        // up
-        mouseWheelDelta = (mouseWheelDelta & 0xF0)
-                          | ((mouseWheelDelta + 1) & 0x0F);
-      }
-      if ((mouseWheelEvents & 0x02) && ((mouseWheelDelta & 0x0F) != 0x08)) {
-        // down
-        mouseWheelDelta = (mouseWheelDelta & 0xF0)
-                          | ((mouseWheelDelta - 1) & 0x0F);
-      }
-      if ((mouseWheelEvents & 0x04) && ((mouseWheelDelta & 0xF0) != 0x70)) {
-        // left
-        mouseWheelDelta = (mouseWheelDelta + 0x10) & 0xFF;
-      }
-      if ((mouseWheelEvents & 0x08) && ((mouseWheelDelta & 0xF0) != 0x80)) {
-        // right
-        mouseWheelDelta = (mouseWheelDelta - 0x10) & 0xFF;
-      }
+      if (mouseWheelEvents & 0x01)      // up
+        mouseWheelDelta = (mouseWheelDelta + 1) & 0xFF;
+      if (mouseWheelEvents & 0x02)      // down
+        mouseWheelDelta = (mouseWheelDelta - 1) & 0xFF;
+      if (((mouseWheelDelta + 0x10) & 0xFF) >= 0x20)    // overflow
+        mouseWheelDelta = ((mouseWheelDelta & 0x80) ? 0xF8 : 0x07);
     }
   }
 
