@@ -760,9 +760,13 @@ void Ep128EmuGUI::sendMouseEvent(bool enableButtons, bool mouseWheelEvent)
   uint8_t mouseWheelEvents = 0x00;
   if (enableButtons) {
     int     tmp = Fl::event_buttons();
-    buttonState = (((tmp & FL_BUTTON1) ? 1 : 0)
-                   | ((tmp & FL_BUTTON2) ? 4 : 0)
-                   | ((tmp & FL_BUTTON3) ? 2 : 0));
+    if (tmp & FL_BUTTONS) {
+      buttonState = ((tmp & FL_BUTTON(FL_LEFT_MOUSE)) ? 0x01 : 0x00)
+                    | ((tmp & FL_BUTTON(FL_RIGHT_MOUSE)) ? 0x02 : 0x00)
+                    | ((tmp & FL_BUTTON(FL_MIDDLE_MOUSE)) ? 0x04 : 0x00)
+                    | ((tmp & FL_BUTTON(4)) ? 0x08 : 0x00)
+                    | ((tmp & FL_BUTTON(5)) ? 0x10 : 0x00);
+    }
   }
   if (mouseWheelEvent) {
     int     dX = Fl::event_dx();
