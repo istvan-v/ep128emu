@@ -1705,7 +1705,7 @@ namespace Ep128 {
       if ((mouseWheelEvents & 0x02) && ((mouseWheelDelta & 0x0F) != 0x08)) {
         // down
         mouseWheelDelta = (mouseWheelDelta & 0xF0)
-                          / ((mouseWheelDelta - 1) & 0x0F);
+                          | ((mouseWheelDelta - 1) & 0x0F);
       }
       if ((mouseWheelEvents & 0x04) && ((mouseWheelDelta & 0xF0) != 0x70)) {
         // left
