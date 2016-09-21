@@ -1132,8 +1132,11 @@ namespace Ep128 {
           vm.dave.setKeyboardState(evtData[0], 0);
           break;
         case 0x03:
+          // FIXME: ugly hack to enable mouse input only from the demo file
+          vm.isPlayingDemo = false;
           vm.setMouseState(int8_t(evtData[0]), int8_t(evtData[1]),
                            evtData[2], evtData[3]);
+          vm.isPlayingDemo = true;
           break;
         }
         vm.demoTimeCnt = vm.demoBuffer.readUIntVLen();
@@ -1674,10 +1677,11 @@ namespace Ep128 {
   void Ep128VM::setMouseState(int8_t dX, int8_t dY,
                               uint8_t buttonState, uint8_t mouseWheelEvents)
   {
-    if (EP128EMU_UNLIKELY(isRecordingDemo)) {
-      if (EP128EMU_UNLIKELY(isPlayingDemo ||
-                            (haveTape() && getIsTapeMotorOn() &&
-                             getTapeButtonState() != 0))) {
+    if (EP128EMU_UNLIKELY(isRecordingDemo | isPlayingDemo)) {
+      if (isPlayingDemo)
+        return;
+      if (EP128EMU_UNLIKELY(haveTape() && getIsTapeMotorOn() &&
+                            getTapeButtonState() != 0)) {
         stopDemoRecording(false);
       }
       else if (mouseEmulationEnabled) {
