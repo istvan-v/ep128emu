@@ -790,7 +790,7 @@ void Ep128EmuGUI::sendMouseEvent(bool enableButtons, bool mouseWheelEvent)
     dY = (dY < 16 ? 16 : dY);
   else if (yPos >= 272)
     dY = (dY > -16 ? -16 : dY);
-  if (dX == 0 && dY == 0 && buttonState == prvMouseButtonState)
+  if ((dX | dY | int(mouseWheelEvents)) == 0 && buttonState == prvMouseButtonState)
     return;
   dX = (dX > -128 ? (dX < 127 ? dX : 127) : -128);
   dY = (dY > -128 ? (dY < 127 ? dY : 127) : -128);
