@@ -1044,7 +1044,14 @@ namespace Ep128 {
     Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
     if ((value ^ vm.prvB7PortState) & 0x02) {
       if (!vm.mouseTimer) {
-        vm.mouseEmulationEnabled = true;
+        if (EP128EMU_UNLIKELY(!vm.mouseEmulationEnabled)) {
+          // mouse data is requested for the first time since reset()
+          vm.mouseEmulationEnabled = true;
+          vm.mouseDeltaX = 0;
+          vm.mouseDeltaY = 0;
+          vm.mouseButtonState = 0x00;
+          vm.mouseWheelDelta = 0x00;
+        }
         vm.setCallback(&mouseTimerCallback, userData, true);
         uint8_t   dx = uint8_t(vm.mouseDeltaX) & 0xFF;
         uint8_t   dy = uint8_t(vm.mouseDeltaY) & 0xFF;
@@ -1667,23 +1674,22 @@ namespace Ep128 {
   void Ep128VM::setMouseState(int8_t dX, int8_t dY,
                               uint8_t buttonState, uint8_t mouseWheelEvents)
   {
-    std::printf("MOUSE: %4d, %4d, 0x%02X, 0x%02X\n", int(dX), int(dY),
-                (unsigned int) buttonState, (unsigned int) mouseWheelEvents);
     if (EP128EMU_UNLIKELY(isRecordingDemo)) {
       if (EP128EMU_UNLIKELY(isPlayingDemo ||
                             (haveTape() && getIsTapeMotorOn() &&
                              getTapeButtonState() != 0))) {
         stopDemoRecording(false);
-        return;
       }
-      demoBuffer.writeUIntVLen(demoTimeCnt);
-      demoTimeCnt = 0U;
-      demoBuffer.writeByte(0x03);       // event type (mouse)
-      demoBuffer.writeByte(0x04);       // number of data bytes
-      demoBuffer.writeByte(uint8_t(dX));
-      demoBuffer.writeByte(uint8_t(dY));
-      demoBuffer.writeByte(buttonState);
-      demoBuffer.writeByte(mouseWheelEvents);
+      else if (mouseEmulationEnabled) {
+        demoBuffer.writeUIntVLen(demoTimeCnt);
+        demoTimeCnt = 0U;
+        demoBuffer.writeByte(0x03);     // event type (mouse)
+        demoBuffer.writeByte(0x04);     // number of data bytes
+        demoBuffer.writeByte(uint8_t(dX));
+        demoBuffer.writeByte(uint8_t(dY));
+        demoBuffer.writeByte(buttonState);
+        demoBuffer.writeByte(mouseWheelEvents);
+      }
     }
     int     dX_ = int(dX) + int(mouseDeltaX);
     int     dY_ = int(dY) + int(mouseDeltaY);
