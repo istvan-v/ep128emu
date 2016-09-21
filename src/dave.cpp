@@ -682,7 +682,7 @@ namespace Ep128 {
           if (keyboardRow == 0) {
             if (mouseInput != 0xFF) {
               // EnterMice buttons (left and right)
-              n &= uint8_t(0xF9 | (mouseInput >> 3));
+              n ^= uint8_t((mouseInput >> 3) & 0x06);
               // EXT1 joystick fire button 1
               n &= uint8_t(0xFE | (keyboardState[14] >> 4));
             }

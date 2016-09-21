@@ -145,7 +145,7 @@ namespace Ep128 {
     int     keyboardRow;
     uint8_t keyboardState[16];
     // b0..b3 = current nibble
-    // b4 = button 1 (left) state
+    // b4 = button 1 (left) state (1 = pressed)
     // b5 = button 2 (right) state
     uint8_t mouseInput;                 // 0xFF = mouse input inactive
     // ----------------
