@@ -679,22 +679,31 @@ namespace Ep128 {
             uint8_t(((tape_input_level - 1) & 0x40) | ((tape_input - 1) & 0x80)
                     | 0x0F);
         if (keyboardRow < 5) {
-          if (mouseInput != 0xFF) {
-            // EnterMice data input
-            n &= uint8_t(0xFD | ((mouseInput << 1)
-                                 >> (keyboardRow > 0 ? (keyboardRow - 1) : 4)));
-            n &= uint8_t(0xFB | (keyboardRow == 0 ? (mouseInput >> 3) : 0x04));
+          if (keyboardRow == 0) {
+            if (mouseInput != 0xFF) {
+              // EnterMice buttons (left and right)
+              n &= uint8_t(0xF9 | (mouseInput >> 3));
+              // EXT1 joystick fire button 1
+              n &= uint8_t(0xFE | (keyboardState[14] >> 4));
+            }
+            else {
+              // EXT1 joystick fire buttons
+              n &= uint8_t(0xFC | (keyboardState[14] >> 4));
+            }
           }
-          // external joystick 1 (mapped to keyboard row 14)
-          n &= uint8_t((keyboardState[14] >> (4 - keyboardRow)) | 0xFE);
-          n &= uint8_t((keyboardRow == 0 ? (keyboardState[14] >> 5) : 0x02)
-                       | 0xFD);
+          else {
+            if (mouseInput != 0xFF)     // EnterMice data input on column K
+              n &= uint8_t(0xFD | ((mouseInput << 1) >> (keyboardRow - 1)));
+            // EXT1 joystick (mapped to row 14)
+            n &= uint8_t(0xFE | (keyboardState[14] >> (4 - keyboardRow)));
+          }
         }
         else if (keyboardRow < 10) {
           // external joystick 2 (mapped to keyboard row 15)
-          n &= uint8_t((keyboardState[15] >> (9 - keyboardRow)) | 0xFE);
-          n &= uint8_t((keyboardRow == 5 ? (keyboardState[15] >> 5) : 0x02)
-                       | 0xFD);
+          if (keyboardRow == 5)         // fire buttons
+            n &= uint8_t(0xFC | (keyboardState[15] >> 4));
+          else
+            n &= uint8_t(0xFE | (keyboardState[15] >> (9 - keyboardRow)));
         }
         return n;
       }
