@@ -35,8 +35,8 @@ General
     per second, and 48000 Hz stereo 16-bit PCM audio
   * saving screenshots as 768x576 8-bit RLE compressed BMP files
   * saving and loading snapshots of the state of the emulated machine
-  * demo recording (snapshot combined with stream of keyboard events
-    which can be played back with accurate timing)
+  * demo recording (snapshot combined with stream of keyboard and mouse
+    events which can be played back with accurate timing)
   * GUI tape editor utility for copying Enterprise files from/to
     ep128emu tape images
   * GUI debugger with support for breakpoints/watchpoints, viewing the
@@ -92,6 +92,8 @@ Enterprise emulation
   * Spectrum emulator card emulation
   * real time clock (at ports 7E, 7F)
   * external 4-channel 8-bit DAC at ports F0 to F3
+  * mouse emulation, an EnterMice device with up to 5 buttons and mouse
+    wheel is emulated in native mode on column K of the keyboard matrix
 
 Spectrum emulation
 ------------------
