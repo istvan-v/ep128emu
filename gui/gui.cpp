@@ -780,25 +780,23 @@ void Ep128EmuGUI::sendMouseEvent(bool enableButtons, bool mouseWheelEvent)
     else if (dX > 0)
       mouseWheelEvents = mouseWheelEvents | 0x08;
   }
-  else if (xPos == prvMouseXPos && yPos == prvMouseYPos &&
-           buttonState == prvMouseButtonState) {
-    return;
-  }
   int     dX = prvMouseXPos - xPos;
   int     dY = prvMouseYPos - yPos;
+  if (xPos < 16)
+    dX = (dX < 16 ? 16 : dX);
+  else if (xPos >= 368)
+    dX = (dX > -16 ? -16 : dX);
+  if (yPos < 16)
+    dY = (dY < 16 ? 16 : dY);
+  else if (yPos >= 272)
+    dY = (dY > -16 ? -16 : dY);
+  if (dX == 0 && dY == 0 && buttonState == prvMouseButtonState)
+    return;
   dX = (dX > -128 ? (dX < 127 ? dX : 127) : -128);
   dY = (dY > -128 ? (dY < 127 ? dY : 127) : -128);
   prvMouseXPos = xPos;
   prvMouseYPos = yPos;
   prvMouseButtonState = buttonState;
-  if (xPos < 16 && !dX)
-    dX = 16;
-  if (xPos >= 368 && !dX)
-    dX = -16;
-  if (yPos < 16 && !dY)
-    dY = 16;
-  if (yPos >= 272 && !dY)
-    dY = -16;
   vmThread.setMouseState(int8_t(dX), int8_t(dY), buttonState, mouseWheelEvents);
 }
 
