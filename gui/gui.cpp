@@ -30,7 +30,12 @@
 #else
 #  include <unistd.h>
 #  include <pthread.h>
+#  if defined(__linux) || defined(__linux__)
+#    include <X11/Xlib.h>
+#  endif
 #endif
+
+#include <FL/x.H>
 
 void Ep128EmuGUI::init_()
 {
@@ -218,8 +223,8 @@ void Ep128EmuGUI::updateDisplay_windowSize()
       mouseYScale *= float(config.mouse.sensitivityY);
       mouseXScale *= float(config.mouse.sensitivityX);
     }
-    mouseXMin = int(w * 16.0f / 384.0f + 0.5f);
-    mouseYMin = int(h * 16.0f / 288.0f + 0.5f);
+    mouseXMin = int(w * (displayMode == 3 ? 24.0f : 16.0f) / 384.0f + 0.5f);
+    mouseYMin = int(h * (displayMode == 3 ? 24.0f : 16.0f) / 288.0f + 0.5f);
     prvMouseXPos = -32768;
     prvMouseYPos = -32768;
   }
@@ -762,6 +767,8 @@ void Ep128EmuGUI::sendMouseEvent(bool enableButtons, bool mouseWheelEvent)
                       | (xPos >= mouseXMin ? 0x00 : 0x04)
                       | (yPos < (emulatorWindow->h() - mouseYMin) ? 0x00 : 0x02)
                       | (yPos >= mouseYMin ? 0x00 : 0x01);
+  xPos = int(float(xPos) * mouseXScale + 0.5f);
+  yPos = int(float(yPos) * mouseYScale + 0.5f);
   uint8_t buttonState = 0x00;
   uint8_t mouseWheelEvents = 0x00;
   if (enableButtons) {
@@ -786,26 +793,44 @@ void Ep128EmuGUI::sendMouseEvent(bool enableButtons, bool mouseWheelEvent)
     else if (dX > 0)
       mouseWheelEvents = mouseWheelEvents | 0x08;
   }
-  int     dX = 0;
-  int     dY = 0;
-  if (EP128EMU_EXPECT(prvMouseXPos != -32768) || (edgeFlags & 0x0C)) {
-    dX = int((float(prvMouseXPos) - float(xPos)) * mouseXScale
-             + (prvMouseXPos < xPos ? -0.5f : 0.5f));
-    if ((edgeFlags & 0x04) && dX < 16)
-      dX = 16;
-    else if ((edgeFlags & 0x08) && dX > -16)
-      dX = -16;
-  }
-  if (EP128EMU_EXPECT(prvMouseYPos != -32768) || (edgeFlags & 0x03)) {
-    dY = int((float(prvMouseYPos) - float(yPos)) * mouseYScale
-             + (prvMouseYPos < yPos ? -0.5f : 0.5f));
-    if ((edgeFlags & 0x01) && dY < 16)
-      dY = 16;
-    else if ((edgeFlags & 0x02) && dY > -16)
-      dY = -16;
-  }
+  int     dX =
+      (EP128EMU_EXPECT(prvMouseXPos != -32768) ? (prvMouseXPos - xPos) : 0);
+  int     dY =
+      (EP128EMU_EXPECT(prvMouseYPos != -32768) ? (prvMouseYPos - yPos) : 0);
   prvMouseXPos = xPos;
   prvMouseYPos = yPos;
+  if (edgeFlags) {
+    // if the pointer is near the edges of the emulator window:
+#if defined(__linux) || defined(__linux__) || defined(WIN32)
+    if (displayMode == 3 && Fl::focus() == emulatorWindow) {
+      // in full screen mode with no menu bar, if the emulator window has the
+      // focus, then warp the pointer to the center of the screen
+      prvMouseXPos = -32768;
+      prvMouseYPos = -32768;
+#  ifdef WIN32
+      SetCursorPos(emulatorWindow->w() >> 1, emulatorWindow->h() >> 1);
+#  else
+      XWarpPointer(fl_display, None, fl_xid(emulatorWindow), 0, 0, 0, 0,
+                   emulatorWindow->w() >> 1, emulatorWindow->h() >> 1);
+      XSync(fl_display, False);
+#  endif
+      prvMouseXPos = -32768;
+      prvMouseYPos = -32768;
+    }
+    else
+#endif
+    {
+      // otherwise, simulate fast motion towards the edges
+      if ((edgeFlags & 0x04) && dX < 16)
+        dX = 16;
+      else if ((edgeFlags & 0x08) && dX > -16)
+        dX = -16;
+      if ((edgeFlags & 0x01) && dY < 16)
+        dY = 16;
+      else if ((edgeFlags & 0x02) && dY > -16)
+        dY = -16;
+    }
+  }
   if ((dX | dY | int(mouseWheelEvents)) == 0 &&
       buttonState == prvMouseButtonState) {
     return;

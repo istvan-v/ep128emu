@@ -459,7 +459,7 @@ Display / Cycle display mode (F9)
     window with no menu bar
     window with menu bar (this is the default)
     fullscreen with menu bar
-    fullscreen with no menu bar
+    fullscreen with no menu bar (recommended for mouse emulation)
 
 Sound / Increase volume
 
