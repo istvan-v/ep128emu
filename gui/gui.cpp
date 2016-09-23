@@ -78,9 +78,9 @@ void Ep128EmuGUI::init_()
   aboutWindow = (Ep128EmuGUI_AboutWindow *) 0;
   savedSpeedPercentage = 0U;
   mouseXScale = 1.0f;
-  mouseXOffset = 0.0f;
   mouseYScale = 1.0f;
-  mouseYOffset = 0.0f;
+  mouseXMin = 0;
+  mouseYMin = 0;
   prvMouseXPos = -32768;
   prvMouseYPos = -32768;
   prvMouseButtonState = 0xFF;
@@ -207,19 +207,21 @@ void Ep128EmuGUI::updateDisplay_windowSize()
     if ((w * config.display.pixelAspectRatio / h) < 1.333333f) {
       // aspect ratio < 4:3, using full window width
       mouseXScale = 384.0f / w;
-      mouseXOffset = 0.001f;
       mouseYScale = mouseXScale / config.display.pixelAspectRatio;
-      mouseYOffset = ((w * 0.75f * config.display.pixelAspectRatio) - h)
-                     * 0.5f * mouseYScale + 0.001f;
+      mouseXScale *= float(config.mouse.sensitivityX);
+      mouseYScale *= float(config.mouse.sensitivityY);
     }
     else {
       // aspect ratio >= 4:3, using full window height
       mouseYScale = 288.0f / h;
-      mouseYOffset = 0.001f;
       mouseXScale = mouseYScale * config.display.pixelAspectRatio;
-      mouseXOffset = ((h * 1.333333f / config.display.pixelAspectRatio) - w)
-                     * 0.5f * mouseXScale + 0.001f;
+      mouseYScale *= float(config.mouse.sensitivityY);
+      mouseXScale *= float(config.mouse.sensitivityX);
     }
+    mouseXMin = int(w * 16.0f / 384.0f + 0.5f);
+    mouseYMin = int(h * 16.0f / 288.0f + 0.5f);
+    prvMouseXPos = -32768;
+    prvMouseYPos = -32768;
   }
 }
 
@@ -754,8 +756,12 @@ void Ep128EmuGUI::resizeWindow(int w, int h)
 
 void Ep128EmuGUI::sendMouseEvent(bool enableButtons, bool mouseWheelEvent)
 {
-  int     xPos = int(float(Fl::event_x()) * mouseXScale + mouseXOffset);
-  int     yPos = int(float(Fl::event_y()) * mouseYScale + mouseYOffset);
+  int     xPos = Fl::event_x();
+  int     yPos = Fl::event_y();
+  uint8_t edgeFlags = (xPos < (emulatorWindow->w() - mouseXMin) ? 0x00 : 0x08)
+                      | (xPos >= mouseXMin ? 0x00 : 0x04)
+                      | (yPos < (emulatorWindow->h() - mouseYMin) ? 0x00 : 0x02)
+                      | (yPos >= mouseYMin ? 0x00 : 0x01);
   uint8_t buttonState = 0x00;
   uint8_t mouseWheelEvents = 0x00;
   if (enableButtons) {
@@ -780,22 +786,32 @@ void Ep128EmuGUI::sendMouseEvent(bool enableButtons, bool mouseWheelEvent)
     else if (dX > 0)
       mouseWheelEvents = mouseWheelEvents | 0x08;
   }
-  int     dX = prvMouseXPos - xPos;
-  int     dY = prvMouseYPos - yPos;
-  if (xPos < 16)
-    dX = (dX < 16 ? 16 : dX);
-  else if (xPos >= 368)
-    dX = (dX > -16 ? -16 : dX);
-  if (yPos < 16)
-    dY = (dY < 16 ? 16 : dY);
-  else if (yPos >= 272)
-    dY = (dY > -16 ? -16 : dY);
-  if ((dX | dY | int(mouseWheelEvents)) == 0 && buttonState == prvMouseButtonState)
-    return;
-  dX = (dX > -128 ? (dX < 127 ? dX : 127) : -128);
-  dY = (dY > -128 ? (dY < 127 ? dY : 127) : -128);
+  int     dX = 0;
+  int     dY = 0;
+  if (EP128EMU_EXPECT(prvMouseXPos != -32768) || (edgeFlags & 0x0C)) {
+    dX = int((float(prvMouseXPos) - float(xPos)) * mouseXScale
+             + (prvMouseXPos < xPos ? -0.5f : 0.5f));
+    if ((edgeFlags & 0x04) && dX < 16)
+      dX = 16;
+    else if ((edgeFlags & 0x08) && dX > -16)
+      dX = -16;
+  }
+  if (EP128EMU_EXPECT(prvMouseYPos != -32768) || (edgeFlags & 0x03)) {
+    dY = int((float(prvMouseYPos) - float(yPos)) * mouseYScale
+             + (prvMouseYPos < yPos ? -0.5f : 0.5f));
+    if ((edgeFlags & 0x01) && dY < 16)
+      dY = 16;
+    else if ((edgeFlags & 0x02) && dY > -16)
+      dY = -16;
+  }
   prvMouseXPos = xPos;
   prvMouseYPos = yPos;
+  if ((dX | dY | int(mouseWheelEvents)) == 0 &&
+      buttonState == prvMouseButtonState) {
+    return;
+  }
+  dX = (dX > -128 ? (dX < 127 ? dX : 127) : -128);
+  dY = (dY > -128 ? (dY < 127 ? dY : 127) : -128);
   prvMouseButtonState = buttonState;
   vmThread.setMouseState(int8_t(dX), int8_t(dY), buttonState, mouseWheelEvents);
 }

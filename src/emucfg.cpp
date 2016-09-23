@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -282,6 +282,13 @@ namespace Ep128Emu {
         &configChangeCallback<double>, (void *) &joystickSettingsChanged, true);
     (*this)["joystick.autoFirePulseWidth"].setCallback(
         &configChangeCallback<double>, (void *) &joystickSettingsChanged, true);
+    // ----------------
+    defineConfigurationVariable(*this, "mouse.sensitivityX",
+                                mouse.sensitivityX, 1.0,
+                                mouseSettingsChanged, 0.5, 2.0);
+    defineConfigurationVariable(*this, "mouse.sensitivityY",
+                                mouse.sensitivityY, 1.0,
+                                mouseSettingsChanged, 0.5, 2.0);
     // ----------------
     for (int i = 0; i < 4; i++) {
       FloppyDriveSettings *floppy_ = (FloppyDriveSettings *) 0;
@@ -582,6 +589,8 @@ namespace Ep128Emu {
       }
       keyboardMapChanged = false;
     }
+    if (mouseSettingsChanged)
+      mouseSettingsChanged = false;
     if (floppyAChanged) {
       try {
         vm_.setDiskImageFile(0, floppy.a.imageFile,

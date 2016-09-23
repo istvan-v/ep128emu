@@ -83,9 +83,9 @@ class Ep128EmuGUI {open
   decl {char windowTitleBuf[48];} {}
   decl {unsigned int savedSpeedPercentage;} {}
   decl {float mouseXScale;} {}
-  decl {float mouseXOffset;} {}
   decl {float mouseYScale;} {}
-  decl {float mouseYOffset;} {}
+  decl {int mouseXMin;} {}
+  decl {int mouseYMin;} {}
   decl {int prvMouseXPos;} {}
   decl {int prvMouseYPos;} {}
   decl {int prvMouseButtonState;} {}
