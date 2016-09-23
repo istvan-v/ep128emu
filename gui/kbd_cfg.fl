@@ -3,20 +3,24 @@ version 1.0109
 do_not_include_H_from_C 
 header_name {.hpp} 
 code_name {.cpp}
-decl {\#include "gui.hpp"} {selected
+decl {\#include "gui.hpp"} {selected private local
 } 
 
-decl {\#ifdef WIN32} {} 
+decl {\#ifdef WIN32} {private local
+} 
 
-decl {\#define WIN32_LEAN_AND_MEAN 1} {} 
+decl {\#define WIN32_LEAN_AND_MEAN 1} {private local
+} 
 
-decl {\#include <windows.h>} {} 
+decl {\#include <windows.h>} {private local
+} 
 
-decl {\#endif} {} 
+decl {\#endif} {private local
+} 
 
 class Ep128EmuGUI_KbdDefineWindow {open : {public Fl_Double_Window}
 } {
-  decl {int keyCode_;} {public
+  decl {int keyCode_;} {public local
   }
   Function {Ep128EmuGUI_KbdDefineWindow(int xx, int yy, int ww, int hh, const char *lbl_ = (char *) 0) : Fl_Double_Window(xx, yy, ww, hh, lbl_)} {open
   } {
@@ -64,7 +68,8 @@ class Ep128EmuGUI_KbdDefineWindow {open : {public Fl_Double_Window}
 
 class Ep128EmuGUI_KbdConfigWindow {open
 } {
-  decl {Ep128EmuGUI& gui;} {}
+  decl {Ep128EmuGUI& gui;} {private local
+  }
   Function {Ep128EmuGUI_KbdConfigWindow(Ep128EmuGUI& gui_) : gui(gui_)} {open
   } {
     Fl_Window window {
@@ -704,6 +709,20 @@ class Ep128EmuGUI_KbdConfigWindow {open
 }}
           xywh {380 275 25 25} box ROUND_UP_BOX color 80 selection_color 88 labelsize 11 labelcolor 55
         }
+        Fl_Button {} {
+          label F2
+          callback {{
+  defineKey(0x75, "Joy 1 fire 2");
+}}
+          xywh {425 320 20 20} box ROUND_UP_BOX color 80 selection_color 88 labelsize 11 labelcolor 55
+        }
+        Fl_Button {} {
+          label F3
+          callback {{
+  defineKey(0x76, "Joy 1 fire 3");
+}}
+          xywh {425 235 20 20} box ROUND_UP_BOX color 80 selection_color 88 labelsize 11 labelcolor 55
+        }
       }
       Fl_Group {} {
         label {Joystick 2} open
@@ -746,6 +765,20 @@ class Ep128EmuGUI_KbdConfigWindow {open
   defineKey(0x7C, "Joy 2 fire");
 }}
           xywh {495 275 25 25} box ROUND_UP_BOX color 80 selection_color 88 labelsize 11 labelcolor 55
+        }
+        Fl_Button {} {
+          label F2
+          callback {{
+  defineKey(0x7D, "Joy 2 fire 2");
+}}
+          xywh {540 320 20 20} box ROUND_UP_BOX color 80 selection_color 88 labelsize 11 labelcolor 55
+        }
+        Fl_Button {} {
+          label F3
+          callback {{
+  defineKey(0x7E, "Joy 2 fire 3");
+}}
+          xywh {540 235 20 20} box ROUND_UP_BOX color 80 selection_color 88 labelsize 11 labelcolor 55
         }
       }
       Fl_Button {} {
