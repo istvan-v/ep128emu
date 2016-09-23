@@ -688,7 +688,7 @@ namespace Ep128 {
             }
             else {
               // EXT1 joystick fire buttons
-              n &= uint8_t(0xFC | (keyboardState[14] >> 4));
+              n &= uint8_t(0xF8 | (keyboardState[14] >> 4));
             }
           }
           else {
@@ -701,7 +701,7 @@ namespace Ep128 {
         else if (keyboardRow < 10) {
           // external joystick 2 (mapped to keyboard row 15)
           if (keyboardRow == 5)         // fire buttons
-            n &= uint8_t(0xFC | (keyboardState[15] >> 4));
+            n &= uint8_t(0xF8 | (keyboardState[15] >> 4));
           else
             n &= uint8_t(0xFE | (keyboardState[15] >> (9 - keyboardRow)));
         }
