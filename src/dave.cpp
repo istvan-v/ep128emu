@@ -21,39 +21,21 @@
 #include "dave.hpp"
 #include <cmath>
 
-// calculate parity of 'n'
-// returns 0 if parity is even, and 1 if parity is odd
+// Generate polynomial counter of 'b0' + 1 bits length, and store
+// (2 ^ (b0 + 1) - 1) samples at 'tabptr' in reverse order.
+// 'b1' is the second bit to be used in the XOR operation when calculating
+// the next bit of output.
 
-static int parity_32(uint32_t n)
+static void calculate_polycnt(uint8_t *tabptr,
+                              unsigned char b0, unsigned char b1)
 {
-    n = n ^ (n >> 1);
-    n = n ^ (n >> 2);
-    n = n ^ (n >> 4);
-    n = n ^ (n >> 8);
-    n = n ^ (n >> 16);
-
-    return int(n & 1);
-}
-
-// generate polynomial counter of 'nbits' length, and store
-// ((2 ^ nbits) - 1) samples at 'tabptr'
-// the table will be played back in reverse order, so the 'poly' constant
-// should be set to a value that reproduces the output of a tone channel
-// sampling the polynomial counter of 'nbits' length on a real DAVE chip,
-// with a frequency code of (((2 ^ nbits) - 3) + (k * ((2 ^ nbits) - 1))),
-// where k is any integer
-
-static void calculate_polycnt(uint8_t *tabptr, int nbits, int poly)
-{
-    int i, j, k;
-
-    j = 0x7FFFFFFF;
-    k = 1;
-    for (i = 0; i < ((1 << nbits) - 1); i++) {
-      k = (k ^ (int) parity_32((uint32_t) (j & poly))) & 1;
-      j = (j << 1) | k;
-      tabptr[i] = (uint8_t) k;
-    }
+  uint32_t  sr = 0xFFFFFFFFU;
+  int       n = (1 << (b0 + 1)) - 1;
+  while (--n >= 0) {
+    uint32_t  b = ((sr >> b0) ^ (sr >> b1)) & 1U;
+    sr = (sr << 1) | b;
+    tabptr[n] = uint8_t(b);
+  }
 }
 
 namespace Ep128 {
@@ -95,20 +77,20 @@ namespace Ep128 {
         delete[] polycnt17_table;
       throw;
     }
-    // 4-bit polynomial counter (poly = 8)
-    calculate_polycnt(polycnt4_table, 4, 8);
-    // 5-bit polynomial counter (poly = 19)
-    calculate_polycnt(polycnt5_table, 5, 19);
-    // 7-bit polynomial counter (poly = 64)
-    calculate_polycnt(polycnt7_table, 7, 64);
-    // 9-bit polynomial counter (poly = 265)
-    calculate_polycnt(polycnt9_table, 9, 265);
-    // 11-bit polynomial counter (poly = 1027)
-    calculate_polycnt(polycnt11_table, 11, 1027);
-    // 15-bit polynomial counter (poly = 16384)
-    calculate_polycnt(polycnt15_table, 15, 16384);
-    // 17-bit polynomial counter (poly = 65541)
-    calculate_polycnt(polycnt17_table, 17, 65541);
+    // 4-bit polynomial counter (poly = 11001)
+    calculate_polycnt(polycnt4_table, 3, 2);
+    // 5-bit polynomial counter (poly = 101001)
+    calculate_polycnt(polycnt5_table, 4, 2);
+    // 7-bit polynomial counter (poly = 11000001)
+    calculate_polycnt(polycnt7_table, 6, 5);
+    // 9-bit polynomial counter (poly = 1000100001)
+    calculate_polycnt(polycnt9_table, 8, 4);
+    // 11-bit polynomial counter (poly = 101000000001)
+    calculate_polycnt(polycnt11_table, 10, 8);
+    // 15-bit polynomial counter (poly = 1100000000000001)
+    calculate_polycnt(polycnt15_table, 14, 13);
+    // 17-bit polynomial counter (poly = 100100000000000001)
+    calculate_polycnt(polycnt17_table, 16, 13);
   }
 
   DaveTables::~DaveTables()
@@ -158,16 +140,23 @@ namespace Ep128 {
     // update polynomial counters
     if (--polycnt4_phase < 0)                   // 4-bit
       polycnt4_phase = 14;
+    polycnt4_state = (int) t.polycnt4_table[polycnt4_phase];
     if (--polycnt5_phase < 0)                   // 5-bit
       polycnt5_phase = 30;
+    polycnt5_state = (int) t.polycnt5_table[polycnt5_phase];
     if (!noise_polycnt_is_7bit) {
       // channel 3 uses the variable length polynomial counter
       if (--polycnt7_phase < 0)                 // 7-bit
         polycnt7_phase = 126;
+      polycnt7_state = (int) t.polycnt7_table[polycnt7_phase];
       // channel 3 polynomial counter: updated on negative edge
       if (*chn3_clk_source < chn3_clk_source_prv) {
         if (--polycntVL_phase < 0)              // variable length
           polycntVL_phase = polycntVL_maxphase;
+        polycntVL_state = (int) polycntVL_table[polycntVL_phase];
+        chn3_state1 = polycntVL_state;          // input signal to channel 3
+        if (!chn3_lp_2)
+          chn3_state2 = polycntVL_state;
       }
       chn3_clk_source_prv = *chn3_clk_source;
     }
@@ -177,16 +166,16 @@ namespace Ep128 {
         // update on negative edge
         if (--polycnt7_phase < 0)               // 7-bit
           polycnt7_phase = 126;
+        polycnt7_state = (int) t.polycnt7_table[polycnt7_phase];
+        chn3_state1 = polycnt7_state;           // input signal to channel 3
+        if (!chn3_lp_2)
+          chn3_state2 = polycnt7_state;
       }
       chn3_clk_source_prv = *chn3_clk_source;
       if (--polycntVL_phase < 0)                // variable length
         polycntVL_phase = polycntVL_maxphase;
+      polycntVL_state = (int) polycntVL_table[polycntVL_phase];
     }
-    // read polynomial counter tables
-    polycnt4_state = (int) t.polycnt4_table[polycnt4_phase];
-    polycnt5_state = (int) t.polycnt5_table[polycnt5_phase];
-    polycnt7_state = (int) t.polycnt7_table[polycnt7_phase];
-    polycntVL_state = (int) polycntVL_table[polycntVL_phase];
 
     // update the phase of all oscillators
     clk_62500_phase--;
@@ -225,8 +214,7 @@ namespace Ep128 {
     }
     // ---- channel 3 ----
     chn3_prv = chn3_state;                      // save previous output
-    chn3_state1 = *chn3_input_polycnt;          // get input signal
-    if (!chn3_lp_2 || (chn2_state < chn2_prv)) {
+    if (chn3_lp_2 && (chn2_state < chn2_prv)) {
       // lowpass filter holds signal until negative edge in channel 2
       chn3_state2 = chn3_state1;
     }
