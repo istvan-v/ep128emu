@@ -10,6 +10,8 @@ Changes in version 2.0.10
     second and third fire button, configured as keys 0x75-0x76 (EXT1)
     and 0x7D-0x7E (EXT2)
   * more accurate emulation of NICK port reading and floating data bus
+  * improved timing accuracy of NICK and DAVE port I/O (this may break
+    compatibility with some demo files recorded with older versions)
   * new Lua functions: writeROM(), writeWordROM(), and loadROMSegment()
   * building with Lua 5.2 or 5.3 is now supported
   * added support for building 64-bit Windows binaries

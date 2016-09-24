@@ -127,7 +127,8 @@ namespace Ep128 {
     Dave_     dave;
     Nick_     nick;
     uint8_t   pageTable[4];
-    int64_t   nickCyclesRemaining;      // in 2^-32 NICK cycle units
+    uint32_t  nickCyclesRemainingL;     // in 2^-32 NICK cycle units
+    int32_t   nickCyclesRemainingH;
     int64_t   cpuCyclesPerNickCycle;    // in 2^-32 Z80 cycle units
     int64_t   cpuCyclesRemaining;       // in 2^-32 Z80 cycle units
     int64_t   daveCyclesPerNickCycle;   // in 2^-32 DAVE cycle units
@@ -217,6 +218,8 @@ namespace Ep128 {
     EP128EMU_REGPARM1 void videoMemoryWait();
     EP128EMU_REGPARM1 void videoMemoryWait_M1();
     EP128EMU_REGPARM1 void videoMemoryWait_IO();
+    // called from the Z80 emulation to synchronize NICK and DAVE with the CPU
+    EP128EMU_REGPARM1 void runDevices();
     static uint8_t davePortReadCallback(void *userData, uint16_t addr);
     static void davePortWriteCallback(void *userData,
                                       uint16_t addr, uint8_t value);
