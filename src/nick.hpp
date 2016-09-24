@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -50,6 +50,7 @@ namespace Ep128 {
     bool      msbAlt;           // +2 to palette index if b7 of bitmap is set
     uint8_t   leftMargin;
     uint8_t   rightMargin;
+    uint8_t   dataBusState;
     uint8_t   palette[16];      // 0..7 from LPB, 8..15 from FIXBIAS
     // ----------------
     uint16_t  ld1Addr;          // LD1 current address
@@ -179,7 +180,6 @@ class x : public NickRenderer {                 \
     NickRendererTable   renderers;
     uint8_t   currentSlot;      // 0 to 56
     uint8_t   borderColor;
-    uint8_t   dataBusState;
     // bit 7: 1 until the end of line if port 83h bit 6 has changed to 1
     // bit 6: 1 until the end of line if port 83h bit 7 is 0 and bit 6 is 1
     uint8_t   lptFlags;
@@ -191,6 +191,7 @@ class x : public NickRenderer {                 \
     uint8_t   port3Value;       // last value written to port 83h
     // --------
     void clearLineBuffer();
+    EP128EMU_REGPARM1 void renderSlot_noData(); // render from floating bus
    protected:
     /*!
      * Called when the IRQ state changes, with a true parameter when the

@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -228,6 +228,7 @@ namespace Ep128 {
         uint8_t b2 = videoMemory[lpb.ld1Addr];
         lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
         uint8_t altColorMask2 = 0x00;
+        lpb.dataBusState = b2;
         if (lpb.altInd0) {
           altColorMask2 = (b2 & 0x40) >> 4;
         }
@@ -269,6 +270,7 @@ namespace Ep128 {
         lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
         uint8_t b = videoMemory[lpb.ld2Addr];
         lpb.ld2Addr = (lpb.ld2Addr + 1) & 0xFFFF;
+        lpb.dataBusState = b;
         if (lpb.lsbAlt)
           b = b & 0xFE;
         if (lpb.msbAlt)
@@ -330,6 +332,7 @@ namespace Ep128 {
         }
         uint8_t   b = videoMemory[a];
         uint8_t   altColorMask = 0x00;
+        lpb.dataBusState = b;
         if (lpb.altInd0) {
           altColorMask = (c & 0x40) >> 4;
         }
@@ -370,6 +373,7 @@ namespace Ep128 {
         uint8_t b = videoMemory[lpb.ld1Addr];
         lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
         uint8_t altColorMask = 0x00;
+        lpb.dataBusState = b;
         if (lpb.altInd0) {
           altColorMask = (b & 0x40) >> 4;
         }
@@ -419,6 +423,7 @@ namespace Ep128 {
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t   b2 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b2;
     renderBytes2Colors(buf, b1, b2, 0, 0);
   }
 
@@ -428,6 +433,7 @@ namespace Ep128 {
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t   b2 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b2;
     renderBytes2Colors(buf,
                        b1 & 0xFE, b2 & 0xFE,
                        (b1 & 0x01) << 2, (b2 & 0x01) << 2);
@@ -439,6 +445,7 @@ namespace Ep128 {
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t   b2 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b2;
     renderBytes2Colors(buf,
                        b1 & 0x7F, b2 & 0x7F,
                        (b1 & 0x80) >> 6, (b2 & 0x80) >> 6);
@@ -451,6 +458,7 @@ namespace Ep128 {
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t   b2 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b2;
     renderBytes2Colors(buf,
                        b1 & 0x7E, b2 & 0x7E,
                        ((b1 & 0x80) >> 6) | ((b1 & 0x01) << 2),
@@ -463,6 +471,7 @@ namespace Ep128 {
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t   b2 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b2;
     renderBytes4Colors(buf, b1, b2, 0, 0);
   }
 
@@ -472,6 +481,7 @@ namespace Ep128 {
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t   b2 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b2;
     renderBytes4Colors(buf,
                        b1 & 0xFE, b2 & 0xFE,
                        (b1 & 0x01) << 2, (b2 & 0x01) << 2);
@@ -483,6 +493,7 @@ namespace Ep128 {
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t   b2 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b2;
     renderBytes16Colors(buf, b1, b2);
   }
 
@@ -492,13 +503,14 @@ namespace Ep128 {
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t   b2 = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b2;
     renderBytes256Colors(buf, b1, b2);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_ATTRIBUTE::doRender(uint8_t*& buf)
   {
-    renderBytesAttribute(buf,
-                         videoMemory[lpb.ld2Addr], videoMemory[lpb.ld1Addr]);
+    lpb.dataBusState = videoMemory[lpb.ld2Addr];
+    renderBytesAttribute(buf, lpb.dataBusState, videoMemory[lpb.ld1Addr]);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     lpb.ld2Addr = (lpb.ld2Addr + 1) & 0xFFFF;
   }
@@ -506,96 +518,108 @@ namespace Ep128 {
   EP128EMU_REGPARM2 void NickRenderer_CH256_2::doRender(uint8_t*& buf)
   {
     uint8_t ch = videoMemory[lpb.ld1Addr];
-    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch)];
+    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
     renderByte2ColorsL(buf, b, 0);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_CH256_4::doRender(uint8_t*& buf)
   {
     uint8_t ch = videoMemory[lpb.ld1Addr];
-    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch)];
+    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
     renderByte4ColorsL(buf, b, 0);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_CH256_16::doRender(uint8_t*& buf)
   {
     uint8_t ch = videoMemory[lpb.ld1Addr];
-    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch)];
+    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
     renderByte16ColorsL(buf, b);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_CH256_256::doRender(uint8_t*& buf)
   {
     uint8_t ch = videoMemory[lpb.ld1Addr];
-    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch)];
+    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
     renderByte256ColorsL(buf, b);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_CH128_2::doRender(uint8_t*& buf)
   {
     uint8_t ch = videoMemory[lpb.ld1Addr];
-    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x7F)];
+    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
     renderByte2ColorsL(buf, b, 0);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_CH128_2_ALTIND1::doRender(uint8_t*& buf)
   {
     uint8_t ch = videoMemory[lpb.ld1Addr];
-    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x7F)];
+    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
     renderByte2ColorsL(buf, b, (ch & 0x80) >> 6);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_CH128_4::doRender(uint8_t*& buf)
   {
     uint8_t ch = videoMemory[lpb.ld1Addr];
-    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x7F)];
+    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
     renderByte4ColorsL(buf, b, 0);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_CH128_16::doRender(uint8_t*& buf)
   {
     uint8_t ch = videoMemory[lpb.ld1Addr];
-    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x7F)];
+    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
     renderByte16ColorsL(buf, b);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_CH128_256::doRender(uint8_t*& buf)
   {
     uint8_t ch = videoMemory[lpb.ld1Addr];
-    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x7F)];
+    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
     renderByte256ColorsL(buf, b);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_CH64_2::doRender(uint8_t*& buf)
   {
     uint8_t ch = videoMemory[lpb.ld1Addr];
-    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x3F)];
+    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
     renderByte2ColorsL(buf, b, 0);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_CH64_2_ALTIND0::doRender(uint8_t*& buf)
   {
     uint8_t ch = videoMemory[lpb.ld1Addr];
-    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x3F)];
+    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
     renderByte2ColorsL(buf, b, (ch & 0x40) >> 4);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_CH64_2_ALTIND1::doRender(uint8_t*& buf)
   {
     uint8_t ch = videoMemory[lpb.ld1Addr];
-    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x3F)];
+    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
     renderByte2ColorsL(buf, b, (ch & 0x80) >> 6);
   }
 
@@ -603,94 +627,107 @@ namespace Ep128 {
       NickRenderer_CH64_2_ALTIND0_ALTIND1::doRender(uint8_t*& buf)
   {
     uint8_t ch = videoMemory[lpb.ld1Addr];
-    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x3F)];
+    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
     renderByte2ColorsL(buf, b, ((ch & 0x80) >> 6) + ((ch & 0x40) >> 4));
   }
 
   EP128EMU_REGPARM2 void NickRenderer_CH64_4::doRender(uint8_t*& buf)
   {
     uint8_t ch = videoMemory[lpb.ld1Addr];
-    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x3F)];
+    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
     renderByte4ColorsL(buf, b, 0);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_CH64_4_ALTIND0::doRender(uint8_t*& buf)
   {
     uint8_t ch = videoMemory[lpb.ld1Addr];
-    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x3F)];
+    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
     renderByte4ColorsL(buf, b, (ch & 0x40) >> 4);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_CH64_16::doRender(uint8_t*& buf)
   {
     uint8_t ch = videoMemory[lpb.ld1Addr];
-    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x3F)];
+    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
     renderByte16ColorsL(buf, b);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_CH64_256::doRender(uint8_t*& buf)
   {
     uint8_t ch = videoMemory[lpb.ld1Addr];
-    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
     uint8_t b = videoMemory[lpb.ld2Addr | uint16_t(ch & 0x3F)];
+    lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
     renderByte256ColorsL(buf, b);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_LPIXEL_2::doRender(uint8_t*& buf)
   {
-    renderByte2ColorsL(buf, videoMemory[lpb.ld1Addr], 0);
+    lpb.dataBusState = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    renderByte2ColorsL(buf, lpb.dataBusState, 0);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_LPIXEL_2_LSBALT::doRender(uint8_t*& buf)
   {
     uint8_t b = videoMemory[lpb.ld1Addr];
-    renderByte2ColorsL(buf, b & 0xFE, (b & 0x01) << 2);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
+    renderByte2ColorsL(buf, b & 0xFE, (b & 0x01) << 2);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_LPIXEL_2_MSBALT::doRender(uint8_t*& buf)
   {
     uint8_t b = videoMemory[lpb.ld1Addr];
-    renderByte2ColorsL(buf, b & 0x7F, (b & 0x80) >> 6);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
+    renderByte2ColorsL(buf, b & 0x7F, (b & 0x80) >> 6);
   }
 
   EP128EMU_REGPARM2 void
       NickRenderer_LPIXEL_2_LSBALT_MSBALT::doRender(uint8_t*& buf)
   {
     uint8_t b = videoMemory[lpb.ld1Addr];
-    renderByte2ColorsL(buf, b & 0x7E, ((b & 0x80) >> 6) | ((b & 0x01) << 2));
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
+    renderByte2ColorsL(buf, b & 0x7E, ((b & 0x80) >> 6) | ((b & 0x01) << 2));
   }
 
   EP128EMU_REGPARM2 void NickRenderer_LPIXEL_4::doRender(uint8_t*& buf)
   {
-    renderByte4ColorsL(buf, videoMemory[lpb.ld1Addr], 0);
+    lpb.dataBusState = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    renderByte4ColorsL(buf, lpb.dataBusState, 0);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_LPIXEL_4_LSBALT::doRender(uint8_t*& buf)
   {
     uint8_t b = videoMemory[lpb.ld1Addr];
-    renderByte4ColorsL(buf, b & 0xFE, (b & 0x01) << 2);
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    lpb.dataBusState = b;
+    renderByte4ColorsL(buf, b & 0xFE, (b & 0x01) << 2);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_LPIXEL_16::doRender(uint8_t*& buf)
   {
-    renderByte16ColorsL(buf, videoMemory[lpb.ld1Addr]);
+    lpb.dataBusState = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    renderByte16ColorsL(buf, lpb.dataBusState);
   }
 
   EP128EMU_REGPARM2 void NickRenderer_LPIXEL_256::doRender(uint8_t*& buf)
   {
-    renderByte256ColorsL(buf, videoMemory[lpb.ld1Addr]);
+    lpb.dataBusState = videoMemory[lpb.ld1Addr];
     lpb.ld1Addr = (lpb.ld1Addr + 1) & 0xFFFF;
+    renderByte256ColorsL(buf, lpb.dataBusState);
   }
 
   // --------------------------------------------------------------------------
@@ -908,130 +945,183 @@ namespace Ep128 {
 
   // --------------------------------------------------------------------------
 
+  EP128EMU_REGPARM1 void Nick::renderSlot_noData()
+  {
+    if (currentSlot < 8) {
+      // FIXME: this is a hack for the case when slot 7 is not border,
+      // on the real machine it is still HBLANK
+      *(lineBufPtr++) = 0x01;
+      // assume zero data bytes
+      *(lineBufPtr++) =
+          ((lpb.colorMode != 3 && lpb.videoMode != 0) ? lpb.palette[0] : 0x00);
+    }
+    else {
+      // in slot >= 54, repeat the last data byte from the bus
+      uint16_t  savedLD1 = lpb.ld1Addr;
+      uint16_t  savedLD2 = lpb.ld2Addr;
+      uint8_t   b0 = videoMemory[0xFFFE];
+      uint8_t   b1 = videoMemory[0xFFFF];
+      lpb.ld1Addr = 0xFFFE;
+      lpb.ld2Addr = 0xFFFE;
+      const_cast< uint8_t * >(videoMemory)[0xFFFE] = lpb.dataBusState;
+      const_cast< uint8_t * >(videoMemory)[0xFFFF] = lpb.dataBusState;
+      if (lpb.videoMode >= 3 && lpb.videoMode < 6) {
+        // replace character modes with invalid mode to force LD2=0xFFFF
+        uint8_t savedVideoMode = lpb.videoMode;
+        lpb.videoMode = 6;
+        renderers.getRenderer(lpb).doRender(lineBufPtr);
+        lpb.videoMode = savedVideoMode;
+      }
+      else {
+        currentRenderer->doRender(lineBufPtr);
+      }
+      const_cast< uint8_t * >(videoMemory)[0xFFFE] = b0;
+      const_cast< uint8_t * >(videoMemory)[0xFFFF] = b1;
+      lpb.ld1Addr = savedLD1;
+      lpb.ld2Addr = savedLD2;
+    }
+    lpb.ld1Addr = (lpb.ld1Addr + uint16_t(lpb.videoMode != 0)
+                   + uint16_t(lpb.videoMode == 1)) & 0xFFFF;
+    lpb.ld2Addr = (lpb.ld2Addr + uint16_t(lpb.videoMode == 2)) & 0xFFFF;
+  }
+
   void Nick::runOneSlot()
   {
-    if (currentSlot == lpb.rightMargin) {
+    if (EP128EMU_UNLIKELY(currentSlot == lpb.rightMargin)) {
       currentRenderer = (NickRenderer *) 0;
       if (vsyncFlag) {
         vsyncFlag = false;
         vsyncStateChange(false, currentSlot);
       }
     }
-    else if (currentSlot == lpb.leftMargin) {
+    else if (EP128EMU_UNLIKELY(currentSlot == lpb.leftMargin)) {
       currentRenderer = &(renderers.getRenderer(lpb));
       bool  wasVsync = vsyncFlag;
       vsyncFlag = (lpb.videoMode == 0);
       if (vsyncFlag != wasVsync)
         vsyncStateChange(vsyncFlag, currentSlot);
     }
-    switch (currentSlot) {
-    case 0:                             // slots 0 to 7: read LPB
-      {
-        lpb.nLines = 256 - int(videoMemory[lptCurrentAddr + 0]);
-        uint8_t modeByte = videoMemory[lptCurrentAddr + 1];
-        bool    irqState = bool(modeByte & 0x80);
-        if (irqState != lpb.interruptFlag) {
-          lpb.interruptFlag = irqState;
-          irqStateChange(irqState);
+    if (EP128EMU_UNLIKELY(!(currentSlot >= 8 && currentSlot < 54))) {
+      switch (currentSlot) {
+      case 0:                           // slots 0 to 7: read LPB
+        {
+          lpb.nLines = 256 - int(videoMemory[lptCurrentAddr + 0]);
+          uint8_t modeByte = videoMemory[lptCurrentAddr + 1];
+          bool    irqState = bool(modeByte & 0x80);
+          lpb.dataBusState = modeByte;
+          if (irqState != lpb.interruptFlag) {
+            lpb.interruptFlag = irqState;
+            irqStateChange(irqState);
+          }
+          lpb.colorMode = (modeByte >> 5) & 3;
+          lpb.vresMode = bool(modeByte & 0x10);
+          lpb.videoMode = (modeByte >> 1) & 7;
+          borderColor = (lpb.videoMode != 0 ? savedBorderColor : uint8_t(0));
+          lpb.reloadFlag = bool(modeByte & 0x01);
+          if (vsyncFlag && lpb.videoMode != 0) {
+            vsyncFlag = false;
+            vsyncStateChange(false, currentSlot);
+          }
         }
-        lpb.colorMode = (modeByte >> 5) & 3;
-        lpb.vresMode = bool(modeByte & 0x10);
-        lpb.videoMode = (modeByte >> 1) & 7;
-        borderColor = (lpb.videoMode != 0 ? savedBorderColor : uint8_t(0));
-        lpb.reloadFlag = bool(modeByte & 0x01);
-        if (vsyncFlag && lpb.videoMode != 0) {
-          vsyncFlag = false;
-          vsyncStateChange(false, currentSlot);
+        break;
+      case 1:
+        lpb.leftMargin = videoMemory[lptCurrentAddr + 2];
+        lpb.lsbAlt = bool(lpb.leftMargin & 0x40);
+        lpb.msbAlt = bool(lpb.leftMargin & 0x80);
+        lpb.leftMargin &= 0x3F;
+        lpb.rightMargin = videoMemory[lptCurrentAddr + 3];
+        lpb.altInd1 = bool(lpb.rightMargin & 0x40);
+        lpb.altInd0 = bool(lpb.rightMargin & 0x80);
+        lpb.dataBusState = lpb.rightMargin;
+        lpb.rightMargin &= 0x3F;
+        break;
+      case 2:
+        lpb.dataBusState = videoMemory[lptCurrentAddr + 5];
+        if (linesRemaining <= 0 || !lpb.vresMode) {
+          lpb.ld1Addr = uint16_t(videoMemory[lptCurrentAddr + 4])
+                        | (uint16_t(lpb.dataBusState) << 8);
         }
+        break;
+      case 3:
+        {
+          uint16_t  ld2Base = videoMemory[lptCurrentAddr + 6];
+          lpb.dataBusState = videoMemory[lptCurrentAddr + 7];
+          ld2Base = ld2Base | (uint16_t(lpb.dataBusState) << 8);
+          switch (lpb.videoMode) {
+          case 3:               // CH256
+            ld2Base = (ld2Base << 8) & 0xFF00;
+            lpb.ld2Addr = (lpb.ld2Addr + 0x0100) & 0xFFFF;
+            break;
+          case 4:               // CH128
+            ld2Base = (ld2Base << 7) & 0xFF80;
+            lpb.ld2Addr = (lpb.ld2Addr + 0x0080) & 0xFFFF;
+            break;
+          case 5:               // CH64
+            ld2Base = (ld2Base << 6) & 0xFFC0;
+            lpb.ld2Addr = (lpb.ld2Addr + 0x0040) & 0xFFFF;
+            break;
+          }
+          if (linesRemaining <= 0) {
+            lpb.ld2Addr = ld2Base;
+            linesRemaining = lpb.nLines;
+          }
+        }
+        break;
+      case 4:
+        lpb.palette[0] = videoMemory[lptCurrentAddr + 8];
+        lpb.palette[1] = videoMemory[lptCurrentAddr + 9];
+        lpb.dataBusState = lpb.palette[1];
+        break;
+      case 5:
+        lpb.palette[2] = videoMemory[lptCurrentAddr + 10];
+        lpb.palette[3] = videoMemory[lptCurrentAddr + 11];
+        lpb.dataBusState = lpb.palette[3];
+        break;
+      case 6:
+        lpb.palette[4] = videoMemory[lptCurrentAddr + 12];
+        lpb.palette[5] = videoMemory[lptCurrentAddr + 13];
+        lpb.dataBusState = lpb.palette[5];
+        break;
+      case 7:
+        lpb.palette[6] = videoMemory[lptCurrentAddr + 14];
+        lpb.palette[7] = videoMemory[lptCurrentAddr + 15];
+        lpb.dataBusState = lpb.palette[7];
+        lineBufPtr = lineBuf;           // begin display area
+      case 54:
+        if (EP128EMU_EXPECT(!currentRenderer)) {
+          *(lineBufPtr++) = 0x01;
+          *(lineBufPtr++) = borderColor;
+        }
+        else {
+          renderSlot_noData();
+        }
+        break;
+      case 55:                          // end of display area
+        drawLine(lineBuf, size_t(lineBufPtr - lineBuf));
+        break;
+      case 56:
+        linesRemaining--;
+        if (linesRemaining == 0 || (lptFlags & 0x80) != 0) {
+          if (port3Value & 0x40) {
+            if (!(uint8_t(lpb.reloadFlag) | (lptFlags & 0x40)))
+              lptCurrentAddr = (lptCurrentAddr + 0x0010) & 0xFFF0;
+            else
+              lptCurrentAddr = lptBaseAddr;
+          }
+        }
+        lptFlags = (port3Value & ((~port3Value) >> 1)) & 0x40;
+        currentSlot = 0xFF;
+        break;
       }
-      break;
-    case 1:
-      lpb.leftMargin = videoMemory[lptCurrentAddr + 2];
-      lpb.lsbAlt = bool(lpb.leftMargin & 0x40);
-      lpb.msbAlt = bool(lpb.leftMargin & 0x80);
-      lpb.leftMargin &= 0x3F;
-      lpb.rightMargin = videoMemory[lptCurrentAddr + 3];
-      lpb.altInd1 = bool(lpb.rightMargin & 0x40);
-      lpb.altInd0 = bool(lpb.rightMargin & 0x80);
-      lpb.rightMargin &= 0x3F;
-      break;
-    case 2:
-      if (linesRemaining <= 0 || !lpb.vresMode) {
-        lpb.ld1Addr = uint16_t(videoMemory[lptCurrentAddr + 4])
-                      | (uint16_t(videoMemory[lptCurrentAddr + 5]) << 8);
-      }
-      break;
-    case 3:
-      {
-        uint16_t  ld2Base = videoMemory[lptCurrentAddr + 6];
-        ld2Base = ld2Base | (uint16_t(videoMemory[lptCurrentAddr + 7]) << 8);
-        switch (lpb.videoMode) {
-        case 3:                 // CH256
-          ld2Base = (ld2Base << 8) & 0xFF00;
-          lpb.ld2Addr = (lpb.ld2Addr + 0x0100) & 0xFFFF;
-          break;
-        case 4:                 // CH128
-          ld2Base = (ld2Base << 7) & 0xFF80;
-          lpb.ld2Addr = (lpb.ld2Addr + 0x0080) & 0xFFFF;
-          break;
-        case 5:                 // CH64
-          ld2Base = (ld2Base << 6) & 0xFFC0;
-          lpb.ld2Addr = (lpb.ld2Addr + 0x0040) & 0xFFFF;
-          break;
-        }
-        if (linesRemaining <= 0) {
-          lpb.ld2Addr = ld2Base;
-          linesRemaining = lpb.nLines;
-        }
-      }
-      break;
-    case 4:
-      lpb.palette[0] = videoMemory[lptCurrentAddr + 8];
-      lpb.palette[1] = videoMemory[lptCurrentAddr + 9];
-      break;
-    case 5:
-      lpb.palette[2] = videoMemory[lptCurrentAddr + 10];
-      lpb.palette[3] = videoMemory[lptCurrentAddr + 11];
-      break;
-    case 6:
-      lpb.palette[4] = videoMemory[lptCurrentAddr + 12];
-      lpb.palette[5] = videoMemory[lptCurrentAddr + 13];
-      break;
-    case 7:
-      lpb.palette[6] = videoMemory[lptCurrentAddr + 14];
-      lpb.palette[7] = videoMemory[lptCurrentAddr + 15];
-      lineBufPtr = lineBuf;             // begin display area
-      break;
-    case 55:                            // end of display area
-      drawLine(lineBuf, size_t(lineBufPtr - lineBuf));
-      break;
-    case 56:
-      linesRemaining--;
-      if (linesRemaining == 0 || (lptFlags & 0x80) != 0) {
-        if (port3Value & 0x40) {
-          if (!(uint8_t(lpb.reloadFlag) | (lptFlags & 0x40)))
-            lptCurrentAddr = (lptCurrentAddr + 0x0010) & 0xFFF0;
-          else
-            lptCurrentAddr = lptBaseAddr;
-        }
-      }
-      lptFlags = (port3Value & ((~port3Value) >> 1)) & 0x40;
-      currentSlot = 0xFF;
-      break;
-    }
-    if (!currentRenderer) {
-      *(lineBufPtr++) = 0x01;
-      *(lineBufPtr++) = borderColor;
-    }
-    else if (EP128EMU_EXPECT(currentSlot >= 8 && currentSlot < 54)) {
-      currentRenderer->doRender(lineBufPtr);
     }
     else {
-      uint8_t dummyBuf[16];
-      uint8_t *dummyBufPtr = &(dummyBuf[0]);
-      currentRenderer->doRender(dummyBufPtr);
-      *(lineBufPtr++) = 0x01;
-      *(lineBufPtr++) = lpb.palette[0];
+      if (!currentRenderer) {
+        *(lineBufPtr++) = 0x01;
+        *(lineBufPtr++) = borderColor;
+      }
+      else {
+        currentRenderer->doRender(lineBufPtr);
+      }
     }
     currentSlot++;
   }
@@ -1051,6 +1141,7 @@ namespace Ep128 {
     lpb.msbAlt = false;
     lpb.leftMargin = 8;
     lpb.rightMargin = 54;
+    lpb.dataBusState = 0xFF;
     for (size_t i = 0; i < 16; i++)
       lpb.palette[i] = 0;
     lpb.ld1Addr = 0;
@@ -1062,7 +1153,6 @@ namespace Ep128 {
     currentRenderer = (NickRenderer*) 0;
     currentSlot = 0;
     borderColor = 0;
-    dataBusState = 0xFF;
     lptFlags = 0x00;
     savedBorderColor = 0;
     vsyncFlag = false;
@@ -1116,12 +1206,12 @@ namespace Ep128 {
   uint8_t Nick::readPort(uint16_t portNum)
   {
     (void) portNum;
-    return dataBusState;
+    return lpb.dataBusState;
   }
 
   void Nick::writePort(uint16_t portNum, uint8_t value)
   {
-    dataBusState = value;
+    lpb.dataBusState = value;
     switch (portNum & 3) {
     case 0:
       port0Value = value;
@@ -1259,7 +1349,7 @@ namespace Ep128 {
       buf.writeBoolean(false);
     buf.writeByte(currentSlot);
     buf.writeByte(savedBorderColor);
-    buf.writeByte(dataBusState);
+    buf.writeByte(lpb.dataBusState);
     buf.writeByte(lptFlags);
     buf.writeByte(port0Value);
     buf.writeByte(port3Value);
@@ -1312,7 +1402,7 @@ namespace Ep128 {
       currentSlot = uint8_t(buf.readByte() % 57U);
       savedBorderColor = buf.readByte();
       borderColor = (lpb.videoMode != 0 ? savedBorderColor : uint8_t(0));
-      dataBusState = buf.readByte();
+      lpb.dataBusState = buf.readByte();
       clearLineBuffer();
       lineBufPtr = &(lineBuf[(currentSlot >= 7 ?
                               (currentSlot - 7) : (currentSlot + 50)) << 1]);
