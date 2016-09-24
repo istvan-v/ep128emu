@@ -204,7 +204,7 @@ namespace Ep128 {
       if (enable_int_snd)
         triggerIntSnd();
     }
-    if (clk_1_phase < 0) {
+    if (EP128EMU_UNLIKELY(clk_1_phase < 0)) {
       clk_1_phase = clk_1_frq;                          // reload counter
       int_1hz_state = (int_1hz_state & 1) ^ 1;          // invert state
       if (enable_int_1hz)
@@ -212,9 +212,9 @@ namespace Ep128 {
     }
 
     // reload phase counters if necessary
-    if (clk_1000_phase < 0)
+    if (EP128EMU_UNLIKELY(clk_1000_phase < 0))
       clk_1000_phase = clk_1000_frq;
-    if (clk_50_phase < 0)
+    if (EP128EMU_UNLIKELY(clk_50_phase < 0))
       clk_50_phase = clk_50_frq;
 
     // calculate oscillator outputs
@@ -649,29 +649,15 @@ namespace Ep128 {
     case 0x14:
       {
         // interrupt state
-        uint8_t n = 0;
-        if (int_snd_state)
-          n |= 0x01;
-        if (int_snd_active)
-          n |= 0x02;
-        if (int_1hz_state)
-          n |= 0x04;
-        if (int_1hz_active)
-          n |= 0x08;
-        if (int_1_state)
-          n |= 0x10;
-        if (int_1_active)
-          n |= 0x20;
-        if (int_2_state)
-          n |= 0x40;
-        if (int_2_active)
-          n |= 0x80;
-        return n;
+        return uint8_t((int_snd_state | (int_snd_active << 1))
+                       | ((int_1hz_state | (int_1hz_active << 1)) << 2)
+                       | ((int_1_state | (int_1_active << 1)) << 4)
+                       | ((int_2_state | (int_2_active << 1)) << 6));
       }
       break;
     case 0x15:
       // read currently selected keyboard row
-      return keyboardState[keyboardRow];
+      return (keyboardRow < 10 ? keyboardState[keyboardRow] : 0xFF);
     case 0x16:
       {
         // tape input
