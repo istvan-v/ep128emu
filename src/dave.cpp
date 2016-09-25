@@ -26,7 +26,7 @@
 // log2(m1) is the second bit to be used in the XOR operation when
 // calculating the next bit of output.
 
-static void calculate_polycnt(uint8_t *tabptr, int32_t m0, uint32_t m1)
+static void calculate_polycnt(uint8_t *tabptr, uint32_t m0, uint32_t m1)
 {
   uint32_t  sr = 0xFFFFFFFFU;
   int       n = int(m0 << 1) - 1;
