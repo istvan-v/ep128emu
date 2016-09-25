@@ -21,20 +21,20 @@
 #include "dave.hpp"
 #include <cmath>
 
-// Generate polynomial counter of 'b0' + 1 bits length, and store
-// (2 ^ (b0 + 1) - 1) samples at 'tabptr' in reverse order.
-// 'b1' is the second bit to be used in the XOR operation when calculating
-// the next bit of output.
+// Generate polynomial counter of log2(m0) + 1 bits length, and store
+// (m0 * 2 - 1) samples at 'tabptr' in reverse order.
+// log2(m1) is the second bit to be used in the XOR operation when
+// calculating the next bit of output.
 
-static void calculate_polycnt(uint8_t *tabptr,
-                              unsigned char b0, unsigned char b1)
+static void calculate_polycnt(uint8_t *tabptr, int32_t m0, uint32_t m1)
 {
   uint32_t  sr = 0xFFFFFFFFU;
-  int       n = (1 << (b0 + 1)) - 1;
+  int       n = int(m0 << 1) - 1;
   while (--n >= 0) {
-    uint32_t  b = ((sr >> b0) ^ (sr >> b1)) & 1U;
-    sr = (sr << 1) | b;
-    tabptr[n] = uint8_t(b);
+    uint8_t b0 = uint8_t(bool(sr & m0));
+    uint8_t b1 = uint8_t(bool(sr & m1));
+    tabptr[n] = b0;
+    sr = (sr << 1) | uint32_t(b0 ^ b1);
   }
 }
 
@@ -44,71 +44,32 @@ namespace Ep128 {
 
   DaveTables::DaveTables()
   {
-    polycnt4_table = (uint8_t*) 0;
-    polycnt5_table = (uint8_t*) 0;
-    polycnt7_table = (uint8_t*) 0;
-    polycnt9_table = (uint8_t*) 0;
-    polycnt11_table = (uint8_t*) 0;
-    polycnt15_table = (uint8_t*) 0;
-    polycnt17_table = (uint8_t*) 0;
-    try {
-      polycnt4_table = new uint8_t[15];
-      polycnt5_table = new uint8_t[31];
-      polycnt7_table = new uint8_t[127];
-      polycnt9_table = new uint8_t[511];
-      polycnt11_table = new uint8_t[2047];
-      polycnt15_table = new uint8_t[32767];
-      polycnt17_table = new uint8_t[131071];
+    static const uint32_t polycnt_params[14] = {
+      0x00000008U, 0x00000004U,         // 4-bit: poly = 11001
+      0x00000010U, 0x00000004U,         // 5-bit: poly = 101001
+      0x00000040U, 0x00000020U,         // 7-bit: poly = 11000001
+      0x00000100U, 0x00000010U,         // 9-bit: poly = 1000100001
+      0x00000400U, 0x00000100U,         // 11-bit: poly = 101000000001
+      0x00004000U, 0x00002000U,         // 15-bit: poly = 1100000000000001
+      0x00010000U, 0x00002000U          // 17-bit: poly = 100100000000000001
+    };
+    polycnt4_table = new uint8_t[15 + 31 + 127 + 511 + 2047 + 32767 + 131071];
+    polycnt5_table = &(polycnt4_table[15]);
+    polycnt7_table = &(polycnt5_table[31]);
+    polycnt9_table = &(polycnt7_table[127]);
+    polycnt11_table = &(polycnt9_table[511]);
+    polycnt15_table = &(polycnt11_table[2047]);
+    polycnt17_table = &(polycnt15_table[32767]);
+    uint8_t *bufp = polycnt4_table;
+    for (int i = 0; i < 14; i += 2) {
+      calculate_polycnt(bufp, polycnt_params[i], polycnt_params[i + 1]);
+      bufp = bufp + ((polycnt_params[i] << 1) - 1U);
     }
-    catch (...) {
-      if (polycnt4_table)
-        delete[] polycnt4_table;
-      if (polycnt5_table)
-        delete[] polycnt5_table;
-      if (polycnt7_table)
-        delete[] polycnt7_table;
-      if (polycnt9_table)
-        delete[] polycnt9_table;
-      if (polycnt11_table)
-        delete[] polycnt11_table;
-      if (polycnt15_table)
-        delete[] polycnt15_table;
-      if (polycnt17_table)
-        delete[] polycnt17_table;
-      throw;
-    }
-    // 4-bit polynomial counter (poly = 11001)
-    calculate_polycnt(polycnt4_table, 3, 2);
-    // 5-bit polynomial counter (poly = 101001)
-    calculate_polycnt(polycnt5_table, 4, 2);
-    // 7-bit polynomial counter (poly = 11000001)
-    calculate_polycnt(polycnt7_table, 6, 5);
-    // 9-bit polynomial counter (poly = 1000100001)
-    calculate_polycnt(polycnt9_table, 8, 4);
-    // 11-bit polynomial counter (poly = 101000000001)
-    calculate_polycnt(polycnt11_table, 10, 8);
-    // 15-bit polynomial counter (poly = 1100000000000001)
-    calculate_polycnt(polycnt15_table, 14, 13);
-    // 17-bit polynomial counter (poly = 100100000000000001)
-    calculate_polycnt(polycnt17_table, 16, 13);
   }
 
   DaveTables::~DaveTables()
   {
-    if (polycnt4_table)
-      delete[] polycnt4_table;
-    if (polycnt5_table)
-      delete[] polycnt5_table;
-    if (polycnt7_table)
-      delete[] polycnt7_table;
-    if (polycnt9_table)
-      delete[] polycnt9_table;
-    if (polycnt11_table)
-      delete[] polycnt11_table;
-    if (polycnt15_table)
-      delete[] polycnt15_table;
-    if (polycnt17_table)
-      delete[] polycnt17_table;
+    delete[] polycnt4_table;
   }
 
   // handle timer interrupts

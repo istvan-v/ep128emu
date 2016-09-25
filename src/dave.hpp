@@ -28,13 +28,13 @@ namespace Ep128 {
    public:
     // tables for polynomial counters
     // (note: the table data is stored in reverse order)
-    uint8_t *polycnt4_table;        // length = 15,     poly = 0x00000008
-    uint8_t *polycnt5_table;        // length = 31,     poly = 0x00000013
-    uint8_t *polycnt7_table;        // length = 127,    poly = 0x00000040
-    uint8_t *polycnt9_table;        // length = 511,    poly = 0x00000109
-    uint8_t *polycnt11_table;       // length = 2047,   poly = 0x00000403
-    uint8_t *polycnt15_table;       // length = 32767,  poly = 0x00004000
-    uint8_t *polycnt17_table;       // length = 131071, poly = 0x00010005
+    uint8_t *polycnt4_table;        // length = 15,     poly = 0x0000000C
+    uint8_t *polycnt5_table;        // length = 31,     poly = 0x00000014
+    uint8_t *polycnt7_table;        // length = 127,    poly = 0x00000060
+    uint8_t *polycnt9_table;        // length = 511,    poly = 0x00000110
+    uint8_t *polycnt11_table;       // length = 2047,   poly = 0x00000500
+    uint8_t *polycnt15_table;       // length = 32767,  poly = 0x00006000
+    uint8_t *polycnt17_table;       // length = 131071, poly = 0x00012000
     // ----------------
     DaveTables();
     ~DaveTables();
