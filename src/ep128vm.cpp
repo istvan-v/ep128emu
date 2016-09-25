@@ -274,17 +274,19 @@ namespace Ep128 {
 
   EP128EMU_REGPARM3 void Ep128VM::Z80_::doOut(uint16_t addr, uint8_t value)
   {
-    if (EP128EMU_EXPECT(vm.cpuCyclesRemaining < -(vm.cpuCyclesPerNickCycle)))
+    vm.cpuCyclesRemaining -= (int64_t(3) << 32);
+    if (vm.cpuCyclesRemaining < -(vm.cpuCyclesPerNickCycle))
       vm.runDevices();
-    vm.cpuCyclesRemaining -= (int64_t(4) << 32);
+    vm.cpuCyclesRemaining -= (int64_t(1) << 32);
     vm.ioPorts.write(addr, value);
   }
 
   EP128EMU_REGPARM2 uint8_t Ep128VM::Z80_::doIn(uint16_t addr)
   {
-    if (EP128EMU_EXPECT(vm.cpuCyclesRemaining < -(vm.cpuCyclesPerNickCycle)))
+    vm.cpuCyclesRemaining -= (int64_t(3) << 32);
+    if (vm.cpuCyclesRemaining < -(vm.cpuCyclesPerNickCycle))
       vm.runDevices();
-    vm.cpuCyclesRemaining -= (int64_t(4) << 32);
+    vm.cpuCyclesRemaining -= (int64_t(1) << 32);
     return vm.ioPorts.read(addr);
   }
 
