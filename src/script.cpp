@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
 // Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -799,7 +799,8 @@ namespace Ep128Emu {
       this_.luaError("invalid number of arguments for getR()");
       return 0;
     }
-    lua_pushinteger(lst, lua_Integer(this_.z80Registers.R));
+    lua_pushinteger(lst, lua_Integer(this_.z80Registers.RBit7
+                                     | (this_.z80Registers.R & 0x7F)));
     return 1;
   }
 
@@ -1243,7 +1244,9 @@ namespace Ep128Emu {
       return 0;
     }
     Ep128::Z80_REGISTERS& r = this_.vm.getZ80Registers();
-    r.R = Ep128::Z80_BYTE(lua_tointeger(lst, 1) & 0xFF);
+    uint8_t tmp = uint8_t(lua_tointeger(lst, 1) & 0xFF);
+    r.RBit7 = tmp & 0x80;
+    r.R = tmp & 0x7F;
     return 0;
   }
 

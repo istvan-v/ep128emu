@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -356,8 +356,10 @@ void Ep128EmuGUIMonitor::command_setRegisters(const std::vector<std::string>&
       r.IM = Ep128::Z80_BYTE(regValues[4]);
     if (nValues > 5)
       r.I = Ep128::Z80_BYTE(regValues[5]);
-    if (nValues > 6)
-      r.R = Ep128::Z80_BYTE(regValues[6]);
+    if (nValues > 6) {
+      r.R = Ep128::Z80_BYTE(regValues[6] & 0x7FU);
+      r.RBit7 = Ep128::Z80_BYTE(regValues[6] & 0x80U);
+    }
     this->move_up();
     printCPURegisters2();
   }
@@ -1183,7 +1185,8 @@ void Ep128EmuGUIMonitor::printCPURegisters2()
   std::sprintf(&(tmpBuf[0]), ";;    %04X %04X %04X %04X  %02X   %02X   %02X",
                (unsigned int) r.altAF.W, (unsigned int) r.altBC.W,
                (unsigned int) r.altDE.W, (unsigned int) r.altHL.W,
-               (unsigned int) r.IM, (unsigned int) r.I, (unsigned int) r.R);
+               (unsigned int) r.IM, (unsigned int) r.I,
+               (unsigned int) (r.RBit7 | (r.R & 0x7F)));
   printMessage(&(tmpBuf[0]));
 }
 
