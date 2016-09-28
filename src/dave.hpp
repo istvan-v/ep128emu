@@ -145,9 +145,9 @@ namespace Ep128 {
     int     keyboardRow;
     uint8_t keyboardState[16];
     // b0..b3 = current nibble
-    // b4 = button 1 (left) state (1 = pressed)
+    // b4 = button 1 (left) state (0 = pressed)
     // b5 = button 2 (right) state
-    uint8_t mouseInput;                 // 0xFF = mouse input inactive
+    uint8_t mouseInput;                 // b7 == 1: mouse data bits inactive
     // ----------------
     inline void triggerIntSnd();
     inline void triggerInt1Hz();
@@ -233,6 +233,11 @@ namespace Ep128 {
     inline void setMouseInput(uint8_t value)
     {
       mouseInput = value;
+    }
+    inline void clearMouseInput()
+    {
+      // clear data bits, but not the buttons
+      mouseInput = mouseInput | 0xCF;
     }
     /*!
      * Reset DAVE.

@@ -231,7 +231,7 @@ namespace Ep128 {
         if (mouseTimer)
           setCallback(&mouseTimerCallback, this, true);
         else
-          dave.setMouseInput(0xFF);
+          dave.clearMouseInput();
       }
       else {
         // snapshot from old version without mouse emulation

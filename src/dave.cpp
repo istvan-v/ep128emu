@@ -336,7 +336,7 @@ namespace Ep128 {
           return (&polycntVL_state);    // variable length
         }
     }
-    // defaunt to square wave
+    // default to square wave
     return (int*) NULL;
   }
 
@@ -615,19 +615,13 @@ namespace Ep128 {
                     | 0x0F);
         if (keyboardRow < 5) {
           if (keyboardRow == 0) {
-            if (mouseInput != 0xFF) {
-              // EnterMice buttons (left and right)
-              n ^= uint8_t((mouseInput >> 3) & 0x06);
-              // EXT1 joystick fire button 1
-              n &= uint8_t(0xFE | (keyboardState[14] >> 4));
-            }
-            else {
-              // EXT1 joystick fire buttons
-              n &= uint8_t(0xF8 | (keyboardState[14] >> 4));
-            }
+            // EnterMice buttons (left and right)
+            n &= uint8_t(0xF9 | (mouseInput >> 3));
+            // EXT1 joystick fire buttons
+            n &= uint8_t(0xF8 | (keyboardState[14] >> 4));
           }
           else {
-            if (mouseInput != 0xFF)     // EnterMice data input on column K
+            if (!(mouseInput & 0x80))   // EnterMice data input on column K
               n &= uint8_t(0xFD | ((mouseInput << 1) >> (keyboardRow - 1)));
             // EXT1 joystick (mapped to row 14)
             n &= uint8_t(0xFE | (keyboardState[14] >> (4 - keyboardRow)));
@@ -693,74 +687,31 @@ namespace Ep128 {
   {
     clockDiv = 2;
     clockCnt = 1;
-    polycntVL_table = t.polycnt17_table;
-    polycnt4_phase = 0;
-    polycnt5_phase = 0;
-    polycnt7_phase = 0;
-    polycntVL_phase = 0;
-    polycntVL_maxphase = 131070;
     polycnt4_state = 0;
     polycnt5_state = 0;
     polycnt7_state = 0;
     polycntVL_state = 0;
-    clk_62500_phase = 0;
-    clk_1000_phase = 0;
-    clk_50_phase = 0;
-    clk_1_phase = 0;
     clk_62500_state = 0;
     chn0_state = 0;
     chn0_prv = 0;
     chn0_state1 = 0;
-    chn0_phase = 0;
     chn0_frqcode = 0;
-    chn0_input_polycnt = (int*) 0;
-    chn0_hp_1 = 0;
-    chn0_rm_2 = 0;
     chn0_run = 1;
-    chn0_left = 0;
-    chn0_right = 0;
     chn1_state = 0;
     chn1_prv = 0;
     chn1_state1 = 0;
-    chn1_phase = 0;
     chn1_frqcode = 0;
-    chn1_input_polycnt = (int*) 0;
-    chn1_hp_2 = 0;
-    chn1_rm_3 = 0;
     chn1_run = 1;
-    chn1_left = 0;
-    chn1_right = 0;
     chn2_state = 0;
     chn2_prv = 0;
     chn2_state1 = 0;
-    chn2_phase = 0;
     chn2_frqcode = 0;
-    chn2_input_polycnt = (int*) 0;
-    chn2_hp_3 = 0;
-    chn2_rm_0 = 0;
     chn2_run = 1;
-    chn2_left = 0;
-    chn2_right = 0;
     chn3_state = 0;
     chn3_prv = 0;
     chn3_state1 = 0;
     chn3_state2 = 0;
-    chn3_clk_source = &clk_62500_state;
     chn3_clk_source_prv = 0;
-    noise_polycnt_is_7bit = 0;
-    chn3_input_polycnt = &polycntVL_state;
-    chn3_lp_2 = 0;
-    chn3_hp_0 = 0;
-    chn3_rm_1 = 0;
-    chn3_left = 0;
-    chn3_right = 0;
-    dac_mode_left = 0;
-    dac_mode_right = 0;
-    int_snd_phase = &clk_1000_phase;
-    enable_int_snd = 0;
-    enable_int_1hz = 0;
-    enable_int_1 = 0;
-    enable_int_2 = 0;
     int_snd_state = 0;
     int_1hz_state = 0;
     int_1_state = 1;
@@ -770,17 +721,9 @@ namespace Ep128 {
     int_1_active = 0;
     int_2_active = 0;
     audioOutput = 0;
-    page0Segment = 0;
-    page1Segment = 0;
-    page2Segment = 0;
-    page3Segment = 0;
-    tape_feedback = 1;
     tape_input = 0;
     tape_input_level = 0;
-    keyboardRow = 0;
-    for (int i = 0; i < 16; i++)
-      keyboardState[i] = 0xFF;
-    mouseInput = 0xFF;
+    this->reset(true);
   }
 
   Dave::~Dave()
@@ -857,7 +800,7 @@ namespace Ep128 {
   void Dave::saveState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
-    buf.writeUInt32(0x01000001);        // version number
+    buf.writeUInt32(0x01000002);        // version number
     buf.writeByte(uint8_t(clockDiv));
     buf.writeByte(uint8_t(clockCnt));
     if (polycntVL_table == t.polycnt9_table)
@@ -1013,7 +956,7 @@ namespace Ep128 {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
-    if (!(version >= 0x01000000 && version <= 0x01000001)) {
+    if (!(version >= 0x01000000 && version <= 0x01000002)) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible Dave snapshot format");
     }
@@ -1202,7 +1145,7 @@ namespace Ep128 {
     for (size_t i = 0; i < 16; i++)
       keyboardState[i] = buf.readByte();
     if (version >= 0x01000001)
-      mouseInput = buf.readByte();
+      mouseInput = buf.readByte() ^ (version >= 0x01000002 ? 0x00 : 0x30);
     else
       mouseInput = 0xFF;
     if (buf.getPosition() != buf.getDataSize())

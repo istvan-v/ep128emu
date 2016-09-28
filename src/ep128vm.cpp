@@ -1101,7 +1101,7 @@ namespace Ep128 {
       // send next nibble to DAVE (port 0xB6)
       uint8_t daveInput = uint8_t(vm.mouseData >> 60) & 0x0F;
       vm.mouseData = vm.mouseData << 4;
-      daveInput = daveInput | ((vm.mouseButtonState & 0x03) << 4);
+      daveInput = daveInput | (((~vm.mouseButtonState) & 0x03) << 4);
       vm.dave.setMouseInput(daveInput);
       // 1500 us
       vm.mouseTimer = (uint32_t(vm.nickFrequency) * 1573U + 0x00080000U) >> 20;
@@ -1120,7 +1120,7 @@ namespace Ep128 {
     vm.mouseTimer = 0U;
     vm.mouseData = 0ULL;
     vm.setCallback(&mouseTimerCallback, userData, false);
-    vm.dave.setMouseInput(0xFF);
+    vm.dave.clearMouseInput();
   }
 
   void Ep128VM::tapeCallback(void *userData)
@@ -1733,6 +1733,8 @@ namespace Ep128 {
     mouseDeltaX = int8_t(dX_ > -128 ? (dX_ < 127 ? dX_ : 127) : -128);
     mouseDeltaY = int8_t(dY_ > -128 ? (dY_ < 127 ? dY_ : 127) : -128);
     mouseButtonState = buttonState;
+    if (!(mouseTimer | (buttonState & 0x03)))
+      dave.setMouseInput(0xFF);
     if (mouseWheelEvents) {
       if (mouseWheelEvents & 0x01)      // up
         mouseWheelDelta = (mouseWheelDelta + 1) & 0xFF;
