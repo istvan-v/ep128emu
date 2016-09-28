@@ -41,13 +41,12 @@
 #define Z80_SUBTRACT_FLAG                       0x002
 #define Z80_CARRY_FLAG                          0x001
 
-#define Z80_CHECK_INTERRUPT_FLAG                0x0001
 #define Z80_EXECUTE_INTERRUPT_HANDLER_FLAG      0x0002
 #define Z80_EXECUTING_HALT_FLAG                 0x0004
 #define Z80_INTERRUPT_FLAG                      0x0008
 #define Z80_NMI_FLAG                            0x0010
 #define Z80_SET_PC_FLAG                         0x0020
-#define Z80_FLAGS_MASK                          0x003F
+#define Z80_FLAGS_MASK                          0x003E
 
 #ifndef CPC_LSB_FIRST
 #  if defined(__i386__) || defined(__x86_64__) || defined(WIN32)
@@ -331,6 +330,25 @@ namespace Ep128 {
     virtual EP128EMU_REGPARM1 void updateCycle();
     virtual EP128EMU_REGPARM2 void updateCycles(int cycles);
     virtual EP128EMU_REGPARM1 void tapePatch();
+   private:
+    EP128EMU_INLINE void checkInterrupts()
+    {
+      if (EP128EMU_UNLIKELY(R.Flags & (Z80_EXECUTE_INTERRUPT_HANDLER_FLAG
+                                       | Z80_NMI_FLAG | Z80_SET_PC_FLAG))) {
+        if (EP128EMU_EXPECT(!(R.Flags & (Z80_NMI_FLAG | Z80_SET_PC_FLAG)))) {
+          if (R.IFF1)
+            executeInterrupt();
+        }
+        else {
+          this->NMI();
+        }
+      }
+    }
+    EP128EMU_INLINE void checkNMI()
+    {
+      if (EP128EMU_UNLIKELY(R.Flags & (Z80_NMI_FLAG | Z80_SET_PC_FLAG)))
+        this->NMI();
+    }
   };
 
 }       // namespace Ep128

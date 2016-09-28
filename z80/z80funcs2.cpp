@@ -190,11 +190,7 @@ namespace Ep128 {
     R.IFF2 = 0;
     R.RBit7 = 0;
     R.R = 0;
-    R.Flags &= ~
-        (Z80_EXECUTING_HALT_FLAG |
-         Z80_CHECK_INTERRUPT_FLAG |
-         Z80_EXECUTE_INTERRUPT_HANDLER_FLAG | Z80_INTERRUPT_FLAG |
-         Z80_NMI_FLAG | Z80_SET_PC_FLAG);
+    R.Flags = 0;
     newPCAddress = -1;
   }
 
@@ -362,15 +358,12 @@ namespace Ep128 {
     if (!(R.AF.B.l & Z80_PARITY_FLAG))
       return;
     // handle the IRQ here and then update the parity flag if needed
-    if (EP128EMU_UNLIKELY(R.Flags & (Z80_EXECUTE_INTERRUPT_HANDLER_FLAG
-                                     | Z80_NMI_FLAG | Z80_SET_PC_FLAG))) {
+    if (EP128EMU_UNLIKELY(R.Flags & Z80_EXECUTE_INTERRUPT_HANDLER_FLAG)) {
       if (EP128EMU_EXPECT(!(R.Flags & (Z80_NMI_FLAG | Z80_SET_PC_FLAG)))) {
         if (R.IFF1) {
-          if (R.Flags & Z80_CHECK_INTERRUPT_FLAG) {
-            executeInterrupt();
-            if (!R.IFF2)
-              R.AF.B.l = R.AF.B.l & (~Z80_PARITY_FLAG);
-          }
+          executeInterrupt();
+          if (!R.IFF2)
+            R.AF.B.l = R.AF.B.l & (~Z80_PARITY_FLAG);
         }
       }
     }

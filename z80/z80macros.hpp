@@ -818,12 +818,8 @@
 }
 
 #define PrefixIgnore()                                                  \
-        R.Flags &= ~Z80_CHECK_INTERRUPT_FLAG;                           \
         R.PC.W.l++;                                                     \
         INC_REFRESH(1)
-
-/*---------------------------*/
-/* pop a word from the stack */
 
 /*-------------------------*/
 /* put a word on the stack */
@@ -1134,12 +1130,10 @@
 #define DI()                                                            \
 {                                                                       \
         R.IFF1 = R.IFF2 = 0;                                            \
-        R.Flags &= ~Z80_CHECK_INTERRUPT_FLAG;                           \
 }
 
 #define EI()                                                            \
 {                                                                       \
         R.IFF1 = R.IFF2 = 1;                                            \
-        R.Flags &= ~Z80_CHECK_INTERRUPT_FLAG;                           \
 }
 
