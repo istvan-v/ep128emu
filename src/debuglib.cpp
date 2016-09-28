@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "ep128emu.hpp"
 #include "vm.hpp"
 #include "debuglib.hpp"
+#include "z80/z80.hpp"
 
 #include <vector>
 
@@ -1550,6 +1551,37 @@ namespace Ep128 {
       }
     }
     return uint32_t(startAddr);
+  }
+
+  void listZ80Registers(std::string& buf, const Z80& z80)
+  {
+    const Z80_REGISTERS&  r = z80.getReg();
+    buf = " PC   AF   BC   DE   HL   SP   IX   IY    F   ........\n"
+          ".... .... .... .... .... .... .... ....   F'  ........\n"
+          "      AF'  BC'  DE'  HL'  IM   I    R    IFF1 .\n"
+          "     .... .... .... ....  ..   ..   ..   IFF2 .";
+    Ep128Emu::printHexNumber(&(buf[55]), z80.getProgramCounter(), 0, 4, 0);
+    Ep128Emu::printHexNumber(&(buf[60]), r.AF.W, 0, 4, 0);
+    Ep128Emu::printHexNumber(&(buf[65]), r.BC.W, 0, 4, 0);
+    Ep128Emu::printHexNumber(&(buf[70]), r.DE.W, 0, 4, 0);
+    Ep128Emu::printHexNumber(&(buf[75]), r.HL.W, 0, 4, 0);
+    Ep128Emu::printHexNumber(&(buf[80]), r.SP.W, 0, 4, 0);
+    Ep128Emu::printHexNumber(&(buf[85]), r.IX.W, 0, 4, 0);
+    Ep128Emu::printHexNumber(&(buf[90]), r.IY.W, 0, 4, 0);
+    Ep128Emu::printHexNumber(&(buf[163]), r.altAF.W, 0, 4, 0);
+    Ep128Emu::printHexNumber(&(buf[168]), r.altBC.W, 0, 4, 0);
+    Ep128Emu::printHexNumber(&(buf[173]), r.altDE.W, 0, 4, 0);
+    Ep128Emu::printHexNumber(&(buf[178]), r.altHL.W, 0, 4, 0);
+    Ep128Emu::printHexNumber(&(buf[184]), r.IM, 0, 2, 0);
+    Ep128Emu::printHexNumber(&(buf[189]), r.I, 0, 2, 0);
+    Ep128Emu::printHexNumber(&(buf[194]), r.RBit7 | (r.R & 0x7F), 0, 2, 0);
+    static const char *z80Flags_ = "SZ1H1VNC";
+    for (int i = 0; i < 8; i++) {
+      buf[i + 46] = ((r.AF.B.l & uint8_t(128 >> i)) ? z80Flags_[i] : '-');
+      buf[i + 101] = ((r.altAF.B.l & uint8_t(128 >> i)) ? z80Flags_[i] : '-');
+    }
+    buf[156] = '0' + char(bool(r.IFF1));
+    buf[204] = '0' + char(bool(r.IFF2));
   }
 
 }       // namespace Ep128

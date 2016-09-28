@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -26,6 +26,8 @@
 #include <vector>
 
 namespace Ep128 {
+
+  class Z80;
 
   class Z80Disassembler {
    private:
@@ -72,6 +74,8 @@ namespace Ep128 {
                                         bool isCPUAddress = false,
                                         int32_t offs = 0);
   };
+
+  void listZ80Registers(std::string& buf, const Z80& z80);
 
 }       // namespace Ep128
 
