@@ -1054,7 +1054,7 @@
 /* LD A,R */
 #define LD_A_R()                                                        \
 {                                                                       \
-        R.AF.B.h = GET_R;                                               \
+        R.AF.B.h = R.RBit7 | (R.R & 0x07f);                             \
         Z80_BYTE        Flags;                                          \
         Flags = Z80_FLAGS_REG;                                          \
         Flags &= Z80_CARRY_FLAG;                                        \

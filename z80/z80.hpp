@@ -158,8 +158,6 @@ namespace Ep128 {
     unsigned long Flags;
   };
 
-#define GET_R   (R.RBit7 | (R.R & 0x07f))
-
 #define Z80_FLAGS_REG               R.AF.B.l
 
 #define Z80_TEST_CARRY_SET          ((Z80_FLAGS_REG & Z80_CARRY_FLAG)!=0)
