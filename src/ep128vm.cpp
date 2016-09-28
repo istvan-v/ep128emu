@@ -148,9 +148,15 @@ namespace Ep128 {
     return vm.checkSingleStepModeBreak();
   }
 
-  EP128EMU_REGPARM1 uint8_t Ep128VM::Z80_::readOpcodeSecondByte()
+  EP128EMU_REGPARM2 uint8_t Ep128VM::Z80_::readOpcodeSecondByte(
+      const bool *invalidOpcodeTable)
   {
     uint16_t  addr = (uint16_t(R.PC.W.l) + uint16_t(1)) & uint16_t(0xFFFF);
+    if (invalidOpcodeTable) {
+      uint8_t b = vm.memory.readNoDebug(addr);
+      if (EP128EMU_UNLIKELY(invalidOpcodeTable[b]))
+        return b;
+    }
     if (vm.memoryTimingEnabled) {
       if (vm.pageTable[addr >> 14] < 0xFC)
         vm.cpuCyclesRemaining -= vm.memoryWaitCycles_M1;

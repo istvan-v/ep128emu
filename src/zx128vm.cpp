@@ -226,10 +226,16 @@ namespace ZX128 {
     return retval;
   }
 
-  EP128EMU_REGPARM1 uint8_t ZX128VM::Z80_::readOpcodeSecondByte()
+  EP128EMU_REGPARM2 uint8_t ZX128VM::Z80_::readOpcodeSecondByte(
+      const bool *invalidOpcodeTable)
   {
-    addressBusState.B.h = R.I;
     uint16_t  addr = (uint16_t(R.PC.W.l) + uint16_t(1)) & uint16_t(0xFFFF);
+    if (invalidOpcodeTable) {
+      uint8_t b = vm.memory.readNoDebug(addr);
+      if (EP128EMU_UNLIKELY(invalidOpcodeTable[b]))
+        return b;
+    }
+    addressBusState.B.h = R.I;
     vm.memoryWaitM1(addr);
     uint8_t   retval = vm.memory.readOpcode(addr);
     vm.updateCPUHalfCycles(4);

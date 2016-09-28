@@ -27,6 +27,35 @@
 
 /***************************************************************************/
 
+static const bool invalidIndexOpcodeTable[256] = {
+   true,  true,  true,  true,  true,  true,  true,  true,  true, false, // 0x00
+   true,  true,  true,  true,  true,  true,  true,  true,  true,  true, // 0x0A
+   true,  true,  true,  true,  true, false,  true,  true,  true,  true, // 0x14
+   true,  true,  true, false, false, false, false, false, false,  true, // 0x1E
+   true, false, false, false, false, false, false,  true,  true,  true, // 0x28
+   true,  true, false, false, false,  true,  true, false,  true,  true, // 0x32
+   true,  true,  true,  true,  true,  true,  true,  true, false, false, // 0x3C
+  false,  true,  true,  true,  true,  true, false, false, false,  true, // 0x46
+   true,  true,  true,  true, false, false, false,  true,  true,  true, // 0x50
+   true,  true, false, false, false,  true, false, false, false, false, // 0x5A
+  false, false, false, false, false, false, false, false, false, false, // 0x64
+  false, false, false, false, false, false, false, false,  true, false, // 0x6E
+   true,  true,  true,  true, false, false, false,  true,  true,  true, // 0x78
+   true,  true, false, false, false,  true,  true,  true,  true,  true, // 0x82
+  false, false, false,  true,  true,  true,  true,  true, false, false, // 0x8C
+  false,  true,  true,  true,  true,  true, false, false, false,  true, // 0x96
+   true,  true,  true,  true, false, false, false,  true,  true,  true, // 0xA0
+   true,  true, false, false, false,  true,  true,  true,  true,  true, // 0xAA
+  false, false, false,  true,  true,  true,  true,  true, false, false, // 0xB4
+  false,  true,  true,  true,  true,  true,  true,  true,  true,  true, // 0xBE
+   true,  true,  true, false,  true,  true,  true,  true,  true,  true, // 0xC8
+   true,  true,  true,  true,  true,  true,  true,  true,  true,  true, // 0xD2
+   true,  true,  true,  true,  true, false,  true, false,  true, false, // 0xDC
+   true,  true,  true, false,  true,  true,  true,  true,  true,  true, // 0xE6
+   true,  true,  true,  true,  true,  true,  true,  true,  true, false, // 0xF0
+   true,  true,  true,  true,  true,  true                              // 0xFA
+};
+
 namespace Ep128 {
 
   EP128EMU_INLINE void Z80::Index_CB_ExecuteInstruction()
@@ -1334,7 +1363,7 @@ namespace Ep128 {
   EP128EMU_INLINE void Z80::FD_ExecuteInstruction()
   {
     uint8_t Opcode;
-    Opcode = readOpcodeSecondByte();
+    Opcode = readOpcodeSecondByte(invalidIndexOpcodeTable);
     switch (Opcode) {
     case 0x000:
     case 0x001:
@@ -2210,7 +2239,7 @@ namespace Ep128 {
   EP128EMU_INLINE void Z80::DD_ExecuteInstruction()
   {
     uint8_t Opcode;
-    Opcode = readOpcodeSecondByte();
+    Opcode = readOpcodeSecondByte(invalidIndexOpcodeTable);
     switch (Opcode) {
     case 0x000:
     case 0x001:

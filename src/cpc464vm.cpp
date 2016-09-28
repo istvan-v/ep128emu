@@ -188,9 +188,15 @@ namespace CPC464 {
     return retval;
   }
 
-  EP128EMU_REGPARM1 uint8_t CPC464VM::Z80_::readOpcodeSecondByte()
+  EP128EMU_REGPARM2 uint8_t CPC464VM::Z80_::readOpcodeSecondByte(
+      const bool *invalidOpcodeTable)
   {
     uint16_t  addr = (uint16_t(R.PC.W.l) + uint16_t(1)) & uint16_t(0xFFFF);
+    if (invalidOpcodeTable) {
+      uint8_t b = vm.memory.readNoDebug(addr);
+      if (EP128EMU_UNLIKELY(invalidOpcodeTable[b]))
+        return b;
+    }
     vm.memoryWaitM1();
     uint8_t   retval = vm.memory.readOpcode(addr);
     vm.updateCPUHalfCycles(4);

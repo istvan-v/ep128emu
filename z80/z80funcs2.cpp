@@ -436,10 +436,14 @@ namespace Ep128 {
     return readMemory(uint16_t(R.PC.W.l));
   }
 
-  EP128EMU_REGPARM1 uint8_t Z80::readOpcodeSecondByte()
+  EP128EMU_REGPARM2 uint8_t Z80::readOpcodeSecondByte(
+      const bool *invalidOpcodeTable)
   {
     updateCycle();
-    return readMemory((uint16_t(R.PC.W.l) + uint16_t(1)) & 0xFFFF);
+    uint8_t b = readMemory((uint16_t(R.PC.W.l) + uint16_t(1)) & 0xFFFF);
+    if (invalidOpcodeTable && invalidOpcodeTable[b])
+      updateCycles(-4);
+    return b;
   }
 
   EP128EMU_REGPARM2 uint8_t Z80::readOpcodeByte(int offset)

@@ -315,8 +315,13 @@ namespace Ep128 {
     virtual EP128EMU_REGPARM1 uint8_t readOpcodeFirstByte();
     /*!
      * Read the second byte of an opcode (4 cycles).
+     * If 'invalidOpcodeTable' is not NULL, and the opcode byte read is in the
+     * table (the table element at that index is true), then the read should be
+     * ignored (it takes 0 cycles and does not trigger breakpoints).
      */
-    virtual EP128EMU_REGPARM1 uint8_t readOpcodeSecondByte();
+    virtual EP128EMU_REGPARM2
+        uint8_t readOpcodeSecondByte(const bool *invalidOpcodeTable =
+                                         (bool *) 0);
     /*!
      * Read an opcode byte (3 cycles; 'Offset' should not be zero).
      */
