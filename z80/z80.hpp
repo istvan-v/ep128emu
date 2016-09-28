@@ -223,13 +223,15 @@ namespace Ep128 {
     EP128EMU_INLINE void JR();
     EP128EMU_INLINE void CALL();
     EP128EMU_INLINE void DJNZ_dd();
-    void CPI();
-    void CPD();
-    void OUTI();
-    void OUTD();
-    void INI();
-    void IND();
-    void DAA();
+    EP128EMU_REGPARM1 void CPI();
+    EP128EMU_REGPARM1 void CPD();
+    EP128EMU_REGPARM1 void OUTI();
+    EP128EMU_REGPARM1 void OUTD();
+    EP128EMU_REGPARM1 void INI();
+    EP128EMU_REGPARM1 void IND();
+    EP128EMU_REGPARM1 void DAA();
+    // called after LD A,I and LD A,R to emulate the buggy behavior of P/V flag
+    EP128EMU_REGPARM1 void checkNMOSBug();
    public:
     Z80();
     virtual ~Z80();

@@ -3450,6 +3450,7 @@ namespace Ep128 {
         ADD_PC(2);
         updateCycle();
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
+        checkNMOSBug();
       }
       break;
     case 0x058:
@@ -3508,6 +3509,7 @@ namespace Ep128 {
         ADD_PC(2);
         updateCycle();
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
+        checkNMOSBug();
       }
       break;
     case 0x060:
@@ -3635,7 +3637,8 @@ namespace Ep128 {
       break;
     case 0x071:
       {
-        doOut(R.BC.W, 255);
+        // 0 = NMOS Z80, 0xFF = CMOS
+        doOut(R.BC.W, 0);
         ADD_PC(2);
         R.Flags |= Z80_CHECK_INTERRUPT_FLAG;
       }
@@ -7394,7 +7397,7 @@ namespace Ep128 {
     /* check interrupts? */
     if (EP128EMU_UNLIKELY(R.Flags & (Z80_EXECUTE_INTERRUPT_HANDLER_FLAG
                                      | Z80_NMI_FLAG | Z80_SET_PC_FLAG))) {
-      if (!(R.Flags & (Z80_NMI_FLAG | Z80_SET_PC_FLAG))) {
+      if (EP128EMU_EXPECT(!(R.Flags & (Z80_NMI_FLAG | Z80_SET_PC_FLAG)))) {
         if (R.IFF1) {
           if (R.Flags & Z80_CHECK_INTERRUPT_FLAG)
             executeInterrupt();

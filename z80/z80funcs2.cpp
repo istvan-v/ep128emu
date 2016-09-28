@@ -165,19 +165,19 @@ namespace Ep128 {
   Z80::Z80()
   {
     std::memset(&R, 0, sizeof(Z80_REGISTERS));
-	int     seed = 0;
+    int     seed = 0;
     Ep128Emu::setRandomSeed(seed, Ep128Emu::Timer::getRandomSeedFromTime());
     R.AF.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
-	R.BC.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
-	R.DE.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
-	R.HL.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
-	R.IX.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
-	R.IY.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
-	R.SP.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
-	R.altAF.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
-	R.altBC.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
-	R.altDE.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
-	R.altHL.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+    R.BC.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+    R.DE.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+    R.HL.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+    R.IX.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+    R.IY.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+    R.SP.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+    R.altAF.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+    R.altBC.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+    R.altDE.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
+    R.altHL.W = Z80_WORD(Ep128Emu::getRandomNumber(seed) & 0xFFFF);
     this->reset();
   }
 
@@ -254,7 +254,7 @@ namespace Ep128 {
     R.Flags &= ~Z80_EXECUTE_INTERRUPT_HANDLER_FLAG;
   }
 
-  void Z80::CPI()
+  EP128EMU_REGPARM1 void Z80::CPI()
   {
     Z80_FLAGS_REG = Z80_FLAGS_REG | Z80_SUBTRACT_FLAG;
     Z80_BYTE  tmp = readMemory(R.HL.W);
@@ -271,7 +271,7 @@ namespace Ep128 {
         Z80_FLAGS_REG | (tmp & Z80_UNUSED_FLAG2) | ((tmp & 0x02) << 4);
   }
 
-  void Z80::CPD()
+  EP128EMU_REGPARM1 void Z80::CPD()
   {
     Z80_FLAGS_REG = Z80_FLAGS_REG | Z80_SUBTRACT_FLAG;
     Z80_BYTE  tmp = readMemory(R.HL.W);
@@ -288,7 +288,7 @@ namespace Ep128 {
         Z80_FLAGS_REG | (tmp & Z80_UNUSED_FLAG2) | ((tmp & 0x02) << 4);
   }
 
-  void Z80::OUTI()
+  EP128EMU_REGPARM1 void Z80::OUTI()
   {
     updateCycle();
     Z80_BYTE  tmp = readMemory(R.HL.W);
@@ -302,7 +302,7 @@ namespace Ep128 {
   }
 
   /* B is pre-decremented before execution */
-  void Z80::OUTD()
+  EP128EMU_REGPARM1 void Z80::OUTD()
   {
     updateCycle();
     Z80_BYTE  tmp = readMemory(R.HL.W);
@@ -315,7 +315,7 @@ namespace Ep128 {
     doOut(R.BC.W, tmp);
   }
 
-  void Z80::INI()
+  EP128EMU_REGPARM1 void Z80::INI()
   {
     updateCycle();
     Z80_BYTE  tmp = doIn(R.BC.W);
@@ -329,7 +329,7 @@ namespace Ep128 {
                     | t.parityTable[(tmp2 & 0x07) ^ R.BC.B.h];
   }
 
-  void Z80::IND()
+  EP128EMU_REGPARM1 void Z80::IND()
   {
     updateCycle();
     Z80_BYTE  tmp = doIn(R.BC.W);
@@ -344,7 +344,7 @@ namespace Ep128 {
   }
 
   /* half carry not set */
-  void Z80::DAA()
+  EP128EMU_REGPARM1 void Z80::DAA()
   {
     int     i = R.AF.B.h;
 
@@ -355,6 +355,25 @@ namespace Ep128 {
     if (R.AF.B.l & Z80_SUBTRACT_FLAG)
       i |= 1024;
     R.AF.W = t.daaTable[i];
+  }
+
+  EP128EMU_REGPARM1 void Z80::checkNMOSBug()
+  {
+    if (!(R.AF.B.l & Z80_PARITY_FLAG))
+      return;
+    // handle the IRQ here and then update the parity flag if needed
+    if (EP128EMU_UNLIKELY(R.Flags & (Z80_EXECUTE_INTERRUPT_HANDLER_FLAG
+                                     | Z80_NMI_FLAG | Z80_SET_PC_FLAG))) {
+      if (EP128EMU_EXPECT(!(R.Flags & (Z80_NMI_FLAG | Z80_SET_PC_FLAG)))) {
+        if (R.IFF1) {
+          if (R.Flags & Z80_CHECK_INTERRUPT_FLAG) {
+            executeInterrupt();
+            if (!R.IFF2)
+              R.AF.B.l = R.AF.B.l & (~Z80_PARITY_FLAG);
+          }
+        }
+      }
+    }
   }
 
   // --------------------------------------------------------------------------
