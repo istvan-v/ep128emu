@@ -35,13 +35,13 @@ deviceChain:
 
         block 5, 000h
 
-tapeDeviceName:
+deviceNameTable:
         defb  4
         defm  "TAPE"
-
-diskDeviceName:
         defb  4
         defm  "DISK"
+        defb  4
+        defm  "FILE"
 
 entryPointTable:
         defw  irqRoutine
@@ -111,8 +111,7 @@ channelReadStatus:
         ret
 
 setChannelStatus:
-        ep128emuSystemCall  10
-        ret
+        jp    setChannelStatus_
 
 specialFunction:
         ep128emuSystemCall  11
@@ -130,12 +129,6 @@ bufferMoved:
 defDevCommandBase:
         defm  "DEF_DEV_"
         defb  000h, 000h
-
-        align 2
-deviceNameTable:
-        defw  tapeDeviceName
-        defw  diskDeviceName
-        defw  fileDeviceName
 
 invalidFunction:
         ld    a, 0e7h                   ; .NOFN
@@ -208,11 +201,58 @@ errorString:
         ld    c, 0
 .l1:    ret
 
+        assert  (deviceNameTable & 0ff00h) == ((deviceNameTable + 10) & 0ff00h)
+
 parseCommand:
         ld    a, b
-        cp    12
-        jr    z, parseCommand_
+        cp    12                        ; length of DEF_DEV_FILE
+        ret   nz
+        push  bc
+        push  de
+        push  hl
+        ld    b, 8
+        ld    hl, defDevCommandBase
+.l1:    inc   de
+        ld    a, (de)
+        cp    (hl)
+        jr    nz, .l5
+        inc   hl
+        djnz  .l1
+        ld    c, b
+.l2:    push  de
+        ld    a, c
+        add   a, a
+        add   a, a
+        add   a, c
+        ld    hl, deviceNameTable
+        add   a, l
+        ld    l, a
+        ld    b, 4
+.l3:    inc   de
+        inc   hl
+        ld    a, (de)
+        cp    (hl)
+        jr    nz, .l4
+        djnz  .l3
+.l4:    pop   de
+        jr    z, .l6
+        inc   c
+        ld    a, 2
+        cp    c
+        jr    nc, .l2
+.l5:    pop   hl
+        pop   de
+        pop   bc
+        xor   a
         ret
+.l6:    ld    a, c
+        pop   hl
+        pop   de
+        srl   a
+        ep128emuSystemCall  15
+        ld    a, c
+        pop   bc
+        ld    c, 0
 
 ; A = 0: TAPE:
 ; A = 1: DISK:
@@ -222,74 +262,22 @@ setDefaultDevice:
         push  bc
         push  de
         ld    b, a
-        and   1
-        ld    c, a
-        ld    a, b
-        add   a, (low deviceNameTable) / 2
         add   a, a
-        ld    e, a
-        ld    d, high deviceNameTable
-        ld    a, (de)
+        add   a, a
+        add   a, b
         ld    b, a
-        inc   de
-        ld    a, (de)
-        ld    d, a
-        ld    e, b
+        cp    1
+        sbc   a, a
+        inc   a
+        ld    c, a                      ; C = 0 for TAPE:, C = 1 otherwise
+        ld    de, deviceNameTable
+        ld    a, b
+        add   a, e
+        ld    e, a
         exos  19
-.l1:    pop   de
+        pop   de
         pop   bc
         ret
-
-parseCommand_:
-        push  bc
-        push  de
-        push  hl
-        ld    c, 0
-        ld    b, 8
-        ld    hl, defDevCommandBase
-        inc   de
-.l1:    ld    a, (de)
-        cp    (hl)
-        jr    z, .l2
-        dec   c
-.l2:    inc   de
-        inc   hl
-        djnz  .l1
-.l3:    ld    a, 2
-        cp    c
-        jr    nc, .l4
-        pop   hl
-        jr    setDefaultDevice.l1
-.l4:    push  de
-        ld    a, c
-        add   a, (low deviceNameTable) / 2
-        add   a, a
-        ld    l, a
-        ld    h, high deviceNameTable
-        ld    a, (hl)
-        inc   hl
-        ld    h, (hl)
-        ld    l, a
-        ld    b, 4
-.l5:    inc   hl
-        ld    a, (de)
-        cp    (hl)
-        jr    z, .l6
-        pop   de
-        inc   c
-        jr    .l3
-.l6:    inc   de
-        djnz  .l5
-        ld    a, c
-        pop   de
-        pop   hl
-        pop   de
-        srl   a
-        ep128emuSystemCall  15
-        ld    a, c
-        pop   bc
-        ld    c, 0
-        jr    setDefaultDevice
 
 readBlockLoop:
         ld    a, l
@@ -461,6 +449,37 @@ readBlock_:
         ret
 .l5:    jp    (iy)
 
+setChannelStatus_:
+        ep128emuSystemCall  10
+        ld    c, 0
+        or    a
+        ret   nz
+        ld    hl, 8
+        add   hl, de
+        ld    e, l
+        ld    d, h
+        ld    a, h
+        rlca
+        rlca
+        ld    hl, 0bffch
+        or    l
+        ld    l, a
+        ld    bc, 0803h
+.l1:    ld    a, (hl)
+        out   (0b1h), a
+        inc   l
+        res   7, d
+        set   6, e
+        xor   a
+.l2:    cp    b
+        ret   z
+        ld    (de), a
+        dec   b
+        inc   de
+        bit   7, d
+        jr    z, .l2
+        jr    .l1
+
     if ($ & 001ffh) != 0
         block 00200h - ($ & 001ffh), 000h
     endif
@@ -498,7 +517,7 @@ errMsgTable:
         defw         0,        0,        0,        0
         defw         0, errMsgA1,        0,        0,        0,        0  ; A0h
         defw  errMsgA6, errMsgA7,        0,        0, errMsgAA,        0
-        defw  errMsgAC,        0,        0,        0
+        defw  errMsgAC,        0, errMsgAE,        0
         defw         0,        0,        0,        0,        0,        0  ; B0h
         defw         0,        0, errMsgB8,        0, errMsgBA,        0
         defw         0,        0,        0,        0
@@ -526,6 +545,9 @@ errMsgBA:
 errMsgB8:
         defb  10
         defm  "Data error"
+errMsgAE:
+        defb  17
+        defm  "Invalid parameter"
 errMsgAC:
         defb  9
         defm  "Disk full"

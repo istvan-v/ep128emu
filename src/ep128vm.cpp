@@ -308,80 +308,34 @@ namespace Ep128 {
 
   EP128EMU_REGPARM1 void Ep128VM::Z80_::tapePatch()
   {
-    if ((R.PC.W.l & 0x3FFF) > 0x3FFC ||
-        !((vm.fileIOEnabled | vm.isRecordingDemo | vm.isPlayingDemo) &&
-          vm.memory.isSegmentROM(vm.getMemoryPage(int(R.PC.W.l >> 14))))) {
+    uint8_t n;
+    if (!((R.PC.W.l & 0x3FFF) < 0x3FFC &&
+          vm.memory.isSegmentROM(vm.getMemoryPage(int(R.PC.W.l >> 14))) &&
+          vm.readMemory(uint16_t(R.PC.W.l + 2), true) == 0xFE &&
+          (n = vm.readMemory(uint16_t(R.PC.W.l + 3), true)) < 0x10)) {
       return;
     }
-    if (vm.readMemory((uint16_t(R.PC.W.l) + 2) & 0xFFFF, true) != 0xFE)
-      return;
-    uint8_t n = vm.readMemory((uint16_t(R.PC.W.l) + 3) & 0xFFFF, true);
-    if (n > 0x0F)
-      return;
-    if (vm.isRecordingDemo | vm.isPlayingDemo) {
+    if ((!vm.fileIOEnabled) | vm.isRecordingDemo | vm.isPlayingDemo) {
       // file I/O is disabled while recording or playing demo
       if (n != 0x0F)
         R.AF.B.h = uint8_t((n >= 0x01 && n <= 0x0B) ? 0xE7 : 0x00);
       return;
     }
-    std::map< uint8_t, std::FILE * >::iterator  i_;
-    i_ = fileChannels.find(uint8_t(R.AF.B.h));
-    if ((n >= 0x01 && n <= 0x02) && i_ != fileChannels.end()) {
-      R.AF.B.h = 0xF9;          // channel already exists
-      return;
-    }
-    if ((n >= 0x03 && n <= 0x0B) && i_ == fileChannels.end()) {
-      R.AF.B.h = 0xFB;          // channel does not exist
-      return;
+    std::map< uint8_t, std::FILE * >::iterator  i_ = fileChannels.end();
+    if (n >= 0x01 && n <= 0x0B) {
+      i_ = fileChannels.find(uint8_t(R.AF.B.h));
+      if ((n < 0x03) != (i_ == fileChannels.end())) {
+        // 0xF9 = channel already exists
+        // 0xFB = channel does not exist
+        R.AF.B.h = (n < 0x03 ? 0xF9 : 0xFB);
+        return;
+      }
     }
     switch (n) {
     case 0x00:                          // INTERRUPT
       R.AF.B.h = 0x00;
       break;
     case 0x01:                          // OPEN CHANNEL
-      {
-        std::string fileName;
-        uint16_t    nameAddr = uint16_t(R.DE.W);
-        uint8_t     nameLen = vm.readMemory(nameAddr, true);
-        while (nameLen) {
-          nameAddr = (nameAddr + 1) & 0xFFFF;
-          char  c = char(vm.readMemory(nameAddr, true));
-          if (c == '\0')
-            break;
-          fileName += c;
-          nameLen--;
-        }
-        uint8_t   chn = uint8_t(R.AF.B.h);
-        std::FILE *f = (std::FILE *) 0;
-        R.AF.B.h = 0x00;
-        try {
-          int   err = vm.openFileInWorkingDirectory(f, fileName, "rb");
-          if (err == 0)
-            fileChannels.insert(std::pair< uint8_t, std::FILE * >(chn, f));
-          else {
-            switch (err) {
-            case -2:
-              R.AF.B.h = 0xA6;
-              break;
-            case -3:
-              R.AF.B.h = 0xCF;
-              break;
-            case -4:
-            case -5:
-              R.AF.B.h = 0xA1;
-              break;
-            default:
-              R.AF.B.h = 0xBA;
-            }
-          }
-        }
-        catch (...) {
-          if (f)
-            std::fclose(f);
-          R.AF.B.h = 0xBA;
-        }
-      }
-      break;
     case 0x02:                          // CREATE CHANNEL
       {
         std::string fileName;
@@ -399,9 +353,18 @@ namespace Ep128 {
         std::FILE *f = (std::FILE *) 0;
         R.AF.B.h = 0x00;
         try {
-          int   err = vm.openFileInWorkingDirectory(f, fileName, "wb");
-          if (err == 0)
+          int     err = vm.openFileInWorkingDirectory(
+                            f, fileName, (n == 0x01 ? "r+b" : "w+b"));
+          if (err == -5) {
+            if (n == 0x01) {
+              // if opening the file in RW mode failed,
+              // try again in read only mode
+              err = vm.openFileInWorkingDirectory(f, fileName, "rb");
+            }
+          }
+          if (err == 0) {
             fileChannels.insert(std::pair< uint8_t, std::FILE * >(chn, f));
+          }
           else {
             switch (err) {
             case -2:
@@ -427,16 +390,7 @@ namespace Ep128 {
       }
       break;
     case 0x03:                          // CLOSE CHANNEL
-      if (std::fclose((*i_).second) == 0)
-        R.AF.B.h = 0x00;
-      else
-        R.AF.B.h = 0xE4;
-      (*i_).second = (std::FILE *) 0;
-      fileChannels.erase(i_);
-      break;
-    case 0x04:                          // DESTROY CHANNEL
-      // FIXME: this should remove the file;
-      // for now, it is the same as "close channel"
+    case 0x04:                          // DESTROY CHANNEL (FIXME: same as 0x03)
       if (std::fclose((*i_).second) == 0)
         R.AF.B.h = 0x00;
       else
@@ -491,9 +445,55 @@ namespace Ep128 {
       R.AF.B.h = 0x00;
       break;
     case 0x0A:                          // SET/GET CHANNEL STATUS
-      // TODO: implement this
-      R.AF.B.h = 0xE7;
-      R.BC.B.l = 0x00;
+      {
+        long    filePos, fileSize;
+        if (!(R.BC.B.l & 0x01)) {
+          R.BC.B.l = 0x00;
+          // if not setting a new file position, save the original position
+          if ((filePos = std::ftell((*i_).second)) < 0L) {
+            R.AF.B.h = 0xA1;            // invalid file attributes
+            break;
+          }
+        }
+        else {
+          R.BC.B.l = 0x00;
+          filePos = long(readUserMemory(uint16_t(R.DE.W)))
+                    | (long(readUserMemory(uint16_t(R.DE.W + 1))) << 8)
+                    | (long(readUserMemory(uint16_t(R.DE.W + 2))) << 16)
+                    | (long(readUserMemory(uint16_t(R.DE.W + 2))) << 24);
+          if (filePos & long(0x80000000UL)) {
+            R.AF.B.h = 0xAE;            // negative position: invalid parameter
+            break;
+          }
+        }
+        // get file size
+        if (std::fseek((*i_).second, 0L, SEEK_END) != 0 ||
+            (fileSize = std::ftell((*i_).second)) < 0L) {
+          R.AF.B.h = 0xA1;
+          break;
+        }
+        // set or restore file position
+        if (filePos > fileSize && filePos >= 0x01000000L) {
+          R.AF.B.h = 0xAE;              // invalid parameter
+          break;
+        }
+        if (std::fseek((*i_).second, filePos, SEEK_SET) != 0) {
+          R.AF.B.h = 0xA1;
+          break;
+        }
+        writeUserMemory(uint16_t(R.DE.W), uint8_t(filePos & 0xFFL));
+        writeUserMemory(uint16_t(R.DE.W + 1), uint8_t((filePos >> 8) & 0xFFL));
+        writeUserMemory(uint16_t(R.DE.W + 2), uint8_t((filePos >> 16) & 0xFFL));
+        writeUserMemory(uint16_t(R.DE.W + 3), uint8_t((filePos >> 24) & 0xFFL));
+        writeUserMemory(uint16_t(R.DE.W + 4), uint8_t(fileSize & 0xFFL));
+        writeUserMemory(uint16_t(R.DE.W + 5), uint8_t((fileSize >> 8) & 0xFFL));
+        writeUserMemory(uint16_t(R.DE.W + 6),
+                        uint8_t((fileSize >> 16) & 0xFFL));
+        writeUserMemory(uint16_t(R.DE.W + 7),
+                        uint8_t((fileSize >> 24) & 0xFFL));
+        R.AF.B.h = 0x00;
+        R.BC.B.l = 0x03;                // file position and size are valid
+      }
       break;
     case 0x0B:                          // SPECIAL FUNCTION
       R.AF.B.h = 0xE7;
