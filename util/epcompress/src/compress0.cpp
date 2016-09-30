@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -435,8 +435,8 @@ namespace Ep128Compress {
     }
     if (matchTable[bufPos] == 0x7FFFFFFF)
       matchTable[bufPos] = matchTableBuf.size();
-    matchTableBuf.push_back((unsigned short) matchLen);
-    matchTableBuf.push_back((unsigned short) offs);
+    matchTableBuf.push_back((unsigned int) matchLen);
+    matchTableBuf.push_back((unsigned int) offs);
   }
 
   Compressor_M0::SearchTable::SearchTable(
@@ -500,8 +500,8 @@ namespace Ep128Compress {
         }
       }
     }
-    std::vector< unsigned short > offs2Table(
-        buf.size(), (unsigned short) Compressor_M0::maxRepeatDist);
+    std::vector< unsigned int > offs2Table(
+        buf.size(), (unsigned int) Compressor_M0::maxRepeatDist);
     {
       std::vector< size_t > lastPosTable(65536, size_t(0x7FFFFFFF));
       // find 2-byte matches
@@ -511,7 +511,7 @@ namespace Ep128Compress {
         if (lastPosTable[c] < i) {
           size_t  d = i - (lastPosTable[c] + 1);
           if (d < Compressor_M0::maxRepeatDist)
-            offs2Table[i] = (unsigned short) d;
+            offs2Table[i] = (unsigned int) d;
         }
         lastPosTable[c] = i;
       }
@@ -792,7 +792,7 @@ namespace Ep128Compress {
           (config.minLength > minRepeatLen ? config.minLength : minRepeatLen);
       size_t  maxLen = nBytes - i;
       // check LZ77 matches
-      const unsigned short  *matchPtr = searchTable->getMatches(offs + i);
+      const unsigned int  *matchPtr = searchTable->getMatches(offs + i);
       while (size_t(matchPtr[0]) >= minLen) {
         size_t  len = matchPtr[0];
         size_t  d = matchPtr[1];
@@ -894,7 +894,7 @@ namespace Ep128Compress {
           bestSeqDiff = 0x00;
         }
       }
-      matchTable[i].d = (unsigned short) bestOffs;
+      matchTable[i].d = (unsigned int) bestOffs;
       matchTable[i].len = (unsigned short) bestLen;
       matchTable[i].seqFlag = bestSeqFlag;
       matchTable[i].seqDiff = bestSeqDiff;
@@ -909,7 +909,7 @@ namespace Ep128Compress {
               bitCountTable[i].prvDistances[nn + 1] =
                   bitCountTable[i].prvDistances[nn];
             }
-            bitCountTable[i].prvDistances[0] = (unsigned short) bestOffs;
+            bitCountTable[i].prvDistances[0] = (unsigned int) bestOffs;
             break;
           }
         }

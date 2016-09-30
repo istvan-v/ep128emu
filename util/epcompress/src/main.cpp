@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -39,8 +39,8 @@ static bool   noCleanup = true;
 static bool   forceRawMode = false;
 // minimum LZ77 match length (1 to 3)
 static size_t minLength = 1;
-// maximum LZ77 match offset (1 to 65535)
-static size_t maxOffset = 65535;
+// maximum LZ77 match offset (1 to 131072)
+static size_t maxOffset = 65536;
 // force block size if non-zero
 static size_t blockSize = 0;
 // volume size for compressed files (0: no volumes)
@@ -397,8 +397,8 @@ int main(int argc, char **argv)
         maxOffset = size_t(std::atoi(argv[i]));
         if (maxOffset < 1)
           maxOffset = 1;
-        if (maxOffset > 65535)
-          maxOffset = 65535;
+        if (maxOffset > 131072)
+          maxOffset = 131072;
       }
       else if (tmp == "-blocksize") {
         if (++i >= argc)
@@ -500,6 +500,15 @@ int main(int argc, char **argv)
       return 0;
     }
     // compress file
+    if (maxOffset > 65536) {
+      if (!((archiveFormat || forceRawMode) &&
+            (compressionType < 0 || compressionType == 2))) {
+        throw Ep128Emu::Exception("-maxoffs > 65536 requires -m2 and "
+                                  "-a or -raw");
+      }
+      std::fprintf(stderr, "WARNING: -maxoffs > 65536 currently "
+                           "cannot be decompressed on the Enterprise\n");
+    }
     std::vector< unsigned char >  outBuf;
     std::vector< unsigned char >  inBuf;
     // read input file
@@ -618,8 +627,8 @@ int main(int argc, char **argv)
       std::printf("        limit LZ77 length to >= N bytes (1 to 3, "
                   "default: 1)\n");
       std::printf("    -maxoffs <N>\n");
-      std::printf("        limit LZ77 offset to <= N bytes (1 to 65535, "
-                  "default: 65535)\n");
+      std::printf("        limit LZ77 offset to <= N bytes (1 to 131072, "
+                  "default: 65536)\n");
       std::printf("    -blocksize <N>\n");
       std::printf("        force using a block size of N bytes (16 to 65536), "
                   "or optimize\n"

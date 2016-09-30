@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ namespace Ep128Compress {
   class Compressor_M0 : public Compressor {
    private:
     static const size_t minRepeatDist = 1;
-    static const size_t maxRepeatDist = 65535;
+    static const size_t maxRepeatDist = 65536;
     static const size_t minRepeatLen = 2;
     static const size_t maxRepeatLen = 256;
     // --------
@@ -98,7 +98,7 @@ namespace Ep128Compress {
       // terminated with zero length and offset
       std::vector< size_t > matchTable;
       // space allocated for matchTable
-      std::vector< unsigned short > matchTableBuf;
+      std::vector< unsigned int > matchTableBuf;
       size_t  matchTableBufPos;
       std::vector< std::vector< unsigned char > >   seqDiffTable;
       std::vector< std::vector< unsigned short > >  maxSeqLenTable;
@@ -110,7 +110,7 @@ namespace Ep128Compress {
      public:
       SearchTable(const std::vector< unsigned char >& inBuf);
       virtual ~SearchTable();
-      inline const unsigned short * getMatches(size_t bufPos) const
+      inline const unsigned int * getMatches(size_t bufPos) const
       {
         return (&(matchTableBuf.front()) + matchTable[bufPos]);
       }
@@ -125,7 +125,7 @@ namespace Ep128Compress {
     };
     // --------
     struct LZMatchParameters {
-      unsigned short  d;
+      unsigned int    d;
       unsigned short  len;
       bool            seqFlag;
       unsigned char   seqDiff;
@@ -165,7 +165,7 @@ namespace Ep128Compress {
     // --------
     struct BitCountTableEntry {
       long    totalBits;
-      unsigned short  prvDistances[4];
+      unsigned int  prvDistances[4];
     };
     // --------
     struct SplitOptimizationBlock {

@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2011 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -60,8 +60,8 @@ namespace Ep128Compress {
       minLength = 3;
     if (maxOffset < 1)
       maxOffset = 1;
-    if (maxOffset > 65535)
-      maxOffset = 65535;
+    if (maxOffset > 131072)
+      maxOffset = 131072;
     if (blockSize < 1)
       blockSize = 0;
     else if (blockSize < 16)
@@ -74,7 +74,7 @@ namespace Ep128Compress {
     : optimizeIterations(40),
       splitOptimizationDepth(1),
       minLength(1),
-      maxOffset(65535),
+      maxOffset(65536),
       blockSize(0)
   {
   }

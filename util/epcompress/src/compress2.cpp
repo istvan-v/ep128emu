@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -192,7 +192,7 @@ namespace Ep128Compress {
           slotEnd = slotBegin + (size_t(1) << j);
           if (slotEnd > nSymbolsUsed)
             slotEnd = nSymbolsUsed;
-          if ((i + 2) >= nSlots && (slotEnd + 32768) < nSymbolsUsed)
+          if ((slotEnd + ((nSlots - (i + 1)) << 15)) < nSymbolsUsed)
             continue;
           size_t  tmp = symbolCntTable[slotEnd] - symbolCntTable[slotBegin];
           tmp = size_t(tmp * uint64_t(0x01000000U) / totalSymbolCnt);
@@ -749,8 +749,8 @@ namespace Ep128Compress {
     }
     if (matchTable[bufPos] == 0x7FFFFFFF)
       matchTable[bufPos] = matchTableBuf.size();
-    matchTableBuf.push_back((unsigned short) matchLen);
-    matchTableBuf.push_back((unsigned short) offs);
+    matchTableBuf.push_back((unsigned int) matchLen);
+    matchTableBuf.push_back((unsigned int) offs);
   }
 
   Compressor_M2::SearchTable::SearchTable(
@@ -780,10 +780,10 @@ namespace Ep128Compress {
           rleLength++;
       }
     }
-    std::vector< unsigned short > offs1Table(
-        buf.size(), (unsigned short) Compressor_M2::maxRepeatDist);
-    std::vector< unsigned short > offs2Table(
-        buf.size(), (unsigned short) Compressor_M2::maxRepeatDist);
+    std::vector< unsigned int > offs1Table(
+        buf.size(), (unsigned int) Compressor_M2::maxRepeatDist);
+    std::vector< unsigned int > offs2Table(
+        buf.size(), (unsigned int) Compressor_M2::maxRepeatDist);
     {
       std::vector< size_t > lastPosTable(65536, size_t(0x7FFFFFFF));
       // find 1-byte matches
@@ -792,7 +792,7 @@ namespace Ep128Compress {
         if (lastPosTable[c] < i) {
           size_t  d = i - (lastPosTable[c] + 1);
           if (d < Compressor_M2::maxRepeatDist)
-            offs1Table[i] = (unsigned short) d;
+            offs1Table[i] = (unsigned int) d;
         }
         lastPosTable[c] = i;
       }
@@ -805,7 +805,7 @@ namespace Ep128Compress {
         if (lastPosTable[c] < i) {
           size_t  d = i - (lastPosTable[c] + 1);
           if (d < Compressor_M2::maxRepeatDist)
-            offs2Table[i] = (unsigned short) d;
+            offs2Table[i] = (unsigned int) d;
         }
         lastPosTable[c] = i;
       }
@@ -937,14 +937,14 @@ namespace Ep128Compress {
     // find very long matches
     for (size_t i = buf.size() - 1; i > 0; ) {
       if (size_t(matchTableBuf[matchTable[i]]) == Compressor_M2::maxRepeatLen) {
-        size_t          len = Compressor_M2::maxRepeatLen;
-        unsigned short  offs = matchTableBuf[matchTable[i] + 1];
+        size_t        len = Compressor_M2::maxRepeatLen;
+        unsigned int  offs = matchTableBuf[matchTable[i] + 1];
         while (--i > 0) {
           // NOTE: the offset always changes when the match length decreases
           if (matchTableBuf[matchTable[i] + 1] != offs)
             break;
           len = (len < size_t(Compressor_M2::lengthMaxValue) ? (len + 1) : len);
-          matchTableBuf[matchTable[i]] = (unsigned short) len;
+          matchTableBuf[matchTable[i]] = (unsigned int) len;
         }
         continue;
       }
@@ -1019,7 +1019,7 @@ namespace Ep128Compress {
       size_t  bestSize = 0x7FFFFFFF;
       size_t  bestLen = 1;
       size_t  bestOffs = 0;
-      const unsigned short  *matchPtr = searchTable->getMatches(offs + i);
+      const unsigned int  *matchPtr = searchTable->getMatches(offs + i);
       size_t  len = matchPtr[0];        // match length
       if (len > (nBytes - i))
         len = nBytes - i;
@@ -1036,7 +1036,7 @@ namespace Ep128Compress {
         else {
           // if a long RLE match is possible, use that
           matchTable[i].d = 1;
-          matchTable[i].len = (unsigned short) len;
+          matchTable[i].len = (unsigned int) len;
           bitCountTable[i] = bitCountTable[i + len] + matchSize3;
           continue;
         }
@@ -1110,8 +1110,8 @@ namespace Ep128Compress {
           }
         }
       }
-      matchTable[i].d = (unsigned short) bestOffs;
-      matchTable[i].len = (unsigned short) bestLen;
+      matchTable[i].d = (unsigned int) bestOffs;
+      matchTable[i].len = (unsigned int) bestLen;
       bitCountTable[i] = bestSize;
     }
   }
@@ -1127,7 +1127,7 @@ namespace Ep128Compress {
       size_t  bestSize = 0x7FFFFFFF;
       size_t  bestLen = 1;
       size_t  bestOffs = 0;
-      const unsigned short  *matchPtr = searchTable->getMatches(offs + i);
+      const unsigned int  *matchPtr = searchTable->getMatches(offs + i);
       size_t  len = matchPtr[0];        // match length
       if (len > (nBytes - i))
         len = nBytes - i;
@@ -1145,7 +1145,7 @@ namespace Ep128Compress {
         else {
           // if a long RLE match is possible, use that
           matchTable[i].d = 1;
-          matchTable[i].len = (unsigned short) len;
+          matchTable[i].len = (unsigned int) len;
           bitCountTable[i] = bitCountTable[i + len]
                              + getRepeatCodeLength(1, len);
           offsSumTable[i] = offsSumTable[i + len] + 1;
@@ -1257,8 +1257,8 @@ namespace Ep128Compress {
           }
         }
       }
-      matchTable[i].d = (unsigned short) bestOffs;
-      matchTable[i].len = (unsigned short) bestLen;
+      matchTable[i].d = (unsigned int) bestOffs;
+      matchTable[i].len = (unsigned int) bestLen;
       bitCountTable[i] = bestSize;
       offsSumTable[i] = offsSumTable[i + bestLen] + bestOffs;
     }
@@ -1397,7 +1397,7 @@ namespace Ep128Compress {
             i++;
           }
           nSymbols++;
-          tmp.len -= (unsigned short) len;
+          tmp.len -= (unsigned int) len;
         }
         while (tmp.len > 0) {
           // write literal byte(s)

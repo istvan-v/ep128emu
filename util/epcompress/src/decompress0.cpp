@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -202,9 +202,7 @@ namespace Ep128Compress {
           throw Ep128Emu::Exception("error in compressed data");
         buf[startAddr] = (unsigned char) readBits(8);
         bytesUsed[startAddr] = true;
-        startAddr++;
-        if (allowWrap)
-          startAddr = startAddr & 0xFFFFU;
+        startAddr = (startAddr + 1U) & (allowWrap ? 0x0000FFFFU : 0xFFFFFFFFU);
       }
       return isLastBlock;
     }
@@ -227,9 +225,7 @@ namespace Ep128Compress {
           throw Ep128Emu::Exception("error in compressed data");
         buf[startAddr] = (unsigned char) tmp;
         bytesUsed[startAddr] = true;
-        startAddr++;
-        if (allowWrap)
-          startAddr = startAddr & 0xFFFFU;
+        startAddr = (startAddr + 1U) & (allowWrap ? 0x0000FFFFU : 0xFFFFFFFFU);
         i++;
         continue;
       }
@@ -257,7 +253,7 @@ namespace Ep128Compress {
         prvMatchOffsetsPos = (prvMatchOffsetsPos - 1U) & 3U;
         prvMatchOffsets[prvMatchOffsetsPos] = offs;
       }
-      if (offs >= 0xFFFFU)
+      if (offs > 0xFFFFU)
         throw Ep128Emu::Exception("error in compressed data");
       offs++;
       unsigned int  lzMatchReadAddr = (startAddr - offs) & 0xFFFFU;
@@ -271,9 +267,7 @@ namespace Ep128Compress {
           throw Ep128Emu::Exception("error in compressed data");
         buf[startAddr] = (buf[lzMatchReadAddr] + deltaValue) & 0xFF;
         bytesUsed[startAddr] = true;
-        startAddr++;
-        if (allowWrap)
-          startAddr = startAddr & 0xFFFFU;
+        startAddr = (startAddr + 1U) & (allowWrap ? 0x0000FFFFU : 0xFFFFFFFFU);
         lzMatchReadAddr = (lzMatchReadAddr + 1U) & 0xFFFFU;
         i++;
       }
