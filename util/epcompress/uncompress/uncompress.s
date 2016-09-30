@@ -1,5 +1,5 @@
 
-BUILD_EXTENSION_ROM     equ     0
+BUILD_EXTENSION_ROM     equ     1
 
     if BUILD_EXTENSION_ROM == 0
         output  "uncompress.ext"
@@ -124,7 +124,9 @@ decompReadBuffer        equ     06000h
 decompReadBufferP0      equ     decompReadBuffer - 04000h
 inputFileName           equ     06400h
 outputFileName          equ     06500h
-variablesBase           equ     066a0h
+decompTablesBase        equ     06600h
+decompTablesBaseP0      equ     decompTablesBase - 04000h
+variablesBase           equ     066d4h
 variablesBaseP0         equ     variablesBase - 04000h
 decompStack             equ     06700h
 decompStackTop          equ     decompStack + 00100h
@@ -151,7 +153,7 @@ decompStackTopP0        equ     decompStackTop - 04000h
 ; IX + 26:  current archive file index
 ; IX + 27:  number of files in archive
 ; IX + 28:  current archive file bytes remaining (32 bit value)
-; IX + 88:  segment table
+; IX + 32:  segment table
 
     macro defineVariable n, m
 n       equ     variablesBase + m
@@ -180,7 +182,7 @@ n       equ     variablesBase + m
         defineVariable  archiveFileIndex, 26
         defineVariable  archiveFileCnt, 27
         defineVariable  outFileBytesLeft, 28
-        defineVariable  segmentTable, 84
+        defineVariable  segmentTable, 32
 
 parseCommand:
         push  de
@@ -702,34 +704,69 @@ parseArchiveIndex:
         or    a
         ret
 
-; BC: number of bytes
+; BC: number of bytes (<= 1024)
 ; HL: buffer address
 
 updateChecksum:
         di
-        dec   bc
+        ld    e, c
+        ld    d, b
         ld    a, c
         srl   b
         rra
-        ld    c, b
-        inc   c
+        srl   b
+        rra
         ld    b, a
-        inc   b
+        ld    c, 0ach
         ld    a, (crcValue)
-        ld    e, 0ach
-        jr    nc, .l2
-.l1:    sub   e
+        bit   1, e
+        jr    z, .l1
+        sub   c
         rrca
         xor   (hl)
         inc   hl
-.l2:    sub   e
+        sub   c
         rrca
         xor   (hl)
         inc   hl
-        djnz  .l1
-        dec   c
-        jr    nz, .l1
-        ld    (crcValue), a
+.l1:    bit   0, e
+        jr    z, .l2
+        sub   c
+        rrca
+        xor   (hl)
+        inc   hl
+.l2:    ld    e, a
+        ld    a, b
+        or    d
+        ld    a, e
+        jr    z, .l4
+        ex    de, hl
+        ld    hl, 0
+        add   hl, sp
+        ex    de, hl                    ; DE = saved stack pointer
+        ld    sp, hl
+.l3:    pop   hl
+        sub   c
+        rrca
+        xor   l
+        sub   c
+        rrca
+        xor   h
+        pop   hl
+        sub   c
+        rrca
+        xor   l
+        sub   c
+        rrca
+        xor   h
+        djnz  .l3
+        ld    l, b
+        ld    h, b
+        add   hl, sp
+        ex    de, hl
+        ld    sp, hl
+        ex    de, hl
+.l4:    ld    (crcValue), a
         ei
         ret
 
@@ -1433,10 +1470,10 @@ readCompressedData:
 cmdNameLength   equ     10              ; length of "UNCOMPRESS"
 cmdName:
 versionMsg:
-        defm  "UNCOMPRESS version 1.02\r\n"
+        defm  "UNCOMPRESS version 1.03\r\n"
         defb  000h
 usageMsg:
-        defm  "UNCOMPRESS version 1.02\r\n"
+        defm  "UNCOMPRESS version 1.03\r\n"
         defm  "Usage:\r\n"
         defm  "  UNCOMPRESS <infile> <outfile>\r\n"
         defm  "    uncompress 'infile' to 'outfile'\r\n"
@@ -1525,7 +1562,7 @@ decompressDone:
 writeBlock:
         inc   d
         bit   6, d
-        ret   z
+        ret   z                         ; return Z=1 if no new segment
         push  af
         ld    a, iyl
         inc   a
@@ -1657,109 +1694,126 @@ maxOffs3Slots           equ 32
 totalSlots              equ nLengthSlots+nOffs1Slots+nOffs2Slots+maxOffs3Slots
 ; NOTE: the upper byte of the address of all table entries must be the same
 slotBitsTable           equ 00000h
-;slotBaseLowTable       equ slotBitsTable + totalSlots
-;slotBaseHighTable      equ slotBaseLowTable + totalSlots
 slotBitsTableL          equ slotBitsTable
-;slotBaseLowTableL      equ slotBaseLowTable
-;slotBaseHighTableL     equ slotBaseHighTable
-slotBitsTableO1         equ slotBitsTableL + nLengthSlots
-;slotBaseLowTableO1     equ slotBaseLowTableL + nLengthSlots
-;slotBaseHighTableO1    equ slotBaseHighTableL + nLengthSlots
-slotBitsTableO2         equ slotBitsTableO1 + nOffs1Slots
-;slotBaseLowTableO2     equ slotBaseLowTableO1 + nOffs1Slots
-;slotBaseHighTableO2    equ slotBaseHighTableO1 + nOffs1Slots
-slotBitsTableO3         equ slotBitsTableO2 + nOffs2Slots
-;slotBaseLowTableO3     equ slotBaseLowTableO2 + nOffs2Slots
-;slotBaseHighTableO3    equ slotBaseHighTableO2 + nOffs2Slots
-decodeTableEnd          equ slotBitsTable + (totalSlots * 3)
+slotBitsTableO1         equ slotBitsTableL + (nLengthSlots * 4)
+slotBitsTableO2         equ slotBitsTableO1 + (nOffs1Slots * 4)
+slotBitsTableO3         equ slotBitsTableO2 + (nOffs2Slots * 4)
+decodeTableEnd          equ slotBitsTable + (totalSlots * 4)
 
 decompressDataBlock:
         ld    ixl, low variablesBase
         bit   0, (ix + haveStartAddress.offs)
         jr    z, .l1
+        exx
         call  read8Bits                 ; ignore start address
         call  read8Bits
-.l1:    call  read8Bits                 ; read number of symbols - 1 (BC)
+        defb  0feh                      ; = CP nn
+.l1:    exx
+        call  read8Bits                 ; read number of symbols - 1 (BC)
+        exx
         ld    c, a                      ; NOTE: MSB is in C, and LSB is in B
+        exx
         call  read8Bits
+        exx
         ld    b, a
         inc   b
         inc   c
-        ld    a, 040h
+        ld    a, 40h
+        exx
         call  readBits                  ; read flag bits
+        exx
         srl   a
         push  af                        ; save last block flag (A = 1, Z = 0)
         jr    c, .l2                    ; is compression enabled ?
         exx                             ; no, copy uncompressed literal data
-        ld    bc, 00101h
-        jr    .l13
+        ld    bc, 0101h
+        jp    .l13
 .l2:    push  bc                        ; compression enabled:
-        ld    a, 040h
-        call  readBits                  ; get prefix size for length >= 3 bytes
+        ld    a, 40h
         exx
+        call  readBits                  ; get prefix size for length >= 3 bytes
         ld    b, a
         inc   b
-        ld    a, 002h
-        ld    d, 080h
+        ld    a, 08h
+        ld    d, 80h
 .l3:    add   a, a
         srl   d                         ; D' = prefix size code for readBits
         djnz  .l3
         pop   bc                        ; store the number of symbols in BC'
         exx
-        add   a, nLengthSlots + nOffs1Slots + nOffs2Slots - 3
-        ld    c, a                      ; store total table size - 3 in C
         push  de                        ; save decompressed data write address
-        ld    ixl, low slotBitsTable    ; initialize decode tables
-.l4:    sbc   hl, hl                    ; set initial base value (carry is 0)
-.l5:    ld    (ix + totalSlots), l        ; store base value LSB
-        ld    (ix + (totalSlots * 2)), h  ; store base value MSB
-        ld    a, 010h
+        add   a, low ((nLengthSlots + nOffs1Slots + nOffs2Slots) * 4)
+        ld    (ix - 1), a
+        ld    de, decompTablesBaseP0    ; initialize decode tables
+        scf
+.l4:    ld    bc, 1                     ; set initial base value (len=3, offs=2)
+        rl    c                         ; 2 is added to correct for the LDIs
+.l5:    ld    a, 10h
+        exx
         call  readBits
-        ld    (ix), a                   ; store the number of bits to read
-        ex    de, hl
-        ld    hl, 00001h                ; calculate 1 << nBits
-        jr    z, .l7
+        exx
+        ld    hl, bitCntTable
+        add   a, a
+        add   a, a
+        add   a, l
+        ld    l, a
+        adc   a, h
+        sub   l
+        ld    h, a
+        ldi                             ; copy read bit count (MSB, LSB)
+        ldi
+        ld    a, c                      ; store and update base value
+        ld    (de), a
+        inc   e
+        add   a, (hl)
+        inc   hl
+        ld    c, a
+        ld    a, b
+        ld    (de), a
+        inc   e
+        adc   a, (hl)
         ld    b, a
-.l6:    add   hl, hl
-        djnz  .l6
-.l7:    add   hl, de                    ; calculate new base value
-        inc   ixl
-        ld    a, ixl
+        ld    a, e
         cp    low slotBitsTableO1
         jr    z, .l4                    ; end of length decode table ?
         cp    low slotBitsTableO2
         jr    z, .l4                    ; end of offset table for length=1 ?
         cp    low slotBitsTableO3
         jr    z, .l4                    ; end of offset table for length=2 ?
-        dec   c
+        xor   (ix - 1)
         jr    nz, .l5                   ; continue until all tables are read
+        ld    c, a
+        ld    b, a
         pop   de                        ; DE = decompressed data write address
         exx
 .l8:    sla   e
+        jr    nc, .l14                  ; literal byte ?
         jp    nz, .l9
         inc   l
         call  z, readBlock
         ld    e, (hl)
         rl    e
-.l9:    jr    nc, .l14                  ; literal byte ?
-        ld    a, 0f8h
+        jr    nc, .l14
+.l9:    ld    a, 0f8h
 .l10:   sla   e
+        jr    nc, copyLZMatch           ; LZ77 match ?
         jp    nz, .l11
         inc   l
         call  z, readBlock
         ld    e, (hl)
         rl    e
-.l11:   jr    nc, copyLZMatch           ; LZ77 match ?
-        inc   a
+        jr    nc, copyLZMatch
+.l11:   inc   a
         jr    nz, .l10
+        inc   a
+        call  readBits                  ; get literal sequence length - 17
         exx
-        ld    c, a
-        call  read8Bits                 ; get literal sequence length - 17
         add   a, 16
         ld    b, a
-        rl    c
+        adc   a, 1
+        sub   b
         inc   b                         ; B: (length - 1) LSB + 1
-        inc   c                         ; C: (length - 1) MSB + 1
+        ld    c, a                      ; C: (length - 1) MSB + 1
 .l12:   exx                             ; copy literal sequence
 .l13:   inc   l
         call  z, readBlock
@@ -1789,97 +1843,103 @@ decompressDataBlock:
 
 copyLZMatch:
         exx
-        add   a, low (slotBitsTableL + 8)
-        ld    ixl, a                    ; decode match length - 1
-        xor   a
-        ld    h, a
-        ld    b, (ix)
-        cp    b
-        jr    z, .l3
-.l1:    exx
-        sla   e
-        jp    nz, .l2
+        add   a, a
+        add   a, a
+        add   a, low (slotBitsTableL + 32)
+        ld    l, a                      ; decode match length
+        ld    h, high decompTablesBaseP0
+        ld    a, (hl)
         inc   l
-        call  z, readBlock
-        ld    e, (hl)
-        rl    e
-.l2:    exx
-        adc   a, a
-        rl    h
-        djnz  .l1
-.l3:    add   a, (ix + totalSlots)
-        ld    l, a                      ; L = (length - 1) LSB
-        ld    a, h
-        adc   a, (ix + (totalSlots * 2))
-        ld    c, a                      ; C = (length - 1) MSB
-        or    l
-        jr    z, .l5                    ; length == 1 byte ?
-        dec   a
-        or    c
-        jr    nz, .l4                   ; length >= 3 bytes ?
-        ld    a, 020h                   ; length == 2 bytes, read 3 prefix bits
-        ld    b, low slotBitsTableO2
-        jr    .l6
-.l4:    exx                             ; length >= 3 bytes,
-        ld    a, d                      ; variable prefix size
+        or    a
+        jp    z, .l1
         exx
-        ld    b, low slotBitsTableO3
-        jr    .l6
-.l5:    ld    a, 040h                   ; length == 1 byte, read 2 prefix bits
+        call  readBits
+        exx
+.l1:    ld    b, a
+        ld    a, (hl)
+        inc   l
+        or    a
+        exx
+        call  nz, readBits
+        exx
+        add   a, (hl)
+        inc   l
+        ld    c, a                      ; C = length LSB
+        ld    a, b
+        adc   a, (hl)
+        ld    b, a                      ; B = length MSB
+        push  bc
+        jr    nz, .l4                   ; length >= 256 bytes ?
+        dec   c
+        jr    z, .l5                    ; length == 1 byte ?
+        dec   c
+        jr    nz, .l4                   ; length >= 3 bytes ?
+        ld    a, 20h                    ; length == 2 bytes, read 3 prefix bits
+        ld    b, low slotBitsTableO2
+        jp    .l6
+.l4:    ld    b, low slotBitsTableO3    ; length >= 3 bytes,
+        exx
+        ld    a, d                      ; variable prefix size
+        jp    .l7
+.l5:    ld    a, 40h                    ; length == 1 byte, read 2 prefix bits
         ld    b, low slotBitsTableO1
-.l6:    call  readBits                  ; read offset prefix bits
+.l6:    exx
+.l7:    call  readBits                  ; read offset prefix bits
+        exx
+        add   a, a
+        add   a, a
         add   a, b
-        ld    ixl, a                    ; decode match offset
-        xor   a
-        ld    h, a
-        ld    b, (ix)
-        cp    b
-        jr    z, .l9
-.l7:    exx
-        sla   e
-        jr    z, .l23
-.l8:    exx
-        adc   a, a
-        rl    h
-        djnz  .l7
-.l9:    add   a, (ix + totalSlots)
+        ld    l, a                      ; decode match offset
+        ld    a, (hl)
+        inc   l
+        or    a
+        exx
+        call  nz, readBits
+        exx
         ld    b, a
-        ld    a, h
-        adc   a, (ix + (totalSlots * 2))
+        ld    a, (hl)
+        inc   l
+        or    a
+        exx
+        call  nz, readBits
+        exx
+        add   a, (hl)
+        inc   l
+        ld    c, a
+        ld    a, b
+        adc   a, (hl)
         ld    h, a
+        cp    high 4000h
         ld    a, e                      ; calculate LZ77 match read address
     if NO_BORDER_FX == 0
         out   (081h), a
     endif
-        sub   b
-        ld    b, l                      ; length LSB
+        jr    c, .l23                   ; offset <= 16384 bytes ?
+        sub   c
+        pop   bc                        ; BC = length
         ld    l, a
         ld    a, d
         sbc   a, h
-        ld    h, a
-        jr    c, .l21                   ; set up memory paging
-        jp    p, .l19
-        in    a, (0b2h)
-.l10:   res   7, h                      ; read from page 1
-.l11:   set   6, h
+        ld    h, a                      ; set up memory paging
+        jr    c, .l21                   ; page 2 or 3 ?
+        add   a, a                      ; page 0 or 1
+        jp    p, .l10                   ; page 0 ?
+        ld    a, (iy - 1)               ; page 1
+        jr    .l12
+.l10:   ld    a, (iy - 2)
+.l11:   set   6, h                      ; read from page 1
 .l12:   out   (0b1h), a
-        inc   b                         ; B: (length - 1) LSB + 1
-        inc   c                         ; C: (length - 1) MSB + 1
 .l13:   inc   e                         ; copy match data
         jr    z, .l16
-.l14:   ld    a, (hl)
-        ld    (de), a
-        inc   l
-        jr    z, .l17
-.l15:   djnz  .l13
-        dec   c
-        jp    z, decompressDataBlock.l15  ; return to main decompress loop
-        jr    .l13
+.l14:   bit   7, h
+        jr    nz, .l17
+.l15:   ldi
+        dec   de
+        jp    pe, .l13
+        jp    decompressDataBlock.l15   ; return to main decompress loop
 .l16:   call  writeBlock
         jr    .l14
-.l17:   inc   h
-        jp    p, .l15
-        ld    h, 040h
+.l17:   ld    h, high 4000h
         push  iy
         in    a, (0b1h)
 .l18:   cp    (iy)
@@ -1889,40 +1949,105 @@ copyLZMatch:
         out   (0b1h), a                 ; read next segment
         pop   iy
         jr    .l15
-.l19:   add   a, a
-        jp    p, .l20
-        ld    a, (iy - 1)
+.l21:   res   7, h                      ; page 2 or 3
+        add   a, a
+        jp    p, .l22                   ; page 2 ?
+        ld    a, (iy - 3)               ; page 3
         jr    .l12
-.l20:   ld    a, (iy - 2)
-        jr    .l11
-.l21:   add   a, a
-        jp    p, .l22
-        ld    a, (iy - 3)
-        jr    .l10
 .l22:   ld    a, (iy - 4)
-        jr    .l10
-.l23:   inc   l
-        call  z, readBlock
-        ld    e, (hl)
-        rl    e
-        jp    .l8
+        jr    .l11
+.l23:   sub   c                         ; offset <= 16384 bytes:
+        pop   bc                        ; BC = length
+        ld    l, a
+        ld    a, d
+        sbc   a, h
+        ld    h, a
+        ld    a, (iy - 1)
+        out   (0b1h), a
+.l24:   inc   e                         ; copy match data
+        jr    z, .l26
+.l25:   ldi
+        dec   de
+        jp    pe, .l24
+        jp    decompressDataBlock.l15   ; return to main decompress loop
+.l26:   call  writeBlock
+        jr    z, .l25
+        ld    a, (iy - 1)
+        out   (0b1h), a
+        ld    a, h
+        sub   high 4000h
+        ld    h, a
+        jr    .l25
 
 read8Bits:
         ld    a, 001h
 
 readBits:
-        exx
-.l1:    sla   e
-        jr    z, .l3
-.l2:    adc   a, a
-        jp    nc, .l1
-        exx
+        sla   e
+        jr    z, .l1
+        adc   a, a
+        ret   c
+        sla   e
+        jr    z, .l1
+        adc   a, a
+        ret   c
+        sla   e
+        jr    z, .l1
+        adc   a, a
+        ret   c
+        sla   e
+        jr    z, .l1
+        adc   a, a
+        ret   c
+        sla   e
+        jr    z, .l1
+        adc   a, a
+        ret   c
+        sla   e
+        jr    z, .l1
+        adc   a, a
+        ret   c
+        sla   e
+        jr    z, .l1
+        adc   a, a
+        ret   c
+        sla   e
+        jr    z, .l1
+        adc   a, a
         ret
-.l3:    inc   l
+.l1:    inc   l
         call  z, readBlock
         ld    e, (hl)
         rl    e
-        jp    .l2
+        adc   a, a
+        ret   c
+        sla   e
+        adc   a, a
+        ret   c
+        sla   e
+        adc   a, a
+        ret   c
+        sla   e
+        adc   a, a
+        ret   c
+        sla   e
+        adc   a, a
+        ret   c
+        sla   e
+        adc   a, a
+        ret   c
+        sla   e
+        adc   a, a
+        ret   c
+        sla   e
+        adc   a, a
+        ret
+
+bitCntTable:
+        defw  0000h, 0003h, 8000h, 0004h, 4000h, 0006h, 2000h, 000ah
+        defw  1000h, 0012h, 0800h, 0022h, 0400h, 0042h, 0200h, 0082h
+        defw  0100h, 0102h, 0180h, 0202h, 0140h, 0402h, 0120h, 0802h
+        defw  0110h, 1002h, 0108h, 2002h, 0104h, 4002h, 0102h, 8002h
 
 codeEnd:
 
