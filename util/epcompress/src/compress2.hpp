@@ -29,7 +29,7 @@ namespace Ep128Compress {
   class Compressor_M2 : public Compressor {
    private:
     static const size_t minRepeatDist = 1;
-    static const size_t maxRepeatDist = 131072;
+    static const size_t maxRepeatDist = 262144;
     static const size_t minRepeatLen = 1;
     static const size_t maxRepeatLen = 512;
     static const unsigned int lengthMaxValue = 65535U;
@@ -64,8 +64,8 @@ namespace Ep128Compress {
       std::vector< unsigned int >   slotBaseSymbolTable;
       std::vector< unsigned int >   symbolCntTable;
       std::vector< unsigned int >   unencodedSymbolCostTable;
-      std::vector< unsigned short > symbolSlotNumTable;
-      std::vector< unsigned short > symbolSizeTable;
+      std::vector< unsigned char >  symbolSlotNumTable;
+      std::vector< unsigned char >  symbolSizeTable;
       void setPrefixSize(size_t n);
       inline size_t calculateEncodedSize() const;
       inline size_t calculateEncodedSize(size_t firstSlot,
@@ -126,7 +126,7 @@ namespace Ep128Compress {
       {
         if (size_t(n) >= nSymbolsEncoded)
           throw Ep128Emu::Exception("internal error: encoding invalid symbol");
-        return size_t(symbolSlotNumTable[n]);
+        return symbolSlotNumTable[n];
       }
       inline unsigned int encodeSymbol(unsigned int n) const
       {
@@ -157,7 +157,7 @@ namespace Ep128Compress {
       // for each buffer position P, matchTableBuf[matchTable[P]] is the
       // first element of an array of interleaved length/offset pairs,
       // terminated with zero length and offset
-      std::vector< size_t > matchTable;
+      std::vector< unsigned int > matchTable;
       // space allocated for matchTable
       std::vector< unsigned int > matchTableBuf;
       size_t  matchTableBufPos;

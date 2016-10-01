@@ -394,6 +394,10 @@ namespace Ep128Compress {
     std::vector< uint8_t >  slotBitsBuffer(nSlotsD2 * nSymbolsUsed, 0x00);
     std::vector< uint32_t > encodedSizeBuffer(nSymbolsUsed + 1);
     std::vector< uint8_t >  minSlotSizeTable(nSymbolsUsed, 0x00);
+    // minSlotNumTable[N] is the binary weight of N, this is used to skip
+    // calculating the encoded cost at any symbol index that cannot be the
+    // end point with a given number of slots
+    std::vector< uint8_t >  minSlotNumTable(nSymbolsUsed, 0x00);
     for (size_t i = 0; i <= nSymbolsUsed; i++) {
       encodedSizeBuffer[i] = uint32_t(unencodedSymbolCostTable[nSymbolsUsed]
                                       - unencodedSymbolCostTable[i]);
@@ -408,6 +412,12 @@ namespace Ep128Compress {
         j++;
       }
       minSlotSizeTable[i] = uint8_t(j);
+      size_t  bitCnt = (i & 0x55555555) + ((i >> 1) & 0x55555555);
+      bitCnt = (bitCnt & 0x33333333) + ((bitCnt >> 2) & 0x33333333);
+      bitCnt = (bitCnt & 0x07070707) + ((bitCnt >> 4) & 0x07070707);
+      bitCnt = bitCnt + (bitCnt >> 8);
+      bitCnt = (bitCnt + (bitCnt >> 16)) & 0xFF;
+      minSlotNumTable[i] = uint8_t(bitCnt);
     }
     for (size_t slotNum = (nSlots < nSymbolsUsed ? nSlots : nSymbolsUsed);
          slotNum-- > 0; ) {
@@ -419,7 +429,9 @@ namespace Ep128Compress {
         maxSlotSize--;
         maxPos = nSymbolsUsed - ((nSymbolsUsed - maxPos) >> 1);
       }
-      size_t  endPos = (slotNum > 0 ? nSymbolsUsed : 1);
+      size_t  endPos = (slotNum << 15) + 1;
+      endPos = (endPos < nSymbolsUsed ? endPos : nSymbolsUsed);
+      maxPos = (maxPos < endPos ? maxPos : endPos);
       for (size_t i = slotNum; true; i++) {
         if (i >= maxPos) {
           if (i >= endPos)
@@ -427,15 +439,8 @@ namespace Ep128Compress {
           maxSlotSize--;
           maxPos = nSymbolsUsed - ((nSymbolsUsed - maxPos) >> 1);
         }
-        {
-          size_t  bitCnt = (i & 0x55555555) + ((i >> 1) & 0x55555555);
-          bitCnt = (bitCnt & 0x33333333) + ((bitCnt >> 2) & 0x33333333);
-          bitCnt = (bitCnt & 0x07070707) + ((bitCnt >> 4) & 0x07070707);
-          bitCnt = bitCnt + (bitCnt >> 8);
-          bitCnt = (bitCnt + (bitCnt >> 16)) & 0xFF;
-          if (bitCnt > slotNum)
-            continue;
-        }
+        if (size_t(minSlotNumTable[i]) > slotNum)
+          continue;
         size_t  baseSymbolCnt = size_t(symbolCntTable[i]);
         size_t  slotEnd = i + (size_t(1) << minSlotSizeTable[i]);
         size_t  maxSymbolSize = slotPrefixSizeTable[slotNum] + maxSlotSize;
@@ -608,6 +613,13 @@ namespace Ep128Compress {
            prefixSize++) {
         if (maxPrefixSize > minPrefixSize)
           setPrefixSize(prefixSize);
+        if (nSymbolsUsed > (size_t(0x8000) << prefixSize) && prefixSize > 0) {
+          if (prefixSize >= maxPrefixSize) {
+            throw Ep128Emu::Exception("internal error in "
+                                      "EncodeTable::updateTables()");
+          }
+          continue;
+        }
         size_t  encodedSize = 0;
         if (fastMode)
           encodedSize = optimizeSlotBitsTable_fast();
@@ -638,8 +650,8 @@ namespace Ep128Compress {
           baseSymbol = nSymbols;
         size_t  symbolSize = slotPrefixSizeTable[i] + slotBitsTable[i];
         for (unsigned int j = prvBaseSymbol; j < baseSymbol; j++) {
-          symbolSlotNumTable[j] = (unsigned short) i;
-          symbolSizeTable[j] = (unsigned short) symbolSize;
+          symbolSlotNumTable[j] = (unsigned char) i;
+          symbolSizeTable[j] = (unsigned char) symbolSize;
         }
       }
       for (size_t i = 0; i <= nSymbolsUsed; i++) {
@@ -747,8 +759,8 @@ namespace Ep128Compress {
         tmp = tmp << 1;
       matchTableBuf.reserve(tmp);
     }
-    if (matchTable[bufPos] == 0x7FFFFFFF)
-      matchTable[bufPos] = matchTableBuf.size();
+    if (matchTable[bufPos] == 0xFFFFFFFFU)
+      matchTable[bufPos] = (unsigned int) matchTableBuf.size();
     matchTableBuf.push_back((unsigned int) matchLen);
     matchTableBuf.push_back((unsigned int) offs);
   }
@@ -761,7 +773,7 @@ namespace Ep128Compress {
       throw Ep128Emu::Exception("Compressor_M2::SearchTable::SearchTable(): "
                                 "zero input buffer size");
     }
-    matchTable.resize(buf.size(), 0x7FFFFFFF);
+    matchTable.resize(buf.size(), 0xFFFFFFFFU);
     matchTableBuf.reserve(1024);
     std::vector< unsigned short > rleLengthTable(buf.size(), 0);
     // find RLE (offset = 1) matches
