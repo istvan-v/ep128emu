@@ -9,7 +9,7 @@ Group:			Emulators
 URL:			https://github.com/istvan-v/ep128emu/
 Source0:		%{name}/%{name}-%{version}.tar.xz
 Source1:		%{name}-32.png
-%define	romname		ep128emu_roms.bin
+%define	romname		ep128emu_roms-2.0.10.bin
 Source2:		%{romname}
 BuildRequires:		libSDL-devel libgtk+2.0_0-devel
 BuildRequires:		scons libfltk-devel libportaudio2-devel libsndfile-devel liblua-devel

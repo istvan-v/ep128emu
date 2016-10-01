@@ -656,12 +656,13 @@ if not mingwCrossCompile:
                                 "resource/zx128.desktop"])
     if not buildingLinuxPackage:
         makecfgEnvironment.Command(
-            instROMDir + "/ep128emu_roms.bin", None,
-            ['curl -o "' + instROMDir + '/ep128emu_roms.bin" '
-             + 'http://ep128emu.enterpriseforever.com/roms/ep128emu_roms.bin'])
+            instROMDir + "/ep128emu_roms-2.0.10.bin", None,
+            ['curl -o "' + instROMDir + '/ep128emu_roms-2.0.10.bin" '
+             + 'http://ep128emu.enterpriseforever.com/roms/'
+             + 'ep128emu_roms-2.0.10.bin'])
         makecfgEnvironment.Command(
-            instROMDir + "/exos232uk.rom",
-            [makecfg, instROMDir + "/ep128emu_roms.bin"],
+            instROMDir + "/exos24uk.rom",
+            [makecfg, instROMDir + "/ep128emu_roms-2.0.10.bin"],
             ['./' + programNamePrefix + 'makecfg -f "' + instDataDir + '"'])
     else:
         makecfgEnvironment.Command(instROMDir, None, [])

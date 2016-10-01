@@ -1,13 +1,13 @@
 #!/bin/bash
 
-if [ ! -f ~/.ep128emu/roms/exos232uk.rom ];then
+if [ ! -f ~/.ep128emu/roms/exos24uk.rom ];then
   mkdir -p ~/.ep128emu/roms
-  if [ ! -f ~/.ep128emu/roms/ep128emu_roms.bin ];then
-    if [ -f /usr/share/ep128emu/roms/ep128emu_roms.bin ];then
-      cp /usr/share/ep128emu/roms/ep128emu_roms.bin ~/.ep128emu/roms/
+  if [ ! -f ~/.ep128emu/roms/ep128emu_roms-2.0.10.bin ];then
+    if [ -f /usr/share/ep128emu/roms/ep128emu_roms-2.0.10.bin ];then
+      cp /usr/share/ep128emu/roms/ep128emu_roms-2.0.10.bin ~/.ep128emu/roms/
     else
-      curl -o "$HOME/.ep128emu/roms/ep128emu_roms.bin"        \
-      "http://ep128emu.enterpriseforever.com/roms/ep128emu_roms.bin"
+      curl -o "$HOME/.ep128emu/roms/ep128emu_roms-2.0.10.bin"   \
+      "http://ep128emu.enterpriseforever.com/roms/ep128emu_roms-2.0.10.bin"
     fi
   epmakecfg "$HOME/.ep128emu"
   fi
