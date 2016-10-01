@@ -1075,7 +1075,7 @@ bool Decompressor::decompressDataBlock(std::vector< unsigned char >& buf,
     for (unsigned int i = 0U; i < nSymbols; i++) {
       buf[startAddr] = readLiteralByte();
       bytesUsed[startAddr] = true;
-      startAddr = (startAddr + 1U) & 0x0001FFFFU;
+      startAddr = (startAddr + 1U) & 0x0003FFFFU;
     }
     return isLastBlock;
   }
@@ -1086,7 +1086,7 @@ bool Decompressor::decompressDataBlock(std::vector< unsigned char >& buf,
       // literal byte
       buf[startAddr] = readLiteralByte();
       bytesUsed[startAddr] = true;
-      startAddr = (startAddr + 1U) & 0x0001FFFFU;
+      startAddr = (startAddr + 1U) & 0x0003FFFFU;
     }
     else if (matchLength >= 0x80000000U) {
       // literal sequence
@@ -1094,7 +1094,7 @@ bool Decompressor::decompressDataBlock(std::vector< unsigned char >& buf,
       while (matchLength > 0U) {
         buf[startAddr] = readLiteralByte();
         bytesUsed[startAddr] = true;
-        startAddr = (startAddr + 1U) & 0x0001FFFFU;
+        startAddr = (startAddr + 1U) & 0x0003FFFFU;
         matchLength--;
       }
     }
@@ -1118,17 +1118,17 @@ bool Decompressor::decompressDataBlock(std::vector< unsigned char >& buf,
         offs = readLZMatchParameter((unsigned char) slotNum,
                                     &(offs3DecodeTable[0]));
       }
-      if (offs >= 0x00020000U)
+      if (offs >= 0x00040000U)
         throw Ep128Emu::Exception("error in compressed data");
       offs++;
-      unsigned int  lzMatchReadAddr = (startAddr - offs) & 0x0001FFFFU;
+      unsigned int  lzMatchReadAddr = (startAddr - offs) & 0x0003FFFFU;
       for (unsigned int j = 0U; j < matchLength; j++) {
         if (!bytesUsed[lzMatchReadAddr])  // byte does not exist yet
           throw Ep128Emu::Exception("error in compressed data");
         buf[startAddr] = buf[lzMatchReadAddr];
         bytesUsed[startAddr] = true;
-        startAddr = (startAddr + 1U) & 0x0001FFFFU;
-        lzMatchReadAddr = (lzMatchReadAddr + 1U) & 0x0001FFFFU;
+        startAddr = (startAddr + 1U) & 0x0003FFFFU;
+        lzMatchReadAddr = (lzMatchReadAddr + 1U) & 0x0003FFFFU;
       }
     }
   }
@@ -1171,14 +1171,8 @@ void Decompressor::decompressData(
   inputBufferPosition = 1;
   shiftRegister = 0x00;
   shiftRegisterCnt = 0;
-  std::vector< unsigned char >  tmpBuf;
-  std::vector< bool > bytesUsed;
-  tmpBuf.resize(131072);
-  bytesUsed.resize(131072);
-  for (size_t j = 0; j < 131072; j++) {
-    tmpBuf[j] = 0x00;
-    bytesUsed[j] = false;
-  }
+  std::vector< unsigned char >  tmpBuf(262144, 0x00);
+  std::vector< bool > bytesUsed(262144, false);
   unsigned int  startAddr = 0U;
   bool          isLastBlock = false;
   do {
@@ -1187,7 +1181,7 @@ void Decompressor::decompressData(
     unsigned int  j = prvStartAddr;
     do {
       outBuf.push_back(tmpBuf[j]);
-      j = (j + 1U) & 0x0001FFFFU;
+      j = (j + 1U) & 0x0003FFFFU;
     } while (j != startAddr);
     if (outBuf.size() > 16777216)
       throw Ep128Emu::Exception("error in compressed data");
@@ -1229,13 +1223,13 @@ static bool unpackROMFiles(const std::string& romDir)
       decompressor->decompressData(buf, inBuf);
       delete decompressor;
       decompressor = (Decompressor *) 0;
-      if (buf.size() < 4 || buf.size() > 2000000)
+      if (buf.size() < 0x4000 || buf.size() > 0x00300000)
         throw Ep128Emu::Exception("invalid packed ROM data size");
     }
     // get the number of ROM files in the package
     size_t  nFiles = (size_t(buf[0]) << 24) | (size_t(buf[1]) << 16)
                      | (size_t(buf[2]) << 8) | size_t(buf[3]);
-    if (nFiles < 1 || nFiles > 50)
+    if (nFiles < 1 || nFiles > 128)
       throw Ep128Emu::Exception("invalid number of files in packed ROM data");
     size_t  offs = nFiles * 32 + 4;
     if (offs > buf.size())
