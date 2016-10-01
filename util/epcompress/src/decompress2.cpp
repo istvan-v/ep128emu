@@ -109,7 +109,7 @@ namespace Ep128Compress {
       startAddr = readBits(16);
     else
       allowWrap = true;         // "raw" data can be larger than 64K
-    unsigned int  addrMask = (allowWrap ? 0x0001FFFFU : 0x0000FFFFU);
+    unsigned int  addrMask = (allowWrap ? 0x0003FFFFU : 0x0000FFFFU);
     unsigned int  nSymbols = readBits(16) + 1U;
     bool    isLastBlock = readBits(1);
     bool    compressionEnabled = readBits(1);
@@ -120,7 +120,7 @@ namespace Ep128Compress {
           throw Ep128Emu::Exception("error in compressed data");
         buf[startAddr] = readLiteralByte();
         bytesUsed[startAddr] = true;
-        startAddr = (startAddr + 1U) & 0x0001FFFFU;
+        startAddr = (startAddr + 1U) & 0x0003FFFFU;
       }
       return isLastBlock;
     }
@@ -133,7 +133,7 @@ namespace Ep128Compress {
           throw Ep128Emu::Exception("error in compressed data");
         buf[startAddr] = readLiteralByte();
         bytesUsed[startAddr] = true;
-        startAddr = (startAddr + 1U) & 0x0001FFFFU;
+        startAddr = (startAddr + 1U) & 0x0003FFFFU;
       }
       else if (matchLength >= 0x80000000U) {
         // literal sequence
@@ -143,7 +143,7 @@ namespace Ep128Compress {
             throw Ep128Emu::Exception("error in compressed data");
           buf[startAddr] = readLiteralByte();
           bytesUsed[startAddr] = true;
-          startAddr = (startAddr + 1U) & 0x0001FFFFU;
+          startAddr = (startAddr + 1U) & 0x0003FFFFU;
           matchLength--;
         }
       }
@@ -167,7 +167,7 @@ namespace Ep128Compress {
           offs = readLZMatchParameter((unsigned char) slotNum,
                                       &(offs3DecodeTable[0]));
         }
-        if (offs >= 0x00020000U || (offs >= startAddr && !allowWrap))
+        if (offs >= 0x00040000U || (offs >= startAddr && !allowWrap))
           throw Ep128Emu::Exception("error in compressed data");
         offs++;
         unsigned int  lzMatchReadAddr = (startAddr - offs) & addrMask;
@@ -178,7 +178,7 @@ namespace Ep128Compress {
             throw Ep128Emu::Exception("error in compressed data");
           buf[startAddr] = buf[lzMatchReadAddr];
           bytesUsed[startAddr] = true;
-          startAddr = (startAddr + 1U) & 0x0001FFFFU;
+          startAddr = (startAddr + 1U) & 0x0003FFFFU;
           lzMatchReadAddr = (lzMatchReadAddr + 1U) & addrMask;
         }
       }
@@ -279,8 +279,8 @@ namespace Ep128Compress {
     inputBufferPosition = 1;
     shiftRegister = 0x00;
     shiftRegisterCnt = 0;
-    std::vector< unsigned char >  tmpBuf(131072, 0x00);
-    std::vector< bool > bytesUsed(131072, false);
+    std::vector< unsigned char >  tmpBuf(262144, 0x00);
+    std::vector< bool > bytesUsed(262144, false);
     unsigned int  startAddr = 0U;
     bool          isLastBlock = false;
     do {
@@ -289,7 +289,7 @@ namespace Ep128Compress {
       unsigned int  j = prvStartAddr;
       do {
         outBuf.push_back(tmpBuf[j]);
-        j = (j + 1U) & 0x0001FFFFU;
+        j = (j + 1U) & 0x0003FFFFU;
       } while (j != startAddr);
     } while (!isLastBlock);
     // on successful decompression, all input data must be consumed
