@@ -3288,7 +3288,9 @@ namespace Ep128 {
         LD_A_I();
         ADD_PC(2);
         updateCycle();
+#ifndef Z80_ENABLE_CMOS
         checkNMOSBug();
+#endif
       }
       break;
     case 0x058:
@@ -3339,7 +3341,9 @@ namespace Ep128 {
         LD_A_R();
         ADD_PC(2);
         updateCycle();
+#ifndef Z80_ENABLE_CMOS
         checkNMOSBug();
+#endif
       }
       break;
     case 0x060:
@@ -3451,7 +3455,11 @@ namespace Ep128 {
     case 0x071:
       {
         // 0 = NMOS Z80, 0xFF = CMOS
+#ifndef Z80_ENABLE_CMOS
         doOut(R.BC.W, 0);
+#else
+        doOut(R.BC.W, 0xFF);
+#endif
         ADD_PC(2);
       }
       break;
