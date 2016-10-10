@@ -236,45 +236,45 @@ class Ep128EmuMachineConfiguration {
 // bit 20:    basic21.rom at segment 06h
 // bit 21:    exdos10.rom at segment 20h
 // bit 22:    exdos13.rom at segments 20h..21h
-// bit 23:    exdos13isdos10esp.rom at segments 20h..21h
-// bit 24:    exdos14isdos10uk-hfont.rom at segments 20h..21h
-// bit 25:    epfileio.rom at segment 10h
-// bit 26:    brd.rom at segment 04h
-// bit 27:    brd.rom at segment 07h
-// bit 28:    brd.rom at segment 43h
-// bit 29:    esp.rom at segment 04h
-// bit 30:    esp.rom at segment 07h
-// bit 31:    esp.rom at segment 43h
-// bit 32:    hun.rom at segment 04h
-// bit 33:    hun.rom at segment 07h
-// bit 34:    hun.rom at segment 43h
-// bit 35:    asmon15.rom at segments 04h..05h
-// bit 36:    asmon15.rom at segments 05h..06h
-// bit 37:    cyrus.rom at segment 40h
-// bit 38:    ep-plus.rom at segment 05h
-// bit 39:    ep-plus.rom at segment 07h
-// bit 40:    epd17z12.rom at segments 06h..07h
-// bit 41:    epd19hft.rom at segments 06h..07h
-// bit 42:    epd19uk.rom at segments 06h..07h
-// bit 43:    fenas12.rom at segments 12h..13h
-// bit 44:    fenas12.rom at segments 22h..23h
-// bit 45:    forth.rom at segment 42h
-// bit 46:    genmon.rom at segments 32h..33h
-// bit 47:    heassekn.rom at segments 12h..13h
-// bit 48:    heass10uk.rom at segments 12h..13h
-// bit 49:    ide12.rom at segment 42h
-// bit 50:    iview.rom at segments 30h..31h
-// bit 51:    iview.rom at segments 40h..41h
-// bit 52:    lisp.rom at segment 11h
-// bit 53:    pascal11.rom at segments 22h..23h
-// bit 54:    pasians.rom at segments 40h..43h
-// bit 55:    tpt.rom at segment 32h
-// bit 56:    zt18hun.rom at segments 40h..41h
-// bit 57:    zt18uk.rom at segments 40h..41h
-// bit 58:    zx41.rom at segments 30h..31h
-// bit 59:    -
-// bit 60:    -
-// bit 61:    -
+// bit 23:    exdos14isdos10uk-brd.rom at segments 20h..21h
+// bit 24:    exdos14isdos10uk-esp.rom at segments 20h..21h
+// bit 25:    exdos14isdos10uk-hfont.rom at segments 20h..21h
+// bit 26:    exdos14isdos10uk.rom at segments 20h..21h
+// bit 27:    epfileio.rom at segment 10h
+// bit 28:    brd.rom at segment 04h
+// bit 29:    brd.rom at segment 07h
+// bit 30:    brd.rom at segment 43h
+// bit 31:    esp.rom at segment 04h
+// bit 32:    esp.rom at segment 07h
+// bit 33:    esp.rom at segment 43h
+// bit 34:    hun.rom at segment 04h
+// bit 35:    hun.rom at segment 07h
+// bit 36:    hun.rom at segment 43h
+// bit 37:    asmon15.rom at segments 04h..05h
+// bit 38:    asmon15.rom at segments 05h..06h
+// bit 39:    cyrus.rom at segment 40h
+// bit 40:    ep-plus.rom at segment 05h
+// bit 41:    ep-plus.rom at segment 07h
+// bit 42:    epd17z12.rom at segments 06h..07h
+// bit 43:    epd19hft.rom at segments 06h..07h
+// bit 44:    epd19uk.rom at segments 06h..07h
+// bit 45:    fenas12.rom at segments 12h..13h
+// bit 46:    fenas12.rom at segments 22h..23h
+// bit 47:    forth.rom at segment 42h
+// bit 48:    genmon.rom at segments 32h..33h
+// bit 49:    heassekn.rom at segments 12h..13h
+// bit 50:    heass10uk.rom at segments 12h..13h
+// bit 51:    ide12.rom at segment 42h
+// bit 52:    iview.rom at segments 30h..31h
+// bit 53:    iview.rom at segments 40h..41h
+// bit 54:    lisp.rom at segment 11h
+// bit 55:    pascal11.rom at segments 22h..23h
+// bit 56:    tpt.rom at segment 32h
+// bit 57:    zt18hun.rom at segments 40h..41h
+// bit 58:    zt18uk.rom at segments 40h..41h
+// bit 59:    zx41.rom at segments 30h..31h
+// bit 60:    edcw.rom at segment 33h
+// bit 61:    paszians.rom at segments 22..23h
 // bit 62:    -
 // bit 63:    -
 
@@ -304,43 +304,46 @@ class Ep128EmuMachineConfiguration {
 #define EP_ROM_BASIC21_06       uint64_t(0x00100000UL)
 #define EP_ROM_EXDOS10          uint64_t(0x00200000UL)
 #define EP_ROM_EXDOS13          uint64_t(0x00400000UL)
-#define EP_ROM_EXDOS13I_ES      uint64_t(0x00800000UL)
-#define EP_ROM_EXDOS14I_HU      uint64_t(0x01000000UL)
-#define EP_ROM_EPFILEIO         uint64_t(0x02000000UL)
-#define EP_ROM_BRD_04           uint64_t(0x04000000UL)
-#define EP_ROM_BRD_07           uint64_t(0x08000000UL)
-#define EP_ROM_BRD_43           uint64_t(0x10000000UL)
-#define EP_ROM_ESP_04           uint64_t(0x20000000UL)
-#define EP_ROM_ESP_07           uint64_t(0x40000000UL)
-#define EP_ROM_ESP_43           uint64_t(0x80000000UL)
-#define EP_ROM_HUN_04           (uint64_t(0x00000001UL) << 32)
-#define EP_ROM_HUN_07           (uint64_t(0x00000002UL) << 32)
-#define EP_ROM_HUN_43           (uint64_t(0x00000004UL) << 32)
+#define EP_ROM_EXDOS14I_BRD     uint64_t(0x00800000UL)
+#define EP_ROM_EXDOS14I_ES      uint64_t(0x01000000UL)
+#define EP_ROM_EXDOS14I_HU      uint64_t(0x02000000UL)
+#define EP_ROM_EXDOS14I_UK      uint64_t(0x04000000UL)
+#define EP_ROM_EPFILEIO         uint64_t(0x08000000UL)
+#define EP_ROM_BRD_04           uint64_t(0x10000000UL)
+#define EP_ROM_BRD_07           uint64_t(0x20000000UL)
+#define EP_ROM_BRD_43           uint64_t(0x40000000UL)
+#define EP_ROM_ESP_04           uint64_t(0x80000000UL)
+#define EP_ROM_ESP_07           (uint64_t(0x00000001UL) << 32)
+#define EP_ROM_ESP_43           (uint64_t(0x00000002UL) << 32)
+#define EP_ROM_HUN_04           (uint64_t(0x00000004UL) << 32)
+#define EP_ROM_HUN_07           (uint64_t(0x00000008UL) << 32)
+#define EP_ROM_HUN_43           (uint64_t(0x00000010UL) << 32)
 
-#define EP_ROM_ASMON15_04       (uint64_t(0x00000008UL) << 32)
-#define EP_ROM_ASMON15_05       (uint64_t(0x00000010UL) << 32)
-#define EP_ROM_CYRUS            (uint64_t(0x00000020UL) << 32)
-#define EP_ROM_EP_PLUS_05       (uint64_t(0x00000040UL) << 32)
-#define EP_ROM_EP_PLUS_07       (uint64_t(0x00000080UL) << 32)
-#define EP_ROM_EPD17Z12_06      (uint64_t(0x00000100UL) << 32)
-#define EP_ROM_EPD19HU_06       (uint64_t(0x00000200UL) << 32)
-#define EP_ROM_EPD19UK_06       (uint64_t(0x00000400UL) << 32)
-#define EP_ROM_FENAS12_12       (uint64_t(0x00000800UL) << 32)
-#define EP_ROM_FENAS12_22       (uint64_t(0x00001000UL) << 32)
-#define EP_ROM_FORTH            (uint64_t(0x00002000UL) << 32)
-#define EP_ROM_GENMON           (uint64_t(0x00004000UL) << 32)
-#define EP_ROM_HEASS10_HU       (uint64_t(0x00008000UL) << 32)
-#define EP_ROM_HEASS10_UK       (uint64_t(0x00010000UL) << 32)
-#define EP_ROM_IDE12_42         (uint64_t(0x00020000UL) << 32)
-#define EP_ROM_IVIEW_30         (uint64_t(0x00040000UL) << 32)
-#define EP_ROM_IVIEW_40         (uint64_t(0x00080000UL) << 32)
-#define EP_ROM_LISP             (uint64_t(0x00100000UL) << 32)
-#define EP_ROM_PASCAL11         (uint64_t(0x00200000UL) << 32)
-#define EP_ROM_PASIANS          (uint64_t(0x00400000UL) << 32)
-#define EP_ROM_TPT_32           (uint64_t(0x00800000UL) << 32)
-#define EP_ROM_ZT18_HU          (uint64_t(0x01000000UL) << 32)
-#define EP_ROM_ZT18_UK          (uint64_t(0x02000000UL) << 32)
-#define EP_ROM_ZX41             (uint64_t(0x04000000UL) << 32)
+#define EP_ROM_ASMON15_04       (uint64_t(0x00000020UL) << 32)
+#define EP_ROM_ASMON15_05       (uint64_t(0x00000040UL) << 32)
+#define EP_ROM_CYRUS            (uint64_t(0x00000080UL) << 32)
+#define EP_ROM_EP_PLUS_05       (uint64_t(0x00000100UL) << 32)
+#define EP_ROM_EP_PLUS_07       (uint64_t(0x00000200UL) << 32)
+#define EP_ROM_EPD17Z12_06      (uint64_t(0x00000400UL) << 32)
+#define EP_ROM_EPD19HU_06       (uint64_t(0x00000800UL) << 32)
+#define EP_ROM_EPD19UK_06       (uint64_t(0x00001000UL) << 32)
+#define EP_ROM_FENAS12_12       (uint64_t(0x00002000UL) << 32)
+#define EP_ROM_FENAS12_22       (uint64_t(0x00004000UL) << 32)
+#define EP_ROM_FORTH            (uint64_t(0x00008000UL) << 32)
+#define EP_ROM_GENMON           (uint64_t(0x00010000UL) << 32)
+#define EP_ROM_HEASS10_HU       (uint64_t(0x00020000UL) << 32)
+#define EP_ROM_HEASS10_UK       (uint64_t(0x00040000UL) << 32)
+#define EP_ROM_IDE12_42         (uint64_t(0x00080000UL) << 32)
+#define EP_ROM_IVIEW_30         (uint64_t(0x00100000UL) << 32)
+#define EP_ROM_IVIEW_40         (uint64_t(0x00200000UL) << 32)
+#define EP_ROM_LISP             (uint64_t(0x00400000UL) << 32)
+#define EP_ROM_PASCAL11         (uint64_t(0x00800000UL) << 32)
+#define EP_ROM_TPT_32           (uint64_t(0x01000000UL) << 32)
+#define EP_ROM_ZT18_HU          (uint64_t(0x02000000UL) << 32)
+#define EP_ROM_ZT18_UK          (uint64_t(0x04000000UL) << 32)
+#define EP_ROM_ZX41             (uint64_t(0x08000000UL) << 32)
+#define EP_ROM_EDCW             (uint64_t(0x10000000UL) << 32)
+#define EP_ROM_PASZIANS         (uint64_t(0x20000000UL) << 32)
 
 static const char *romFileNames[58] = {
   "exos20.rom",
@@ -360,8 +363,10 @@ static const char *romFileNames[58] = {
   "basic21.rom",
   "exdos10.rom",
   "exdos13.rom",
-  "exdos13isdos10esp.rom",
+  "exdos14isdos10uk-brd.rom",
+  "exdos14isdos10uk-esp.rom",
   "exdos14isdos10uk-hfont.rom",
+  "exdos14isdos10uk.rom",
   "epfileio.rom",
   "brd.rom",
   "brd.rom",
@@ -391,14 +396,12 @@ static const char *romFileNames[58] = {
   "iview.rom",
   "lisp.rom",
   "pascal11.rom",
-  "pasians.rom",
   "tpt.rom",
   "zt18hun.rom",
   "zt18uk.rom",
   "zx41.rom",
-  (char *) 0,
-  (char *) 0,
-  (char *) 0,
+  "edcw.rom",
+  "paszians.rom",
   (char *) 0,
   (char *) 0
 };
@@ -421,8 +424,10 @@ static const unsigned long romFileSegments[58] = {
   0x06FFFFFFUL,         // basic21.rom
   0x20FFFFFFUL,         // exdos10.rom
   0x2021FFFFUL,         // exdos13.rom
-  0x2021FFFFUL,         // exdos13isdos10esp.rom
+  0x2021FFFFUL,         // exdos14isdos10uk-brd.rom
+  0x2021FFFFUL,         // exdos14isdos10uk-esp.rom
   0x2021FFFFUL,         // exdos14isdos10uk-hfont.rom
+  0x2021FFFFUL,         // exdos14isdos10uk.rom
   0x10FFFFFFUL,         // epfileio.rom
   0x04FFFFFFUL,         // brd.rom
   0x07FFFFFFUL,         // brd.rom
@@ -452,14 +457,12 @@ static const unsigned long romFileSegments[58] = {
   0x4041FFFFUL,         // iview.rom
   0x11FFFFFFUL,         // lisp.rom
   0x2223FFFFUL,         // pascal11.rom
-  0x40414243UL,         // pasians.rom
   0x32FFFFFFUL,         // tpt.rom
   0x4041FFFFUL,         // zt18hun.rom
   0x4041FFFFUL,         // zt18uk.rom
   0x3031FFFFUL,         // zx41.rom
-  0xFFFFFFFFUL,         // -
-  0xFFFFFFFFUL,         // -
-  0xFFFFFFFFUL,         // -
+  0x33FFFFFFUL,         // edcw.rom
+  0x2223FFFFUL,         // paszians.rom
   0xFFFFFFFFUL,         // -
   0xFFFFFFFFUL          // -
 };
@@ -546,21 +549,21 @@ static const char *machineConfigFileNames[] = {
 static const uint64_t machineConfigs[] = {
   // ep128brd/EP2048k_EXOS24_EXDOS_utils.cfg
   EP_RAM_2048K | EP_ROM_EXOS24_BRD | EP_ROM_ASMON15_04 | EP_ROM_EPD17Z12_06
-  | EP_ROM_EPFILEIO | EP_ROM_LISP | EP_ROM_HEASS10_UK | EP_ROM_EXDOS13
+  | EP_ROM_EPFILEIO | EP_ROM_LISP | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_BRD
   | EP_ROM_FENAS12_22 | EP_ROM_ZX41 | EP_ROM_GENMON | EP_ROM_ZT18_UK
   | EP_ROM_FORTH | EP_ROM_BRD_43,
   // ep128brd/EP_128k_EXDOS.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_BRD_04 | EP_ROM_BASIC21_05
-  | EP_ROM_EXDOS13,
+  | EP_ROM_EXDOS14I_BRD,
   // ep128brd/EP_128k_EXDOS_FileIO.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_BRD_04 | EP_ROM_BASIC21_05
-  | EP_ROM_EPFILEIO | EP_ROM_EXDOS13,
+  | EP_ROM_EPFILEIO | EP_ROM_EXDOS14I_BRD,
   // ep128brd/EP_128k_EXDOS_FileIO_SpectrumEmulator.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_BRD_04 | EP_ROM_BASIC21_05
-  | EP_ROM_EPFILEIO | EP_ROM_EXDOS13 | EP_ROM_ZX41,
+  | EP_ROM_EPFILEIO | EP_ROM_EXDOS14I_BRD | EP_ROM_ZX41,
   // ep128brd/EP_128k_EXDOS_TASMON.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_ASMON15_04 | EP_ROM_BASIC21_06
-  | EP_ROM_BRD_07 | EP_ROM_EXDOS13,
+  | EP_ROM_BRD_07 | EP_ROM_EXDOS14I_BRD,
   // ep128brd/EP_128k_Tape.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_BRD_04 | EP_ROM_BASIC21_05,
   // ep128brd/EP_128k_Tape_FileIO.cfg
@@ -573,32 +576,34 @@ static const uint64_t machineConfigs[] = {
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_ASMON15_04 | EP_ROM_BASIC21_06
   | EP_ROM_BRD_07,
   // ep128brd/EP_640k_EXOS232_EXDOS.cfg
-  EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_BRD_04 | EP_ROM_EXDOS13,
+  EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_BRD_04 | EP_ROM_EXDOS14I_BRD,
   // ep128brd/EP_640k_EXOS232_EXDOS_utils.cfg
   EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_ASMON15_04 | EP_ROM_EPD17Z12_06
-  | EP_ROM_EPFILEIO | EP_ROM_FENAS12_12 | EP_ROM_EXDOS13 | EP_ROM_IVIEW_30
-  | EP_ROM_TPT_32 | EP_ROM_ZT18_UK | EP_ROM_BRD_43,
+  | EP_ROM_EPFILEIO | EP_ROM_FENAS12_12 | EP_ROM_EXDOS14I_BRD | EP_ROM_PASZIANS
+  | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK
+  | EP_ROM_BRD_43,
   // ep128brd/EP_640k_EXOS232_IDE_utils.cfg
   EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_ASMON15_04 | EP_ROM_EPD19UK_06
-  | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS13 | EP_ROM_IDE12_42
-  | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_ZT18_UK | EP_ROM_BRD_43,
+  | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_BRD | EP_ROM_PASZIANS
+  | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK
+  | EP_ROM_IDE12_42 | EP_ROM_BRD_43,
   // ep128esp/EP2048k_EXOS24_EXDOS_utils.cfg
   EP_RAM_2048K | EP_ROM_EXOS24_ES | EP_ROM_ASMON15_04 | EP_ROM_EPD17Z12_06
-  | EP_ROM_EPFILEIO | EP_ROM_LISP | EP_ROM_HEASS10_UK | EP_ROM_EXDOS13I_ES
+  | EP_ROM_EPFILEIO | EP_ROM_LISP | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_ES
   | EP_ROM_FENAS12_22 | EP_ROM_ZX41 | EP_ROM_GENMON | EP_ROM_ZT18_UK
   | EP_ROM_FORTH | EP_ROM_ESP_43,
   // ep128esp/EP_128k_EXDOS.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_ESP_04 | EP_ROM_BASIC21_05
-  | EP_ROM_EXDOS13I_ES,
+  | EP_ROM_EXDOS14I_ES,
   // ep128esp/EP_128k_EXDOS_FileIO.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_ESP_04 | EP_ROM_BASIC21_05
-  | EP_ROM_EPFILEIO | EP_ROM_EXDOS13I_ES,
+  | EP_ROM_EPFILEIO | EP_ROM_EXDOS14I_ES,
   // ep128esp/EP_128k_EXDOS_FileIO_SpectrumEmulator.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_ESP_04 | EP_ROM_BASIC21_05
-  | EP_ROM_EPFILEIO | EP_ROM_EXDOS13I_ES | EP_ROM_ZX41,
+  | EP_ROM_EPFILEIO | EP_ROM_EXDOS14I_ES | EP_ROM_ZX41,
   // ep128esp/EP_128k_EXDOS_TASMON.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_ASMON15_04 | EP_ROM_BASIC21_06
-  | EP_ROM_ESP_07 | EP_ROM_EXDOS13I_ES,
+  | EP_ROM_ESP_07 | EP_ROM_EXDOS14I_ES,
   // ep128esp/EP_128k_Tape.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_ESP_04 | EP_ROM_BASIC21_05,
   // ep128esp/EP_128k_Tape_FileIO.cfg
@@ -611,15 +616,17 @@ static const uint64_t machineConfigs[] = {
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_ASMON15_04 | EP_ROM_BASIC21_06
   | EP_ROM_ESP_07,
   // ep128esp/EP_640k_EXOS232_EXDOS.cfg
-  EP_RAM_640K | EP_ROM_EXOS232_ES | EP_ROM_ESP_04 | EP_ROM_EXDOS13I_ES,
+  EP_RAM_640K | EP_ROM_EXOS232_ES | EP_ROM_ESP_04 | EP_ROM_EXDOS14I_ES,
   // ep128esp/EP_640k_EXOS232_EXDOS_utils.cfg
   EP_RAM_640K | EP_ROM_EXOS232_ES | EP_ROM_ASMON15_04 | EP_ROM_EPD17Z12_06
-  | EP_ROM_EPFILEIO | EP_ROM_FENAS12_12 | EP_ROM_EXDOS13I_ES | EP_ROM_IVIEW_30
-  | EP_ROM_TPT_32 | EP_ROM_ZT18_UK | EP_ROM_ESP_43,
+  | EP_ROM_EPFILEIO | EP_ROM_FENAS12_12 | EP_ROM_EXDOS14I_ES | EP_ROM_PASZIANS
+  | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK
+  | EP_ROM_ESP_43,
   // ep128esp/EP_640k_EXOS232_IDE_utils.cfg
   EP_RAM_640K | EP_ROM_EXOS232_ES | EP_ROM_ASMON15_04 | EP_ROM_EPD19UK_06
-  | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS13I_ES | EP_ROM_IDE12_42
-  | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_ZT18_UK | EP_ROM_ESP_43,
+  | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_ES | EP_ROM_PASZIANS
+  | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK
+  | EP_ROM_IDE12_42 | EP_ROM_ESP_43,
   // ep128hun/EP2048k_EXOS24_EXDOS_utils.cfg
   EP_RAM_2048K | EP_ROM_EXOS24_HU | EP_ROM_ASMON15_04 | EP_ROM_EPD17Z12_06
   | EP_ROM_EPFILEIO | EP_ROM_LISP | EP_ROM_HEASS10_HU | EP_ROM_EXDOS14I_HU
@@ -656,36 +663,38 @@ static const uint64_t machineConfigs[] = {
   EP_RAM_640K | EP_ROM_EXOS232_HU | EP_ROM_HUN_04 | EP_ROM_EXDOS14I_HU,
   // ep128hun/EP_640k_EXOS232_EXDOS_utils.cfg
   EP_RAM_640K | EP_ROM_EXOS232_HU | EP_ROM_ASMON15_04 | EP_ROM_EPD17Z12_06
-  | EP_ROM_EPFILEIO | EP_ROM_FENAS12_12 | EP_ROM_EXDOS14I_HU | EP_ROM_IVIEW_30
-  | EP_ROM_TPT_32 | EP_ROM_ZT18_HU | EP_ROM_HUN_43,
+  | EP_ROM_EPFILEIO | EP_ROM_FENAS12_12 | EP_ROM_EXDOS14I_HU | EP_ROM_PASZIANS
+  | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_HU
+  | EP_ROM_HUN_43,
   // ep128hun/EP_640k_EXOS232_IDE_utils.cfg
   EP_RAM_640K | EP_ROM_EXOS232_HU | EP_ROM_ASMON15_04 | EP_ROM_EPD19HU_06
-  | EP_ROM_EPFILEIO | EP_ROM_HEASS10_HU | EP_ROM_EXDOS14I_HU | EP_ROM_IDE12_42
-  | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_ZT18_HU | EP_ROM_HUN_43,
+  | EP_ROM_EPFILEIO | EP_ROM_HEASS10_HU | EP_ROM_EXDOS14I_HU | EP_ROM_PASZIANS
+  | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_HU
+  | EP_ROM_IDE12_42 | EP_ROM_HUN_43,
   // ep128uk/EP2048k_EXOS24_EXDOS_utils.cfg
   EP_RAM_2048K | EP_ROM_EXOS24_UK | EP_ROM_ASMON15_04 | EP_ROM_EPD17Z12_06
-  | EP_ROM_EPFILEIO | EP_ROM_LISP | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_HU
+  | EP_ROM_EPFILEIO | EP_ROM_LISP | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_UK
   | EP_ROM_FENAS12_22 | EP_ROM_ZX41 | EP_ROM_GENMON | EP_ROM_ZT18_UK
   | EP_ROM_FORTH,
   // ep128uk/EP_128k_EXDOS.cfg
-  EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_BASIC21_04 | EP_ROM_EXDOS14I_HU,
+  EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_BASIC21_04 | EP_ROM_EXDOS14I_UK,
   // ep128uk/EP_128k_EXDOS_EP-PLUS.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_BASIC21_04 | EP_ROM_EP_PLUS_05
-  | EP_ROM_EXDOS14I_HU,
+  | EP_ROM_EXDOS14I_UK,
   // ep128uk/EP_128k_EXDOS_EP-PLUS_TASMON.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_ASMON15_04 | EP_ROM_BASIC21_06
-  | EP_ROM_EP_PLUS_07 | EP_ROM_EXDOS14I_HU,
+  | EP_ROM_EP_PLUS_07 | EP_ROM_EXDOS14I_UK,
   // ep128uk/EP_128k_EXDOS_FileIO.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_BASIC21_04 | EP_ROM_EPFILEIO
-  | EP_ROM_EXDOS14I_HU,
+  | EP_ROM_EXDOS14I_UK,
   // ep128uk/EP_128k_EXDOS_FileIO_SpectrumEmulator.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_BASIC21_04 | EP_ROM_EPFILEIO
-  | EP_ROM_EXDOS14I_HU | EP_ROM_ZX41,
+  | EP_ROM_EXDOS14I_UK | EP_ROM_ZX41,
   // ep128uk/EP_128k_EXDOS_NoCartridge.cfg
-  EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_EXDOS14I_HU,
+  EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_EXDOS14I_UK,
   // ep128uk/EP_128k_EXDOS_TASMON.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_ASMON15_04 | EP_ROM_BASIC21_06
-  | EP_ROM_EXDOS14I_HU,
+  | EP_ROM_EXDOS14I_UK,
   // ep128uk/EP_128k_Tape.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_BASIC21_04,
   // ep128uk/EP_128k_Tape_EP-PLUS.cfg
@@ -702,15 +711,16 @@ static const uint64_t machineConfigs[] = {
   // ep128uk/EP_128k_Tape_TASMON.cfg
   EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_ASMON15_04 | EP_ROM_BASIC21_06,
   // ep128uk/EP_640k_EXOS232_EXDOS.cfg
-  EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_EXDOS14I_HU,
+  EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_EXDOS14I_UK,
   // ep128uk/EP_640k_EXOS232_EXDOS_utils.cfg
   EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_ASMON15_04 | EP_ROM_EPD17Z12_06
-  | EP_ROM_EPFILEIO | EP_ROM_FENAS12_12 | EP_ROM_EXDOS14I_HU | EP_ROM_IVIEW_30
-  | EP_ROM_TPT_32 | EP_ROM_ZT18_UK,
+  | EP_ROM_EPFILEIO | EP_ROM_FENAS12_12 | EP_ROM_EXDOS14I_UK | EP_ROM_PASZIANS
+  | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK,
   // ep128uk/EP_640k_EXOS232_IDE_utils.cfg
   EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_ASMON15_04 | EP_ROM_EPD19UK_06
-  | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_HU | EP_ROM_IDE12_42
-  | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_ZT18_UK,
+  | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_UK | EP_ROM_PASZIANS
+  | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK
+  | EP_ROM_IDE12_42,
   // ep64/EP_64k_EXDOS.cfg
   EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_BASIC20 | EP_ROM_EXDOS10,
   // ep64/EP_64k_EXDOS_FileIO.cfg
