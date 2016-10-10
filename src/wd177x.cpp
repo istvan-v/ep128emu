@@ -754,7 +754,8 @@ namespace Ep128Emu {
 
   void WD177x::writeTrackRegister(uint8_t n)
   {
-    trackRegister = n;
+    if ((statusRegister & 0x01) == 0)
+      trackRegister = n;
   }
 
   uint8_t WD177x::readTrackRegister() const
@@ -764,7 +765,8 @@ namespace Ep128Emu {
 
   void WD177x::writeSectorRegister(uint8_t n)
   {
-    sectorRegister = n;
+    if ((statusRegister & 0x01) == 0)
+      sectorRegister = n;
   }
 
   uint8_t WD177x::readSectorRegister() const
