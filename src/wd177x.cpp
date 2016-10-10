@@ -754,8 +754,7 @@ namespace Ep128Emu {
 
   void WD177x::writeTrackRegister(uint8_t n)
   {
-    if ((statusRegister & 0x01) == 0)
-      trackRegister = n;
+    trackRegister = n;
   }
 
   uint8_t WD177x::readTrackRegister() const
@@ -765,8 +764,7 @@ namespace Ep128Emu {
 
   void WD177x::writeSectorRegister(uint8_t n)
   {
-    if ((statusRegister & 0x01) == 0)
-      sectorRegister = n;
+    sectorRegister = n;
   }
 
   uint8_t WD177x::readSectorRegister() const
@@ -1257,7 +1255,7 @@ namespace Ep128Emu {
     if (imageFile)
       statusRegister = statusRegister | 0x06;   // track 0, index pulse
     trackRegister = 0;
-    sectorRegister = 0;
+    sectorRegister = 1;
     dataRegister = 0;
     currentTrack = 0;
     currentSide = 0;
