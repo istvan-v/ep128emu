@@ -101,11 +101,7 @@ namespace Ep128 {
     mouseButtonState = 0x00;
     mouseWheelDelta = 0x00;
     // floppy and IDE emulation are disabled while recording or playing demo
-    currentFloppyDrive = 0xFF;
-    floppyDrives[0].reset();
-    floppyDrives[1].reset();
-    floppyDrives[2].reset();
-    floppyDrives[3].reset();
+    resetFloppyDrives(false);
     ideInterface->reset(0);
     z80.closeAllFiles();
     // save full snapshot, including timing and clock frequency settings
@@ -153,11 +149,7 @@ namespace Ep128 {
     stopDemo();
     snapshotLoadFlag = true;
     // reset floppy and IDE emulation, as the state of these is not saved
-    currentFloppyDrive = 0xFF;
-    floppyDrives[0].reset();
-    floppyDrives[1].reset();
-    floppyDrives[2].reset();
-    floppyDrives[3].reset();
+    resetFloppyDrives(true);
     ideInterface->reset(3);
     z80.closeAllFiles();
     try {
@@ -319,11 +311,7 @@ namespace Ep128 {
     for (int i = 0; i < 128; i++)
       dave.setKeyboardState(i, 0);
     // floppy and IDE emulation are disabled while recording or playing demo
-    currentFloppyDrive = 0xFF;
-    floppyDrives[0].reset();
-    floppyDrives[1].reset();
-    floppyDrives[2].reset();
-    floppyDrives[3].reset();
+    resetFloppyDrives(false);
     ideInterface->reset(0);
     // initialize time counter with first delta time
     demoTimeCnt = buf.readUIntVLen();

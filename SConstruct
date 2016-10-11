@@ -376,6 +376,7 @@ ep128emuLibSources = Split('''
     src/display.cpp
     src/dotconf.c
     src/emucfg.cpp
+    src/ep_fdd.cpp
     src/fileio.cpp
     src/fldisp.cpp
     src/gldisp.cpp

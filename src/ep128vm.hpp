@@ -30,6 +30,7 @@
 #include "snd_conv.hpp"
 #include "soundio.hpp"
 #include "vm.hpp"
+#include "ep_fdd.hpp"
 #include "wd177x.hpp"
 
 #include <map>
@@ -173,8 +174,8 @@ namespace Ep128 {
     // used for counting time between demo events (in NICK cycles)
     uint64_t  demoTimeCnt;
     // floppy drives
-    Ep128Emu::WD177x  floppyDrives[4];
-    uint8_t   currentFloppyDrive;
+    Ep128Emu::WD177x      wd177x;
+    Ep128Emu::FloppyDrive floppyDrives[4];
     uint8_t   breakPointPriorityThreshold;
     uint8_t   cmosMemoryRegisterSelect;
     bool      spectrumEmulatorEnabled;
@@ -259,6 +260,7 @@ namespace Ep128 {
     void spectrumEmulatorNMI_AttrWrite(uint32_t addr, uint8_t value);
     void updateRTC();
     void resetCMOSMemory();
+    void resetFloppyDrives(bool isColdReset);
     // Set function to be called at every NICK cycle. The functions are called
     // in the order of being registered; up to 16 callbacks can be set.
     void setCallback(void (*func)(void *userData), void *userData_,

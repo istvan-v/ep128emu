@@ -842,27 +842,23 @@ namespace Ep128 {
   {
     Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
     // floppy emulation is disabled while recording or playing demo
-    if (!(vm.isRecordingDemo | vm.isPlayingDemo)) {
-      if (vm.currentFloppyDrive <= 3) {
-        Ep128Emu::WD177x& floppyDrive = vm.floppyDrives[vm.currentFloppyDrive];
-        switch (addr) {
-        case 0x00:
-          return floppyDrive.readStatusRegister();
-        case 0x01:
-          return floppyDrive.readTrackRegister();
-        case 0x02:
-          return floppyDrive.readSectorRegister();
-        case 0x03:
-          return floppyDrive.readDataRegister();
-        default:
-          return uint8_t(  (floppyDrive.getInterruptRequestFlag() ? 0x3E : 0x3C)
-                         | (floppyDrive.getDiskChangeFlag() ? 0x00 : 0x40)
-                         | (floppyDrive.getDataRequestFlag() ? 0x80 : 0x00)
-                         | (floppyDrive.haveDisk() ? 0x00 : 0x01));
-        }
-      }
+    if (vm.isRecordingDemo | vm.isPlayingDemo)
+      return uint8_t((addr & 0x0008) ? 0x7D : 0x00);
+    switch (addr) {
+    case 0x00:
+      return vm.wd177x.readStatusRegister();
+    case 0x01:
+      return vm.wd177x.readTrackRegister();
+    case 0x02:
+      return vm.wd177x.readSectorRegister();
+    case 0x03:
+      return vm.wd177x.readDataRegister();
     }
-    return uint8_t((addr & 0x0008) ? 0x7D : 0x00);
+    return uint8_t(  (vm.wd177x.getInterruptRequestFlag() ? 0x3E : 0x3C)
+                   | (vm.wd177x.getFloppyDrive().getDiskChangeFlag() ?
+                      0x00 : 0x40)
+                   | (vm.wd177x.getDataRequestFlag() ? 0x80 : 0x00)
+                   | (vm.wd177x.getFloppyDrive().haveDisk() ? 0x00 : 0x01));
   }
 
   void Ep128VM::exdosPortWriteCallback(void *userData,
@@ -870,39 +866,39 @@ namespace Ep128 {
   {
     Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
     // floppy emulation is disabled while recording or playing demo
-    if (!(vm.isRecordingDemo | vm.isPlayingDemo)) {
-      if (vm.currentFloppyDrive <= 3) {
-        Ep128Emu::WD177x& floppyDrive = vm.floppyDrives[vm.currentFloppyDrive];
-        switch (addr) {
-        case 0x00:
-          floppyDrive.writeCommandRegister(value);
-          break;
-        case 0x01:
-          floppyDrive.writeTrackRegister(value);
-          break;
-        case 0x02:
-          floppyDrive.writeSectorRegister(value);
-          break;
-        case 0x03:
-          floppyDrive.writeDataRegister(value);
-          break;
-        }
+    if (vm.isRecordingDemo | vm.isPlayingDemo)
+      return;
+    if (addr & 0x0008) {
+      if (!(value & 0x0F)) {
+        vm.wd177x.setFloppyDrive((Ep128Emu::FloppyDrive *) 0);
+        return;
       }
-      if (addr & 0x0008) {
-        vm.currentFloppyDrive = 0xFF;
-        if ((value & 0x01) != 0)
-          vm.currentFloppyDrive = 0;
-        else if ((value & 0x02) != 0)
-          vm.currentFloppyDrive = 1;
-        else if ((value & 0x04) != 0)
-          vm.currentFloppyDrive = 2;
-        else if ((value & 0x08) != 0)
-          vm.currentFloppyDrive = 3;
-        else
-          return;
-        if ((value & 0x40) != 0)
-          vm.floppyDrives[vm.currentFloppyDrive].clearDiskChangeFlag();
-        vm.floppyDrives[vm.currentFloppyDrive].setSide((value & 0x10) >> 4);
+      if (value & 0x01)
+        vm.wd177x.setFloppyDrive(&(vm.floppyDrives[0]));
+      else if (value & 0x02)
+        vm.wd177x.setFloppyDrive(&(vm.floppyDrives[1]));
+      else if (value & 0x04)
+        vm.wd177x.setFloppyDrive(&(vm.floppyDrives[2]));
+      else
+        vm.wd177x.setFloppyDrive(&(vm.floppyDrives[3]));
+      if (value & 0x40)
+        vm.wd177x.getFloppyDrive().setDiskChangeFlag(false);
+      vm.wd177x.getFloppyDrive().setSide((value & 0x10) >> 4);
+    }
+    else {
+      switch (addr) {
+      case 0x00:
+        vm.wd177x.writeCommandRegister(value);
+        break;
+      case 0x01:
+        vm.wd177x.writeTrackRegister(value);
+        break;
+      case 0x02:
+        vm.wd177x.writeSectorRegister(value);
+        break;
+      case 0x03:
+        vm.wd177x.writeDataRegister(value);
+        break;
       }
     }
   }
@@ -910,25 +906,21 @@ namespace Ep128 {
   uint8_t Ep128VM::exdosPortDebugReadCallback(void *userData, uint16_t addr)
   {
     Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
-    if (vm.currentFloppyDrive <= 3) {
-      Ep128Emu::WD177x& floppyDrive = vm.floppyDrives[vm.currentFloppyDrive];
-      switch (addr) {
-      case 0x00:
-        return floppyDrive.readStatusRegisterDebug();
-      case 0x01:
-        return floppyDrive.readTrackRegister();
-      case 0x02:
-        return floppyDrive.readSectorRegister();
-      case 0x03:
-        return floppyDrive.readDataRegisterDebug();
-      default:
-        return uint8_t(  (floppyDrive.getInterruptRequestFlag() ? 0x3E : 0x3C)
-                       | (floppyDrive.getDiskChangeFlag() ? 0x00 : 0x40)
-                       | (floppyDrive.getDataRequestFlag() ? 0x80 : 0x00)
-                       | (floppyDrive.haveDisk() ? 0x00 : 0x01));
-      }
+    switch (addr) {
+    case 0x00:
+      return vm.wd177x.readStatusRegisterDebug();
+    case 0x01:
+      return vm.wd177x.readTrackRegister();
+    case 0x02:
+      return vm.wd177x.readSectorRegister();
+    case 0x03:
+      return vm.wd177x.readDataRegisterDebug();
     }
-    return uint8_t((addr & 0x0008) ? 0x7D : 0x00);
+    return uint8_t(  (vm.wd177x.getInterruptRequestFlag() ? 0x3E : 0x3C)
+                   | (vm.wd177x.getFloppyDrive().getDiskChangeFlag() ?
+                      0x00 : 0x40)
+                   | (vm.wd177x.getDataRequestFlag() ? 0x80 : 0x00)
+                   | (vm.wd177x.getFloppyDrive().haveDisk() ? 0x00 : 0x01));
   }
 
   uint8_t Ep128VM::spectrumEmulatorIOReadCallback(void *userData, uint16_t addr)
@@ -1329,6 +1321,17 @@ namespace Ep128 {
     prvRTCTime = -1L;
   }
 
+  void Ep128VM::resetFloppyDrives(bool isColdReset)
+  {
+    wd177x.setFloppyDrive((Ep128Emu::FloppyDrive *) 0);
+    wd177x.reset(isColdReset);
+    for (int i = 0; i < 4; i++) {
+      floppyDrives[i].reset();
+      if (isColdReset)
+        floppyDrives[i].setDiskChangeFlag(true);
+    }
+  }
+
   void Ep128VM::setCallback(void (*func)(void *userData), void *userData_,
                             bool isEnabled)
   {
@@ -1424,7 +1427,6 @@ namespace Ep128 {
       isPlayingDemo(false),
       snapshotLoadFlag(false),
       demoTimeCnt(0U),
-      currentFloppyDrive(0xFF),
       breakPointPriorityThreshold(0),
       cmosMemoryRegisterSelect(0xFF),
       spectrumEmulatorEnabled(false),
@@ -1490,10 +1492,7 @@ namespace Ep128 {
     dp.indexToRGBFunc = &Nick::convertPixelToRGB;
     display.setDisplayParameters(dp);
     setAudioConverterSampleRate(float(long(daveFrequency)));
-    floppyDrives[0].setIsWD1773(false);
-    floppyDrives[1].setIsWD1773(false);
-    floppyDrives[2].setIsWD1773(false);
-    floppyDrives[3].setIsWD1773(false);
+    wd177x.setIsWD1773(false);
     ideInterface = new IDEInterface();
     for (uint16_t i = 0x0010; i <= 0x001F; i++) {
       ioPorts.setReadCallback(i, i, &exdosPortReadCallback, this, i & 0x14);
@@ -1607,9 +1606,7 @@ namespace Ep128 {
     setMemoryWaitTiming();
     remoteControlState = 0x00;
     setTapeMotorState(false);
-    currentFloppyDrive = 0xFF;
-    for (int i = 0; i < 4; i++)
-      floppyDrives[i].reset();
+    resetFloppyDrives(isColdReset);
     ideInterface->reset(int(isColdReset) + 1);
     ioPorts.writeDebug(0x44, 0x00);     // disable Spectrum emulator
     for (int i = 0; i < 4; i++) {
@@ -1818,6 +1815,10 @@ namespace Ep128 {
     if (n < 0 || n > 7)
       throw Ep128Emu::Exception("invalid disk drive number");
     if (n < 4) {
+      if (&(wd177x.getFloppyDrive()) == &(floppyDrives[n])) {
+        wd177x.setFloppyDrive((Ep128Emu::FloppyDrive *) 0);
+        wd177x.setFloppyDrive(&(floppyDrives[n]));
+      }
       floppyDrives[n].setDiskImageFile(fileName_,
                                        nTracks_, nSides_, nSectorsPerTrack_);
     }
