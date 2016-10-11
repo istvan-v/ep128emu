@@ -4,14 +4,17 @@ import sys, os
 
 win64CrossCompile = ARGUMENTS.get('win64', 0)
 mingwCrossCompile = win64CrossCompile or ARGUMENTS.get('win32', 0)
-linux32CrossCompile = 0
-disableSDL = 0          # set this to 1 on Linux with SDL version 1.2.10
-disableLua = 0
-buildUtilities = 1
-enableGLShaders = 1
-enableDebug = 0
-buildRelease = 1
-useLuaJIT = 0           # for mingwCrossCompile, use LuaJIT instead of Lua 5.3
+linux32CrossCompile = ARGUMENTS.get('linux32', 0)
+# set this to 1 on Linux with SDL version 1.2.10
+disableSDL = ARGUMENTS.get('nosdl', 0)
+disableLua = ARGUMENTS.get('nolua', 0)
+buildUtilities = ARGUMENTS.get('utils', 1)
+enableGLShaders = ARGUMENTS.get('glshaders', 1)
+enableDebug = ARGUMENTS.get('debug', 0)
+buildRelease = not enableDebug and ARGUMENTS.get('release', 1)
+# for mingwCrossCompile, use LuaJIT instead of Lua 5.3
+useLuaJIT = ARGUMENTS.get('luajit', 0)
+cmosZ80 = ARGUMENTS.get('z80cmos', 0)
 
 #env = Environment(ENV = os.environ)
 #CacheDir("./.build_cache/win32" if mingwCrossCompile else "./.build_cache/native")
@@ -400,6 +403,8 @@ if not oldSConsVersion:
 else:
     ep128LibEnvironment = ep128emuLibEnvironment.Copy()
 ep128LibEnvironment.Append(CPPPATH = ['./z80'])
+if cmosZ80:
+    ep128LibEnvironment.Append(CCFLAGS = ['-DZ80_ENABLE_CMOS'])
 
 ep128Lib = ep128LibEnvironment.StaticLibrary('ep128', Split('''
     src/dave.cpp
