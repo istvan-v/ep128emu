@@ -197,8 +197,10 @@ namespace Ep128Emu {
           statusRegister = statusRegister | 0x02;
         }
       }
-      if (!floppyDrive->isDataTransfer())
-        setError();
+      if (!floppyDrive->isDataTransfer()) {
+        if (floppyDrive->haveDisk())
+          setError();
+      }
     }
     else if ((n & 0xF0) != 0xD0) {      // ---- Type III commands ----
       bool    p = ((n & 0x02) != 0);    // disable write precompensation
@@ -245,8 +247,10 @@ namespace Ep128Emu {
           writeTrackState = 0;
         }
       }
-      if (!floppyDrive->isDataTransfer())
-        setError();
+      if (!floppyDrive->isDataTransfer()) {
+        if (floppyDrive->haveDisk())
+          setError();
+      }
     }
     else {                              // ---- Type IV commands ----
       bool    i0 = ((n & 0x01) != 0);
