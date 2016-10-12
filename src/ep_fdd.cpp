@@ -287,11 +287,11 @@ namespace Ep128Emu {
         nSectorsPerTrackValid = true;
       }
       else if (diskType == -2) {
-        throw Exception("wd177x: invalid or inconsistent "
+        throw Exception("FDD: invalid or inconsistent "
                         "disk image size parameters");
       }
       else if (diskType < 0) {
-        throw Exception("wd177x: error opening disk image file");
+        throw Exception("FDD: error opening disk image file");
       }
     }
     try {
@@ -302,7 +302,7 @@ namespace Ep128Emu {
         if (imageFile)
           writeProtectFlag = true;
         else
-          throw Exception("wd177x: error opening disk image file");
+          throw Exception("FDD: error opening disk image file");
       }
       std::setvbuf(imageFile, (char *) 0, _IONBF, 0);
       long    fileSize = -1L;
@@ -355,7 +355,7 @@ namespace Ep128Emu {
                   nSectorsPerTrack_ = fatSectorsPerTrack;
                 if (nTracks_ != int(fatTracks) || nSides_ != fatSides ||
                     nSectorsPerTrack_ != fatSectorsPerTrack) {
-                  throw Exception("wd177x: invalid or inconsistent "
+                  throw Exception("FDD: invalid or inconsistent "
                                   "disk image size parameters");
                 }
               }
@@ -366,7 +366,7 @@ namespace Ep128Emu {
       if (!(nTracks_ >= 1 && nTracks_ <= 254 &&
             nSides_ >= 1 && nSides_ <= 2 &&
             nSectorsPerTrack_ >= 1 && nSectorsPerTrack_ <= 240))
-        throw Exception("wd177x: cannot determine size of disk image");
+        throw Exception("FDD: cannot determine size of disk image");
       fileSize = long(nTracks_ * nSides_) * long(nSectorsPerTrack_) * 512L;
       bool    err = true;
       if (std::fseek(imageFile, fileSize - 512L, SEEK_SET) >= 0) {
@@ -377,7 +377,7 @@ namespace Ep128Emu {
         }
       }
       if (err) {
-        throw Exception("wd177x: invalid or inconsistent "
+        throw Exception("FDD: invalid or inconsistent "
                         "disk image size parameters");
       }
       std::fseek(imageFile, 0L, SEEK_SET);
