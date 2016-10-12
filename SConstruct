@@ -2,19 +2,19 @@
 
 import sys, os
 
-win64CrossCompile = ARGUMENTS.get('win64', 0)
-mingwCrossCompile = win64CrossCompile or ARGUMENTS.get('win32', 0)
-linux32CrossCompile = ARGUMENTS.get('linux32', 0)
+win64CrossCompile = int(ARGUMENTS.get('win64', 0))
+mingwCrossCompile = win64CrossCompile or int(ARGUMENTS.get('win32', 0))
+linux32CrossCompile = int(ARGUMENTS.get('linux32', 0))
 # set this to 1 on Linux with SDL version 1.2.10
-disableSDL = ARGUMENTS.get('nosdl', 0)
-disableLua = ARGUMENTS.get('nolua', 0)
-buildUtilities = ARGUMENTS.get('utils', 1)
-enableGLShaders = ARGUMENTS.get('glshaders', 1)
-enableDebug = ARGUMENTS.get('debug', 0)
-buildRelease = not enableDebug and ARGUMENTS.get('release', 1)
+disableSDL = int(ARGUMENTS.get('nosdl', 0))
+disableLua = int(ARGUMENTS.get('nolua', 0))
+buildUtilities = int(ARGUMENTS.get('utils', 1))
+enableGLShaders = int(ARGUMENTS.get('glshaders', 1))
+enableDebug = int(ARGUMENTS.get('debug', 0))
+buildRelease = not enableDebug and int(ARGUMENTS.get('release', 1))
 # for mingwCrossCompile, use LuaJIT instead of Lua 5.3
-useLuaJIT = ARGUMENTS.get('luajit', 0)
-cmosZ80 = ARGUMENTS.get('z80cmos', 0)
+useLuaJIT = int(ARGUMENTS.get('luajit', 0))
+cmosZ80 = int(ARGUMENTS.get('z80cmos', 0))
 
 #env = Environment(ENV = os.environ)
 #CacheDir("./.build_cache/win32" if mingwCrossCompile else "./.build_cache/native")
