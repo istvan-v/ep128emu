@@ -251,30 +251,30 @@ class Ep128EmuMachineConfiguration {
 // bit 35:    hun.rom at segment 07h
 // bit 36:    hun.rom at segment 43h
 // bit 37:    asmon15.rom at segments 04h..05h
-// bit 38:    asmon15.rom at segments 05h..06h
-// bit 39:    cyrus.rom at segment 40h
-// bit 40:    ep-plus.rom at segment 05h
-// bit 41:    ep-plus.rom at segment 07h
-// bit 42:    epd17z12.rom at segments 06h..07h
-// bit 43:    epd19hft.rom at segments 06h..07h
-// bit 44:    epd19uk.rom at segments 06h..07h
-// bit 45:    fenas12.rom at segments 12h..13h
-// bit 46:    fenas12.rom at segments 22h..23h
-// bit 47:    forth.rom at segment 42h
-// bit 48:    genmon.rom at segments 32h..33h
-// bit 49:    heassekn.rom at segments 12h..13h
-// bit 50:    heass10uk.rom at segments 12h..13h
-// bit 51:    ide12.rom at segment 42h
-// bit 52:    iview.rom at segments 30h..31h
-// bit 53:    iview.rom at segments 40h..41h
-// bit 54:    lisp.rom at segment 11h
-// bit 55:    pascal11.rom at segments 22h..23h
-// bit 56:    tpt.rom at segment 32h
-// bit 57:    zt18hun.rom at segments 40h..41h
-// bit 58:    zt18uk.rom at segments 40h..41h
-// bit 59:    zx41.rom at segments 30h..31h
-// bit 60:    edcw.rom at segment 33h
-// bit 61:    paszians.rom at segments 22..23h
+// bit 38:    cyrus.rom at segment 40h
+// bit 39:    ep-plus.rom at segment 05h
+// bit 40:    ep-plus.rom at segment 07h
+// bit 41:    epd17z12.rom at segments 06h..07h
+// bit 42:    epd19hft.rom at segments 06h..07h
+// bit 43:    epd19uk.rom at segments 06h..07h
+// bit 44:    fenas12.rom at segments 12h..13h
+// bit 45:    fenas12.rom at segments 22h..23h
+// bit 46:    forth.rom at segment 42h
+// bit 47:    genmon.rom at segments 32h..33h
+// bit 48:    heassekn.rom at segments 12h..13h
+// bit 49:    heass10uk.rom at segments 12h..13h
+// bit 50:    ide12.rom at segment 42h
+// bit 51:    iview.rom at segments 30h..31h
+// bit 52:    iview.rom at segments 40h..41h
+// bit 53:    lisp.rom at segment 11h
+// bit 54:    pascal11.rom at segments 22h..23h
+// bit 55:    tpt.rom at segment 32h
+// bit 56:    zt18hun.rom at segments 40h..41h
+// bit 57:    zt18uk.rom at segments 40h..41h
+// bit 58:    zx41.rom at segments 30h..31h
+// bit 59:    edcw.rom at segment 33h
+// bit 60:    paszians.rom at segments 22..23h
+// bit 61:    -
 // bit 62:    -
 // bit 63:    -
 
@@ -320,30 +320,29 @@ class Ep128EmuMachineConfiguration {
 #define EP_ROM_HUN_43           (uint64_t(0x00000010UL) << 32)
 
 #define EP_ROM_ASMON15_04       (uint64_t(0x00000020UL) << 32)
-#define EP_ROM_ASMON15_05       (uint64_t(0x00000040UL) << 32)
-#define EP_ROM_CYRUS            (uint64_t(0x00000080UL) << 32)
-#define EP_ROM_EP_PLUS_05       (uint64_t(0x00000100UL) << 32)
-#define EP_ROM_EP_PLUS_07       (uint64_t(0x00000200UL) << 32)
-#define EP_ROM_EPD17Z12_06      (uint64_t(0x00000400UL) << 32)
-#define EP_ROM_EPD19HU_06       (uint64_t(0x00000800UL) << 32)
-#define EP_ROM_EPD19UK_06       (uint64_t(0x00001000UL) << 32)
-#define EP_ROM_FENAS12_12       (uint64_t(0x00002000UL) << 32)
-#define EP_ROM_FENAS12_22       (uint64_t(0x00004000UL) << 32)
-#define EP_ROM_FORTH            (uint64_t(0x00008000UL) << 32)
-#define EP_ROM_GENMON           (uint64_t(0x00010000UL) << 32)
-#define EP_ROM_HEASS10_HU       (uint64_t(0x00020000UL) << 32)
-#define EP_ROM_HEASS10_UK       (uint64_t(0x00040000UL) << 32)
-#define EP_ROM_IDE12_42         (uint64_t(0x00080000UL) << 32)
-#define EP_ROM_IVIEW_30         (uint64_t(0x00100000UL) << 32)
-#define EP_ROM_IVIEW_40         (uint64_t(0x00200000UL) << 32)
-#define EP_ROM_LISP             (uint64_t(0x00400000UL) << 32)
-#define EP_ROM_PASCAL11         (uint64_t(0x00800000UL) << 32)
-#define EP_ROM_TPT_32           (uint64_t(0x01000000UL) << 32)
-#define EP_ROM_ZT18_HU          (uint64_t(0x02000000UL) << 32)
-#define EP_ROM_ZT18_UK          (uint64_t(0x04000000UL) << 32)
-#define EP_ROM_ZX41             (uint64_t(0x08000000UL) << 32)
-#define EP_ROM_EDCW             (uint64_t(0x10000000UL) << 32)
-#define EP_ROM_PASZIANS         (uint64_t(0x20000000UL) << 32)
+#define EP_ROM_CYRUS            (uint64_t(0x00000040UL) << 32)
+#define EP_ROM_EP_PLUS_05       (uint64_t(0x00000080UL) << 32)
+#define EP_ROM_EP_PLUS_07       (uint64_t(0x00000100UL) << 32)
+#define EP_ROM_EPD17Z12_06      (uint64_t(0x00000200UL) << 32)
+#define EP_ROM_EPD19HU_06       (uint64_t(0x00000400UL) << 32)
+#define EP_ROM_EPD19UK_06       (uint64_t(0x00000800UL) << 32)
+#define EP_ROM_FENAS12_12       (uint64_t(0x00001000UL) << 32)
+#define EP_ROM_FENAS12_22       (uint64_t(0x00002000UL) << 32)
+#define EP_ROM_FORTH            (uint64_t(0x00004000UL) << 32)
+#define EP_ROM_GENMON           (uint64_t(0x00008000UL) << 32)
+#define EP_ROM_HEASS10_HU       (uint64_t(0x00010000UL) << 32)
+#define EP_ROM_HEASS10_UK       (uint64_t(0x00020000UL) << 32)
+#define EP_ROM_IDE12_42         (uint64_t(0x00040000UL) << 32)
+#define EP_ROM_IVIEW_30         (uint64_t(0x00080000UL) << 32)
+#define EP_ROM_IVIEW_40         (uint64_t(0x00100000UL) << 32)
+#define EP_ROM_LISP             (uint64_t(0x00200000UL) << 32)
+#define EP_ROM_PASCAL11         (uint64_t(0x00400000UL) << 32)
+#define EP_ROM_TPT_32           (uint64_t(0x00800000UL) << 32)
+#define EP_ROM_ZT18_HU          (uint64_t(0x01000000UL) << 32)
+#define EP_ROM_ZT18_UK          (uint64_t(0x02000000UL) << 32)
+#define EP_ROM_ZX41             (uint64_t(0x04000000UL) << 32)
+#define EP_ROM_EDCW             (uint64_t(0x08000000UL) << 32)
+#define EP_ROM_PASZIANS         (uint64_t(0x10000000UL) << 32)
 
 static const char *romFileNames[58] = {
   "exos20.rom",
@@ -378,7 +377,6 @@ static const char *romFileNames[58] = {
   "hun.rom",
   "hun.rom",
   "asmon15.rom",
-  "asmon15.rom",
   "cyrus.rom",
   "ep-plus.rom",
   "ep-plus.rom",
@@ -402,6 +400,7 @@ static const char *romFileNames[58] = {
   "zx41.rom",
   "edcw.rom",
   "paszians.rom",
+  (char *) 0,
   (char *) 0,
   (char *) 0
 };
@@ -439,7 +438,6 @@ static const unsigned long romFileSegments[58] = {
   0x07FFFFFFUL,         // hun.rom
   0x43FFFFFFUL,         // hun.rom
   0x0405FFFFUL,         // asmon15.rom
-  0x0506FFFFUL,         // asmon15.rom
   0x40FFFFFFUL,         // cyrus.rom
   0x05FFFFFFUL,         // ep-plus.rom
   0x07FFFFFFUL,         // ep-plus.rom
@@ -463,6 +461,7 @@ static const unsigned long romFileSegments[58] = {
   0x3031FFFFUL,         // zx41.rom
   0x33FFFFFFUL,         // edcw.rom
   0x2223FFFFUL,         // paszians.rom
+  0xFFFFFFFFUL,         // -
   0xFFFFFFFFUL,         // -
   0xFFFFFFFFUL          // -
 };
@@ -729,7 +728,7 @@ static const uint64_t machineConfigs[] = {
   // ep64/EP_64k_EXDOS_NoCartridge.cfg
   EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_EXDOS10,
   // ep64/EP_64k_EXDOS_TASMON.cfg
-  EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_BASIC20 | EP_ROM_ASMON15_05
+  EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_BASIC20 | EP_ROM_ASMON15_04
   | EP_ROM_EXDOS10,
   // ep64/EP_64k_Tape.cfg
   EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_BASIC20,
@@ -738,7 +737,7 @@ static const uint64_t machineConfigs[] = {
   // ep64/EP_64k_Tape_NoCartridge.cfg
   EP_RAM_64K | EP_ROM_EXOS20,
   // ep64/EP_64k_Tape_TASMON.cfg
-  EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_BASIC20 | EP_ROM_ASMON15_05
+  EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_BASIC20 | EP_ROM_ASMON15_04
 };
 
 Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
