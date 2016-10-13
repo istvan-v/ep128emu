@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -592,7 +592,7 @@ namespace Ep128 {
         }
       }
       nSectors = uint32_t((fileSize + 511UL) >> 9);
-      if (vhdFormatRequired && nSectors > 1U) {
+      if (nSectors > 1U) {
         // check if the image file is in VHD format
         if (std::fseek(imageFile, long((nSectors - 1U) << 9), SEEK_SET) < 0)
           throw Ep128Emu::Exception("error seeking IDE disk image");
