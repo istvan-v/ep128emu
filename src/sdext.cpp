@@ -37,17 +37,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 #define SDEXT_PHYSADDR_CART_P3_SELMASK_ON    0x1C000
 #define SDEXT_PHYSADDR_CART_P3_SELMASK_OFF         1
 
-#ifdef _WIN32
-static const char *SDCARD_IMG_FN   = "C:\\xep128\\sdcard.img";
-static const char *SDCARD_FLASH_FN = "C:\\xep128\\sdcard.flash";
-#else
-static const char *SDCARD_IMG_FN   = "/home/lgb/.ep128emu/sdcard.img";
-static const char *SDCARD_FLASH_FN = "/home/lgb/.ep128emu/sdcard.flash";
-#endif
-
 unsigned int sdext_cp3m_usability = SDEXT_PHYSADDR_CART_P3_SELMASK_OFF;
-// char sdimg_path[PATH_MAX + 1];
-static int rom_page_ofs;
+static uint32_t rom_page_ofs;
 static int is_hs_read;
 static uint8_t _spi_last_w;
 static int cs0, cs1;
@@ -55,8 +46,6 @@ static uint8_t status;
 
 // 7K of useful SRAM
 static uint8_t sd_ram_ext[0x1C00];
-// 64K (second 64K flash, can only be accessed within a 8K window)
-static uint8_t sd_rom_ext[0x10000];
 
 static uint8_t cmd[6], cmd_index, _read_b, _write_b, _write_specified;
 static const uint8_t *ans_p;
@@ -67,7 +56,7 @@ static FILE *sdf = NULL;
 static int sdfno = -1;
 static uint8_t _buffer[1024];
 
-static int need_init = 1;
+static int blocks;
 
 /* ID files:
  * C0 71 00 00 │ 00 5D 01 32 │ 13 59 80 E3 │ 76 D9 CF FF │ 16 40 00 4F
@@ -138,66 +127,10 @@ void sdext_clear_ram(void)
   std::memset(sd_ram_ext, 0xFF, 0x1C00);
 }
 
-static int sdext_load_flash ( const char *img_fn, uint8_t *target, int size)
+void sdext_init ( bool clear_ram )
 {
-  FILE *f = std::fopen(img_fn, "rb");
-  if (f == NULL) {
-    std::fprintf(stderr,
-                 "SD card FLASH file \"%s\" cannot be opened: %s. "
-                 "You can use ep128emu, but SD card access won't work!\n",
-                 img_fn, std::strerror(errno));
-    return 1;
-  }
-  if (std::fread(target, 1, size, f) != size_t(size)) {
-    std::fprintf(stderr,
-                 "SD card FLASH file \"%s\" cannot be read for %d bytes: %s\n",
-                 img_fn, size, std::strerror(errno));
-    std::fclose(f);
-    return 1;
-  }
-  std::fclose(f);
-  std::printf("SDEXT: wow, FLASH is loaded :-)\n");
-  return 0;
-}
-
-/* SDEXT emulation currently expects the cartridge area (segments 4-7) to be
- * filled with the FLASH ROM content. Even segment 7, which will be copied to
- * the second 64K "hidden" and pagable flash area of the SD cartridge.
- * Currently, there is no support for the full sized SDEXT flash image
- */
-void sdext_init ( void )
-{
-  if (!need_init) {
-    std::printf("SDEXT: init already issued, skipping\n");
-    return;
-  }
-  need_init = 0;
-  if (sdf != NULL)
-    std::fclose(sdf);
-  if (sdf == NULL) {
-    sdf = std::fopen(SDCARD_IMG_FN, "rb");
-  }
-  // sdf = open_emu_file(SDCARD_IMG_FN, "rb", sdimg_path);
-  if (sdf == NULL) {
-    std::fprintf(stderr,
-                 "SD card image file \"%s\" cannot be opened: %s. "
-                 "You can use ep128emu, but SD card access won't work!\n",
-                 SDCARD_IMG_FN, std::strerror(errno));
-    //*sdimg_path = 0;
-    sdfno = -1;
-  } else {
-    if (sdfno == -1)
-      sdfno = fileno(sdf);
-    std::printf("SDEXT: cool, SD image file is opened as %s "
-                "with fileno of %d\n", SDCARD_IMG_FN, sdfno);
-  }
-  std::memset(sd_rom_ext, 0xFF, 0x10000);
-  // copy ROM image 16K to the extended area
-  // (the FLASH.ROM I have 8K is used only though)
-  //std::memcpy(sd_rom_ext, memory + 7 * 0x4000, 0x4000);
-  sdext_load_flash(SDCARD_FLASH_FN, sd_rom_ext, 0x4000);
-  sdext_clear_ram();
-  sdext_cp3m_usability = SDEXT_PHYSADDR_CART_P3_SELMASK_ON; // turn emulation on
+  if (clear_ram)
+    sdext_clear_ram();
   rom_page_ofs = 0;
   is_hs_read = 0;
   cmd_index = 0;
@@ -208,10 +141,37 @@ void sdext_init ( void )
   _read_b = 0;
   _write_b = 0xFF;
   _spi_last_w = 0xFF;
+#ifdef DEBUG_SDEXT
   std::printf("SDEXT: init\n");
+#endif
 }
 
-static int blocks;
+/* SDEXT emulation currently expects the cartridge area (segments 4-7) to be
+ * filled with the FLASH ROM content. Even segment 7, which will be copied to
+ * the second 64K "hidden" and pagable flash area of the SD cartridge.
+ * Currently, there is no support for the full sized SDEXT flash image
+ */
+void sdext_open_image ( const char *sdimg_path )
+{
+  sdext_cp3m_usability = SDEXT_PHYSADDR_CART_P3_SELMASK_OFF;
+  sdext_init(false);
+  if (sdf)
+    std::fclose(sdf);
+  sdf = NULL;
+  sdfno = -1;
+  if (!sdimg_path || sdimg_path[0] == '\0')
+    return;
+  sdf = std::fopen(sdimg_path, "rb");
+  if (!sdf)
+    throw Ep128Emu::Exception("error opening SD card image file");
+  sdfno = fileno(sdf);
+#ifdef DEBUG_SDEXT
+  std::printf("SDEXT: cool, SD image file is opened as %s "
+              "with fileno of %d\n", sdimg_path, sdfno);
+#endif
+  // turn emulation on
+  sdext_cp3m_usability = SDEXT_PHYSADDR_CART_P3_SELMASK_ON;
+}
 
 static int safe_read ( int fd, uint8_t *buffer, int size )
 {
@@ -382,8 +342,10 @@ static void _spi_shifting_with_sd_card ()
       }
       break;
     default: // unimplemented command, heh!
+#ifdef DEBUG_SDEXT
       std::printf("SDEXT: REGIO: unimplemented command %d = %02Xh\n",
                   cmd[0], cmd[0]);
+#endif
       _read_b = 4; // illegal command :-/
       break;
   }
@@ -394,17 +356,20 @@ static void _spi_shifting_with_sd_card ()
  * Here, I mean addresses within segment 7 only, so it becomes 0x3C00 ...
  */
 
-uint8_t sdext_read_cart_p3 ( uint32_t addr )
+uint8_t sdext_read_cart_p3 ( uint32_t addr, const uint8_t *sd_rom_ext )
 {
   addr = addr & 0x3FFFU;
 #ifdef DEBUG_SDEXT
   std::printf("SDEXT: read P3 @ %04X\n", addr);
 #endif
   if (addr < 0x2000) {
-    uint8_t byte = sd_rom_ext[(rom_page_ofs + addr) & 0xFFFF];
+    uint32_t  addr_ = (rom_page_ofs + addr) & 0xFFFFU;
+    uint8_t   byte = 0xFF;
+    if (addr_ < 0x4000U && sd_rom_ext)
+      byte = sd_rom_ext[addr_];
 #ifdef DEBUG_SDEXT
     std::printf("SDEXT: reading paged ROM, ROM offset = %04X, result = %02X\n",
-                (addr + rom_page_ofs) & 0xFFFF, byte);
+                addr_, byte);
 #endif
     return byte;
   }
@@ -430,46 +395,40 @@ uint8_t sdext_read_cart_p3 ( uint32_t addr )
                 old, _read_b, _write_b);
 #endif
     return old;
-  } else {
-    switch (addr & 3) {
-      case 0:
-        // regular read (not HS) only gives the last shifted-in data,
-        // that's all!
-#ifdef DEBUG_SDEXT
-        std::printf("SDEXT: REGIO: R: DATA: "
-                    "SPI data register regular read %02X\n", _read_b);
-#endif
-        return _read_b;
-        //printf("SDEXT: REGIO: R: SPI, result = %02X\n", a);
-      case 1:
-        // status reg: bit7=wp1, bit6=insert, bit5=changed
-        // (insert/changed=1: some of the cards not inserted or changed)
-#ifdef DEBUG_SDEXT
-        std::printf("SDEXT: REGIO: R: status\n");
-#endif
-        return status;
-        //return 0xFF - 32 + changed;
-        //return changed | 64;
-      case 2: // ROM pager [hmm not readble?!]
-#ifdef DEBUG_SDEXT
-        std::printf("SDEXT: REGIO: R: rom pager\n");
-#endif
-        return 0xFF;
-        //return rom_page_ofs >> 8;
-      case 3: // HS read config is not readable?!]
-#ifdef DEBUG_SDEXT
-        std::printf("SDEXT: REGIO: R: HS config\n");
-#endif
-        return 0xFF;
-        //return is_hs_read;
-      default:
-        std::fprintf(stderr,"SDEXT: FATAL, unhandled (RD) case\n");
-        std::exit(1);
-    }
   }
-  std::fprintf(stderr, "SDEXT: FATAL, control should not get here\n");
-  std::exit(1);
-  return 0; // make GCC happy :)
+  switch (addr & 3) {
+    case 0:
+      // regular read (not HS) only gives the last shifted-in data,
+      // that's all!
+#ifdef DEBUG_SDEXT
+      std::printf("SDEXT: REGIO: R: DATA: "
+                  "SPI data register regular read %02X\n", _read_b);
+#endif
+      return _read_b;
+      //printf("SDEXT: REGIO: R: SPI, result = %02X\n", a);
+    case 1:
+      // status reg: bit7=wp1, bit6=insert, bit5=changed
+      // (insert/changed=1: some of the cards not inserted or changed)
+#ifdef DEBUG_SDEXT
+      std::printf("SDEXT: REGIO: R: status\n");
+#endif
+      return status;
+      //return 0xFF - 32 + changed;
+      //return changed | 64;
+    case 2:             // ROM pager [hmm not readable?!]
+#ifdef DEBUG_SDEXT
+      std::printf("SDEXT: REGIO: R: rom pager\n");
+#endif
+      return 0xFF;
+      //return rom_page_ofs >> 8;
+    case 3:             // HS read config is not readable?!]
+#ifdef DEBUG_SDEXT
+      std::printf("SDEXT: REGIO: R: HS config\n");
+#endif
+      return 0xFF;
+      //return is_hs_read;
+  }
+  return 0xFF;  // make GCC happy :)
 }
 
 void sdext_write_cart_p3 ( uint32_t addr, uint8_t data )
@@ -509,13 +468,13 @@ void sdext_write_cart_p3 ( uint32_t addr, uint8_t data )
       cs0 = data & 128;
       cs1 = data & 64;
       break;
-    case 2: // ROM pager register
+    case 2:             // ROM pager register
       rom_page_ofs = data << 8;
 #ifdef DEBUG_SDEXT
       std::printf("SDEXT: REGIO: W: paging ROM to %02X\n", data);
 #endif
       break;
-    case 3: // HS (high speed) read mode to set: bit7=1
+    case 3:             // HS (high speed) read mode to set: bit7=1
       is_hs_read = data & 128;
       _write_b = is_hs_read ? 0xFF : _write_specified;
 #ifdef DEBUG_SDEXT
@@ -523,9 +482,6 @@ void sdext_write_cart_p3 ( uint32_t addr, uint8_t data )
                   is_hs_read ? "set" : "reset");
 #endif
       break;
-    default:
-      std::fprintf(stderr, "SDEXT: FATAL, unhandled (WR) case\n");
-      std::exit(1);
   }
 }
 

@@ -1527,6 +1527,9 @@ namespace Ep128 {
                                  &ideDriveIOReadCallback, this, 0xEC);
     ioPorts.setWriteCallback(0xEC, 0xEF, &ideDriveIOWriteCallback, this, 0xEC);
     // reset
+#ifdef ENABLE_SDEXT
+    sdext_init(true);
+#endif
     this->reset(true);
   }
 
@@ -1637,7 +1640,7 @@ namespace Ep128 {
     mouseButtonState = 0x00;
     mouseWheelDelta = 0x00;
 #ifdef ENABLE_SDEXT
-    sdext_init();
+    sdext_init(false);
 #endif
   }
 
@@ -1829,6 +1832,12 @@ namespace Ep128 {
                                        nTracks_, nSides_, nSectorsPerTrack_);
     }
     else {
+#ifdef ENABLE_SDEXT
+      if (n == 7) {
+        sdext_open_image(fileName_.c_str());
+        return;
+      }
+#endif
       ideInterface->setImageFile(n & 3, fileName_.c_str());
     }
   }
