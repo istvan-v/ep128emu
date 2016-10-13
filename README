@@ -989,5 +989,6 @@ Zozosoft      - hardware testing and information, ROM packages
 MrPrise       - ep128emu.enterpriseforever.com web site
 Attus         - Linux fixes and binary packages for the UHU distribution
 Martin Bantz  - PCLinuxOS RPM spec file
-LGB           - GitHub import from SourceForge, Linux testing and fixes
+LGB           - GitHub import from SourceForge, Linux testing and fixes,
+                SD card emulation
 

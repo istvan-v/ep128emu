@@ -15,6 +15,8 @@ buildRelease = not enableDebug and int(ARGUMENTS.get('release', 1))
 # for mingwCrossCompile, use LuaJIT instead of Lua 5.3
 useLuaJIT = int(ARGUMENTS.get('luajit', 0))
 cmosZ80 = int(ARGUMENTS.get('z80cmos', 0))
+# build with experimental SD card emulation
+enableSDExt = int(ARGUMENTS.get('sdext', 0))
 
 #env = Environment(ENV = os.environ)
 #CacheDir("./.build_cache/win32" if mingwCrossCompile else "./.build_cache/native")
@@ -406,6 +408,10 @@ else:
 ep128LibEnvironment.Append(CPPPATH = ['./z80'])
 if cmosZ80:
     ep128LibEnvironment.Append(CCFLAGS = ['-DZ80_ENABLE_CMOS'])
+sdextSources = []
+if enableSDExt:
+    ep128LibEnvironment.Append(CCFLAGS = ['-DENABLE_SDEXT'])
+    sdextSources = ['src/sdext.cpp']
 
 ep128Lib = ep128LibEnvironment.StaticLibrary('ep128', Split('''
     src/dave.cpp
@@ -418,7 +424,7 @@ ep128Lib = ep128LibEnvironment.StaticLibrary('ep128', Split('''
     src/epmemcfg.cpp
     src/ide.cpp
     src/snapshot.cpp
-'''))
+''') + sdextSources)
 
 # -----------------------------------------------------------------------------
 

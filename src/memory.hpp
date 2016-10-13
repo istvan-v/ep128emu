@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
 // Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,6 +22,9 @@
 
 #include "ep128emu.hpp"
 #include "bplist.hpp"
+#ifdef ENABLE_SDEXT
+#  include "sdext.hpp"
+#endif
 
 namespace Ep128 {
 
@@ -80,6 +83,16 @@ namespace Ep128 {
     void registerChunkType(Ep128Emu::File&);
    protected:
     virtual void breakPointCallback(bool isWrite, uint16_t addr, uint8_t value);
+#ifdef ENABLE_SDEXT
+    EP128EMU_INLINE bool isSDExtPage(uint8_t page) const
+    {
+      return ((uint32_t(pageTable[page]) << 14) == sdext_cp3m_usability);
+    }
+    EP128EMU_INLINE bool isSDExtAddress(uint32_t addr) const
+    {
+      return ((addr & 0x3FC000U) == sdext_cp3m_usability);
+    }
+#endif
   };
 
   // --------------------------------------------------------------------------
@@ -88,6 +101,10 @@ namespace Ep128 {
   {
     uint8_t page = uint8_t(addr >> 14);
     uint8_t value = pageAddressTableR[page][addr];
+#ifdef ENABLE_SDEXT
+    if (EP128EMU_UNLIKELY(isSDExtPage(page)))
+      value = sdext_read_cart_p3(addr);
+#endif
     if (haveBreakPoints)
       checkReadBreakPoint(addr, page, value);
     return value;
@@ -97,6 +114,10 @@ namespace Ep128 {
   {
     uint8_t page = uint8_t(addr >> 14);
     uint8_t value = pageAddressTableR[page][addr];
+#ifdef ENABLE_SDEXT
+    if (EP128EMU_UNLIKELY(isSDExtPage(page)))
+      value = sdext_read_cart_p3(addr);
+#endif
     if (haveBreakPoints)
       checkExecuteBreakPoint(addr, page, value);
     return value;
@@ -104,6 +125,10 @@ namespace Ep128 {
 
   inline uint8_t Memory::readNoDebug(uint16_t addr) const
   {
+#ifdef ENABLE_SDEXT
+    if (EP128EMU_UNLIKELY(isSDExtPage(uint8_t(addr >> 14))))
+      return sdext_read_cart_p3(addr);
+#endif
     return pageAddressTableR[uint8_t(addr >> 14)][addr];
   }
 
@@ -111,6 +136,10 @@ namespace Ep128 {
   {
     uint8_t segment, value;
 
+#ifdef ENABLE_SDEXT
+    if (EP128EMU_UNLIKELY(isSDExtAddress(addr)))
+      return sdext_read_cart_p3(addr);
+#endif
     segment = uint8_t(addr >> 14);
     if (segmentTable[segment])
       value = segmentTable[segment][addr & 0x3FFF];
@@ -124,11 +153,23 @@ namespace Ep128 {
     uint8_t page = uint8_t(addr >> 14);
     if (haveBreakPoints)
       checkWriteBreakPoint(addr, page, value);
+#ifdef ENABLE_SDEXT
+    if (EP128EMU_UNLIKELY(isSDExtPage(page))) {
+      sdext_write_cart_p3(addr, value);
+      return;
+    }
+#endif
     pageAddressTableW[page][addr] = value;
   }
 
   inline void Memory::writeRaw(uint32_t addr, uint8_t value)
   {
+#ifdef ENABLE_SDEXT
+    if (EP128EMU_UNLIKELY(isSDExtAddress(addr))) {
+      sdext_write_cart_p3(addr, value);
+      return;
+    }
+#endif
     uint8_t segment = uint8_t(addr >> 14);
     if (!segmentROMTable[segment])
       segmentTable[segment][addr & 0x3FFF] = value;
@@ -136,6 +177,12 @@ namespace Ep128 {
 
   inline void Memory::writeROM(uint32_t addr, uint8_t value)
   {
+#ifdef ENABLE_SDEXT
+    if (EP128EMU_UNLIKELY(isSDExtAddress(addr))) {
+      sdext_write_cart_p3(addr, value);
+      return;
+    }
+#endif
     uint8_t segment = uint8_t(addr >> 14);
     if (segmentTable[segment])
       segmentTable[segment][addr & 0x3FFF] = value;

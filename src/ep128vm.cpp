@@ -30,6 +30,9 @@
 #include "debuglib.hpp"
 #include "videorec.hpp"
 #include "ide.hpp"
+#ifdef ENABLE_SDEXT
+#  include "sdext.hpp"
+#endif
 
 #include <vector>
 #include <ctime>
@@ -1633,6 +1636,9 @@ namespace Ep128 {
     mouseDeltaY = 0;
     mouseButtonState = 0x00;
     mouseWheelDelta = 0x00;
+#ifdef ENABLE_SDEXT
+    sdext_init();
+#endif
   }
 
   void Ep128VM::setCPUFrequency(size_t freq_)
