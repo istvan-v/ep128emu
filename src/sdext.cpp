@@ -261,6 +261,7 @@ namespace Ep128 {
           _read_b = 5;          // data accepted
           // if multiple blocks: write mode back to the token waiting phase
           writeState = uint8_t(cmd[0] == 25);
+          sd_card_pos = sd_card_pos + 512U;
         }
         else {
           _read_b = 13;         // write error
