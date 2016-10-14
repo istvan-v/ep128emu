@@ -39,9 +39,9 @@ namespace Ep128 {
     uint8_t   status;
     uint8_t   _spi_last_w;
     bool      is_hs_read;
-    uint32_t  rom_page_ofs;
-    int       cs0;
-    int       cs1;
+    uint16_t  rom_page_ofs;
+    bool      cs0;
+    bool      cs1;
     uint32_t  sdextSegment;
     uint32_t  sdextAddress;
     // 7K of useful SRAM
@@ -56,11 +56,16 @@ namespace Ep128 {
     const uint8_t *ans_p;
     int       ans_index;
     int       ans_size;
+    int       writePos;
+    uint8_t   writeState;       // 0 = not writing, 1 = waiting, 2 = writing
     bool      ans_callback;
+    uint8_t   delayCnt;
+    bool      writeProtectFlag;
     std::FILE *sdf;
     int       sdfno;
     std::vector< uint8_t >  _buffer;
-    int       blocks;
+    uint32_t  sd_card_size;
+    uint32_t  sd_card_pos;
     // ----------------
     void enableSDExt()
     {

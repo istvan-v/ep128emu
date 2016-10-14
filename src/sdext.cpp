@@ -33,10 +33,7 @@
 #include <cerrno>
 
 #include "sdext.hpp"
-
-#if 0
-#  define DEBUG_SDEXT
-#endif
+#include "ide.hpp"
 
 namespace Ep128 {
 
@@ -71,36 +68,11 @@ namespace Ep128 {
     0, 0        // CRC bytes
   };
   // no data token, nor CRC!
-  // (technically this is the R3 answer minus the R1 part at the beginning ...)
+  // (technically this is the R3 answer minus the R1 part at the beginning...)
   static const uint8_t _read_ocr_answer[] = {
     // the OCR itself
     0x80, 0xFF, 0x80, 0x00
   };
-#if 0
-  // FAKE, we read the same for all CMD17 commands!
-  static const uint8_t _read_sector_answer_faked[] = {
-    0xFF,       // wait a bit
-    0xFE,       // data token
-    // the read block itself
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0, 0        // CRC bytes
-  };
-#endif
 
 #define ADD_ANS(ans) { ans_p = (ans); ans_index = 0; ans_size = sizeof(ans); }
 
@@ -109,9 +81,9 @@ namespace Ep128 {
       status(0x00),
       _spi_last_w(0xFF),
       is_hs_read(false),
-      rom_page_ofs(0U),
-      cs0(0),
-      cs1(0),
+      rom_page_ofs(0x0000),
+      cs0(false),
+      cs1(false),
       sdextSegment(0xFFFFFFFFU),
       sdextAddress(0xFFFFFFFFU),
       cmd_index(0),
@@ -121,10 +93,15 @@ namespace Ep128 {
       ans_p((uint8_t *) 0),
       ans_index(0),
       ans_size(0),
+      writePos(0),
+      writeState(0x00),
       ans_callback(false),
+      delayCnt(0),
+      writeProtectFlag(true),
       sdf((std::FILE *) 0),
       sdfno(-1),
-      blocks(0)
+      sd_card_size(0U),
+      sd_card_pos(0U)
   {
     sd_ram_ext.resize(0x1C00, 0xFF);
     _buffer.resize(1024, 0x00);
@@ -140,19 +117,20 @@ namespace Ep128 {
   {
     if (clear_ram)
       std::memset(&(sd_ram_ext.front()), 0xFF, sd_ram_ext.size());
-    rom_page_ofs = 0;
+    rom_page_ofs = 0x0000;
     is_hs_read = false;
     cmd_index = 0;
     ans_size = 0;
     ans_index = 0;
+    writePos = 0;
+    writeState = 0x00;
     ans_callback = false;
+    delayCnt = 0;
     status = 0;
     _read_b = 0;
     _write_b = 0xFF;
     _spi_last_w = 0xFF;
-#ifdef DEBUG_SDEXT
-    std::printf("SDEXT: reset\n");
-#endif
+    sd_card_pos = 0U;
   }
 
   /* SDEXT emulation currently expects the cartridge area (segments 4-7) to be
@@ -166,19 +144,37 @@ namespace Ep128 {
     this->reset(false);
     if (sdf)
       std::fclose(sdf);
+    writeProtectFlag = true;
     sdf = NULL;
     sdfno = -1;
+    sd_card_size = 0U;
+    sd_card_pos = 0U;
     if (!sdimg_path || sdimg_path[0] == '\0')
       return;
-    sdf = std::fopen(sdimg_path, "rb");
-    if (!sdf)
-      throw Ep128Emu::Exception("error opening SD card image file");
+    sdf = std::fopen(sdimg_path, "r+b");
+    if (!sdf) {
+      sdf = std::fopen(sdimg_path, "rb");
+      if (!sdf)
+        throw Ep128Emu::Exception("error opening SD card image file");
+    }
+    else {
+      writeProtectFlag = false;
+    }
     std::setvbuf(sdf, (char *) 0, _IONBF, 0);
     sdfno = fileno(sdf);
-#ifdef DEBUG_SDEXT
-    std::printf("SDEXT: cool, SD image file is opened as %s "
-                "with fileno of %d\n", sdimg_path, sdfno);
-#endif
+    {
+      uint16_t  c = 0;
+      uint16_t  h = 0;
+      uint16_t  s = 0;
+      try {
+        checkVHDImage(sdf, sdimg_path, c, h, s);
+      }
+      catch (...) {
+        openImage((char *) 0);
+        throw;
+      }
+      sd_card_size = (uint32_t(c) * uint32_t(h) * uint32_t(s)) << 9;
+    }
     // turn emulation on
     enableSDExt();
   }
@@ -199,30 +195,27 @@ namespace Ep128 {
 
   void SDExt::_block_read()
   {
-    blocks++;
     uint8_t *bufp = &(_buffer.front());
-    bufp[0] = 0xFF;             // wait a bit
-    bufp[1] = 0xFE;             // data token
-#ifdef DEBUG_SDEXT
-    std::printf("SDEXT: REGIO: fread, begin ...\n");
-    int ret =
-#else
-    (void)
-#endif
-        //std::fread(bufp + 2, 1, 512, sdf);
-        safe_read(sdfno, bufp + 2, 512);
-#ifdef DEBUG_SDEXT
-    std::printf("SDEXT: REGIO: fread retval = %d from fdno = %d\n", ret, sdfno);
-    if (ret == -1) {
-      std::printf("SDEXT: REGIO: failed read, see next msg ...\n");
-      std::printf("SDEXT: REGIO: READ ERROR: %s\n", std::strerror(errno));
-    }
-#endif
-    bufp[512 + 2] = 0;          // CRC
-    bufp[512 + 3] = 0;          // CRC
     ans_p = bufp;
     ans_index = 0;
+    bufp[0] = 0xFF;             // wait a bit
+    if (sd_card_pos > (sd_card_size - 512U)) {
+      bufp[1] = 0x09;           // error, out of range
+      ans_size = 2;
+      ans_callback = false;
+      return;
+    }
+    if (safe_read(sdfno, bufp + 2, 512) != 512) {
+      bufp[1] = 0x03;           // CRC error
+      ans_size = 2;
+      ans_callback = false;
+      return;
+    }
+    bufp[1] = 0xFE;             // data token
+    bufp[512 + 2] = 0;          // CRC
+    bufp[512 + 3] = 0;          // CRC
     ans_size = 512 + 4;
+    sd_card_pos = sd_card_pos + 512U;
   }
 
   /* SPI is a read/write in once stuff. We have only a single function ...
@@ -241,13 +234,44 @@ namespace Ep128 {
       _read_b = 0xFF;
       return;
     }
+    if (delayCnt > 0) {
+      delayCnt--;
+      return;
+    }
+    if (writeState) {
+      _read_b = 0xFF;
+      if (writeState == 0x01) {
+        if (_write_b == 0xFD) { // stop token
+          _read_b = 0;          // wait a tiny time...
+          writeState = 0x00;    // ...but otherwise, end of write session
+          return;
+        }
+        if (_write_b != 0xFE && _write_b != 0xFC)
+          return;
+        writeState++;
+        return;
+      }
+      _buffer[writePos] = _write_b;     // store written byte
+      if (++writePos >= (512 + 2)) {    // if one block (+ 2byte CRC)
+        writePos = 0;                   // is written by host...
+        if (sd_card_size > 0U && !writeProtectFlag &&
+            sd_card_pos <= (sd_card_size - 512U) &&
+            lseek(sdfno, off_t(sd_card_pos), SEEK_SET) == off_t(sd_card_pos) &&
+            write(sdfno, &(_buffer.front()), 512) == 512) {
+          _read_b = 5;          // data accepted
+          // if multiple blocks: write mode back to the token waiting phase
+          writeState = uint8_t(cmd[0] == 25);
+        }
+        else {
+          _read_b = 13;         // write error
+          writeState = 0x00;
+        }
+        delayCnt = 1;
+      }
+      return;
+    }
     if (cmd_index == 0 && (_write_b & 0xC0) != 0x40) {
       if (ans_index < ans_size) {
-#ifdef DEBUG_SDEXT
-        std::printf("SDEXT: REGIO: "
-                    "streaming answer byte %d of %d-1 value %02X\n",
-                    ans_index, ans_size, ans_p[ans_index]);
-#endif
         _read_b = ans_p[ans_index++];
       }
       else {
@@ -255,12 +279,8 @@ namespace Ep128 {
           _block_read();
         }
         else {
-          //_read_b = 0xFF;
           ans_index = 0;
           ans_size = 0;
-#ifdef DEBUG_SDEXT
-          std::printf("SDEXT: REGIO: dummy answer 0xFF\n");
-#endif
         }
         _read_b = 0xFF;
       }
@@ -271,11 +291,6 @@ namespace Ep128 {
       _read_b = 0xFF;
       return;
     }
-#ifdef DEBUG_SDEXT
-    std::printf("SDEXT: REGIO: command (CMD%d) received: "
-                "%02X %02X %02X %02X %02X %02X\n",
-                cmd[0] & 63, cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], cmd[5]);
-#endif
     cmd[0] &= 63;
     cmd_index = 0;
     ans_callback = false;
@@ -291,9 +306,6 @@ namespace Ep128 {
         _read_b = 0;    // R1 answer
         break;
       case 9:           // CMD9: read CSD register
-#ifdef DEBUG_SDEXT
-        std::printf("SDEXT: REGIO: command is read CSD register\n");
-#endif
         ADD_ANS(_read_csd_answer);
         _read_b = 0;    // R1
         break;
@@ -307,46 +319,39 @@ namespace Ep128 {
         _read_b = 0;
         break;
       case 12:          // CMD12: stop transmission (reading multiple)
-        ADD_ANS(_stop_transmission_answer);
-        _read_b = 0;
         // actually we don't do too much, as on receiving a new command
         // callback will be deleted before this switch-case block
-#ifdef DEBUG_SDEXT
-        std::printf("SDEXT: REGIO: block counter before CMD12: %d\n", blocks);
-#endif
-        blocks = 0;
+        ADD_ANS(_stop_transmission_answer);
+        _read_b = 0;
         break;
       case 17:          // CMD17: read a single block, babe
       case 18:          // CMD18: read multiple blocks
-        blocks = 0;
-        if (!sdf) {
-          // address error, if no SD card image ...
+        sd_card_pos = (uint32_t(cmd[1]) << 24) | (uint32_t(cmd[2]) << 16)
+                      | (uint32_t(cmd[3]) << 8) | uint32_t(cmd[4]);
+        if (sd_card_size > 0U && sd_card_pos <= (sd_card_size - 512U) &&
+            lseek(sdfno, off_t(sd_card_pos), SEEK_SET) == off_t(sd_card_pos)) {
+          _block_read();
+          // in case of CMD18, continue multiple sectors,
+          // register callback for that!
+          ans_callback = (cmd[0] == 18);
+          _read_b = 0;  // R1
+        }
+        else {
+          // address error, if no SD card image or access beyond card size...
           // [this is bad, TODO: better error handling]
           _read_b = 32;
         }
-        else {
-          int     _offset =
-              (cmd[1] << 24) | (cmd[2] << 16) | (cmd[3] << 8) | cmd[4];
-#ifdef DEBUG_SDEXT
-          std::printf("SDEXT: REGIO: seek to %d in the image file.\n", _offset);
-#endif
-          // std::fseek(sdf, _offset, SEEK_SET);
-          lseek(sdfno, _offset, SEEK_SET);
-#ifdef DEBUG_SDEXT
-          std::printf("SDEXT: REGIO: after seek ...\n");
-#endif
-          _block_read();
-          if (cmd[0] == 18)             // in case of CMD18, continue multiple
-            ans_callback = true;        // sectors, register callback for that!
-          _read_b = 0; // R1
-        }
         break;
-      default: // unimplemented command, heh!
-#ifdef DEBUG_SDEXT
-        std::printf("SDEXT: REGIO: unimplemented command %d = %02Xh\n",
-                    cmd[0], cmd[0]);
-#endif
-        _read_b = 4; // illegal command :-/
+      case 24:          // CMD24: write block
+      case 25:          // CMD25: write multiple blocks
+        writePos = 0;
+        writeState = 0x01;
+        sd_card_pos = (uint32_t(cmd[1]) << 24) | (uint32_t(cmd[2]) << 16)
+                      | (uint32_t(cmd[3]) << 8) | uint32_t(cmd[4]);
+        _read_b = 0;    // R1 answer, OK
+        break;
+      default:          // unimplemented command, heh!
+        _read_b = 4;    // illegal command :-/
         break;
     }
   }
@@ -359,24 +364,14 @@ namespace Ep128 {
   uint8_t SDExt::readCartP3(uint32_t addr, const uint8_t *romPtr)
   {
     addr = addr & 0x3FFFU;
-#ifdef DEBUG_SDEXT
-    std::printf("SDEXT: read P3 @ %04X\n", addr);
-#endif
     if (addr < 0x2000) {
-      uint32_t  addr_ = (rom_page_ofs + addr) & 0xFFFFU;
+      uint32_t  addr_ = (uint32_t(rom_page_ofs) + addr) & 0xFFFFU;
       uint8_t   byte = 0xFF;
       if (addr_ < 0x4000U && romPtr)
         byte = romPtr[addr_];
-#ifdef DEBUG_SDEXT
-      std::printf("SDEXT: reading paged ROM, "
-                  "ROM offset = %04X, result = %02X\n", addr_, byte);
-#endif
       return byte;
     }
     if (addr < 0x3C00) {
-#ifdef DEBUG_SDEXT
-      std::printf("SDEXT: reading RAM at offset %04X\n", addr - 0x2000);
-#endif
       return sd_ram_ext[addr - 0x2000];
     }
     if (is_hs_read) {
@@ -389,45 +384,21 @@ namespace Ep128 {
       // is the previous state, as shifting needs time!
       uint8_t old = _read_b;
       _spi_shifting_with_sd_card();
-#ifdef DEBUG_SDEXT
-      std::printf("SDEXT: REGIO: R: DATA: "
-                  "SPI data register HIGH SPEED read %02X "
-                  "[future byte %02X] [shited out was: %02X]\n",
-                  old, _read_b, _write_b);
-#endif
       return old;
     }
     switch (addr & 3) {
       case 0:
         // regular read (not HS) only gives the last shifted-in data,
         // that's all!
-#ifdef DEBUG_SDEXT
-        std::printf("SDEXT: REGIO: R: DATA: "
-                    "SPI data register regular read %02X\n", _read_b);
-#endif
         return _read_b;
-        //printf("SDEXT: REGIO: R: SPI, result = %02X\n", a);
       case 1:
         // status reg: bit7=wp1, bit6=insert, bit5=changed
         // (insert/changed=1: some of the cards not inserted or changed)
-#ifdef DEBUG_SDEXT
-        std::printf("SDEXT: REGIO: R: status\n");
-#endif
         return status;
-        //return 0xFF - 32 + changed;
-        //return changed | 64;
       case 2:           // ROM pager [hmm not readable?!]
-#ifdef DEBUG_SDEXT
-        std::printf("SDEXT: REGIO: R: rom pager\n");
-#endif
         return 0xFF;
-        //return rom_page_ofs >> 8;
       case 3:           // HS read config is not readable?!]
-#ifdef DEBUG_SDEXT
-        std::printf("SDEXT: REGIO: R: HS config\n");
-#endif
         return 0xFF;
-        //return is_hs_read;
     }
     return 0xFF;        // make GCC happy :)
   }
@@ -435,25 +406,15 @@ namespace Ep128 {
   void SDExt::writeCartP3(uint32_t addr, uint8_t data)
   {
     addr = addr & 0x3FFFU;
-#ifdef DEBUG_SDEXT
-    //int pc = z80ex_get_reg(z80, regPC);
-    std::printf("SDEXT: write P3 @ %04X with value %02X\n", addr, data);
-#endif
     if (addr < 0x2000)                  // pageable ROM (8K), do not overwrite
       return;                           // [reflash is currently not supported]
     if (addr < 0x3C00) {                // SDEXT's RAM (7K), writable
-#ifdef DEBUG_SDEXT
-      std::printf("SDEXT: writing RAM at offset %04X\n", addr - 0x2000);
-#endif
       sd_ram_ext[addr - 0x2000] = data;
       return;
     }
     // rest 1K is the (memory mapped) I/O area
     switch (addr & 3) {
       case 0:           // data register
-#ifdef DEBUG_SDEXT
-        std::printf("SDEXT: REGIO: W: DATA: SPI data register to %02X\n", data);
-#endif
         if (!is_hs_read)
           _write_b = data;
         _write_specified = data;
@@ -461,27 +422,17 @@ namespace Ep128 {
         break;
       case 1:
         // control register (bit7=CS0, bit6=CS1, bit5=clear change card signal)
-#ifdef DEBUG_SDEXT
-        std::printf("SDEXT: REGIO: W: control register to %02X\n", data);
-#endif
         if (data & 32)  // clear change signal
           status &= 255 - 32;
-        cs0 = data & 128;
-        cs1 = data & 64;
+        cs0 = bool(data & 128);
+        cs1 = bool(data & 64);
         break;
       case 2:           // ROM pager register
-        rom_page_ofs = data << 8;
-#ifdef DEBUG_SDEXT
-        std::printf("SDEXT: REGIO: W: paging ROM to %02X\n", data);
-#endif
+        rom_page_ofs = uint16_t(data & 0xE0) << 8;  // only high 3 bits count
         break;
       case 3:           // HS (high speed) read mode to set: bit7=1
         is_hs_read = bool(data & 128);
         _write_b = is_hs_read ? 0xFF : _write_specified;
-#ifdef DEBUG_SDEXT
-        std::printf("SDEXT: REGIO: W: HS read mode is %s\n",
-                    is_hs_read ? "set" : "reset");
-#endif
         break;
     }
   }
