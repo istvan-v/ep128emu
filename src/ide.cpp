@@ -22,65 +22,166 @@
 
 namespace Ep128 {
 
-  bool IDEInterface::IDEController::IDEDrive::calculateCHS(
-      uint16_t& c, uint16_t& h, uint16_t& s)
+  extern void checkVHDImage(std::FILE *imageFile, const char *fileName,
+                            uint16_t& c, uint16_t& h, uint16_t& s)
   {
     c = 0;
     h = 0;
     s = 0;
-    uint32_t  nCylinders_ = nSectors;
-    uint32_t  nHeads_ = 1U;
-    uint32_t  nSectorsPerTrack_ = 1U;
-    uint32_t  bestScore = 0U;
-    for (uint32_t s_ = 1U; s_ <= 255U; s_++) {
-      if ((nSectors % s_) != 0U)
-        continue;
-      for (uint32_t h_ = 1U; h_ <= 16U; h_++) {
-        if ((nSectors % (h_ * s_)) != 0U)
-          continue;
-        uint32_t  c_ = nSectors / (h_ * s_);
-        if (c_ < 1U || c_ > 65535U)
-          continue;
-        uint32_t  tmp = 0U;
-        if (c_ >= 16384U)
-          tmp = 128U;
-        else if (c_ >= 1024U)
-          tmp = 256U;
-        else if (c_ >= 256U)
-          tmp = 1024U;
-        else
-          tmp = 512U;
-        if (s_ < 64U)
-          tmp |= 2048U;
-        if (s_ == 17U || s_ == 31U || s_ == 63U)
-          tmp |= 64U;
-        if (h_ >= 2U && (h_ & (h_ - 1U)) == 0U)
-          tmp |= 32U;
-        if (s_ > h_)
-          tmp |= 16U;
-        if (h_ == 16U)
-          tmp |= 8U;
-        if (c_ >= 512U)
-          tmp |= 4U;
-        if ((h_ & 1U) == 0U)
-          tmp |= 2U;
-        if ((s_ & 1U) != 0U)
-          tmp |= 1U;
-        if (tmp > bestScore) {
-          bestScore = tmp;
-          nCylinders_ = c_;
-          nHeads_ = h_;
-          nSectorsPerTrack_ = s_;
+    if (!imageFile) {
+      throw Ep128Emu::Exception("checkVHDImage(): internal error: "
+                                "imageFile == NULL");
+    }
+    bool    vhdExtension = false;
+    if (fileName && fileName[0]) {
+      size_t  nameLen = std::strlen(fileName);
+      if (nameLen >= 4) {
+        if (fileName[nameLen - 4] == '.' &&
+            (fileName[nameLen - 3] | char(0x20)) == 'v' &&
+            (fileName[nameLen - 2] | char(0x20)) == 'h' &&
+            (fileName[nameLen - 1] | char(0x20)) == 'd') {
+          vhdExtension = true;
         }
       }
     }
-    if (bestScore < 1U)
-      return false;
-    c = uint16_t(nCylinders_);
-    h = uint16_t(nHeads_);
-    s = uint16_t(nSectorsPerTrack_);
-    return true;
+    if (std::fseek(imageFile, 0L, SEEK_END) < 0)
+      throw Ep128Emu::Exception("error seeking IDE disk image");
+    size_t  fileSize = size_t(std::ftell(imageFile));
+    if (std::fseek(imageFile, 0L, SEEK_SET) < 0)
+      throw Ep128Emu::Exception("error seeking IDE disk image");
+    if (fileSize < 512UL || fileSize > 0x7FFFFE00UL)
+      throw Ep128Emu::Exception("IDE disk image size is out of range");
+    if ((fileSize & 0x01FF) != 0 && ((fileSize + 1) & 0x01FF) != 0) {
+      throw Ep128Emu::Exception("invalid IDE disk image size "
+                                "- must be an integer multiple of 512");
+    }
+    uint32_t  nSectors = uint32_t((fileSize + 511UL) >> 9);
+    if (!(fileSize & 0x01FF) && !vhdExtension) {
+      uint32_t  bestScore = 0U;
+      for (uint32_t s_ = 1U; s_ <= 255U; s_++) {
+        if ((nSectors % s_) != 0U)
+          continue;
+        for (uint32_t h_ = 1U; h_ <= 16U; h_++) {
+          if ((nSectors % (h_ * s_)) != 0U)
+            continue;
+          uint32_t  c_ = nSectors / (h_ * s_);
+          if (c_ < 1U || c_ > 65535U)
+            continue;
+          uint32_t  tmp = 0U;
+          if (c_ >= 16384U)
+            tmp = 128U;
+          else if (c_ >= 1024U)
+            tmp = 256U;
+          else if (c_ >= 256U)
+            tmp = 1024U;
+          else
+            tmp = 512U;
+          if (s_ < 64U)
+            tmp |= 2048U;
+          if (s_ == 17U || s_ == 31U || s_ == 63U)
+            tmp |= 64U;
+          if (h_ >= 2U && (h_ & (h_ - 1U)) == 0U)
+            tmp |= 32U;
+          if (s_ > h_)
+            tmp |= 16U;
+          if (h_ == 16U)
+            tmp |= 8U;
+          if (c_ >= 512U)
+            tmp |= 4U;
+          if ((h_ & 1U) == 0U)
+            tmp |= 2U;
+          if ((s_ & 1U) != 0U)
+            tmp |= 1U;
+          if (tmp > bestScore) {
+            bestScore = tmp;
+            c = uint16_t(c_);
+            h = uint16_t(h_);
+            s = uint16_t(s_);
+          }
+        }
+      }
+    }
+    if (nSectors > 1U && !c) {
+      uint8_t buf[512];
+      // check if the image file is in VHD format
+      if (std::fseek(imageFile, long((nSectors - 1U) << 9), SEEK_SET) < 0)
+        throw Ep128Emu::Exception("error seeking IDE disk image");
+      if (std::fread(buf, sizeof(uint8_t), 511, imageFile) != 511)
+        throw Ep128Emu::Exception("error reading IDE disk image");
+      if (std::fseek(imageFile, 0L, SEEK_SET) < 0)
+        throw Ep128Emu::Exception("error seeking IDE disk image");
+      do {
+        // check cookie (needed ?)
+        if (!(buf[0] == 0x63 && buf[1] == 0x6F && buf[2] == 0x6E && // "con"
+              buf[3] == 0x65 && buf[4] == 0x63 && buf[5] == 0x74 && // "ect"
+              buf[6] == 0x69 && buf[7] == 0x78)) {                  // "ix"
+          break;
+        }
+        nSectors--;
+        // check features (must be less than or equal to 0x00000003)
+        if ((buf[8] | buf[9] | buf[10] | (buf[11] & 0xFC)) != 0)
+          break;
+        // check format version (must be 0x00010000)
+        if ((buf[12] | (buf[13] ^ 0x01) | buf[14] | buf[15]) != 0)
+          break;
+        // check data offset (must be 0xFFFFFFFF, i.e. fixed disk)
+        if ((buf[16] & buf[17] & buf[18] & buf[19]) != 0xFF)
+          break;
+        // check size (must be less than 2 GB)
+        if ((buf[48] | buf[49] | buf[50] | buf[51] | (buf[52] & 0x80)) != 0)
+          break;
+        // check if size matches the actual file size
+        uint32_t  tmp = (uint32_t(buf[52]) << 24) | (uint32_t(buf[53]) << 16)
+                        | (uint32_t(buf[54]) << 8) | uint32_t(buf[55]);
+        if (tmp != (nSectors << 9))
+          break;
+        // check disk geometry
+        c = (uint16_t(buf[56]) << 8) | uint16_t(buf[57]);
+        h = uint16_t(buf[58]);
+        s = uint16_t(buf[59]);
+        if (h > 16 || s > 255)
+          break;
+        tmp = uint32_t(c) * uint32_t(h) * uint32_t(s);
+        if (tmp > nSectors)
+          break;
+        if (tmp < nSectors) {
+          if (c >= 0xFFFF)
+            break;
+          if (((uint32_t(c + 1) * uint32_t(h) * uint32_t(s)) <= nSectors) ||
+              ((uint32_t(c) * uint32_t(h + 1) * uint32_t(s)) <= nSectors) ||
+              ((uint32_t(c) * uint32_t(h) * uint32_t(s + 1)) <= nSectors)) {
+            break;
+          }
+        }
+        // check disk type (must be 0x00000002, i.e. fixed hard disk)
+        if ((buf[60] | buf[61] | buf[62] | (buf[63] ^ 0x02)) != 0)
+          break;
+        // verify checksum
+        tmp = (uint32_t(buf[64]) << 24) | (uint32_t(buf[65]) << 16)
+              | (uint32_t(buf[66]) << 8) | uint32_t(buf[67]);
+        for (int i = 0; i < 511; i++) {
+          if (i == 64)
+            i = 68;
+          tmp = tmp + uint32_t(buf[i]);
+        }
+        if (tmp == 0xFFFFFFFFU)
+          return;
+      } while (false);
+    }
+    c = 0;
+    h = 0;
+    s = 0;
+    if (vhdExtension)
+      throw Ep128Emu::Exception("invalid or unsupported VHD file footer");
+    if (fileSize & 0x01FF) {
+      throw Ep128Emu::Exception("invalid IDE disk image size "
+                                "- must be an integer multiple of 512");
+    }
+    throw Ep128Emu::Exception("invalid IDE disk image size "
+                              "- cannot calculate geometry");
   }
+
+  // --------------------------------------------------------------------------
 
   bool IDEInterface::IDEController::IDEDrive::convertCHSToLBA(
       uint32_t& b, uint16_t c, uint16_t h, uint16_t s)
@@ -566,120 +667,13 @@ namespace Ep128 {
         readOnlyMode = false;
       }
       (void) std::setvbuf(imageFile, (char *) 0, _IONBF, 0);
-      bool    vhdFormatRequired = false;
-      {
-        size_t  nameLen = std::strlen(fileName);
-        if (nameLen >= 4) {
-          if (fileName[nameLen - 4] == '.' &&
-              (fileName[nameLen - 3] | char(0x20)) == 'v' &&
-              (fileName[nameLen - 2] | char(0x20)) == 'h' &&
-              (fileName[nameLen - 1] | char(0x20)) == 'd') {
-            vhdFormatRequired = true;
-          }
-        }
-      }
-      if (std::fseek(imageFile, 0L, SEEK_END) < 0)
-        throw Ep128Emu::Exception("error seeking IDE disk image");
-      size_t  fileSize = size_t(std::ftell(imageFile));
-      if (std::fseek(imageFile, 0L, SEEK_SET) < 0)
-        throw Ep128Emu::Exception("error seeking IDE disk image");
-      if (fileSize < 512UL || fileSize > 0x7FFFFE00UL)
-        throw Ep128Emu::Exception("IDE disk image size is out of range");
-      if ((fileSize & 0x01FF) != 0) {
-        if (((fileSize + 1) & 0x01FF) != 0 || !vhdFormatRequired) {
-          throw Ep128Emu::Exception("invalid IDE disk image size "
-                                    "- must be an integer multiple of 512");
-        }
-      }
-      nSectors = uint32_t((fileSize + 511UL) >> 9);
-      if (nSectors > 1U) {
-        // check if the image file is in VHD format
-        if (std::fseek(imageFile, long((nSectors - 1U) << 9), SEEK_SET) < 0)
-          throw Ep128Emu::Exception("error seeking IDE disk image");
-        if (std::fread(buf, sizeof(uint8_t), 511, imageFile) != 511)
-          throw Ep128Emu::Exception("error reading IDE disk image");
-        if (std::fseek(imageFile, 0L, SEEK_SET) < 0)
-          throw Ep128Emu::Exception("error seeking IDE disk image");
-        do {
-          // check cookie (needed ?)
-          if (!(buf[0] == 0x63 && buf[1] == 0x6F && buf[2] == 0x6E && // "con"
-                buf[3] == 0x65 && buf[4] == 0x63 && buf[5] == 0x74 && // "ect"
-                buf[6] == 0x69 && buf[7] == 0x78)) {                  // "ix"
-            break;
-          }
-          // check features (must be less than or equal to 0x00000003)
-          if ((buf[8] | buf[9] | buf[10] | (buf[11] & 0xFC)) != 0)
-            break;
-          // check format version (must be 0x00010000)
-          if ((buf[12] | (buf[13] ^ 0x01) | buf[14] | buf[15]) != 0)
-            break;
-          // check data offset (must be 0xFFFFFFFF, i.e. fixed disk)
-          if ((buf[16] & buf[17] & buf[18] & buf[19]) != 0xFF)
-            break;
-          // check size (must be less than 2 GB)
-          if ((buf[48] | buf[49] | buf[50] | buf[51] | (buf[52] & 0x80)) != 0)
-            break;
-          // check if size matches the actual file size
-          uint32_t  tmp = (uint32_t(buf[52]) << 24) | (uint32_t(buf[53]) << 16)
-                          | (uint32_t(buf[54]) << 8) | uint32_t(buf[55]);
-          if (tmp != ((nSectors - 1U) << 9))
-            break;
-          // check disk geometry
-          defaultCylinders = (uint16_t(buf[56]) << 8) | uint16_t(buf[57]);
-          defaultHeads = uint16_t(buf[58]);
-          defaultSectorsPerTrack = uint16_t(buf[59]);
-          if (defaultHeads > 16 || defaultSectorsPerTrack > 255)
-            break;
-          tmp = uint32_t(defaultCylinders) * uint32_t(defaultHeads)
-                * uint32_t(defaultSectorsPerTrack);
-          if (tmp > (nSectors - 1U))
-            break;
-          if (tmp < (nSectors - 1U)) {
-            if (defaultCylinders >= 0xFFFF)
-              break;
-            tmp = uint32_t(defaultCylinders + 1) * uint32_t(defaultHeads)
-                  * uint32_t(defaultSectorsPerTrack);
-            if (tmp <= (nSectors - 1U))
-              break;
-            tmp = uint32_t(defaultCylinders) * uint32_t(defaultHeads + 1)
-                  * uint32_t(defaultSectorsPerTrack);
-            if (tmp <= (nSectors - 1U))
-              break;
-            tmp = uint32_t(defaultCylinders) * uint32_t(defaultHeads)
-                  * uint32_t(defaultSectorsPerTrack + 1);
-            if (tmp <= (nSectors - 1U))
-              break;
-          }
-          // check disk type (must be 0x00000002, i.e. fixed hard disk)
-          if ((buf[60] | buf[61] | buf[62] | (buf[63] ^ 0x02)) != 0)
-            break;
-          // verify checksum
-          tmp = (uint32_t(buf[64]) << 24) | (uint32_t(buf[65]) << 16)
-                | (uint32_t(buf[66]) << 8) | uint32_t(buf[67]);
-          for (int i = 0; i < 511; i++) {
-            if (i == 64)
-              i = 68;
-            tmp = (tmp + uint32_t(buf[i])) & 0xFFFFFFFFU;
-          }
-          if (((tmp + 1U) & 0xFFFFFFFFU) != 0U)
-            break;
-          vhdFormat = true;
-          nSectors = uint32_t(defaultCylinders) * uint32_t(defaultHeads)
-                     * uint32_t(defaultSectorsPerTrack);
-        } while (false);
-      }
-      if (!vhdFormat) {
-        if (vhdFormatRequired)
-          throw Ep128Emu::Exception("invalid or unsupported VHD file footer");
-        if (!calculateCHS(defaultCylinders,
-                          defaultHeads, defaultSectorsPerTrack)) {
-          throw Ep128Emu::Exception("invalid IDE disk image size "
-                                    "- cannot calculate geometry");
-        }
-      }
+      checkVHDImage(imageFile, fileName,
+                    defaultCylinders, defaultHeads, defaultSectorsPerTrack);
       nCylinders = defaultCylinders;
       nHeads = defaultHeads;
       nSectorsPerTrack = defaultSectorsPerTrack;
+      nSectors = uint32_t(defaultCylinders) * uint32_t(defaultHeads)
+                 * uint32_t(defaultSectorsPerTrack);
       this->reset(3);
     }
     catch (...) {

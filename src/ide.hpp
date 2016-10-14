@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -23,6 +23,9 @@
 #include "ep128emu.hpp"
 
 namespace Ep128 {
+
+  extern void checkVHDImage(std::FILE *imageFile, const char *fileName,
+                            uint16_t& c, uint16_t& h, uint16_t& s);
 
   class IDEInterface {
    protected:
@@ -54,7 +57,6 @@ namespace Ep128 {
         uint16_t  bufPos;
         bool      vhdFormat;
         // --------
-        bool calculateCHS(uint16_t& c, uint16_t& h, uint16_t& s);
         bool convertCHSToLBA(uint32_t& b, uint16_t c, uint16_t h, uint16_t s);
         bool convertLBAToCHS(uint16_t& c, uint16_t& h, uint16_t& s, uint32_t b);
         void readBlock();
