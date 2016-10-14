@@ -43,6 +43,9 @@ namespace Ep128 {
     uint8_t *dummyMemory;   // 2*16K dummy memory for invalid reads and writes
     uint8_t *pageAddressTableR[4];
     uint8_t *pageAddressTableW[4];
+#ifdef ENABLE_SDEXT
+    SDExt   *sdext;
+#endif
     void allocateSegment(uint8_t n, bool isROM);
     void checkExecuteBreakPoint(uint16_t addr, uint8_t page, uint8_t value);
     void checkReadBreakPoint(uint16_t addr, uint8_t page, uint8_t value);
@@ -81,18 +84,14 @@ namespace Ep128 {
     void saveState(Ep128Emu::File&);
     void loadState(Ep128Emu::File::Buffer&);
     void registerChunkType(Ep128Emu::File&);
-   protected:
-    virtual void breakPointCallback(bool isWrite, uint16_t addr, uint8_t value);
 #ifdef ENABLE_SDEXT
-    EP128EMU_INLINE bool isSDExtPage(uint8_t page) const
+    void setSDExtPtr(SDExt *p)
     {
-      return ((uint32_t(pageTable[page]) << 14) == sdext_cp3m_usability);
-    }
-    EP128EMU_INLINE bool isSDExtAddress(uint32_t addr) const
-    {
-      return ((addr & 0x3FC000U) == sdext_cp3m_usability);
+      sdext = p;
     }
 #endif
+   protected:
+    virtual void breakPointCallback(bool isWrite, uint16_t addr, uint8_t value);
   };
 
   // --------------------------------------------------------------------------
@@ -102,8 +101,8 @@ namespace Ep128 {
     uint8_t page = uint8_t(addr >> 14);
     uint8_t value = pageAddressTableR[page][addr];
 #ifdef ENABLE_SDEXT
-    if (EP128EMU_UNLIKELY(isSDExtPage(page)))
-      value = sdext_read_cart_p3(addr, segmentTable[0x07]);
+    if (EP128EMU_UNLIKELY(sdext->isSDExtSegment(pageTable[page])))
+      value = sdext->readCartP3(addr, segmentTable[0x07]);
 #endif
     if (haveBreakPoints)
       checkReadBreakPoint(addr, page, value);
@@ -115,8 +114,8 @@ namespace Ep128 {
     uint8_t page = uint8_t(addr >> 14);
     uint8_t value = pageAddressTableR[page][addr];
 #ifdef ENABLE_SDEXT
-    if (EP128EMU_UNLIKELY(isSDExtPage(page)))
-      value = sdext_read_cart_p3(addr, segmentTable[0x07]);
+    if (EP128EMU_UNLIKELY(sdext->isSDExtSegment(pageTable[page])))
+      value = sdext->readCartP3(addr, segmentTable[0x07]);
 #endif
     if (haveBreakPoints)
       checkExecuteBreakPoint(addr, page, value);
@@ -126,10 +125,10 @@ namespace Ep128 {
   inline uint8_t Memory::readNoDebug(uint16_t addr) const
   {
 #ifdef ENABLE_SDEXT
-    if (EP128EMU_UNLIKELY(isSDExtPage(uint8_t(addr >> 14))))
-      return sdext_read_cart_p3(addr, segmentTable[0x07]);
+    if (EP128EMU_UNLIKELY(sdext->isSDExtSegment(pageTable[addr >> 14])))
+      return sdext->readCartP3(addr, segmentTable[0x07]);
 #endif
-    return pageAddressTableR[uint8_t(addr >> 14)][addr];
+    return pageAddressTableR[addr >> 14][addr];
   }
 
   inline uint8_t Memory::readRaw(uint32_t addr) const
@@ -137,8 +136,8 @@ namespace Ep128 {
     uint8_t segment, value;
 
 #ifdef ENABLE_SDEXT
-    if (EP128EMU_UNLIKELY(isSDExtAddress(addr)))
-      return sdext_read_cart_p3(addr, segmentTable[0x07]);
+    if (EP128EMU_UNLIKELY(sdext->isSDExtAddress(addr)))
+      return sdext->readCartP3(addr, segmentTable[0x07]);
 #endif
     segment = uint8_t(addr >> 14);
     if (segmentTable[segment])
@@ -154,8 +153,8 @@ namespace Ep128 {
     if (haveBreakPoints)
       checkWriteBreakPoint(addr, page, value);
 #ifdef ENABLE_SDEXT
-    if (EP128EMU_UNLIKELY(isSDExtPage(page))) {
-      sdext_write_cart_p3(addr, value);
+    if (EP128EMU_UNLIKELY(sdext->isSDExtSegment(pageTable[page]))) {
+      sdext->writeCartP3(addr, value);
       return;
     }
 #endif
@@ -165,8 +164,8 @@ namespace Ep128 {
   inline void Memory::writeRaw(uint32_t addr, uint8_t value)
   {
 #ifdef ENABLE_SDEXT
-    if (EP128EMU_UNLIKELY(isSDExtAddress(addr))) {
-      sdext_write_cart_p3(addr, value);
+    if (EP128EMU_UNLIKELY(sdext->isSDExtAddress(addr))) {
+      sdext->writeCartP3(addr, value);
       return;
     }
 #endif
@@ -178,8 +177,8 @@ namespace Ep128 {
   inline void Memory::writeROM(uint32_t addr, uint8_t value)
   {
 #ifdef ENABLE_SDEXT
-    if (EP128EMU_UNLIKELY(isSDExtAddress(addr))) {
-      sdext_write_cart_p3(addr, value);
+    if (EP128EMU_UNLIKELY(sdext->isSDExtAddress(addr))) {
+      sdext->writeCartP3(addr, value);
       return;
     }
 #endif

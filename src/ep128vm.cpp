@@ -1460,6 +1460,9 @@ namespace Ep128 {
       mouseButtonState(0x00),
       mouseWheelDelta(0x00)
   {
+#ifdef ENABLE_SDEXT
+    memory.setSDExtPtr(&sdext);
+#endif
     for (size_t i = 0; i < (sizeof(callbacks) / sizeof(Ep128VMCallback)); i++) {
       callbacks[i].func = (void (*)(void *)) 0;
       callbacks[i].userData = (void *) 0;
@@ -1527,9 +1530,6 @@ namespace Ep128 {
                                  &ideDriveIOReadCallback, this, 0xEC);
     ioPorts.setWriteCallback(0xEC, 0xEF, &ideDriveIOWriteCallback, this, 0xEC);
     // reset
-#ifdef ENABLE_SDEXT
-    sdext_init(true);
-#endif
     this->reset(true);
   }
 
@@ -1640,7 +1640,7 @@ namespace Ep128 {
     mouseButtonState = 0x00;
     mouseWheelDelta = 0x00;
 #ifdef ENABLE_SDEXT
-    sdext_init(false);
+    sdext.reset(false);
 #endif
   }
 
@@ -1834,7 +1834,7 @@ namespace Ep128 {
     else {
 #ifdef ENABLE_SDEXT
       if (n == 7) {
-        sdext_open_image(fileName_.c_str());
+        sdext.openImage(fileName_.c_str());
         return;
       }
 #endif

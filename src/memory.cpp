@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 
 #include "ep128emu.hpp"
 #include "memory.hpp"
+#ifdef ENABLE_SDEXT
+#  include "sdext.hpp"
+#endif
 
 namespace Ep128 {
 
@@ -96,6 +99,9 @@ namespace Ep128 {
       breakPointPriorityThreshold(0),
       videoMemory((uint8_t *) 0),
       dummyMemory((uint8_t *) 0)
+#ifdef ENABLE_SDEXT
+      , sdext((SDExt *) 0)
+#endif
   {
     for (int i = 0; i < 4; i++) {
       pageTable[i] = 0;

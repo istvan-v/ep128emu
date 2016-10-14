@@ -32,6 +32,9 @@
 #include "vm.hpp"
 #include "ep_fdd.hpp"
 #include "wd177x.hpp"
+#ifdef ENABLE_SDEXT
+#  include "sdext.hpp"
+#endif
 
 #include <map>
 
@@ -214,6 +217,9 @@ namespace Ep128 {
     int8_t    mouseDeltaY;
     uint8_t   mouseButtonState;
     uint8_t   mouseWheelDelta;          // b0..b3: vertical, b4..b7: horizontal
+#ifdef ENABLE_SDEXT
+    SDExt     sdext;
+#endif
     // ----------------
     void updateTimingParameters();
     void setMemoryWaitTiming();
