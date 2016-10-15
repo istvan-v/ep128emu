@@ -295,6 +295,14 @@ namespace Ep128 {
      * Load epmemcfg format memory configuration file.
      */
     virtual void loadMemoryConfiguration(const std::string& fileName_);
+#ifdef ENABLE_SDEXT
+    /*!
+     * Set if SD card emulation should be enabled on segment 0x07,
+     * and the file name of the 64 KB flash ROM image.
+     */
+    virtual void configureSDCard(bool isEnabled,
+                                 const std::string& romFileName);
+#endif
     /*!
      * Set CPU clock frequency (in Hz); defaults to 4000000 Hz.
      */

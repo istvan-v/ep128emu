@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 
 #include "ep128emu.hpp"
 #include "ep128vm.hpp"
+#ifdef ENABLE_SDEXT
+#  include "sdext.hpp"
+#endif
 
 #include <vector>
 
@@ -321,6 +324,17 @@ namespace Ep128 {
       throw;
     }
   }
+
+  // --------------------------------------------------------------------------
+
+#ifdef ENABLE_SDEXT
+  void Ep128VM::configureSDCard(bool isEnabled, const std::string& romFileName)
+  {
+    stopDemo();
+    sdext.setEnabled(isEnabled);
+    sdext.openROMFile(romFileName.c_str());
+  }
+#endif
 
 }       // namespace Ep128
 

@@ -141,6 +141,14 @@ namespace Ep128Emu {
      * Load epmemcfg format memory configuration file.
      */
     virtual void loadMemoryConfiguration(const std::string& fileName_);
+#ifdef ENABLE_SDEXT
+    /*!
+     * Set if SD card emulation should be enabled, and the file name
+     * of the 64 KB flash ROM image.
+     */
+    virtual void configureSDCard(bool isEnabled,
+                                 const std::string& romFileName);
+#endif
     /*!
      * Set audio output quality.
      */

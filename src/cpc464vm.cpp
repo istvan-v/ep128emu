@@ -1292,7 +1292,11 @@ namespace CPC464 {
     (void) nTracks_;
     (void) nSides_;
     (void) nSectorsPerTrack_;
+#ifndef ENABLE_SDEXT
     if (n < 0 || n > 7)
+#else
+    if (n < 0 || n > 8)
+#endif
       throw Ep128Emu::Exception("invalid disk drive number");
     if (n < 4)
       floppyDrive->openDiskImage(n, fileName_.c_str());

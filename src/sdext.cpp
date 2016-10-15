@@ -101,9 +101,13 @@ namespace Ep128 {
       sdf((std::FILE *) 0),
       sdfno(-1),
       sd_card_size(0U),
-      sd_card_pos(0U)
+      sd_card_pos(0U),
+      romFileName(""),
+      romFileWriteProtected(false),
+      romDataChanged(false)
   {
-    sd_ram_ext.resize(0x1C00, 0xFF);
+    sd_ram_ext.resize(0x00001C00, 0xFF);
+    sd_rom_ext.resize(0x00010000, 0xFF);
     _buffer.resize(1024, 0x00);
     this->reset(false);
   }
@@ -111,6 +115,19 @@ namespace Ep128 {
   SDExt::~SDExt()
   {
     openImage((char *) 0);
+    try {
+      openROMFile((char *) 0);
+    }
+    catch (...) {
+      // FIXME: errors are ignored here
+    }
+  }
+
+  void SDExt::setEnabled(bool isEnabled)
+  {
+    sdext_enabled = isEnabled;
+    sdextSegment = 0x07U | (0U - uint32_t(isEnabled));
+    sdextAddress = (0x07U << 14) | (0U - uint32_t(isEnabled));
   }
 
   void SDExt::reset(bool clear_ram)
@@ -140,7 +157,6 @@ namespace Ep128 {
    */
   void SDExt::openImage(const char *sdimg_path)
   {
-    disableSDExt();
     this->reset(false);
     if (sdf)
       std::fclose(sdf);
@@ -175,8 +191,57 @@ namespace Ep128 {
       }
       sd_card_size = (uint32_t(c) * uint32_t(h) * uint32_t(s)) << 9;
     }
-    // turn emulation on
-    enableSDExt();
+  }
+
+  void SDExt::openROMFile(const char *fileName)
+  {
+    if (!fileName)
+      fileName = "";
+    const char  *errMsg = (char *) 0;
+    if (romDataChanged) {
+      romDataChanged = false;
+      if (!(romFileName.empty() || romFileWriteProtected)) {
+        // write old ROM to disk
+        std::FILE *f = std::fopen(romFileName.c_str(), "wb");
+        if (!f) {
+          errMsg = "SDExt: error saving flash ROM";
+        }
+        else {
+          if (std::fwrite(&(sd_rom_ext.front()),
+                          sizeof(uint8_t), sd_rom_ext.size(), f)
+              != sd_rom_ext.size() || std::fflush(f) != 0) {
+            errMsg = "SDExt: error saving flash ROM";
+          }
+          std::fclose(f);
+        }
+      }
+    }
+    if (romFileName != fileName) {
+      romFileName.clear();
+      romFileWriteProtected = false;
+      std::memset(&(sd_rom_ext.front()), 0xFF, sd_rom_ext.size());
+    }
+    if (errMsg)
+      throw Ep128Emu::Exception(errMsg);
+    if (romFileName == fileName)
+      return;
+    // load ROM image from disk
+    std::FILE *f = std::fopen(fileName, "r+b");
+    if (!f) {
+      f = std::fopen(fileName, "rb");
+      if (!f)
+        throw Ep128Emu::Exception("SDExt: error opening ROM file");
+      romFileWriteProtected = true;
+    }
+    if (std::fread(&(sd_rom_ext.front()), sizeof(uint8_t), sd_rom_ext.size(), f)
+        != sd_rom_ext.size()) {
+      std::fclose(f);
+      romFileWriteProtected = false;
+      std::memset(&(sd_rom_ext.front()), 0xFF, sd_rom_ext.size());
+      throw Ep128Emu::Exception("SDExt: error loading ROM file");
+    }
+    std::fclose(f);
+    romFileName = fileName;
   }
 
   static int safe_read(int fd, uint8_t *buffer, int size)
@@ -362,19 +427,18 @@ namespace Ep128 {
    * Here, I mean addresses within segment 7 only, so it becomes 0x3C00 ...
    */
 
-  uint8_t SDExt::readCartP3(uint32_t addr, const uint8_t *romPtr)
+  uint8_t SDExt::readCartP3(uint32_t addr)
   {
     addr = addr & 0x3FFFU;
     if (addr < 0x2000) {
       uint32_t  addr_ = (uint32_t(rom_page_ofs) + addr) & 0xFFFFU;
       uint8_t   byte = 0xFF;
-      if (addr_ < 0x4000U && romPtr)
-        byte = romPtr[addr_];
+      if (addr_ < sd_rom_ext.size())
+        byte = sd_rom_ext[addr_];
       return byte;
     }
-    if (addr < 0x3C00) {
+    if (addr < 0x3C00)
       return sd_ram_ext[addr - 0x2000];
-    }
     if (is_hs_read) {
       // in HS-read (high speed read) mode, all the 0x3C00-0x3FFF
       // acts as data _read_ register (but not for _write_!!!)
@@ -436,6 +500,35 @@ namespace Ep128 {
         _write_b = is_hs_read ? 0xFF : _write_specified;
         break;
     }
+  }
+
+  uint8_t SDExt::readCartP3Debug(uint32_t addr) const
+  {
+    addr = addr & 0x3FFFU;
+    if (addr < 0x2000) {
+      uint32_t  addr_ = (uint32_t(rom_page_ofs) + addr) & 0xFFFFU;
+      uint8_t   byte = 0xFF;
+      if (addr_ < sd_rom_ext.size())
+        byte = sd_rom_ext[addr_];
+      return byte;
+    }
+    if (addr < 0x3C00)
+      return sd_ram_ext[addr - 0x2000];
+    switch (addr & 3) {
+      case 0:
+        // regular read (not HS) only gives the last shifted-in data,
+        // that's all!
+        return _read_b;
+      case 1:
+        // status reg: bit7=wp1, bit6=insert, bit5=changed
+        // (insert/changed=1: some of the cards not inserted or changed)
+        return status;
+      case 2:           // ROM pager
+        return uint8_t(rom_page_ofs >> 8);
+      case 3:           // HS read config
+        return (uint8_t(is_hs_read) << 7);
+    }
+    return 0xFF;        // make GCC happy :)
   }
 
 }       // namespace Ep128

@@ -344,6 +344,18 @@ namespace Ep128Emu {
                                 ide.imageFile3, std::string(""),
                                 ideDisk3Changed);
     // ----------------
+#ifdef ENABLE_SDEXT
+    defineConfigurationVariable(*this, "sdext.imageFile",
+                                sdext.imageFile, std::string(""),
+                                sdCardImageChanged);
+    defineConfigurationVariable(*this, "sdext.romFile",
+                                sdext.romFile, std::string(""),
+                                memoryConfigurationChanged);
+    defineConfigurationVariable(*this, "sdext.enabled",
+                                sdext.enabled, false,
+                                memoryConfigurationChanged);
+    // ----------------
+#endif
     defineConfigurationVariable(*this, "tape.imageFile",
                                 tape.imageFile, std::string(""),
                                 tapeFileChanged);
@@ -513,6 +525,16 @@ namespace Ep128Emu {
         }
         memoryConfigurationChanged = false;
       }
+#ifdef ENABLE_SDEXT
+      try {
+        vm_.configureSDCard(sdext.enabled, sdext.romFile);
+      }
+      catch (Exception& e) {
+        sdext.romFile.clear();
+        vm_.configureSDCard(sdext.enabled, sdext.romFile);
+        errorCallback(errorCallbackUserData, e.what());
+      }
+#endif
     }
     if (displaySettingsChanged) {
       // assume that changing the display settings will not fail
@@ -591,110 +613,59 @@ namespace Ep128Emu {
     }
     if (mouseSettingsChanged)
       mouseSettingsChanged = false;
-    if (floppyAChanged) {
+    for (int i = 0; i < 4; i++) {
+      FloppyDriveSettings&  cfg = (i == 0 ? floppy.a :
+                                   (i == 1 ? floppy.b :
+                                    (i == 2 ? floppy.c : floppy.d)));
+      bool&   isChanged = (i == 0 ? floppyAChanged :
+                           (i == 1 ? floppyBChanged :
+                            (i == 2 ? floppyCChanged : floppyDChanged)));
+      if (isChanged) {
+        try {
+          vm_.setDiskImageFile(i, cfg.imageFile,
+                               cfg.tracks, cfg.sides, cfg.sectorsPerTrack);
+        }
+        catch (Exception& e) {
+          cfg.imageFile.clear();
+          vm_.setDiskImageFile(i, cfg.imageFile,
+                               cfg.tracks, cfg.sides, cfg.sectorsPerTrack);
+          errorCallback(errorCallbackUserData, e.what());
+        }
+        isChanged = false;
+      }
+    }
+    for (int i = 0; i < 4; i++) {
+      std::string&  imageFile = (i == 0 ? ide.imageFile0 :
+                                 (i == 1 ? ide.imageFile1 :
+                                  (i == 2 ? ide.imageFile2 : ide.imageFile3)));
+      bool&   isChanged = (i == 0 ? ideDisk0Changed :
+                           (i == 1 ? ideDisk1Changed :
+                            (i == 2 ? ideDisk2Changed : ideDisk3Changed)));
+      if (isChanged) {
+        try {
+          vm_.setDiskImageFile(i + 4, imageFile, -1, -1, -1);
+        }
+        catch (Exception& e) {
+          imageFile.clear();
+          vm_.setDiskImageFile(i + 4, imageFile, -1, -1, -1);
+          errorCallback(errorCallbackUserData, e.what());
+        }
+        isChanged = false;
+      }
+    }
+#ifdef ENABLE_SDEXT
+    if (sdCardImageChanged) {
       try {
-        vm_.setDiskImageFile(0, floppy.a.imageFile,
-                             floppy.a.tracks, floppy.a.sides,
-                             floppy.a.sectorsPerTrack);
+        vm_.setDiskImageFile(8, sdext.imageFile, -1, -1, -1);
       }
       catch (Exception& e) {
-        floppy.a.imageFile.clear();
-        vm_.setDiskImageFile(0, floppy.a.imageFile,
-                             floppy.a.tracks, floppy.a.sides,
-                             floppy.a.sectorsPerTrack);
+        sdext.imageFile.clear();
+        vm_.setDiskImageFile(8, sdext.imageFile, -1, -1, -1);
         errorCallback(errorCallbackUserData, e.what());
       }
-      floppyAChanged = false;
+      sdCardImageChanged = false;
     }
-    if (floppyBChanged) {
-      try {
-        vm_.setDiskImageFile(1, floppy.b.imageFile,
-                             floppy.b.tracks, floppy.b.sides,
-                             floppy.b.sectorsPerTrack);
-      }
-      catch (Exception& e) {
-        floppy.b.imageFile.clear();
-        vm_.setDiskImageFile(1, floppy.b.imageFile,
-                             floppy.b.tracks, floppy.b.sides,
-                             floppy.b.sectorsPerTrack);
-        errorCallback(errorCallbackUserData, e.what());
-      }
-      floppyBChanged = false;
-    }
-    if (floppyCChanged) {
-      try {
-        vm_.setDiskImageFile(2, floppy.c.imageFile,
-                             floppy.c.tracks, floppy.c.sides,
-                             floppy.c.sectorsPerTrack);
-      }
-      catch (Exception& e) {
-        floppy.c.imageFile.clear();
-        vm_.setDiskImageFile(2, floppy.c.imageFile,
-                             floppy.c.tracks, floppy.c.sides,
-                             floppy.c.sectorsPerTrack);
-        errorCallback(errorCallbackUserData, e.what());
-      }
-      floppyCChanged = false;
-    }
-    if (floppyDChanged) {
-      try {
-        vm_.setDiskImageFile(3, floppy.d.imageFile,
-                             floppy.d.tracks, floppy.d.sides,
-                             floppy.d.sectorsPerTrack);
-      }
-      catch (Exception& e) {
-        floppy.d.imageFile.clear();
-        vm_.setDiskImageFile(3, floppy.d.imageFile,
-                             floppy.d.tracks, floppy.d.sides,
-                             floppy.d.sectorsPerTrack);
-        errorCallback(errorCallbackUserData, e.what());
-      }
-      floppyDChanged = false;
-    }
-    if (ideDisk0Changed) {
-      try {
-        vm_.setDiskImageFile(4, ide.imageFile0, -1, -1, -1);
-      }
-      catch (Exception& e) {
-        ide.imageFile0.clear();
-        vm_.setDiskImageFile(4, ide.imageFile0, -1, -1, -1);
-        errorCallback(errorCallbackUserData, e.what());
-      }
-      ideDisk0Changed = false;
-    }
-    if (ideDisk1Changed) {
-      try {
-        vm_.setDiskImageFile(5, ide.imageFile1, -1, -1, -1);
-      }
-      catch (Exception& e) {
-        ide.imageFile1.clear();
-        vm_.setDiskImageFile(5, ide.imageFile1, -1, -1, -1);
-        errorCallback(errorCallbackUserData, e.what());
-      }
-      ideDisk1Changed = false;
-    }
-    if (ideDisk2Changed) {
-      try {
-        vm_.setDiskImageFile(6, ide.imageFile2, -1, -1, -1);
-      }
-      catch (Exception& e) {
-        ide.imageFile2.clear();
-        vm_.setDiskImageFile(6, ide.imageFile2, -1, -1, -1);
-        errorCallback(errorCallbackUserData, e.what());
-      }
-      ideDisk2Changed = false;
-    }
-    if (ideDisk3Changed) {
-      try {
-        vm_.setDiskImageFile(7, ide.imageFile3, -1, -1, -1);
-      }
-      catch (Exception& e) {
-        ide.imageFile3.clear();
-        vm_.setDiskImageFile(7, ide.imageFile3, -1, -1, -1);
-        errorCallback(errorCallbackUserData, e.what());
-      }
-      ideDisk3Changed = false;
-    }
+#endif
     if (tapeSettingsChanged) {
       vm_.setDefaultTapeSampleRate(tape.defaultSampleRate);
       vm_.setForceTapeMotorOn(tape.forceMotorOn);

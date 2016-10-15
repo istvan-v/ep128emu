@@ -102,7 +102,7 @@ namespace Ep128 {
     uint8_t value = pageAddressTableR[page][addr];
 #ifdef ENABLE_SDEXT
     if (EP128EMU_UNLIKELY(sdext->isSDExtSegment(pageTable[page])))
-      value = sdext->readCartP3(addr, segmentTable[0x07]);
+      value = sdext->readCartP3(addr);
 #endif
     if (haveBreakPoints)
       checkReadBreakPoint(addr, page, value);
@@ -115,7 +115,7 @@ namespace Ep128 {
     uint8_t value = pageAddressTableR[page][addr];
 #ifdef ENABLE_SDEXT
     if (EP128EMU_UNLIKELY(sdext->isSDExtSegment(pageTable[page])))
-      value = sdext->readCartP3(addr, segmentTable[0x07]);
+      value = sdext->readCartP3(addr);
 #endif
     if (haveBreakPoints)
       checkExecuteBreakPoint(addr, page, value);
@@ -126,7 +126,7 @@ namespace Ep128 {
   {
 #ifdef ENABLE_SDEXT
     if (EP128EMU_UNLIKELY(sdext->isSDExtSegment(pageTable[addr >> 14])))
-      return sdext->readCartP3(addr, segmentTable[0x07]);
+      return sdext->readCartP3Debug(addr);
 #endif
     return pageAddressTableR[addr >> 14][addr];
   }
@@ -137,7 +137,7 @@ namespace Ep128 {
 
 #ifdef ENABLE_SDEXT
     if (EP128EMU_UNLIKELY(sdext->isSDExtAddress(addr)))
-      return sdext->readCartP3(addr, segmentTable[0x07]);
+      return sdext->readCartP3Debug(addr);
 #endif
     segment = uint8_t(addr >> 14);
     if (segmentTable[segment])

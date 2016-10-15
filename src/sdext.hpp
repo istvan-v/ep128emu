@@ -66,28 +66,22 @@ namespace Ep128 {
     std::vector< uint8_t >  _buffer;
     uint32_t  sd_card_size;
     uint32_t  sd_card_pos;
+    std::string romFileName;
+    bool      romFileWriteProtected;
+    bool      romDataChanged;
     // ----------------
-    void enableSDExt()
-    {
-      sdext_enabled = true;
-      sdextSegment = 0x07U;
-      sdextAddress = 0x07U << 14;
-    }
-    void disableSDExt()
-    {
-      sdext_enabled = false;
-      sdextSegment = 0xFFFFFFFFU;
-      sdextAddress = 0xFFFFFFFFU;
-    }
     void _block_read();
     void _spi_shifting_with_sd_card();
    public:
     SDExt();
     virtual ~SDExt();
+    void setEnabled(bool isEnabled);
     void reset(bool clear_ram);
     void openImage(const char *sdimg_path);
-    uint8_t readCartP3(uint32_t addr, const uint8_t *romPtr);
+    void openROMFile(const char *fileName);
+    uint8_t readCartP3(uint32_t addr);
     void writeCartP3(uint32_t addr, uint8_t data);
+    uint8_t readCartP3Debug(uint32_t addr) const;
     EP128EMU_INLINE bool isSDExtSegment(uint8_t segment) const
     {
       return (segment == sdextSegment);

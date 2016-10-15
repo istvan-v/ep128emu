@@ -1821,7 +1821,11 @@ namespace Ep128 {
                                  int nTracks_, int nSides_,
                                  int nSectorsPerTrack_)
   {
+#ifndef ENABLE_SDEXT
     if (n < 0 || n > 7)
+#else
+    if (n < 0 || n > 8)
+#endif
       throw Ep128Emu::Exception("invalid disk drive number");
     if (n < 4) {
       if (&(wd177x.getFloppyDrive()) == &(floppyDrives[n])) {
@@ -1831,13 +1835,13 @@ namespace Ep128 {
       floppyDrives[n].setDiskImageFile(fileName_,
                                        nTracks_, nSides_, nSectorsPerTrack_);
     }
-    else {
 #ifdef ENABLE_SDEXT
-      if (n == 7) {
-        sdext.openImage(fileName_.c_str());
-        return;
-      }
+    else if (n >= 8) {
+      sdext.openImage(fileName_.c_str());
+      return;
+    }
 #endif
+    else {
       ideInterface->setImageFile(n & 3, fileName_.c_str());
     }
   }

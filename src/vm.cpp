@@ -224,6 +224,15 @@ namespace Ep128Emu {
     (void) fileName_;
   }
 
+#ifdef ENABLE_SDEXT
+  void VirtualMachine::configureSDCard(bool isEnabled,
+                                       const std::string& romFileName)
+  {
+    (void) isEnabled;
+    (void) romFileName;
+  }
+#endif
+
   void VirtualMachine::setAudioOutputHighQuality(bool useHighQualityResample)
   {
     if (useHighQualityResample != audioOutputHighQuality) {
