@@ -128,8 +128,8 @@ namespace Ep128 {
   void SDExt::setEnabled(bool isEnabled)
   {
     sdext_enabled = isEnabled;
-    sdextSegment = 0x07U | (0U - uint32_t(isEnabled));
-    sdextAddress = (0x07U << 14) | (0U - uint32_t(isEnabled));
+    sdextSegment = 0x07U | (uint32_t(isEnabled) - 1U);
+    sdextAddress = (0x07U << 14) | (uint32_t(isEnabled) - 1U);
   }
 
   void SDExt::temporaryDisable(bool isDisabled)
