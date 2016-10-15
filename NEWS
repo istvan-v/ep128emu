@@ -18,6 +18,9 @@ Changes in version 2.0.10
   * building with Lua 5.2 or 5.3 is now supported
   * added support for building 64-bit Windows binaries
   * epimgconv and other utilities are included with the emulator package
+  * snapshot and demo files can be compressed in epcompress format
+  * experimental SD card emulation using code from LGB's Xep128,
+    included only if enabled at compile time
   * various minor bug fixes
 
 Changes in version 2.0.9.1

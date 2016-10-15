@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "ep128emu.hpp"
 #include "fileio.hpp"
 #include "system.hpp"
+#include "decompm2.hpp"
 
 #include <cmath>
 #include <map>
@@ -479,6 +480,48 @@ namespace Ep128Emu {
     buf.setPosition(0);
   }
 
+  void File::loadCompressedFile(std::FILE *f)
+  {
+    long    fileSize = 0L;
+    if (std::fseek(f, 0L, SEEK_END) < 0 || (fileSize = std::ftell(f)) < 0L ||
+        std::fseek(f, 0L, SEEK_SET) < 0) {
+      throw Exception("error seeking file");
+    }
+    if (fileSize < 16L || fileSize >= 0x00400000L)
+      throw Exception("invalid file header");
+    std::vector< unsigned char >  tmpBuf;
+    {
+      std::vector< unsigned char >  inBuf(fileSize);
+      if (std::fread(&(inBuf.front()), sizeof(unsigned char), size_t(fileSize),
+                     f) != size_t(fileSize)) {
+        throw Exception("error reading file");
+      }
+      tmpBuf.reserve(fileSize);
+      Ep128Emu::Decompressor  *decompressor = (Ep128Emu::Decompressor *) 0;
+      try {
+        decompressor = new Ep128Emu::Decompressor();
+        decompressor->decompressData(tmpBuf, inBuf);
+        delete decompressor;
+      }
+      catch (...) {
+        if (decompressor)
+          delete decompressor;
+        throw Exception("invalid file header or error in compressed file");
+      }
+    }
+    for (size_t i = 0; i < 16; i++) {
+      if (i >= tmpBuf.size() || tmpBuf[i] != ep128EmuFile_Magic[i])
+        throw Exception("invalid file header");
+    }
+    buf.clear();
+    buf.setPosition(tmpBuf.size() - 16);
+    buf.setPosition(0);
+    if (buf.getDataSize() > 0) {
+      std::memcpy(const_cast< unsigned char * >(buf.getData()),
+                  &(tmpBuf.front()) + 16, buf.getDataSize());
+    }
+  }
+
   File::File()
   {
   }
@@ -501,7 +544,15 @@ namespace Ep128Emu {
             c = std::fgetc(f);
             if (c == EOF ||
                 (unsigned char) (c & 0xFF) != ep128EmuFile_Magic[i]) {
-              loadZXSnapshotFile(f, fileName);
+              try {
+                loadZXSnapshotFile(f, fileName);
+              }
+              catch (Exception& e) {
+                // check for compressed file format
+                if (std::strcmp(e.what(), "invalid file header") != 0)
+                  throw;
+                loadCompressedFile(f);
+              }
               std::fclose(f);
               return;
             }
