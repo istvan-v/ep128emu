@@ -161,6 +161,7 @@ namespace Ep128 {
     _write_b = 0xFF;
     _spi_last_w = 0xFF;
     sd_card_pos = 0U;
+    flashCommand = 0x00;
   }
 
   /* SDEXT emulation currently expects the cartridge area (segments 4-7) to be
