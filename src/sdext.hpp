@@ -46,7 +46,7 @@ namespace Ep128 {
     uint32_t  sdextAddress;
     // 7K of useful SRAM
     std::vector< uint8_t >  sd_ram_ext;
-    // 64K ROM (currently unused)
+    // 64K flash ROM
     std::vector< uint8_t >  sd_rom_ext;
     uint8_t   cmd[6];
     uint8_t   cmd_index;
@@ -69,9 +69,14 @@ namespace Ep128 {
     std::string romFileName;
     bool      romFileWriteProtected;
     bool      romDataChanged;
+    bool      flashErased;      // true if sd_rom_ext is filled with 0xFF bytes
+    uint8_t   flashCommand;     // the lower nibble is the bus cycle (0 to 5)
     // ----------------
     void _block_read();
     void _spi_shifting_with_sd_card();
+    uint8_t flashRead(uint32_t addr);
+    void flashWrite(uint32_t addr, uint8_t data);
+    uint8_t flashReadDebug(uint32_t addr) const;
    public:
     SDExt();
     virtual ~SDExt();

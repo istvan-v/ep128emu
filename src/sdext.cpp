@@ -104,7 +104,9 @@ namespace Ep128 {
       sd_card_pos(0U),
       romFileName(""),
       romFileWriteProtected(false),
-      romDataChanged(false)
+      romDataChanged(false),
+      flashErased(true),
+      flashCommand(0x00)
   {
     sd_ram_ext.resize(0x00001C00, 0xFF);
     sd_rom_ext.resize(0x00010000, 0xFF);
@@ -219,6 +221,8 @@ namespace Ep128 {
     if (romFileName != fileName) {
       romFileName.clear();
       romFileWriteProtected = false;
+      flashErased = true;
+      flashCommand = 0x00;
       std::memset(&(sd_rom_ext.front()), 0xFF, sd_rom_ext.size());
     }
     if (errMsg)
@@ -241,6 +245,7 @@ namespace Ep128 {
       throw Ep128Emu::Exception("SDExt: error loading ROM file");
     }
     std::fclose(f);
+    flashErased = false;
     romFileName = fileName;
   }
 
@@ -432,6 +437,8 @@ namespace Ep128 {
     addr = addr & 0x3FFFU;
     if (addr < 0x2000) {
       uint32_t  addr_ = (uint32_t(rom_page_ofs) + addr) & 0xFFFFU;
+      if (EP128EMU_UNLIKELY(flashCommand != 0x00))
+        return flashRead(addr_);
       uint8_t   byte = 0xFF;
       if (addr_ < sd_rom_ext.size())
         byte = sd_rom_ext[addr_];
@@ -471,8 +478,10 @@ namespace Ep128 {
   void SDExt::writeCartP3(uint32_t addr, uint8_t data)
   {
     addr = addr & 0x3FFFU;
-    if (addr < 0x2000)                  // pageable ROM (8K), do not overwrite
-      return;                           // [reflash is currently not supported]
+    if (EP128EMU_UNLIKELY(addr < 0x2000)) {     // pageable ROM (8K)
+      flashWrite((uint32_t(rom_page_ofs) + addr) & 0xFFFFU, data);
+      return;
+    }
     if (addr < 0x3C00) {                // SDEXT's RAM (7K), writable
       sd_ram_ext[addr - 0x2000] = data;
       return;
@@ -507,6 +516,8 @@ namespace Ep128 {
     addr = addr & 0x3FFFU;
     if (addr < 0x2000) {
       uint32_t  addr_ = (uint32_t(rom_page_ofs) + addr) & 0xFFFFU;
+      if (EP128EMU_UNLIKELY(flashCommand != 0x00))
+        return flashReadDebug(addr_);
       uint8_t   byte = 0xFF;
       if (addr_ < sd_rom_ext.size())
         byte = sd_rom_ext[addr_];
@@ -529,6 +540,121 @@ namespace Ep128 {
         return (uint8_t(is_hs_read) << 7);
     }
     return 0xFF;        // make GCC happy :)
+  }
+
+  // --------------------------------------------------------------------------
+
+  uint8_t SDExt::flashRead(uint32_t addr)
+  {
+    uint32_t  addr_ = (uint32_t(flashCommand & 0xF0) << 8) | (addr & 0xFFU);
+    flashCommand = 0x00;
+    switch (addr_) {
+    case 0x9000U:               // manufacturer ID
+      return 0x01;
+    case 0x9002U:               // device ID, top boot block
+      return 0x23;
+    case 0x9004U:               // sector protect status, etc?
+      return 0x00;
+    }
+    if (addr < sd_rom_ext.size())
+      return sd_rom_ext[addr];
+    return 0xFF;
+  }
+
+  void SDExt::flashWrite(uint32_t addr, uint8_t data)
+  {
+    if ((flashCommand & 0xF0) == 0x90) {
+      // autoselect mode does not have wr cycles more (only rd)
+      flashCommand = 0x90;
+    }
+    switch (flashCommand & 0x0F) {
+    case 0:
+      flashCommand = 0x00;      // invalidate command
+      if (data == 0xB0 || data == 0x30) {
+        // well, erase suspend/resume is currently not supported :-(
+        return;
+      }
+      if (data == 0xF0) {       // reset command
+        return;
+      }
+      if ((addr & 0x3FFFU) != 0x0AAAU || data != 0xAA) {
+        return;                 // invalid cmd seq
+      }
+      flashCommand++;           // next cycle
+      return;
+    case 1:
+      if ((addr & 0x3FFFU) != 0x0555U || data != 0x55) {
+        flashCommand = 0x00;    // invalid cmd seq
+        return;
+      }
+      flashCommand++;           // next cycle
+      return;
+    case 2:
+      if ((addr & 0x3FFFU) != 0x0AAAU ||
+          (data != 0x80 && data != 0x90 && data != 0xA0)) {
+        flashCommand = 0x00;    // invalid cmd seq
+        return;
+      }
+      flashCommand = data | 0x03;
+      return;
+    case 3:
+      if ((flashCommand & 0xF0) == 0xA0) {      // program command!!!!
+        if (!romFileWriteProtected && addr < sd_rom_ext.size()) {
+          // flash programming allows only 1->0 on data bits,
+          // erase must be executed for 0->1
+          data = data & sd_rom_ext[addr];
+          if (data != sd_rom_ext[addr]) {
+            romDataChanged = true;
+            flashErased = false;
+            sd_rom_ext[addr] = data;
+          }
+        }
+        flashCommand = 0x00;    // end of command
+        return;
+      }
+      // only flash command 0x80 can be left,
+      // 0x90 handled before "switch", 0xA0 just before...
+      if ((addr & 0x3FFFU) != 0x0AAAU || data != 0xAA) {
+        flashCommand = 0x00;    // invalid cmd seq
+        return;
+      }
+      flashCommand++;           // next cycle
+      return;
+    case 4:                     // only flash command 0x80 can get this far...
+      if ((addr & 0x3FFFU) != 0x0555U || data != 0x55) {
+        flashCommand = 0x00;    // invalid cmd seq
+        return;
+      }
+      flashCommand++;           // next cycle
+      return;
+    case 5:                     // only flash command 0x80 can get this far...
+      if (((addr & 0x3FFFU) == 0x0AAAU && data == 0x10) || data == 0x30) {
+        if (!(romFileWriteProtected || flashErased)) {
+          romDataChanged = true;
+          flashErased = true;
+          std::memset(&(sd_rom_ext.front()), 0xFF, sd_rom_ext.size());
+        }
+      }
+      flashCommand = 0x00;      // end of erase command?
+      return;
+    }
+    flashCommand = 0x00;        // should not be reached
+  }
+
+  uint8_t SDExt::flashReadDebug(uint32_t addr) const
+  {
+    uint32_t  addr_ = (uint32_t(flashCommand & 0xF0) << 8) | (addr & 0xFFU);
+    switch (addr_) {
+    case 0x9000U:               // manufacturer ID
+      return 0x01;
+    case 0x9002U:               // device ID, top boot block
+      return 0x23;
+    case 0x9004U:               // sector protect status, etc?
+      return 0x00;
+    }
+    if (addr < sd_rom_ext.size())
+      return sd_rom_ext[addr];
+    return 0xFF;
   }
 
 }       // namespace Ep128
