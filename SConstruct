@@ -377,6 +377,7 @@ ep128emuLibSources = Split('''
     src/bplist.cpp
     src/cfg_db.cpp
     src/debuglib.cpp
+    src/decompm2.cpp
     src/display.cpp
     src/dotconf.c
     src/emucfg.cpp
