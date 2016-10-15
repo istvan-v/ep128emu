@@ -35,7 +35,7 @@ namespace Ep128 {
 
   class SDExt {
    protected:
-    bool      sdext_enabled;
+    bool      sdext_enabled;    // only used in temporaryDisable()
     uint8_t   status;
     uint8_t   _spi_last_w;
     bool      is_hs_read;
@@ -81,6 +81,9 @@ namespace Ep128 {
     SDExt();
     virtual ~SDExt();
     void setEnabled(bool isEnabled);
+    // for demo recording/playback, calling with isDisabled == false
+    // restores the state previously set with setEnabled()
+    void temporaryDisable(bool isDisabled);
     void reset(bool clear_ram);
     void openImage(const char *sdimg_path);
     void openROMFile(const char *fileName);

@@ -132,6 +132,17 @@ namespace Ep128 {
     sdextAddress = (0x07U << 14) | (0U - uint32_t(isEnabled));
   }
 
+  void SDExt::temporaryDisable(bool isDisabled)
+  {
+    if (isDisabled) {
+      sdextSegment = 0xFFFFFFFFU;
+      sdextAddress = 0xFFFFFFFFU;
+    }
+    else {
+      setEnabled(sdext_enabled);
+    }
+  }
+
   void SDExt::reset(bool clear_ram)
   {
     if (clear_ram)

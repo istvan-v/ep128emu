@@ -26,6 +26,9 @@
 #include "vm.hpp"
 #include "ep128vm.hpp"
 #include "ide.hpp"
+#ifdef ENABLE_SDEXT
+#  include "sdext.hpp"
+#endif
 
 namespace Ep128 {
 
@@ -104,6 +107,10 @@ namespace Ep128 {
     resetFloppyDrives(false);
     ideInterface->reset(0);
     z80.closeAllFiles();
+#ifdef ENABLE_SDEXT
+    sdext.reset(false);
+    sdext.temporaryDisable(true);
+#endif
     // save full snapshot, including timing and clock frequency settings
     saveMachineConfiguration(f);
     saveState(f);
@@ -117,6 +124,9 @@ namespace Ep128 {
 
   void Ep128VM::stopDemo()
   {
+#ifdef ENABLE_SDEXT
+    sdext.temporaryDisable(false);
+#endif
     stopDemoPlayback();
     stopDemoRecording(true);
   }
@@ -240,6 +250,9 @@ namespace Ep128 {
       if (buf.getPosition() != buf.getDataSize())
         throw Ep128Emu::Exception("trailing garbage at end of "
                                   "ep128 snapshot data");
+#ifdef ENABLE_SDEXT
+      sdext.reset(false);
+#endif
     }
     catch (...) {
       this->reset(true);
@@ -313,6 +326,10 @@ namespace Ep128 {
     // floppy and IDE emulation are disabled while recording or playing demo
     resetFloppyDrives(false);
     ideInterface->reset(0);
+#ifdef ENABLE_SDEXT
+    sdext.reset(false);
+    sdext.temporaryDisable(true);
+#endif
     // initialize time counter with first delta time
     demoTimeCnt = buf.readUIntVLen();
     isPlayingDemo = true;
