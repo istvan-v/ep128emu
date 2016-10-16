@@ -165,9 +165,10 @@ namespace Ep128Compress {
                            const unsigned char *buf, size_t bufSize,
                            size_t startPos, size_t endPos,
                            unsigned int *tmpBuf);
-      void addMatch(size_t bufPos, size_t matchPos, size_t matchLen);
+      void addMatch(size_t bufPos, size_t matchLen, size_t offs);
      public:
-      SearchTable(const std::vector< unsigned char >& inBuf);
+      SearchTable(const std::vector< unsigned char >& inBuf,
+                  unsigned int maxOffs);
       virtual ~SearchTable();
       inline const unsigned int * getMatches(size_t bufPos) const
       {

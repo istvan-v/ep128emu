@@ -741,15 +741,9 @@ namespace Ep128Compress {
   }
 
   void Compressor_M2::SearchTable::addMatch(size_t bufPos,
-                                            size_t matchPos, size_t matchLen)
+                                            size_t matchLen, size_t offs)
   {
-    size_t  offs = 0;
     if (matchLen > 0) {
-      if (matchPos >= bufPos)
-        return;
-      offs = bufPos - matchPos;
-      if (offs > Compressor_M2::maxRepeatDist)
-        return;
       if (matchLen > Compressor_M2::maxRepeatLen)
         matchLen = Compressor_M2::maxRepeatLen;
     }
@@ -766,7 +760,7 @@ namespace Ep128Compress {
   }
 
   Compressor_M2::SearchTable::SearchTable(
-      const std::vector< unsigned char >& inBuf)
+      const std::vector< unsigned char >& inBuf, unsigned int maxOffs)
     : buf(inBuf)
   {
     if (buf.size() < 1) {
@@ -792,10 +786,8 @@ namespace Ep128Compress {
           rleLength++;
       }
     }
-    std::vector< unsigned int > offs1Table(
-        buf.size(), (unsigned int) Compressor_M2::maxRepeatDist);
-    std::vector< unsigned int > offs2Table(
-        buf.size(), (unsigned int) Compressor_M2::maxRepeatDist);
+    std::vector< unsigned int > offs1Table(buf.size(), maxOffs);
+    std::vector< unsigned int > offs2Table(buf.size(), maxOffs);
     {
       std::vector< size_t > lastPosTable(65536, size_t(0x7FFFFFFF));
       // find 1-byte matches
@@ -803,7 +795,7 @@ namespace Ep128Compress {
         unsigned int  c = (unsigned int) buf[i];
         if (lastPosTable[c] < i) {
           size_t  d = i - (lastPosTable[c] + 1);
-          if (d < Compressor_M2::maxRepeatDist)
+          if (d < maxOffs)
             offs1Table[i] = (unsigned int) d;
         }
         lastPosTable[c] = i;
@@ -816,7 +808,7 @@ namespace Ep128Compress {
                           | ((unsigned int) buf[i + 1] << 8);
         if (lastPosTable[c] < i) {
           size_t  d = i - (lastPosTable[c] + 1);
-          if (d < Compressor_M2::maxRepeatDist)
+          if (d < maxOffs)
             offs2Table[i] = (unsigned int) d;
         }
         lastPosTable[c] = i;
@@ -833,13 +825,11 @@ namespace Ep128Compress {
     std::vector< unsigned int >   tmpBuf;
     for (size_t startPos = 0; startPos < buf.size(); ) {
       size_t  startPos_ = 0;
-      if (startPos >= Compressor_M2::maxRepeatDist)
-        startPos_ = startPos - Compressor_M2::maxRepeatDist;
-      size_t  endPos = startPos + Compressor_M2::maxRepeatDist;
-      if (endPos > buf.size() ||
-          buf.size() <= (Compressor_M2::maxRepeatDist * 3)) {
+      if (startPos >= maxOffs)
+        startPos_ = startPos - maxOffs;
+      size_t  endPos = startPos + maxOffs;
+      if (endPos > buf.size() || buf.size() <= (maxOffs * 3U))
         endPos = buf.size();
-      }
       size_t  nBytes = endPos - startPos_;
       tmpBuf.resize(nBytes);
       suffixArray.resize(nBytes);
@@ -872,8 +862,7 @@ namespace Ep128Compress {
       }
       // find all matches
       std::vector< unsigned long >  offsTable(
-          Compressor_M2::maxRepeatLen + 1,
-          (unsigned long) Compressor_M2::maxRepeatDist);
+          Compressor_M2::maxRepeatLen + 1, (unsigned long) maxOffs);
       for (size_t i_ = 0; i_ < nBytes; i_++) {
         size_t  i = suffixArray[i_];
         if (i < startPos)
@@ -931,13 +920,13 @@ namespace Ep128Compress {
         }
         offsTable[1] = offs1Table[i];
         offsTable[2] = offs2Table[i];
-        unsigned long prvDist = Compressor_M2::maxRepeatDist;
+        unsigned long prvDist = maxOffs;
         for (size_t k = maxLen; k >= Compressor_M2::minRepeatLen; k--) {
           unsigned long d = offsTable[k];
-          offsTable[k] = Compressor_M2::maxRepeatDist;
+          offsTable[k] = maxOffs;
           if (d < prvDist) {
             prvDist = d;
-            addMatch(i, i - size_t(d + 1UL), k);
+            addMatch(i, k, size_t(d + 1UL));
             if (d == 0UL)
               break;
           }
@@ -1038,12 +1027,10 @@ namespace Ep128Compress {
       if (len > maxRepeatLen) {
         if (matchPtr[1] > 1) {
           // long LZ77 match
-          if (size_t(matchPtr[1]) <= config.maxOffset) {
-            bestSize = bitCountTable[i + len] + matchSize3;
-            bestOffs = matchPtr[1];
-            bestLen = len;
-            len = maxRepeatLen;
-          }
+          bestSize = bitCountTable[i + len] + matchSize3;
+          bestOffs = matchPtr[1];
+          bestLen = len;
+          len = maxRepeatLen;
         }
         else {
           // if a long RLE match is possible, use that
@@ -1060,8 +1047,8 @@ namespace Ep128Compress {
         unsigned int  d = matchPtr[1];
         size_t        nxtLen = matchPtr[2];
         nxtLen = (nxtLen >= config.minLength ? nxtLen : (config.minLength - 1));
-        if (len <= nxtLen || size_t(d) > config.maxOffset)
-          continue;                     // offset is out of range, ignore match
+        if (len <= nxtLen)
+          continue;                     // ignore match
         if (len >= 3) {
           size_t  minLenM1 = (nxtLen > 2 ? nxtLen : 2);
           do {
@@ -1146,13 +1133,11 @@ namespace Ep128Compress {
       if (len > maxRepeatLen) {
         if (matchPtr[1] > 1) {
           // long LZ77 match
-          if (size_t(matchPtr[1]) <= config.maxOffset) {
-            bestOffs = matchPtr[1];
-            bestLen = len;
-            bestSize = getRepeatCodeLength(bestOffs, len)
-                       + bitCountTable[i + len];
-            len = maxRepeatLen;
-          }
+          bestOffs = matchPtr[1];
+          bestLen = len;
+          bestSize = getRepeatCodeLength(bestOffs, len)
+                     + bitCountTable[i + len];
+          len = maxRepeatLen;
         }
         else {
           // if a long RLE match is possible, use that
@@ -1169,8 +1154,6 @@ namespace Ep128Compress {
         if (len > (nBytes - i))
           len = nBytes - i;
         unsigned int  d = matchPtr[1];
-        if (size_t(d) > config.maxOffset)
-          continue;                     // offset is out of range, ignore match
         if (len >= 3) {
           // flag bit + offset bits
           size_t  nBitsBase = offs3EncodeTable.getSymbolSize(
@@ -1556,7 +1539,7 @@ namespace Ep128Compress {
         delete searchTable;
         searchTable = (SearchTable *) 0;
       }
-      searchTable = new SearchTable(inBuf);
+      searchTable = new SearchTable(inBuf, (unsigned int) config.maxOffset);
       // split large files to improve statistical compression
       std::list< SplitOptimizationBlock >   splitPositions;
       std::map< uint64_t, size_t >          splitOptimizationCache;
