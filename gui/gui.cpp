@@ -478,6 +478,25 @@ void Ep128EmuGUI::createMenus()
   }
   Ep128Emu::setWindowIcon(aboutWindow->window, 10);
   Ep128Emu::setWindowIcon(errorMessageWindow, 12);
+  // hide configuration widgets that are not useful on the given machine
+  // or emulator build
+#ifdef ENABLE_SDEXT
+  if (typeid(vm) != typeid(Ep128::Ep128VM))
+#endif
+  {
+    diskConfigWindow->sdCardImageGroup->hide();
+    machineConfigWindow->vmEnableSDExtValuator->hide();
+    machineConfigWindow->vmEnableFileIOValuator->resize(30, 248, 250, 25);
+    machineConfigWindow->sdExtROMFileNameValuator->hide();
+    machineConfigWindow->sdExtROMFileNameButton->hide();
+#ifndef ENABLE_SDEXT
+  }
+  if (typeid(vm) != typeid(Ep128::Ep128VM)) {
+#endif
+    machineConfigWindow->vmCPUFrequencyValuator->deactivate();
+    machineConfigWindow->vmSoundClockFrequencyValuator->deactivate();
+    machineConfigWindow->enableMemoryTimingValuator->hide();
+  }
   mainMenuBar->add("File/Configuration/Load from ASCII file (Alt+Q)",
                    (char *) 0, &menuCallback_File_LoadConfig, (void *) this);
   mainMenuBar->add("File/Configuration/Load from binary file (Alt+L)",
