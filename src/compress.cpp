@@ -1775,7 +1775,7 @@ namespace Ep128Emu {
           nBytes = blockSize;
         compressor.compressDataBlock(tmpBuf, inBuf, startPos, nBytes, endPos,
                                      (isLastBlock &&
-                                      (startPos + blockSize) >= endPos));
+                                      (startPos + blockSize) >= endPos), true);
         // append compressed data to output buffer
         size_t  prvSize = outBuf.size();
         outBuf.resize(prvSize + tmpBuf.size());
