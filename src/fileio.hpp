@@ -129,7 +129,8 @@ namespace Ep128Emu {
    public:
     void addChunk(ChunkType type, const Buffer& buf_);
     void processAllChunks();
-    void writeFile(const char *fileName, bool useHomeDirectory = false);
+    void writeFile(const char *fileName, bool useHomeDirectory = false,
+                   bool enableCompression = false);
     void registerChunkType(ChunkTypeHandler *);
     File();
     File(const char *fileName, bool useHomeDirectory = false);

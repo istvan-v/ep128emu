@@ -1205,6 +1205,26 @@ bool Ep128EmuGUI::browseFile(std::string& fileName, std::string& dirName,
   return retval;
 }
 
+void Ep128EmuGUI::writeFile(Ep128Emu::File& f, const char *fileName)
+{
+  if (config.compressFiles) {
+    try {
+      mainWindow->label("Compressing file...");
+      Fl::redraw();
+      Fl::flush();
+      f.writeFile(fileName, false, true);
+    }
+    catch (...) {
+      mainWindow->label(&(windowTitleBuf[0]));
+      throw;
+    }
+    mainWindow->label(&(windowTitleBuf[0]));
+  }
+  else {
+    f.writeFile(fileName);
+  }
+}
+
 void Ep128EmuGUI::applyEmulatorConfiguration(bool updateWindowFlag_)
 {
   if (lockVMThread()) {
@@ -1511,7 +1531,7 @@ bool Ep128EmuGUI::closeDemoFile(bool stopDemo_)
         return false;
     }
     try {
-      demoRecordFile->writeFile(demoRecordFileName.c_str());
+      writeFile(*demoRecordFile, demoRecordFileName.c_str());
     }
     catch (std::exception& e) {
       errorMessage(e.what());
@@ -1759,7 +1779,7 @@ void Ep128EmuGUI::menuCallback_File_SaveSnapshot(Fl_Widget *o, void *v)
         try {
           Ep128Emu::File  f;
           gui_.vm.saveState(f);
-          f.writeFile(tmp.c_str());
+          gui_.writeFile(f, tmp.c_str());
         }
         catch (...) {
           gui_.unlockVMThread();

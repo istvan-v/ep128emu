@@ -637,16 +637,43 @@ namespace Ep128Emu {
       throw Exception("CRC error in file data");
   }
 
-  void File::writeFile(const char *fileName, bool useHomeDirectory)
+  void File::writeFile(const char *fileName, bool useHomeDirectory,
+                       bool enableCompression)
   {
     size_t  startPos = buf.getPosition();
-    bool    err = false;
+    bool    err = true;
 
-    buf.setPosition(startPos + 12);
+    if (enableCompression) {
+      buf.setPosition(startPos + 28);
+      if (startPos > 0) {
+        std::memmove(const_cast< unsigned char * >(buf.getData() + 16),
+                     buf.getData(), startPos);
+      }
+      std::memcpy(const_cast< unsigned char * >(buf.getData()),
+                  &(ep128EmuFile_Magic[0]), 16);
+      startPos = startPos + 16;
+    }
+    else {
+      buf.setPosition(startPos + 12);
+    }
     buf.setPosition(startPos);
     buf.writeUInt32(uint32_t(EP128EMU_CHUNKTYPE_END_OF_FILE));
-    buf.writeUInt32(0);
+    buf.writeUInt32(0U);
     buf.writeUInt32(hash_32(buf.getData() + startPos, 8));
+    if (enableCompression) {
+      try {
+        std::vector< unsigned char >  tmpBuf;
+        compressData(tmpBuf, buf.getData(), startPos + 12);
+        buf.clear();
+        buf.setPosition(tmpBuf.size());
+        std::memcpy(const_cast< unsigned char * >(buf.getData()),
+                    &(tmpBuf.front()), tmpBuf.size());
+      }
+      catch (...) {
+        buf.clear();
+        throw Exception("error compressing file");
+      }
+    }
     if (fileName != (char*) 0 && fileName[0] != '\0') {
       std::string fullName;
       if (useHomeDirectory)
@@ -655,21 +682,21 @@ namespace Ep128Emu {
         fullName = fileName;
       std::FILE *f = std::fopen(fullName.c_str(), "wb");
       if (f) {
-        if (std::fwrite(&(ep128EmuFile_Magic[0]), 1, 16, f) != 16)
-          err = true;
-        if (std::fwrite(buf.getData(), 1, buf.getDataSize(), f)
-            != buf.getDataSize())
-          err = true;
+        err = !(enableCompression ||
+                std::fwrite(&(ep128EmuFile_Magic[0]), 1, 16, f) == 16);
+        if (!err) {
+          if (std::fwrite(buf.getData(),
+                          sizeof(unsigned char), buf.getDataSize(), f)
+              != buf.getDataSize()) {
+            err = true;
+          }
+        }
         if (std::fclose(f) != 0)
           err = true;
         if (err)
           std::remove(fullName.c_str());
       }
-      else
-        err = true;
     }
-    else
-      err = true;
     buf.clear();
     if (err)
       throw Exception("error opening or writing file");

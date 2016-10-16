@@ -376,6 +376,7 @@ def fluidCompile(flNames):
 ep128emuLibSources = Split('''
     src/bplist.cpp
     src/cfg_db.cpp
+    src/compress.cpp
     src/debuglib.cpp
     src/decompm2.cpp
     src/display.cpp

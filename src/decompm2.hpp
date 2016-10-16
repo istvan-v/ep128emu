@@ -57,6 +57,11 @@ namespace Ep128Emu {
         const std::vector< unsigned char >& inBuf);
   };
 
+  // --------------------------------------------------------------------------
+
+  extern void compressData(std::vector< unsigned char >& outBuf,
+                           const unsigned char *inBuf, size_t inBufSize);
+
 }       // namespace Ep128Emu
 
 #endif  // EP128EMU_DECOMPM2_HPP
