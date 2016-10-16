@@ -3,12 +3,13 @@ version 1.0109
 do_not_include_H_from_C 
 header_name {.hpp} 
 code_name {.cpp}
-decl {\#include "gui.hpp"} {selected
+decl {\#include "gui.hpp"} {selected private local
 } 
 
 class Ep128EmuGUI_MachineConfigWindow {open
 } {
-  decl {Ep128EmuGUI& gui;} {}
+  decl {Ep128EmuGUI& gui;} {private local
+  }
   Function {Ep128EmuGUI_MachineConfigWindow(Ep128EmuGUI& gui_) : gui(gui_)} {open
   } {
     Fl_Window window {
@@ -111,7 +112,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   gui.config.vm.enableMemoryTimingEmulation = (o->value() != 0);
   gui.config.vmConfigurationChanged = true;
 }}
-              xywh {30 175 240 25} value 1 color 50 selection_color 3
+              xywh {30 175 250 25} value 1 color 50 selection_color 3
             }
           }
           Fl_Group {} {
@@ -124,12 +125,20 @@ class Ep128EmuGUI_MachineConfigWindow {open
   gui.config.vm.enableFileIO = (o->value() != 0);
   gui.config.vmConfigurationChanged = true;
 }}
-              tooltip {If enabled, the emulated machine can directly access files in the working directory if the ROM module for this function is loaded (epfileio.rom to segment 10)} xywh {30 248 240 25} color 50 selection_color 3
+              tooltip {If enabled, the emulated machine can directly access files in the working directory if the ROM module for this function is loaded (epfileio.rom to segment 10)} xywh {30 248 165 25} color 50 selection_color 3
+            }
+            Fl_Light_Button vmEnableSDExtValuator {
+              label {Enable SD card}
+              callback {{
+  gui.config.sdext.enabled = (o->value() != 0);
+  gui.config.memoryConfigurationChanged = true;
+}}
+              tooltip {Enable experimental SD card emulation} xywh {215 248 155 25} color 50 selection_color 3
             }
           }
           Fl_Group {} {
             label {Video capture settings} open
-            xywh {20 297 360 98} box ENGRAVED_FRAME align 21
+            xywh {20 297 360 63} box ENGRAVED_FRAME align 21
           } {
             Fl_Value_Input videoCaptureFrameRateValuator {
               label {Frame rate}
@@ -137,17 +146,24 @@ class Ep128EmuGUI_MachineConfigWindow {open
   gui.config.videoCapture.frameRate = int(o->clamp(o->value()) + 0.5);
   gui.config.videoCaptureSettingsChanged = true;
 }}
-              tooltip {Number of frames per second for video recording; the allowed settings are 24, 25, 30, 32, 40, 48, 50, and 60} xywh {30 322 120 25} align 8 when 4 minimum 24 maximum 60 step 1 value 50
+              tooltip {Number of frames per second for video recording; the allowed settings are 24, 25, 30, 32, 40, 48, 50, and 60} xywh {30 322 80 25} align 8 when 4 minimum 24 maximum 60 step 1 value 50
               code0 {o->cursor_color(Fl_Color(3));}
             }
-            Fl_Light_Button videoCaptureYUVFormatValuator {
-              label {Low resolution YUV format}
+            Fl_Choice videoCaptureYUVFormatValuator {
               callback {{
   gui.config.videoCapture.yuvFormat = (o->value() != 0);
   gui.config.videoCaptureSettingsChanged = true;
 }}
-              tooltip {Write AVI video data in 384x288 YV12 format instead of 768x576 RLE8} xywh {30 357 240 25} color 50 selection_color 3
-            }
+              tooltip {AVI video codec, RLE8 is better but less supported by other software} xywh {215 322 155 25} down_box BORDER_BOX
+              code0 {o->add("RLE8 768x576|YV12 384x288");}
+            } {}
+          }
+          Fl_Light_Button vmCompressFilesValuator {
+            label {Compress snapshot files}
+            callback {{
+  gui.config.compressFiles = (o->value() != 0);
+}}
+            tooltip {Save snapshot and demo files in compressed format (not recommended on slow machines)} xywh {20 370 260 25} color 50 selection_color 3
           }
         }
         Fl_Group {} {
@@ -208,7 +224,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
             xywh {20 130 360 265} box DOWN_BOX color 48 align 5
           } {
             Fl_Group {} {open
-              xywh {25 135 325 755} box FLAT_BOX color 48
+              xywh {25 135 325 805} box FLAT_BOX color 48
             } {
               Fl_Box {} {
                 label Segment
@@ -870,6 +886,42 @@ class Ep128EmuGUI_MachineConfigWindow {open
                 xywh {280 855 65 25} when 4 maximum 999999 step 1
                 code0 {o->cursor_color(Fl_Color(3));}
               }
+              Fl_Input sdExtROMFileNameValuator {
+                label {SD card 64K flash ROM image}
+                callback {{
+  try {
+    gui.config.sdext.romFile = o->value();
+    gui.config.memoryConfigurationChanged = true;
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {30 905 285 25} align 5
+                code0 {o->cursor_color(Fl_Color(3));}
+              }
+              Fl_Button sdExtROMFileNameButton {
+                label {...}
+                callback {{
+  try {
+    std::string tmp;
+    if (gui.browseFile(tmp, gui.romImageDirectory,
+                       "ROM image files\\t*.rom",
+                       Fl_Native_File_Chooser::BROWSE_FILE,
+                       "Select flash ROM image file")) {
+      if (tmp != gui.config.sdext.romFile) {
+        gui.config.sdext.romFile = tmp;
+        gui.config.memoryConfigurationChanged = true;
+        sdExtROMFileNameValuator->value(gui.config.sdext.romFile.c_str());
+      }
+    }
+  }
+  catch (std::exception& e) {
+    gui.errorMessage(e.what());
+  }
+}}
+                xywh {320 905 25 25} selection_color 50
+              }
             }
           }
         }
@@ -976,8 +1028,10 @@ class Ep128EmuGUI_MachineConfigWindow {open
   vmSoundClockFrequencyValuator->value(double(gui.config.vm.soundClockFrequency));
   enableMemoryTimingValuator->value(gui.config.vm.enableMemoryTimingEmulation ? 1 : 0);
   vmEnableFileIOValuator->value(gui.config.vm.enableFileIO ? 1 : 0);
+  vmEnableSDExtValuator->value(gui.config.sdext.enabled ? 1 : 0);
   videoCaptureFrameRateValuator->value(double(gui.config.videoCapture.frameRate));
   videoCaptureYUVFormatValuator->value(gui.config.videoCapture.yuvFormat ? 1 : 0);
+  vmCompressFilesValuator->value(gui.config.compressFiles ? 1 : 0);
   if (gui.config.memory.configFile.length() > 0) {
     memoryRAMSizeValuator->deactivate();
     memoryROMImagesScroll->deactivate();
@@ -1036,6 +1090,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   memoryROM42OffsetValuator->value(double(gui.config.memory.rom[0x42].offset));
   memoryROM43FileNameValuator->value(gui.config.memory.rom[0x43].file.c_str());
   memoryROM43OffsetValuator->value(double(gui.config.memory.rom[0x43].offset));
+  sdExtROMFileNameValuator->value(gui.config.sdext.romFile.c_str());
   tapeDefaultSampleRateValuator->value(double(gui.config.tape.defaultSampleRate));
   tapeForceMotorOnValuator->value(gui.config.tape.forceMotorOn ? 1 : 0);
   tapeChannelValuator->value(double(gui.config.tape.soundFileChannel));
