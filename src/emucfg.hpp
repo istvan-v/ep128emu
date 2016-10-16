@@ -180,7 +180,6 @@ namespace Ep128Emu {
     bool          ideDisk2Changed;
     bool          ideDisk3Changed;
     // --------
-#ifdef ENABLE_SDEXT
     struct SDExtConfiguration_ {
       std::string imageFile;
       // NOTE: these set memoryConfigurationChanged (hard reset required)
@@ -190,7 +189,6 @@ namespace Ep128Emu {
     SDExtConfiguration_   sdext;
     bool          sdCardImageChanged;
     // --------
-#endif
     struct TapeConfiguration_ {
       std::string imageFile;
       int         defaultSampleRate;
@@ -221,6 +219,8 @@ namespace Ep128Emu {
       bool        yuvFormat;
     } videoCapture;
     bool          videoCaptureSettingsChanged;
+    // ----------------
+    bool          compressFiles;
     // ----------------
     EmulatorConfiguration(VirtualMachine& vm__,
                           VideoDisplay& videoDisplay_,

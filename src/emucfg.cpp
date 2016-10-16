@@ -354,8 +354,10 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "sdext.enabled",
                                 sdext.enabled, false,
                                 memoryConfigurationChanged);
-    // ----------------
+#else
+    sdext.enabled = false;
 #endif
+    // ----------------
     defineConfigurationVariable(*this, "tape.imageFile",
                                 tape.imageFile, std::string(""),
                                 tapeFileChanged);
@@ -395,6 +397,11 @@ namespace Ep128Emu {
                                 videoCaptureSettingsChanged, 24.0, 60.0);
     defineConfigurationVariable(*this, "videoCapture.yuvFormat",
                                 videoCapture.yuvFormat, false,
+                                videoCaptureSettingsChanged);
+    // ----------------
+    // videoCaptureSettingsChanged is used only as a dummy variable here
+    defineConfigurationVariable(*this, "compressFiles",
+                                compressFiles, false,
                                 videoCaptureSettingsChanged);
     // set machine specific defaults
     if (typeid(vm_) != typeid(Ep128::Ep128VM)) {
