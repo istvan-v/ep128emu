@@ -55,8 +55,8 @@ namespace Ep128 {
     0xFF,       // waiting a bit
     0xFE,       // data token
     // the CSD itself
-    0x00, 0x5D, 0x01, 0x32, 0x13, 0x59, 0x80, 0xE3,
-    0x76, 0xD9, 0xCF, 0xFF, 0x16, 0x40, 0x00, 0x4F,
+    0x00, 0x5D, 0x01, 0x32, 0x13, 0x50, 0x80, 0x00,
+    0x36, 0xD8, 0x4F, 0xFF, 0x16, 0x40, 0x00, 0x4F,
     0, 0        // CRC bytes
   };
   static const uint8_t _read_cid_answer[] = {
@@ -111,7 +111,7 @@ namespace Ep128 {
     sd_ram_ext.resize(0x00001C00, 0xFF);
     sd_rom_ext.resize(0x00010000, 0xFF);
     _buffer.resize(1024, 0x00);
-    this->reset(false);
+    this->reset(1);
   }
 
   SDExt::~SDExt()
@@ -143,9 +143,9 @@ namespace Ep128 {
     }
   }
 
-  void SDExt::reset(bool clear_ram)
+  void SDExt::reset(int reset_level)
   {
-    if (clear_ram)
+    if (reset_level >= 2)
       std::memset(&(sd_ram_ext.front()), 0xFF, sd_ram_ext.size());
     rom_page_ofs = 0x0000;
     is_hs_read = false;
@@ -156,7 +156,10 @@ namespace Ep128 {
     writeState = 0x00;
     ans_callback = false;
     delayCnt = 0;
-    status = 0;
+    if (reset_level >= 1) {
+      // card change, not initialized
+      status = (uint8_t(writeProtectFlag) << 7) | (uint8_t(!sdf) << 6) | 0x21;
+    }
     _read_b = 0;
     _write_b = 0xFF;
     _spi_last_w = 0xFF;
@@ -164,21 +167,15 @@ namespace Ep128 {
     flashCommand = 0x00;
   }
 
-  /* SDEXT emulation currently expects the cartridge area (segments 4-7) to be
-   * filled with the FLASH ROM content. Even segment 7, which will be copied to
-   * the second 64K "hidden" and pagable flash area of the SD cartridge.
-   * Currently, there is no support for the full sized SDEXT flash image
-   */
   void SDExt::openImage(const char *sdimg_path)
   {
-    this->reset(false);
+    writeProtectFlag = true;
     if (sdf)
       std::fclose(sdf);
-    writeProtectFlag = true;
     sdf = NULL;
     sdfno = -1;
     sd_card_size = 0U;
-    sd_card_pos = 0U;
+    this->reset(1);
     if (!sdimg_path || sdimg_path[0] == '\0')
       return;
     sdf = std::fopen(sdimg_path, "r+b");
@@ -189,7 +186,9 @@ namespace Ep128 {
     }
     else {
       writeProtectFlag = false;
+      status = status & 0x7F;           // not write protected
     }
+    status = status & 0xBF;             // card inserted
     std::setvbuf(sdf, (char *) 0, _IONBF, 0);
     sdfno = fileno(sdf);
     {
@@ -198,12 +197,20 @@ namespace Ep128 {
       uint16_t  s = 0;
       try {
         checkVHDImage(sdf, sdimg_path, c, h, s);
+        sd_card_size = (uint32_t(c) * uint32_t(h) * uint32_t(s)) << 9;
+        uint32_t  tmp = sd_card_size;
+        int       n = 0;
+        while (tmp && !(tmp & 1U)) {
+          tmp = tmp >> 1;
+          n++;
+        }
+        if (!(tmp > 0U && tmp <= 4096U && n <= 19))
+          throw Ep128Emu::Exception("invalid disk image geometry for SD card");
       }
       catch (...) {
         openImage((char *) 0);
         throw;
       }
-      sd_card_size = (uint32_t(c) * uint32_t(h) * uint32_t(s)) << 9;
     }
   }
 
@@ -249,15 +256,17 @@ namespace Ep128 {
         throw Ep128Emu::Exception("SDExt: error opening ROM file");
       romFileWriteProtected = true;
     }
-    if (std::fread(&(sd_rom_ext.front()), sizeof(uint8_t), sd_rom_ext.size(), f)
-        != sd_rom_ext.size()) {
+    size_t  bytesRead = std::fread(&(sd_rom_ext.front()),
+                                   sizeof(uint8_t), sd_rom_ext.size(), f);
+    if (!(bytesRead >= 0x1000 && bytesRead <= sd_rom_ext.size())) {
       std::fclose(f);
       romFileWriteProtected = false;
       std::memset(&(sd_rom_ext.front()), 0xFF, sd_rom_ext.size());
       throw Ep128Emu::Exception("SDExt: error loading ROM file");
     }
     std::fclose(f);
-    flashErased = false;
+    for (size_t i = 0; flashErased && i < sd_rom_ext.size(); i++)
+      flashErased = (sd_rom_ext[i] == 0xFF);
     romFileName = fileName;
   }
 
@@ -377,38 +386,73 @@ namespace Ep128 {
     cmd[0] &= 63;
     cmd_index = 0;
     ans_callback = false;
+    if (status & 0x01) {
+      // in idle state, only CMD0, CMD1, ACMD41, CMD58 and CMD59 are valid
+      if (!(cmd[0] == 1 || cmd[0] == 55 || cmd[0] == 58 || cmd[0] == 59)) {
+        _read_b = (cmd[0] == 8 ? 0x05 : 0x01);  // IDLE state R1 answer
+        return;
+      }
+    }
     switch (cmd[0]) {
-      case 0:           // CMD 0
-        _read_b = 1;    // IDLE state R1 answer
+      case 0:                   // CMD 0
+        status = status | 0x01;
+        _read_b = 0x01;         // IDLE state R1 answer
         break;
-      case 1:           // CMD 1 - init
-        _read_b = 0;    // non-IDLE now (?) R1 answer
+      case 1:                   // CMD 1 - init
+        // fail if there is no card inserted
+        status = (status & 0xFE) | uint8_t(!sdf);
+        _read_b = status & 0x01;        // non-IDLE now (?) R1 answer
         break;
-      case 16:          // CMD16 - set blocklen (?!):
-        // we only handle that as dummy command oh-oh ...
-        _read_b = 0;    // R1 answer
+      case 9:                   // CMD9: read CSD register
+        {
+          ans_p = &(_buffer.front());
+          ans_index = 0;
+          ans_size = int(sizeof(_read_csd_answer));
+          std::memcpy(&(_buffer.front()), _read_csd_answer, size_t(ans_size));
+          size_t  n = sd_card_size >> 9;
+          uint8_t m = 0;
+          while (n > 4096 && m < 10 && !(n & 1)) {
+            n = n >> 1;
+            m++;
+          }
+          if (m < 10) {
+            _buffer[7] = _buffer[7] | 0x09;     // block size = 2^9 = 512 bytes
+          }
+          else {                                // card size > 1 GB:
+            _buffer[7] = _buffer[7] | 0x0A;     // need 1024 bytes block size
+            m--;
+          }
+          n = (n - 1) & 0x0FFF;
+          m = (m - 2) & 0x07;
+          _buffer[8] = _buffer[8] | uint8_t(n >> 10);
+          _buffer[9] = uint8_t((n >> 2) & 0xFF);
+          _buffer[10] = _buffer[10] | uint8_t((n << 6) & 0xC0);
+          _buffer[11] = _buffer[11] | (m >> 1);
+          _buffer[12] = _buffer[12] | ((m << 7) & 0x80);
+        }
+        _read_b = 0x00;         // R1
         break;
-      case 9:           // CMD9: read CSD register
-        ADD_ANS(_read_csd_answer);
-        _read_b = 0;    // R1
-        break;
-      case 10:          // CMD10: read CID register
+      case 10:                  // CMD10: read CID register
         ADD_ANS(_read_cid_answer);
-        _read_b = 0;    // R1
+        _read_b = 0x00;         // R1
         break;
-      case 58:          // CMD58: read OCR
-        ADD_ANS(_read_ocr_answer);
-        // R1 (R3 is sent as data in the emulation without the data token)
-        _read_b = 0;
-        break;
-      case 12:          // CMD12: stop transmission (reading multiple)
+      case 12:                  // CMD12: stop transmission (reading multiple)
         // actually we don't do too much, as on receiving a new command
         // callback will be deleted before this switch-case block
         ADD_ANS(_stop_transmission_answer);
-        _read_b = 0;
+        _read_b = 0x00;
         break;
-      case 17:          // CMD17: read a single block, babe
-      case 18:          // CMD18: read multiple blocks
+      case 16:                  // CMD16 - set blocklen (?!):
+        // we only handle that as dummy command oh-oh...
+        if ((cmd[1] | cmd[2] | (cmd[3] ^ 0x02) | cmd[4]) != 0) {
+          // TODO: implement support for block sizes other than 512 bytes
+          _read_b = 0x40;       // parameter error
+          return;
+        }
+        _read_b = 0x00;         // R1 answer
+        break;
+      case 17:                  // CMD17: read a single block, babe
+      case 18:                  // CMD18: read multiple blocks
         sd_card_pos = (uint32_t(cmd[1]) << 24) | (uint32_t(cmd[2]) << 16)
                       | (uint32_t(cmd[3]) << 8) | uint32_t(cmd[4]);
         if (sd_card_size > 0U && sd_card_pos <= (sd_card_size - 512U) &&
@@ -417,24 +461,29 @@ namespace Ep128 {
           // in case of CMD18, continue multiple sectors,
           // register callback for that!
           ans_callback = (cmd[0] == 18);
-          _read_b = 0;  // R1
+          _read_b = 0x00;       // R1
         }
         else {
           // address error, if no SD card image or access beyond card size...
           // [this is bad, TODO: better error handling]
-          _read_b = 32;
+          _read_b = 0x20;
         }
         break;
-      case 24:          // CMD24: write block
-      case 25:          // CMD25: write multiple blocks
+      case 24:                  // CMD24: write block
+      case 25:                  // CMD25: write multiple blocks
         writePos = 0;
         writeState = 0x01;
         sd_card_pos = (uint32_t(cmd[1]) << 24) | (uint32_t(cmd[2]) << 16)
                       | (uint32_t(cmd[3]) << 8) | uint32_t(cmd[4]);
-        _read_b = 0;    // R1 answer, OK
+        _read_b = 0x00;         // R1 answer, OK
         break;
-      default:          // unimplemented command, heh!
-        _read_b = 4;    // illegal command :-/
+      case 58:                  // CMD58: read OCR
+        ADD_ANS(_read_ocr_answer);
+        // R1 (R3 is sent as data in the emulation without the data token)
+        _read_b = 0x00;
+        break;
+      default:                  // unimplemented command, heh!
+        _read_b = 0x04;         // illegal command :-/
         break;
     }
   }
@@ -478,7 +527,7 @@ namespace Ep128 {
       case 1:
         // status reg: bit7=wp1, bit6=insert, bit5=changed
         // (insert/changed=1: some of the cards not inserted or changed)
-        return status;
+        return (status & 0xE0);
       case 2:           // ROM pager [hmm not readable?!]
         return 0xFF;
       case 3:           // HS read config is not readable?!]
@@ -500,7 +549,7 @@ namespace Ep128 {
     }
     // rest 1K is the (memory mapped) I/O area
     switch (addr & 3) {
-      case 0:           // data register
+      case 0:                   // data register
         if (!is_hs_read)
           _write_b = data;
         _write_specified = data;
@@ -508,15 +557,15 @@ namespace Ep128 {
         break;
       case 1:
         // control register (bit7=CS0, bit6=CS1, bit5=clear change card signal)
-        if (data & 32)  // clear change signal
-          status &= 255 - 32;
+        if (data & 0x20)        // clear change signal
+          status = status & 0xDF;
         cs0 = bool(data & 128);
         cs1 = bool(data & 64);
         break;
-      case 2:           // ROM pager register
+      case 2:                   // ROM pager register
         rom_page_ofs = uint16_t(data & 0xE0) << 8;  // only high 3 bits count
         break;
-      case 3:           // HS (high speed) read mode to set: bit7=1
+      case 3:                   // HS (high speed) read mode to set: bit7=1
         is_hs_read = bool(data & 128);
         _write_b = is_hs_read ? 0xFF : _write_specified;
         break;
@@ -545,7 +594,8 @@ namespace Ep128 {
       case 1:
         // status reg: bit7=wp1, bit6=insert, bit5=changed
         // (insert/changed=1: some of the cards not inserted or changed)
-        return status;
+        // NOTE: for debugging, cs0 and cs1 are returned on bits 0 and 1
+        return ((status & 0xE0) | uint8_t(cs0) | (uint8_t(cs1) << 1));
       case 2:           // ROM pager
         return uint8_t(rom_page_ofs >> 8);
       case 3:           // HS read config
@@ -667,6 +717,134 @@ namespace Ep128 {
     if (addr < sd_rom_ext.size())
       return sd_rom_ext[addr];
     return 0xFF;
+  }
+
+  // --------------------------------------------------------------------------
+
+  class ChunkType_SDExtSnapshot : public Ep128Emu::File::ChunkTypeHandler {
+   private:
+    SDExt&  ref;
+   public:
+    ChunkType_SDExtSnapshot(SDExt& ref_)
+      : Ep128Emu::File::ChunkTypeHandler(),
+        ref(ref_)
+    {
+    }
+    virtual ~ChunkType_SDExtSnapshot()
+    {
+    }
+    virtual Ep128Emu::File::ChunkType getChunkType() const
+    {
+      return Ep128Emu::File::EP128EMU_CHUNKTYPE_SDEXT_STATE;
+    }
+    virtual void processChunk(Ep128Emu::File::Buffer& buf)
+    {
+      ref.loadState(buf);
+    }
+  };
+
+  void SDExt::saveState(Ep128Emu::File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    buf.writeUInt32(0x01000001U);       // version number
+    buf.writeBoolean(sdext_enabled);
+    buf.writeBoolean(cs0);
+    buf.writeBoolean(cs1);
+    buf.writeBoolean(is_hs_read);
+    buf.writeUInt16(rom_page_ofs);
+    // save 7K SRAM if not empty
+    bool    sramEmpty = true;
+    for (size_t i = 0; sramEmpty && i < sd_ram_ext.size(); i++)
+      sramEmpty = (sd_ram_ext[i] == 0xFF);
+    buf.writeBoolean(!sramEmpty);
+    if (!sramEmpty) {
+      for (size_t i = 0; i < sd_ram_ext.size(); i++)
+        buf.writeByte(sd_ram_ext[i]);
+    }
+    // save 64K flash ROM if not empty
+    if (flashErased) {
+      buf.writeUInt16(0);
+      buf.writeByte(0xFF);
+    }
+    else {
+      size_t  lastPos = sd_rom_ext.size() - 1;
+      while (lastPos > 0 && sd_rom_ext[lastPos] == 0xFF)
+        lastPos--;
+      buf.writeUInt16(uint16_t(lastPos));
+      for (size_t i = 0; i <= lastPos; i++)
+        buf.writeByte(sd_rom_ext[i]);
+    }
+  }
+
+  void SDExt::saveState(Ep128Emu::File& f)
+  {
+    Ep128Emu::File::Buffer  buf;
+    this->saveState(buf);
+    f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_SDEXT_STATE, buf);
+  }
+
+  void SDExt::loadState(Ep128Emu::File::Buffer& buf)
+  {
+    buf.setPosition(0);
+    // check version number
+    unsigned int  version = buf.readUInt32();
+    if (version != 0x01000001U) {
+      buf.setPosition(buf.getDataSize());
+      throw Ep128Emu::Exception("incompatible SDExt snapshot format");
+    }
+    try {
+      // save flash ROM first if changed, reset it to erased state
+      openROMFile((char *) 0);
+      romFileWriteProtected = true;
+      // reset the interface as most registers are not saved in the snapshot
+      this->reset(1);
+      // load saved state
+      setEnabled(buf.readBoolean());
+      cs0 = buf.readBoolean();
+      cs1 = buf.readBoolean();
+      (void) buf.readBoolean();         // is_hs_read is ignored
+      rom_page_ofs = buf.readUInt16() & 0xE000;
+      // 7K SRAM
+      if (buf.readBoolean()) {
+        for (size_t i = 0; i < sd_ram_ext.size(); i++)
+          sd_ram_ext[i] = buf.readByte();
+      }
+      else {
+        std::memset(&(sd_ram_ext.front()), 0xFF, sd_ram_ext.size());
+      }
+      // 64K flash ROM
+      size_t  romSize = size_t(buf.readUInt16()) + 1;
+      if (romSize > sd_rom_ext.size())
+        romSize = sd_rom_ext.size();
+      for (size_t i = 0; i < romSize; i++) {
+        sd_rom_ext[i] = buf.readByte();
+        flashErased = (flashErased && (sd_rom_ext[i] == 0xFF));
+      }
+      if (buf.getPosition() != buf.getDataSize()) {
+        throw Ep128Emu::Exception("trailing garbage at end of "
+                                  "SDExt snapshot data");
+      }
+    }
+    catch (...) {
+      // reset SDExt
+      this->reset(2);
+      openROMFile((char *) 0);
+      romFileWriteProtected = true;
+      throw;
+    }
+  }
+
+  void SDExt::registerChunkType(Ep128Emu::File& f)
+  {
+    ChunkType_SDExtSnapshot *p;
+    p = new ChunkType_SDExtSnapshot(*this);
+    try {
+      f.registerChunkType(p);
+    }
+    catch (...) {
+      delete p;
+      throw;
+    }
   }
 
 }       // namespace Ep128

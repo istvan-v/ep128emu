@@ -36,6 +36,10 @@ namespace Ep128 {
   class SDExt {
    protected:
     bool      sdext_enabled;    // only used in temporaryDisable()
+    // bit 7 = write protected
+    // bit 6 = card not inserted
+    // bit 5 = disk change flag (cleared by setting bit 5 of control register)
+    // bit 0 = idle state / not initialized (for R1 response only)
     uint8_t   status;
     uint8_t   _spi_last_w;
     bool      is_hs_read;
@@ -84,7 +88,10 @@ namespace Ep128 {
     // for demo recording/playback, calling with isDisabled == false
     // restores the state previously set with setEnabled()
     void temporaryDisable(bool isDisabled);
-    void reset(bool clear_ram);
+    // 0 = soft reset
+    // 1 = simulate disk change
+    // 2 = clear SRAM
+    void reset(int reset_level);
     void openImage(const char *sdimg_path);
     void openROMFile(const char *fileName);
     uint8_t readCartP3(uint32_t addr);
@@ -98,6 +105,10 @@ namespace Ep128 {
     {
       return ((addr & 0x003FC000U) == sdextAddress);
     }
+    void saveState(Ep128Emu::File::Buffer&);
+    void saveState(Ep128Emu::File&);
+    void loadState(Ep128Emu::File::Buffer&);
+    void registerChunkType(Ep128Emu::File&);
   };
 
 }       // namespace Ep128
