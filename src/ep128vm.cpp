@@ -1640,7 +1640,7 @@ namespace Ep128 {
     mouseButtonState = 0x00;
     mouseWheelDelta = 0x00;
 #ifdef ENABLE_SDEXT
-    sdext.reset(false);
+    sdext.reset(int(isColdReset));
 #endif
   }
 

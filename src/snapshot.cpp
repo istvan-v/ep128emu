@@ -39,10 +39,17 @@ namespace Ep128 {
     nick.saveState(f);
     dave.saveState(f);
     z80.saveState(f);
+#ifdef ENABLE_SDEXT
+    sdext.saveState(f);
+#endif
     {
       Ep128Emu::File::Buffer  buf;
       buf.setPosition(0);
+#ifndef ENABLE_SDEXT
       buf.writeUInt32(0x01000005);      // version number
+#else
+      buf.writeUInt32(0x01010005);      // bit 16 is set if SDExt is included
+#endif
       buf.writeByte(memory.getPage(0));
       buf.writeByte(memory.getPage(1));
       buf.writeByte(memory.getPage(2));
@@ -108,7 +115,7 @@ namespace Ep128 {
     ideInterface->reset(0);
     z80.closeAllFiles();
 #ifdef ENABLE_SDEXT
-    sdext.reset(false);
+    sdext.reset(0);
     sdext.temporaryDisable(true);
 #endif
     // save full snapshot, including timing and clock frequency settings
@@ -150,7 +157,8 @@ namespace Ep128 {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
-    if (!(version >= 0x01000000 && version <= 0x01000005)) {
+    // bit 16 of the version is set if the snapshot includes SDExt state
+    if (!(version >= 0x01000000 && (version & 0xFFFEFFFFU) <= 0x01000005)) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible ep128 snapshot version");
     }
@@ -163,6 +171,15 @@ namespace Ep128 {
     ideInterface->reset(3);
     z80.closeAllFiles();
     try {
+#ifdef ENABLE_SDEXT
+      if (version & 0x00010000) {
+        // reset and disable SDExt if the snapshot is from an old version
+        sdext.reset(2);
+        sdext.setEnabled(false);
+        sdext.openROMFile((char *) 0);
+      }
+#endif
+      version = version & 0xFFFEFFFFU;
       uint8_t   p0, p1, p2, p3;
       p0 = buf.readByte();
       p1 = buf.readByte();
@@ -247,12 +264,10 @@ namespace Ep128 {
       mouseDeltaY = 0;
       mouseButtonState = 0x00;
       mouseWheelDelta = 0x00;
-      if (buf.getPosition() != buf.getDataSize())
+      if (buf.getPosition() != buf.getDataSize()) {
         throw Ep128Emu::Exception("trailing garbage at end of "
                                   "ep128 snapshot data");
-#ifdef ENABLE_SDEXT
-      sdext.reset(false);
-#endif
+      }
     }
     catch (...) {
       this->reset(true);
@@ -327,7 +342,7 @@ namespace Ep128 {
     resetFloppyDrives(false);
     ideInterface->reset(0);
 #ifdef ENABLE_SDEXT
-    sdext.reset(false);
+    sdext.reset(0);
     sdext.temporaryDisable(true);
 #endif
     // initialize time counter with first delta time
