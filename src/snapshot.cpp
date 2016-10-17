@@ -115,8 +115,8 @@ namespace Ep128 {
     ideInterface->reset(0);
     z80.closeAllFiles();
 #ifdef ENABLE_SDEXT
-    sdext.reset(0);
-    sdext.temporaryDisable(true);
+    // FIXME: implement a better way of disabling SDExt during demo recording
+    sdext.openImage((char *) 0);
 #endif
     // save full snapshot, including timing and clock frequency settings
     saveMachineConfiguration(f);
@@ -132,7 +132,7 @@ namespace Ep128 {
   void Ep128VM::stopDemo()
   {
 #ifdef ENABLE_SDEXT
-    sdext.temporaryDisable(false);
+    // TODO: re-enable SDExt after stopping demo recording or playback
 #endif
     stopDemoPlayback();
     stopDemoRecording(true);
@@ -172,7 +172,7 @@ namespace Ep128 {
     z80.closeAllFiles();
     try {
 #ifdef ENABLE_SDEXT
-      if (version & 0x00010000) {
+      if (!(version & 0x00010000)) {
         // reset and disable SDExt if the snapshot is from an old version
         sdext.reset(2);
         sdext.setEnabled(false);
@@ -342,8 +342,8 @@ namespace Ep128 {
     resetFloppyDrives(false);
     ideInterface->reset(0);
 #ifdef ENABLE_SDEXT
-    sdext.reset(0);
-    sdext.temporaryDisable(true);
+    // FIXME: implement a better way of disabling SDExt during demo playback
+    sdext.openImage((char *) 0);
 #endif
     // initialize time counter with first delta time
     demoTimeCnt = buf.readUIntVLen();
@@ -453,6 +453,9 @@ namespace Ep128 {
     memory.registerChunkType(f);
     dave.registerChunkType(f);
     nick.registerChunkType(f);
+#ifdef ENABLE_SDEXT
+    sdext.registerChunkType(f);
+#endif
   }
 
 }       // namespace Ep128

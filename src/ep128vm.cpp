@@ -1837,6 +1837,7 @@ namespace Ep128 {
     }
 #ifdef ENABLE_SDEXT
     else if (n >= 8) {
+      stopDemo();
       sdext.openImage(fileName_.c_str());
       return;
     }
