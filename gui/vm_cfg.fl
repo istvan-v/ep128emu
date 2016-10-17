@@ -1120,7 +1120,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
       }
       long    offs = long(gui.config.memory.rom[segment_].offset);
       bool    updateFlag = false;
-      while ((offs + 32767L) < fSize && (segment_ & 0x03) != 0x03) {
+      while ((offs + 16394L) < fSize && (segment_ & 0x03) != 0x03) {
         segment_++;
         offs = offs + 16384L;
         updateFlag = true;

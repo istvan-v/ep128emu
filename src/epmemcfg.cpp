@@ -71,12 +71,12 @@ namespace Ep128 {
     }
     // load file into memory
     std::vector<uint8_t>  buf;
-    buf.resize(0x4000);
+    buf.resize(0x4000, 0xFF);
     std::FILE   *f = std::fopen(fileName, "rb");
     if (!f)
       throw Ep128Emu::Exception("cannot open ROM file");
     std::fseek(f, 0L, SEEK_END);
-    if (ftell(f) < long(offs + 0x4000)) {
+    if (ftell(f) < long(offs + 11)) {
       std::fclose(f);
       throw Ep128Emu::Exception("ROM file is shorter than expected");
     }
