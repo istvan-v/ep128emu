@@ -331,6 +331,7 @@ namespace Ep128 {
   void Ep128VM::configureSDCard(bool isEnabled, const std::string& romFileName)
   {
     stopDemo();
+    sdext.reset(2);
     sdext.setEnabled(isEnabled);
     sdext.openROMFile(romFileName.c_str());
   }
