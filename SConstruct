@@ -348,6 +348,8 @@ if enableGLShaders:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DENABLE_GL_SHADERS'])
 if not fltkVersion13:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DFLTK1'])
+if cmosZ80:
+    ep128emuLibEnvironment.Append(CCFLAGS = ['-DZ80_ENABLE_CMOS'])
 if enableSDExt:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DENABLE_SDEXT'])
 
@@ -410,8 +412,6 @@ if not oldSConsVersion:
 else:
     ep128LibEnvironment = ep128emuLibEnvironment.Copy()
 ep128LibEnvironment.Append(CPPPATH = ['./z80'])
-if cmosZ80:
-    ep128LibEnvironment.Append(CCFLAGS = ['-DZ80_ENABLE_CMOS'])
 sdextSources = []
 if enableSDExt:
     sdextSources = ['src/sdext.cpp']

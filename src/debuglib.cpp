@@ -24,6 +24,12 @@
 
 #include <vector>
 
+#ifndef Z80_ENABLE_CMOS
+#  define Z80_OPERAND_TYPE_CNT  75
+#else
+#  define Z80_OPERAND_TYPE_CNT  76
+#endif
+
 namespace Ep128 {
 
   //   0    1    2    3    4    5    6    7    8    9
@@ -37,7 +43,7 @@ namespace Ep128 {
     " SCF  SET  SLA  SLL  SRA  SRL  SUB  XOR  EXOS*NOP "        // 60
     "*IM  *IN  *NEG *OUT *RETI*RETN";                           // 70
 
-  const char * Z80Disassembler::operandTypes[75] = {
+  const char * Z80Disassembler::operandTypes[Z80_OPERAND_TYPE_CNT] = {
     (char *) 0,         //  0: <none>
     "0",                //  1: 0
     "1",                //  2: 1
@@ -113,6 +119,9 @@ namespace Ep128 {
     "P",                // 72: P (branch on non-negative)
     "PE",               // 73: PE (branch on parity even)
     "PO"                // 74: PO (branch on parity odd)
+#ifdef Z80_ENABLE_CMOS
+  , "FF"                // 75: FF (OUT (C), FF on CMOS Z80)
+#endif
   };
 
   const unsigned char Z80Disassembler::opcodeTable[768] = {
@@ -750,7 +759,11 @@ namespace Ep128 {
      70,   1,   0,      // 6E: IM 0*
      52,   0,   0,      // 6F: RLD
      71,  62,   0,      // 70: IN (C)*
+#ifndef Z80_ENABLE_CMOS
      73,  62,   1,      // 71: OUT (C), 0*
+#else
+     73,  62,  75,      // 71: OUT (C), FF*
+#endif
      59,  52,  53,      // 72: SBC HL, SP
      29,  21,  53,      // 73: LD (nnnn), SP
      72,   0,   0,      // 74: NEG*
@@ -895,7 +908,8 @@ namespace Ep128 {
      69,   0,   0       // FF: NOP*
   };
 
-  const unsigned char Z80Disassembler::alternateOperandTypeTable[75] = {
+  const unsigned char
+      Z80Disassembler::alternateOperandTypeTable[Z80_OPERAND_TYPE_CNT] = {
      0,  9, 17, 17, 17, 17, 17, 17, 17, 17,
     17, 17, 17, 17, 17, 17, 17, 20, 21,  0,
     19,  0, 17, 67, 17, 17,  0,  0, 40, 17,
@@ -904,9 +918,13 @@ namespace Ep128 {
     17, 17,  0,  0, 17, 17,  0,  0, 17, 17,
      0,  0, 18,  0,  0,  0, 17, 17,  0,  0,
      0,  0,  0,  0,  0
+#ifdef Z80_ENABLE_CMOS
+  , 17
+#endif
   };
 
-  const unsigned char Z80Disassembler::noPrefixOperandTypeTable[75] = {
+  const unsigned char
+      Z80Disassembler::noPrefixOperandTypeTable[Z80_OPERAND_TYPE_CNT] = {
      0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
     10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
     20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
@@ -915,6 +933,9 @@ namespace Ep128 {
     50, 51, 52, 53, 50, 51, 52, 53, 50, 51,
     52, 53, 62, 63, 64, 65, 66, 67, 68, 69,
     70, 71, 72, 73, 74
+#ifdef Z80_ENABLE_CMOS
+  , 75
+#endif
   };
 
   uint32_t Z80Disassembler::disassembleInstruction(
@@ -1218,7 +1239,7 @@ namespace Ep128 {
       }
     }
     if (argCnt == 1) {
-      for (int i = 1; i < 75; i++) {
+      for (int i = 1; i < Z80_OPERAND_TYPE_CNT; i++) {
         if (i == 17)
           i = 22;
         else if (i == 38)
@@ -1234,6 +1255,10 @@ namespace Ep128 {
             opType = int(opValue + 1U);
           else if (!(opValue & (~(uint32_t(0x38)))))
             opType = int((opValue >> 3) + 9U);
+#ifdef Z80_ENABLE_CMOS
+          else if (opValue == 0xFFU)
+            opType = 75;
+#endif
           else
             opType = (args[argOffs].length() <= 2 ? 17 : 20);
         }
@@ -1395,7 +1420,9 @@ namespace Ep128 {
           cbFlag = true;
           break;
         }
-        if (int(opcodeTableED[tmp]) == opcodeNum &&
+        if ((int(opcodeTableED[tmp]) == opcodeNum ||
+             ((opcodeNum == 21 || opcodeNum == 39) &&
+              int(opcodeTableED[tmp]) == ((opcodeNum & 2) + 71))) &&
             int(opcodeTableED[tmp + 1]) == op1TypeN &&
             int(opcodeTableED[tmp + 2]) == op2TypeN) {
           opcodeByte = i;

@@ -32,12 +32,18 @@ namespace Ep128 {
   class Z80Disassembler {
    private:
     static const char *opcodeNames;
+#ifndef Z80_ENABLE_CMOS
     static const char *operandTypes[75];
+    static const unsigned char alternateOperandTypeTable[75];
+    static const unsigned char noPrefixOperandTypeTable[75];
+#else
+    static const char *operandTypes[76];
+    static const unsigned char alternateOperandTypeTable[76];
+    static const unsigned char noPrefixOperandTypeTable[76];
+#endif
     static const unsigned char opcodeTable[768];
     static const unsigned char opcodeTableCB[768];
     static const unsigned char opcodeTableED[768];
-    static const unsigned char alternateOperandTypeTable[75];
-    static const unsigned char noPrefixOperandTypeTable[75];
     static void parseOperand(const std::vector< std::string >& args,
                              size_t argOffs, size_t argCnt, int& opType,
                              bool& haveOpValue, uint32_t& opValue);
