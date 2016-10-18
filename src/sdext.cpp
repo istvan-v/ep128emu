@@ -200,7 +200,7 @@ namespace Ep128 {
         sd_card_size = (uint32_t(c) * uint32_t(h) * uint32_t(s)) << 9;
         uint32_t  tmp = sd_card_size;
         int       n = 0;
-        while (tmp && !(tmp & 1U)) {
+        while (tmp > 4096U && !(tmp & 1U)) {
           tmp = tmp >> 1;
           n++;
         }
