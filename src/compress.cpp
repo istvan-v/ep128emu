@@ -21,14 +21,17 @@
 #include "system.hpp"
 #include "decompm2.hpp"
 
+#define COMPRESS_MAX_THREADS    4
+#define COMPRESS_BLOCK_SIZE     65536
+
 namespace Ep128Emu {
 
   class Compressor_M2 {
    public:
     static const size_t minRepeatDist = 1;
-    static const size_t maxRepeatDist = 65536;  // was 262144 in epcompress
+    static const size_t maxRepeatDist = 131072; // was 262144 in epcompress
     static const size_t minRepeatLen = 1;
-    static const size_t maxRepeatLen = 256;     // was 512 in epcompress
+    static const size_t maxRepeatLen = 128;     // was 512 in epcompress
     static const unsigned int lengthMaxValue = 65535U;
    private:
     static const size_t lengthNumSlots = 8;
@@ -1166,33 +1169,35 @@ namespace Ep128Emu {
   void Compressor_M2::writeRepeatCode(std::vector< unsigned int >& buf,
                                       size_t d, size_t n)
   {
+    EncodeTable&  offsEncodeTable =
+        (n > 2 ? offs3EncodeTable :
+         (n > 1 ? offs2EncodeTable : offs1EncodeTable));
+    unsigned int  offsPrefixSize =
+        (unsigned int) (n > 2 ? offs3PrefixSize :
+                        (n > 1 ? offs2PrefixSize : offs1PrefixSize));
     n = n - minRepeatLen;
+    d = d - minRepeatDist;
     unsigned int  slotNum =
         (unsigned int) lengthEncodeTable.getSymbolSlotIndex((unsigned int) n);
-    buf.push_back(((slotNum + 2U) << 24U) | ((1U << (slotNum + 2U)) - 2U));
-    if (lengthEncodeTable.getSlotSize(slotNum) > 0)
-      buf.push_back(lengthEncodeTable.encodeSymbol((unsigned int) n));
-    d = d - minRepeatDist;
-    if ((n + minRepeatLen) > 2) {
-      slotNum =
-          (unsigned int) offs3EncodeTable.getSymbolSlotIndex((unsigned int) d);
-      buf.push_back((unsigned int) (offs3PrefixSize << 24) | slotNum);
-      if (offs3EncodeTable.getSlotSize(slotNum) > 0)
-        buf.push_back(offs3EncodeTable.encodeSymbol((unsigned int) d));
-    }
-    else if ((n + minRepeatLen) > 1) {
-      slotNum =
-          (unsigned int) offs2EncodeTable.getSymbolSlotIndex((unsigned int) d);
-      buf.push_back((unsigned int) (offs2PrefixSize << 24) | slotNum);
-      if (offs2EncodeTable.getSlotSize(slotNum) > 0)
-        buf.push_back(offs2EncodeTable.encodeSymbol((unsigned int) d));
+    unsigned int  slotSize =
+        (unsigned int) lengthEncodeTable.getSlotSize(slotNum);
+    slotNum = slotNum + 2U;
+    if (!slotSize) {
+      buf.push_back((slotNum << 24) | ((1U << slotNum) - 2U));
     }
     else {
-      slotNum =
-          (unsigned int) offs1EncodeTable.getSymbolSlotIndex((unsigned int) d);
-      buf.push_back((unsigned int) (offs1PrefixSize << 24) | slotNum);
-      if (offs1EncodeTable.getSlotSize(slotNum) > 0)
-        buf.push_back(offs1EncodeTable.encodeSymbol((unsigned int) d));
+      buf.push_back(((slotNum << 24) | (((1U << slotNum) - 2U) << slotSize))
+                    + lengthEncodeTable.encodeSymbol((unsigned int) n));
+    }
+    slotNum =
+        (unsigned int) offsEncodeTable.getSymbolSlotIndex((unsigned int) d);
+    slotSize = (unsigned int) offsEncodeTable.getSlotSize(slotNum);
+    if (!slotSize) {
+      buf.push_back((offsPrefixSize << 24) | slotNum);
+    }
+    else {
+      buf.push_back(((offsPrefixSize << 24) | (slotNum << slotSize))
+                    + offsEncodeTable.encodeSymbol((unsigned int) d));
     }
   }
 
@@ -1738,10 +1743,9 @@ namespace Ep128Emu {
    public:
     std::vector< unsigned int > outBuf;
     const unsigned char *inBuf;
+    size_t  inBufSize;
     size_t  startPos;
-    size_t  endPos;
     size_t  blockSize;
-    bool    isLastBlock;
     bool    errorFlag;
     // --------
     CompressorThread();
@@ -1751,10 +1755,9 @@ namespace Ep128Emu {
 
   CompressorThread::CompressorThread()
     : inBuf((unsigned char *) 0),
+      inBufSize(0),
       startPos(0),
-      endPos(0),
       blockSize(Compressor_M2::maxRepeatDist),
-      isLastBlock(true),
       errorFlag(false)
   {
   }
@@ -1769,19 +1772,33 @@ namespace Ep128Emu {
       if (!inBuf)
         return;
       std::vector< unsigned int > tmpBuf;
-      while (startPos < endPos) {
-        size_t  nBytes = endPos - startPos;
-        if (nBytes > blockSize)
-          nBytes = blockSize;
-        compressor.compressDataBlock(tmpBuf, inBuf, startPos, nBytes, endPos,
-                                     (isLastBlock &&
-                                      (startPos + blockSize) >= endPos), true);
+      size_t  dataSizePos = 0;
+      while (startPos < inBufSize) {
+        size_t  nBytes = blockSize;
+        if ((startPos + nBytes) > inBufSize)
+          nBytes = inBufSize - startPos;
+        compressor.compressDataBlock(tmpBuf, inBuf, startPos, nBytes, inBufSize,
+                                     ((startPos + nBytes) >= inBufSize), true);
         // append compressed data to output buffer
         size_t  prvSize = outBuf.size();
-        outBuf.resize(prvSize + tmpBuf.size());
+        if ((startPos % Compressor_M2::maxRepeatDist) == 0) {
+          dataSizePos = prvSize;
+          outBuf.resize(prvSize + tmpBuf.size() + 1);
+          outBuf[dataSizePos] = (unsigned int) tmpBuf.size();
+          prvSize++;
+        }
+        else {
+          outBuf.resize(prvSize + tmpBuf.size());
+          outBuf[dataSizePos] =
+              outBuf[dataSizePos] + (unsigned int) tmpBuf.size();
+        }
         std::memcpy(&(outBuf.front()) + prvSize, &(tmpBuf.front()),
                     tmpBuf.size() * sizeof(unsigned int));
         startPos = startPos + blockSize;
+        if ((startPos % Compressor_M2::maxRepeatDist) == 0) {
+          startPos = startPos + (Compressor_M2::maxRepeatDist
+                                 * (COMPRESS_MAX_THREADS - 1));
+        }
       }
     }
     catch (std::exception) {
@@ -1797,42 +1814,75 @@ namespace Ep128Emu {
     outBuf.clear();
     if (inBufSize < 1 || !inBuf)
       return;
-    CompressorThread  *compressorThreads[4];
-    for (int i = 0; i < 4; i++)
+    CompressorThread  *compressorThreads[COMPRESS_MAX_THREADS];
+    for (int i = 0; i < COMPRESS_MAX_THREADS; i++)
       compressorThreads[i] = (CompressorThread *) 0;
     try {
-      size_t  blockSize = Compressor_M2::maxRepeatDist;
-      int     nThreads = int(inBufSize / blockSize);
-      nThreads = (nThreads > 1 ? (nThreads < 4 ? nThreads : 4) : 1);
-      size_t  threadDataSize =
-          (inBufSize / (size_t(nThreads) * blockSize)) * blockSize;
-      for (int i = 0; i < nThreads; i++) {
-        compressorThreads[i] = new CompressorThread();
-        compressorThreads[i]->inBuf = inBuf;
-        compressorThreads[i]->startPos = size_t(i) * threadDataSize;
-        compressorThreads[i]->blockSize = blockSize;
-        if ((i + 1) < nThreads) {
-          compressorThreads[i]->endPos = size_t(i + 1) * threadDataSize;
-          compressorThreads[i]->isLastBlock = false;
-        }
-        else {
-          compressorThreads[i]->endPos = inBufSize;
-          compressorThreads[i]->isLastBlock = true;
-        }
+      size_t  startPos = 0;
+      int     nThreads = 0;
+      while (nThreads < COMPRESS_MAX_THREADS && startPos < inBufSize) {
+        compressorThreads[nThreads] = new CompressorThread();
+        compressorThreads[nThreads]->inBuf = inBuf;
+        compressorThreads[nThreads]->inBufSize = inBufSize;
+        compressorThreads[nThreads]->startPos = startPos;
+        compressorThreads[nThreads]->blockSize = COMPRESS_BLOCK_SIZE;
+        startPos = startPos + Compressor_M2::maxRepeatDist;
+        nThreads++;
       }
       for (int i = 0; i < nThreads; i++)
         compressorThreads[i]->start();
-      for (int i = 0; i < nThreads; i++)
+      for (int i = 0; i < nThreads; i++) {
         compressorThreads[i]->join();
+        // startPos is now the read position of the output buffer of the thread
+        compressorThreads[i]->startPos = 0;
+      }
       size_t        savedBufPos = 0x7FFFFFFF;
       unsigned char shiftReg = 0x01;
-      bool          err = false;
-      for (int i = 0; i < nThreads; i++) {
-        err = err | compressorThreads[i]->errorFlag;
+      for (int i = 0; true; i++) {
+        if (i >= nThreads)
+          i = 0;
+        if (!compressorThreads[i]) {
+          // end of compressed data for all threads
+          if (shiftReg != 0x01) {
+            while (!(shiftReg & 0x80))
+              shiftReg = shiftReg << 1;
+            shiftReg = (shiftReg & 0x7F) << 1;
+            if (savedBufPos >= outBuf.size()) {
+              outBuf.push_back(shiftReg);
+            }
+            else {
+              // store at saved position if any literal bytes were inserted
+              outBuf[savedBufPos] = shiftReg;
+              savedBufPos = 0x7FFFFFFF;
+            }
+            shiftReg = 0x01;
+          }
+          // calculate checksum
+          unsigned char crcVal = 0xFF;
+          for (size_t j = outBuf.size() - 1; j > 0; j--) {
+            unsigned char tmp = crcVal ^ outBuf[j];
+            crcVal = (((tmp << 1) | ((tmp >> 7) & 0x01)) + 0xAC) & 0xFF;
+          }
+          crcVal = (unsigned char) ((0x0180 - 0xAC) >> 1) ^ crcVal;
+          outBuf[0] = crcVal;
+          break;
+        }
+        if (compressorThreads[i]->errorFlag)
+          throw Exception("error compressing data");
+        if (compressorThreads[i]->startPos
+            >= compressorThreads[i]->outBuf.size()) {
+          // end of compressed data for this thread
+          delete compressorThreads[i];
+          compressorThreads[i] = (CompressorThread *) 0;
+          continue;
+        }
         // pack output data
-        if (i == 0)
+        if (outBuf.size() < 1)
           outBuf.push_back(0x00);       // reserve space for checksum byte
-        for (size_t j = 0; j < compressorThreads[i]->outBuf.size(); j++) {
+        startPos = compressorThreads[i]->startPos + 1;
+        compressorThreads[i]->startPos =
+            startPos + size_t(compressorThreads[i]->outBuf[startPos - 1]);
+        for (size_t j = startPos; j < compressorThreads[i]->startPos; j++) {
           unsigned int  c = compressorThreads[i]->outBuf[j];
           if (c >= 0x80000000U) {
             // special case for literal bytes, which are stored byte-aligned
@@ -1870,41 +1920,14 @@ namespace Ep128Emu {
             }
           }
         }
-        if ((i + 1) >= nThreads) {
-          if (shiftReg != 0x01) {
-            while (!(shiftReg & 0x80))
-              shiftReg = shiftReg << 1;
-            shiftReg = (shiftReg & 0x7F) << 1;
-            if (savedBufPos >= outBuf.size()) {
-              outBuf.push_back(shiftReg);
-            }
-            else {
-              // store at saved position if any literal bytes were inserted
-              outBuf[savedBufPos] = shiftReg;
-              savedBufPos = 0x7FFFFFFF;
-            }
-            shiftReg = 0x01;
-          }
-          // calculate checksum
-          unsigned char crcVal = 0xFF;
-          for (size_t j = outBuf.size() - 1; j > 0; j--) {
-            unsigned char tmp = crcVal ^ outBuf[j];
-            crcVal = (((tmp << 1) | ((tmp >> 7) & 0x01)) + 0xAC) & 0xFF;
-          }
-          crcVal = (unsigned char) ((0x0180 - 0xAC) >> 1) ^ crcVal;
-          outBuf[0] = crcVal;
-        }
-        delete compressorThreads[i];
-        compressorThreads[i] = (CompressorThread *) 0;
       }
-      if (err)
-        throw Exception("error compressing data");
     }
     catch (...) {
-      for (int i = 0; i < 4; i++) {
+      for (int i = 0; i < COMPRESS_MAX_THREADS; i++) {
         if (compressorThreads[i])
           delete compressorThreads[i];
       }
+      outBuf.clear();
       throw;
     }
   }
