@@ -487,7 +487,7 @@ namespace Ep128Emu {
         std::fseek(f, 0L, SEEK_SET) < 0) {
       throw Exception("error seeking file");
     }
-    if (fileSize < 16L || fileSize >= 0x00400000L)
+    if (fileSize < 20L || fileSize >= 0x00500000L)
       throw Exception("invalid file header");
     std::vector< unsigned char >  tmpBuf;
     {
