@@ -363,17 +363,16 @@ namespace Ep128 {
       return;
     }
     if (cmd_index == 0 && (_write_b & 0xC0) != 0x40) {
-      if (ans_index < ans_size) {
-        _read_b = ans_p[ans_index++];
-      }
-      else {
-        if (ans_callback) {
-          _block_read();
-        }
-        else {
+      if (ans_size) {
+        _read_b = ans_p[ans_index];
+        if (++ans_index >= ans_size) {
           ans_index = 0;
           ans_size = 0;
         }
+      }
+      else {
+        if (ans_callback)
+          _block_read();
         _read_b = 0xFF;
       }
       return;
@@ -527,7 +526,7 @@ namespace Ep128 {
       case 1:
         // status reg: bit7=wp1, bit6=insert, bit5=changed
         // (insert/changed=1: some of the cards not inserted or changed)
-        return (status & 0xE0);
+        return (status | 0x1F);
       case 2:           // ROM pager [hmm not readable?!]
         return 0xFF;
       case 3:           // HS read config is not readable?!]
@@ -594,8 +593,12 @@ namespace Ep128 {
       case 1:
         // status reg: bit7=wp1, bit6=insert, bit5=changed
         // (insert/changed=1: some of the cards not inserted or changed)
-        // NOTE: for debugging, cs0 and cs1 are returned on bits 0 and 1
-        return ((status & 0xE0) | uint8_t(cs0) | (uint8_t(cs1) << 1));
+        // NOTE: for debugging, some of the unused bits are also set:
+        //   bit2 = idle state
+        //   bit1 = cs1
+        //   bit0 = cs0
+        return ((status & 0xE0) | 0x18 | ((status & 0x01) << 2)
+                | uint8_t(cs0) | (uint8_t(cs1) << 1));
       case 2:           // ROM pager
         return uint8_t(rom_page_ofs >> 8);
       case 3:           // HS read config
