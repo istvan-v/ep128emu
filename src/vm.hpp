@@ -271,10 +271,16 @@ namespace Ep128Emu {
      *   0x00020000: floppy drive 2 green LED is on
      *   0x00040000: IDE drive 2 red LED is on (low priority)
      *   0x000C0000: IDE drive 2 red LED is on (high priority)
+     *   0x00100000: SD card 1 blue LED is on (low priority)
+     *   0x00200000: SD card 1 blue LED is on (high priority)
+     *   0x00300000: SD card 1 cyan LED is on (high priority)
      *   0x01000000: floppy drive 3 red LED is on
      *   0x02000000: floppy drive 3 green LED is on
      *   0x04000000: IDE drive 3 red LED is on (low priority)
      *   0x0C000000: IDE drive 3 red LED is on (high priority)
+     *   0x10000000: SD card 2 blue LED is on (low priority)
+     *   0x20000000: SD card 2 blue LED is on (high priority)
+     *   0x30000000: SD card 2 cyan LED is on (high priority)
      */
     virtual uint32_t getFloppyDriveLEDState();
     /*!

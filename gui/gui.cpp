@@ -365,19 +365,24 @@ void Ep128EmuGUI::updateDisplay(double t)
   uint32_t  newFloppyDriveLEDState = vmThreadStatus.floppyDriveLEDState;
   if (newFloppyDriveLEDState != oldFloppyDriveLEDState) {
     oldFloppyDriveLEDState = newFloppyDriveLEDState;
-    static const Fl_Color ledColors_[16] = {
-      FL_BLACK,      Fl_Color(92),  FL_GREEN,      Fl_Color(87),
-      Fl_Color(128), Fl_Color(92),  FL_GREEN,      Fl_Color(87),
-      FL_BLACK,      Fl_Color(92),  FL_GREEN,      Fl_Color(87),
-      Fl_Color(128), Fl_Color(128), Fl_Color(128), Fl_Color(128)
+    // FLTK color (5*8*5 RGB) = 56 + 8*R(0..4) + G(0..7) + 40*B(0..4)
+    static const unsigned char ledColors_[64] = {
+       56,  92,  63,  87,  128,  92,  63,  87,
+       56,  92,  63,  87,  128, 128, 128, 128,
+      236,  92,  63,  87,  128,  92,  63,  87,
+      236,  92,  63,  87,  128, 128, 128, 128,
+      236, 236, 236, 236,  236, 236, 236, 236,
+      236, 236, 236, 236,  236, 236, 236, 236,
+      239, 239, 239, 239,  239, 239, 239, 239,
+      239, 239, 239, 239,  239, 239, 239, 239
     };
-    driveALEDDisplay->color(ledColors_[newFloppyDriveLEDState & 0x0FU]);
+    driveALEDDisplay->color(Fl_Color(ledColors_[newFloppyDriveLEDState & 0x0FU]));
     driveALEDDisplay->redraw();
-    driveBLEDDisplay->color(ledColors_[(newFloppyDriveLEDState >> 8) & 0x0FU]);
+    driveBLEDDisplay->color(Fl_Color(ledColors_[(newFloppyDriveLEDState >> 8) & 0x0FU]));
     driveBLEDDisplay->redraw();
-    driveCLEDDisplay->color(ledColors_[(newFloppyDriveLEDState >> 16) & 0x0FU]);
+    driveCLEDDisplay->color(Fl_Color(ledColors_[(newFloppyDriveLEDState >> 16) & 0x3FU]));
     driveCLEDDisplay->redraw();
-    driveDLEDDisplay->color(ledColors_[(newFloppyDriveLEDState >> 24) & 0x0FU]);
+    driveDLEDDisplay->color(Fl_Color(ledColors_[(newFloppyDriveLEDState >> 24) & 0x3FU]));
     driveDLEDDisplay->redraw();
   }
   if (statsTimer.getRealTime() >= 0.5) {

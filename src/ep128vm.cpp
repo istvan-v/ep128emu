@@ -1769,6 +1769,9 @@ namespace Ep128 {
       n = n << 8;
       n |= uint32_t(floppyDrives[i].getLEDState());
     }
+#ifdef ENABLE_SDEXT
+    n = n | sdext.getLEDState();
+#endif
     vmStatus_.floppyDriveLEDState = n | ideInterface->getLEDState();
     vmStatus_.isPlayingDemo = isPlayingDemo;
     if (demoFile != (Ep128Emu::File *) 0 && !isRecordingDemo)
@@ -1854,6 +1857,9 @@ namespace Ep128 {
       n = n << 8;
       n |= uint32_t(floppyDrives[i].getLEDState());
     }
+#ifdef ENABLE_SDEXT
+    n = n | sdext.getLEDState();
+#endif
     return (n | ideInterface->getLEDState());
   }
 

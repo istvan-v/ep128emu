@@ -105,6 +105,18 @@ namespace Ep128 {
     {
       return ((addr & 0x003FC000U) == sdextAddress);
     }
+    // 0x00100000: SD card 1 blue LED is on (low priority)
+    // 0x00200000: SD card 1 blue LED is on (high priority)
+    // 0x00300000: SD card 1 cyan LED is on (high priority)
+    // 0x10000000: SD card 2 blue LED is on (low priority)
+    // 0x20000000: SD card 2 blue LED is on (high priority)
+    // 0x30000000: SD card 2 cyan LED is on (high priority)
+    EP128EMU_INLINE uint32_t getLEDState() const
+    {
+      return uint32_t(flashCommand ? 0x00300000U :
+                      (writeState ? 0x00200000U :
+                       (ans_size ? 0x00100000U : 0x00000000U)));
+    }
     void saveState(Ep128Emu::File::Buffer&);
     void saveState(Ep128Emu::File&);
     void loadState(Ep128Emu::File::Buffer&);
