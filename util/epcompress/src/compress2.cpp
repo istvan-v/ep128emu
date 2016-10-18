@@ -760,8 +760,7 @@ namespace Ep128Compress {
   }
 
   Compressor_M2::SearchTable::SearchTable(
-      const std::vector< unsigned char >& inBuf, unsigned int maxOffs)
-    : buf(inBuf)
+      const std::vector< unsigned char >& buf, unsigned int maxOffs)
   {
     if (buf.size() < 1) {
       throw Ep128Emu::Exception("Compressor_M2::SearchTable::SearchTable(): "

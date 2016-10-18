@@ -153,7 +153,6 @@ namespace Ep128Compress {
    private:
     class SearchTable {
      private:
-      const std::vector< unsigned char >&   buf;
       // for each buffer position P, matchTableBuf[matchTable[P]] is the
       // first element of an array of interleaved length/offset pairs,
       // terminated with zero length and offset
@@ -167,7 +166,7 @@ namespace Ep128Compress {
                            unsigned int *tmpBuf);
       void addMatch(size_t bufPos, size_t matchLen, size_t offs);
      public:
-      SearchTable(const std::vector< unsigned char >& inBuf,
+      SearchTable(const std::vector< unsigned char >& buf,
                   unsigned int maxOffs);
       virtual ~SearchTable();
       inline const unsigned int * getMatches(size_t bufPos) const
