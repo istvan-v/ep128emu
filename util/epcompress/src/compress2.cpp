@@ -961,33 +961,35 @@ namespace Ep128Compress {
   void Compressor_M2::writeRepeatCode(std::vector< unsigned int >& buf,
                                       size_t d, size_t n)
   {
+    EncodeTable&  offsEncodeTable =
+        (n > 2 ? offs3EncodeTable :
+         (n > 1 ? offs2EncodeTable : offs1EncodeTable));
+    unsigned int  offsPrefixSize =
+        (unsigned int) (n > 2 ? offs3PrefixSize :
+                        (n > 1 ? offs2PrefixSize : offs1PrefixSize));
     n = n - minRepeatLen;
+    d = d - minRepeatDist;
     unsigned int  slotNum =
         (unsigned int) lengthEncodeTable.getSymbolSlotIndex((unsigned int) n);
-    buf.push_back(((slotNum + 2U) << 24U) | ((1U << (slotNum + 2U)) - 2U));
-    if (lengthEncodeTable.getSlotSize(slotNum) > 0)
-      buf.push_back(lengthEncodeTable.encodeSymbol((unsigned int) n));
-    d = d - minRepeatDist;
-    if ((n + minRepeatLen) > 2) {
-      slotNum =
-          (unsigned int) offs3EncodeTable.getSymbolSlotIndex((unsigned int) d);
-      buf.push_back((unsigned int) (offs3PrefixSize << 24) | slotNum);
-      if (offs3EncodeTable.getSlotSize(slotNum) > 0)
-        buf.push_back(offs3EncodeTable.encodeSymbol((unsigned int) d));
-    }
-    else if ((n + minRepeatLen) > 1) {
-      slotNum =
-          (unsigned int) offs2EncodeTable.getSymbolSlotIndex((unsigned int) d);
-      buf.push_back((unsigned int) (offs2PrefixSize << 24) | slotNum);
-      if (offs2EncodeTable.getSlotSize(slotNum) > 0)
-        buf.push_back(offs2EncodeTable.encodeSymbol((unsigned int) d));
+    unsigned int  slotSize =
+        (unsigned int) lengthEncodeTable.getSlotSize(slotNum);
+    slotNum = slotNum + 2U;
+    if (!slotSize) {
+      buf.push_back((slotNum << 24) | ((1U << slotNum) - 2U));
     }
     else {
-      slotNum =
-          (unsigned int) offs1EncodeTable.getSymbolSlotIndex((unsigned int) d);
-      buf.push_back((unsigned int) (offs1PrefixSize << 24) | slotNum);
-      if (offs1EncodeTable.getSlotSize(slotNum) > 0)
-        buf.push_back(offs1EncodeTable.encodeSymbol((unsigned int) d));
+      buf.push_back(((slotNum << 24) | (((1U << slotNum) - 2U) << slotSize))
+                    + lengthEncodeTable.encodeSymbol((unsigned int) n));
+    }
+    slotNum =
+        (unsigned int) offsEncodeTable.getSymbolSlotIndex((unsigned int) d);
+    slotSize = (unsigned int) offsEncodeTable.getSlotSize(slotNum);
+    if (!slotSize) {
+      buf.push_back((offsPrefixSize << 24) | slotNum);
+    }
+    else {
+      buf.push_back(((offsPrefixSize << 24) | (slotNum << slotSize))
+                    + offsEncodeTable.encodeSymbol((unsigned int) d));
     }
   }
 
