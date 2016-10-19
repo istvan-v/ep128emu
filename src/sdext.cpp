@@ -216,8 +216,6 @@ namespace Ep128 {
 
   void SDExt::openROMFile(const char *fileName)
   {
-    if (!fileName)
-      fileName = "";
     const char  *errMsg = (char *) 0;
     if (romDataChanged) {
       romDataChanged = false;
@@ -237,16 +235,14 @@ namespace Ep128 {
         }
       }
     }
-    if (romFileName != fileName) {
-      romFileName.clear();
-      romFileWriteProtected = false;
-      flashErased = true;
-      flashCommand = 0x00;
-      std::memset(&(sd_rom_ext.front()), 0xFF, sd_rom_ext.size());
-    }
+    romFileName.clear();
+    romFileWriteProtected = false;
+    flashErased = true;
+    flashCommand = 0x00;
+    std::memset(&(sd_rom_ext.front()), 0xFF, sd_rom_ext.size());
     if (errMsg)
       throw Ep128Emu::Exception(errMsg);
-    if (romFileName == fileName)
+    if (!fileName || fileName[0] == '\0')
       return;
     // load ROM image from disk
     std::FILE *f = std::fopen(fileName, "r+b");
