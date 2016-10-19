@@ -94,6 +94,8 @@ Enterprise emulation
   * external 4-channel 8-bit DAC at ports F0 to F3
   * mouse emulation, an EnterMice device with up to 5 buttons and mouse
     wheel is emulated in native mode on column K of the keyboard matrix
+  * SD card (SDEXT) emulation, this is an experimental feature based on
+    code from LGB's Xep128 emulator
 
 Spectrum emulation
 ------------------
@@ -317,9 +319,15 @@ Save snapshot (Alt + S)
   selected file. The snapshot will also include the current memory
   configuration and ROM images, but clock frequency and timing settings
   are not restored when loading a snapshot. The file format may be
-  subject to changes between different releases of the emulator. Note
-  that the state of any disk drives is currently not saved, and the
-  drives are reset on loading a snapshot.
+  subject to changes between different releases of the emulator, but new
+  versions of the emulator can still load old snapshots. Note that the
+  state of any disk drives is currently not saved, and the drives are
+  reset on loading a snapshot.
+  Starting from version 2.0.10 of ep128emu, snapshot and demo files can
+  optionally be saved in a compressed format, if this feature is enabled
+  in the machine configuration. Compressing a large snapshot can take a
+  few seconds on a slow PC, but the loading time is not affected
+  noticeably.
 
 Load snapshot (Alt + L)
 
@@ -329,7 +337,8 @@ Load snapshot (Alt + L)
 Quick snapshot / Set file name
 
   Select file name for quick snapshots. The default is
-  ~/.ep128emu/qs_ep128.dat. This setting is not saved on exit.
+  ~/.ep128emu/qs_ep128.dat. This setting is not saved on exit, and quick
+  snapshots are always saved in uncompressed format.
 
 Quick snapshot / Save (Ctrl + F9)
 
@@ -373,7 +382,13 @@ Record video / Start...
   reaches 2 GB, it is automatically closed, and the emulator asks for
   a new file to continue the recording.
   NOTE: the video and audio streams in the AVI file are not affected by
-  any of the display or sound configuration settings.
+  any of the display or sound configuration settings. There are two
+  options in the machine configuration that affect the video capture:
+  the frame rate and the codec. It is recommended to use the defaults
+  (RLE8 768x576 at 50 fps) when possible, but RLE8 is not always
+  supported by other software, in those cases it may be necessary to use
+  the YV12 codec, which decreases the quality while usually increasing
+  the output file size and CPU usage.
 
 Record video / Stop
 
@@ -471,7 +486,7 @@ Sound / Decrease volume
 
 Disk / Configure... (Alt + D)
 
-  Opens a dialog for setting up floppy and IDE emulation.
+  Opens a dialog for setting up floppy, IDE and SD card emulation.
 
   For each floppy drive, an image file can be selected, and disk
   geometry parameters can be specified. If the file name is left empty,
@@ -482,20 +497,21 @@ Disk / Configure... (Alt + D)
   value calculated automatically from the others (if available), the
   image file size, and the file system header.
 
-  The IDE emulation supports image files in raw and VHD format (the
-  latter must have a .vhd extension), with a file size of up to 2 GB.
-  In the case of VHD files, the disk geometry is determined by the VHD
-  footer, while the geometry of raw images is calculated from the file
-  size. Depending on the image format, the model number string of the
-  emulated drive will include "(VHD)" or the automatically assigned
-  geometry.
+  The IDE and SD card emulation support image files in raw and VHD
+  format (the latter should have a .vhd extension), with a file size of
+  up to 2 GB. In the case of VHD files, the disk geometry is determined
+  by the VHD footer, while the geometry of raw images is calculated from
+  the file size. Depending on the image format, the model number string
+  of the emulated drive will include "(VHD)" or the automatically
+  assigned geometry.
   The emulator package includes a 126 MB VHD format IDE disk image in
   disk/ide126m.vhd.bz2, with 4 FAT12 formatted 31.5 MB partitions.
   Note that with the current version of IDE.ROM, after changing IDE disk
   images, a cold reset is required for the changes to be detected, and
   the disk change flag is also set on snapshot or demo loading.
 
-  Floppy and IDE drives are disabled while recording or playing a demo.
+  All data storage devices are disabled while recording or playing a
+  demo.
 
 Disk / Remove floppy / Drive A
 Disk / Remove floppy / Drive B
@@ -659,6 +675,21 @@ code, depending on the machine type:
           9FH: drive 3 cylinder number (PCN3)
     - unlike the other machine types, I/O watchpoints are set on the
       upper 8 bits of the address
+  - Enterprise: when the SD card emulation is enabled, segment 07H is
+    handled in a special way, and its original contents cannot be
+    accessed:
+    - 0000H-1FFFH: a 8 KB page of the 64 KB flash ROM
+    - 2000H-3BFFH: 7 KB static RAM
+    - 3C00H-3FFFH: memory mapped I/O, 4 registers are repeated 256 times
+    Reading the I/O area in the debugger ignores the high speed mode
+    bit, and some of the registers have additional readable bits:
+    - xxxxxxxxxxxx01B (status):
+        bit 0: 1 if CS0 is active
+        bit 1: 1 if CS1 is active
+        bit 2: 1 if the card is in idle state
+    - xxxxxxxxxxxx10B (ROM page) is readable in the debugger
+    - xxxxxxxxxxxx11B (high speed read configuration):
+        bit 7: 1 if high speed reading is enabled
 
 Lua scripting
 -------------
