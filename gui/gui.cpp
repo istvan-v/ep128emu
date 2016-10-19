@@ -162,10 +162,7 @@ void Ep128EmuGUI::updateDisplay_windowMode()
   oldWindowWidth = -1;
   oldWindowHeight = -1;
   oldDisplayMode = displayMode;
-  if ((displayMode & 1) == 0)
-    emulatorWindow->cursor(FL_CURSOR_DEFAULT);
-  else
-    emulatorWindow->cursor(FL_CURSOR_NONE);
+  mainWindow->cursor(!(displayMode & 1) ? FL_CURSOR_DEFAULT : FL_CURSOR_NONE);
   mainWindow->redraw();
   mainMenuBar->redraw();
   diskStatusDisplayGroup->redraw();
@@ -781,10 +778,7 @@ void Ep128EmuGUI::resizeWindow(int w, int h)
     else
       mainWindow->size_range(384, 288, 1536, 1152);
   }
-  if ((displayMode & 1) == 0)
-    emulatorWindow->cursor(FL_CURSOR_DEFAULT);
-  else
-    emulatorWindow->cursor(FL_CURSOR_NONE);
+  mainWindow->cursor(!(displayMode & 1) ? FL_CURSOR_DEFAULT : FL_CURSOR_NONE);
 }
 
 void Ep128EmuGUI::sendMouseEvent(bool enableButtons, bool mouseWheelEvent)
@@ -1216,27 +1210,26 @@ bool Ep128EmuGUI::browseFile(std::string& fileName, std::string& dirName,
 
 void Ep128EmuGUI::writeFile(Ep128Emu::File& f, const char *fileName)
 {
-  if (config.compressFiles) {
-    try {
-      mainWindow->label("Compressing file...");
-      mainWindow->cursor(FL_CURSOR_WAIT);
-      Fl::redraw();
-      // should actually use Fl::flush() here, but only Fl::wait() does
-      // correctly update the display
-      Fl::wait(0.0);
-      f.writeFile(fileName, false, true);
-    }
-    catch (...) {
-      mainWindow->label(&(windowTitleBuf[0]));
-      mainWindow->cursor(FL_CURSOR_DEFAULT);
-      throw;
-    }
-    mainWindow->label(&(windowTitleBuf[0]));
-    mainWindow->cursor(FL_CURSOR_DEFAULT);
-  }
-  else {
+  if (!config.compressFiles) {
     f.writeFile(fileName);
+    return;
   }
+  try {
+    mainWindow->label("Compressing file...");
+    mainWindow->cursor(FL_CURSOR_WAIT);
+    Fl::redraw();
+    // should actually use Fl::flush() here, but only Fl::wait() does
+    // correctly update the display
+    Fl::wait(0.0);
+    f.writeFile(fileName, false, true);
+  }
+  catch (...) {
+    mainWindow->label(&(windowTitleBuf[0]));
+    mainWindow->cursor(!(displayMode & 1) ? FL_CURSOR_DEFAULT : FL_CURSOR_NONE);
+    throw;
+  }
+  mainWindow->label(&(windowTitleBuf[0]));
+  mainWindow->cursor(!(displayMode & 1) ? FL_CURSOR_DEFAULT : FL_CURSOR_NONE);
 }
 
 void Ep128EmuGUI::applyEmulatorConfiguration(bool updateWindowFlag_)
