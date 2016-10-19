@@ -13,6 +13,7 @@
 ;General
 
   ;Use "makensis.exe /DWIN64" to create x64 installer
+  ;NOTE: this script requires INetC (nsis.sourceforge.net/Inetc_plug-in)
   !ifndef WIN64
   ;Name and file
   Name "ep128emu"
@@ -275,6 +276,8 @@ Section "ep128emu source code" SecSrc
 
   SetOutPath "$INSTDIR\src\util"
 
+  File "..\util\*.patch"
+
   SetOutPath "$INSTDIR\src\util\dtf"
 
   File "..\util\dtf\*.cpp"
@@ -382,17 +385,17 @@ Section "Download and install ROM images" SecDLRoms
 
   SetOutPath "$INSTDIR\roms"
 
-  NSISdl::download "https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/?action=dlattach;attach=16423" "$INSTDIR\roms\ep128emu_roms-2.0.10.bin"
+  INetC::get "https://enterpriseforever.com/ep128emu/ep128emu/?action=dlattach;attach=16388" "$INSTDIR\roms\ep128emu_roms-2.0.10.bin"
   Pop $R0
-  StrCmp $R0 "success" downloadDone 0
-  StrCmp $R0 "cancel" downloadDone 0
+  StrCmp $R0 "OK" downloadDone 0
+  StrCmp $R0 "Cancelled" downloadDone 0
 
   MessageBox MB_OK "WARNING: download from enterpriseforever.com failed ($R0), trying ep128.hu instead"
 
-  NSISdl::download "http://ep128.hu/Emu/ep128emu_roms-2.0.10.bin" "$INSTDIR\roms\ep128emu_roms-2.0.10.bin"
+  INetC::get "http://ep128.hu/Emu/ep128emu_roms-2.0.10.bin" "$INSTDIR\roms\ep128emu_roms-2.0.10.bin"
   Pop $R0
-  StrCmp $R0 "success" downloadDone 0
-  StrCmp $R0 "cancel" downloadDone 0
+  StrCmp $R0 "OK" downloadDone 0
+  StrCmp $R0 "Cancelled" downloadDone 0
 
   MessageBox MB_OK "Download failed: $R0"
 
