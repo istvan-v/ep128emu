@@ -1511,42 +1511,38 @@ void Ep128EmuGUI::pollJoystickInput(void *userData)
 
 bool Ep128EmuGUI::closeDemoFile(bool stopDemo_)
 {
-  if (demoRecordFile) {
-    if (stopDemo_) {
-      if (lockVMThread()) {
-        try {
-          vm.stopDemo();
-        }
-        catch (std::exception& e) {
-          unlockVMThread();
-          delete demoRecordFile;
-          demoRecordFile = (Ep128Emu::File *) 0;
-          demoRecordFileName.clear();
-          errorMessage(e.what());
-          return true;
-        }
-        catch (...) {
-          unlockVMThread();
-          delete demoRecordFile;
-          demoRecordFile = (Ep128Emu::File *) 0;
-          demoRecordFileName.clear();
-          throw;
-        }
-        unlockVMThread();
-      }
-      else
-        return false;
-    }
+  if (!demoRecordFile)
+    return true;
+  if (stopDemo_ && !lockVMThread())
+    return false;
+  std::string     fName(demoRecordFileName);
+  demoRecordFileName.clear();
+  Ep128Emu::File  *f = demoRecordFile;
+  demoRecordFile = (Ep128Emu::File *) 0;
+  if (stopDemo_) {
     try {
-      writeFile(*demoRecordFile, demoRecordFileName.c_str());
+      vm.stopDemo();
     }
     catch (std::exception& e) {
+      unlockVMThread();
+      delete f;
       errorMessage(e.what());
+      return true;
     }
-    delete demoRecordFile;
-    demoRecordFile = (Ep128Emu::File *) 0;
+    catch (...) {
+      unlockVMThread();
+      delete f;
+      throw;
+    }
+    unlockVMThread();
   }
-  demoRecordFileName.clear();
+  try {
+    writeFile(*f, fName.c_str());
+  }
+  catch (std::exception& e) {
+    errorMessage(e.what());
+  }
+  delete f;
   return true;
 }
 
