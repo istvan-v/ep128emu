@@ -1219,6 +1219,7 @@ void Ep128EmuGUI::writeFile(Ep128Emu::File& f, const char *fileName)
   if (config.compressFiles) {
     try {
       mainWindow->label("Compressing file...");
+      mainWindow->cursor(FL_CURSOR_WAIT);
       Fl::redraw();
       // should actually use Fl::flush() here, but only Fl::wait() does
       // correctly update the display
@@ -1227,9 +1228,11 @@ void Ep128EmuGUI::writeFile(Ep128Emu::File& f, const char *fileName)
     }
     catch (...) {
       mainWindow->label(&(windowTitleBuf[0]));
+      mainWindow->cursor(FL_CURSOR_DEFAULT);
       throw;
     }
     mainWindow->label(&(windowTitleBuf[0]));
+    mainWindow->cursor(FL_CURSOR_DEFAULT);
   }
   else {
     f.writeFile(fileName);
