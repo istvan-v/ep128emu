@@ -385,7 +385,7 @@ Section "Download and install ROM images" SecDLRoms
 
   SetOutPath "$INSTDIR\roms"
 
-  INetC::get "https://enterpriseforever.com/ep128emu/ep128emu/?action=dlattach;attach=16388" "$INSTDIR\roms\ep128emu_roms-2.0.10.bin"
+  INetC::get "https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/?action=dlattach;attach=16433" "$INSTDIR\roms\ep128emu_roms-2.0.10.bin"
   Pop $R0
   StrCmp $R0 "OK" downloadDone 0
   StrCmp $R0 "Cancelled" downloadDone 0
