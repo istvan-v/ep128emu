@@ -376,13 +376,17 @@ void Ep128EmuGUI::updateDisplay(double t)
       239, 239, 239, 239,  239, 239, 239, 239,
       239, 239, 239, 239,  239, 239, 239, 239
     };
-    driveALEDDisplay->color(Fl_Color(ledColors_[newFloppyDriveLEDState & 0x0FU]));
+    driveALEDDisplay->color(
+        Fl_Color(ledColors_[newFloppyDriveLEDState & 0x0FU]));
     driveALEDDisplay->redraw();
-    driveBLEDDisplay->color(Fl_Color(ledColors_[(newFloppyDriveLEDState >> 8) & 0x0FU]));
+    driveBLEDDisplay->color(
+        Fl_Color(ledColors_[(newFloppyDriveLEDState >> 8) & 0x0FU]));
     driveBLEDDisplay->redraw();
-    driveCLEDDisplay->color(Fl_Color(ledColors_[(newFloppyDriveLEDState >> 16) & 0x3FU]));
+    driveCLEDDisplay->color(
+        Fl_Color(ledColors_[(newFloppyDriveLEDState >> 16) & 0x3FU]));
     driveCLEDDisplay->redraw();
-    driveDLEDDisplay->color(Fl_Color(ledColors_[(newFloppyDriveLEDState >> 24) & 0x3FU]));
+    driveDLEDDisplay->color(
+        Fl_Color(ledColors_[(newFloppyDriveLEDState >> 24) & 0x3FU]));
     driveDLEDDisplay->redraw();
   }
   if (statsTimer.getRealTime() >= 0.5) {
@@ -1216,7 +1220,9 @@ void Ep128EmuGUI::writeFile(Ep128Emu::File& f, const char *fileName)
     try {
       mainWindow->label("Compressing file...");
       Fl::redraw();
-      Fl::flush();
+      // should actually use Fl::flush() here, but only Fl::wait() does
+      // correctly update the display
+      Fl::wait(0.0);
       f.writeFile(fileName, false, true);
     }
     catch (...) {
