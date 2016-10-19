@@ -281,7 +281,7 @@ class Ep128EmuMachineConfiguration {
 // bit 60:    zx41uk.rom at segments 30h..31h
 // bit 61:    edcw.rom at segment 33h
 // bit 62:    paszians.rom at segments 22..23h
-// bit 63:    sdext04.rom at segment 07h
+// bit 63:    sdext05.rom at segment 07h
 
 #define EP_RAM_64K              uint64_t(0x00000001UL)
 #define EP_RAM_128K             uint64_t(0x00000002UL)
@@ -350,7 +350,7 @@ class Ep128EmuMachineConfiguration {
 #define EP_ROM_ZX41_UK          (uint64_t(0x10000000UL) << 32)
 #define EP_ROM_EDCW             (uint64_t(0x20000000UL) << 32)
 #define EP_ROM_PASZIANS         (uint64_t(0x40000000UL) << 32)
-#define EP_ROM_SDEXT04_07       (uint64_t(0x80000000UL) << 32)
+#define EP_ROM_SDEXT05_07       (uint64_t(0x80000000UL) << 32)
 
 static const char *romFileNames[58] = {
   "exos20.rom",
@@ -410,7 +410,7 @@ static const char *romFileNames[58] = {
   "zx41uk.rom",
   "edcw.rom",
   "paszians.rom",
-  "sdext04.rom"
+  "sdext05.rom"
 };
 
 static const unsigned long romFileSegments[58] = {
@@ -471,7 +471,7 @@ static const unsigned long romFileSegments[58] = {
   0x3031FFFFUL,         // zx41uk.rom
   0x33FFFFFFUL,         // edcw.rom
   0x2223FFFFUL,         // paszians.rom
-  0x87FFFFFFUL          // sdext04.rom (special case)
+  0x87FFFFFFUL          // sdext05.rom (special case)
 };
 
 static const char *machineConfigFileNames[] = {
@@ -600,7 +600,7 @@ static const uint64_t machineConfigs[] = {
   | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK
   | EP_ROM_IDE12_42 | EP_ROM_BRD_43,
   // ep128brd/EP_640k_EXOS24_SDEXT_utils.cfg
-  EP_RAM_640K | EP_ROM_EXOS24_BRD | EP_ROM_EPD19UK_04 | EP_ROM_SDEXT04_07
+  EP_RAM_640K | EP_ROM_EXOS24_BRD | EP_ROM_EPD19UK_04 | EP_ROM_SDEXT05_07
   | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_BRD | EP_ROM_PASZIANS
   | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK
   | EP_ROM_BRD_43,
@@ -645,7 +645,7 @@ static const uint64_t machineConfigs[] = {
   | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK
   | EP_ROM_IDE12_42 | EP_ROM_ESP_43,
   // ep128esp/EP_640k_EXOS24_SDEXT_utils.cfg
-  EP_RAM_640K | EP_ROM_EXOS24_ES | EP_ROM_EPD19UK_04 | EP_ROM_SDEXT04_07
+  EP_RAM_640K | EP_ROM_EXOS24_ES | EP_ROM_EPD19UK_04 | EP_ROM_SDEXT05_07
   | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_ES | EP_ROM_PASZIANS
   | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK
   | EP_ROM_ESP_43,
@@ -694,7 +694,7 @@ static const uint64_t machineConfigs[] = {
   | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_HU
   | EP_ROM_IDE12_42 | EP_ROM_HUN_43,
   // ep128hun/EP_640k_EXOS24_SDEXT_utils.cfg
-  EP_RAM_640K | EP_ROM_EXOS24_HU | EP_ROM_EPD19HU_04 | EP_ROM_SDEXT04_07
+  EP_RAM_640K | EP_ROM_EXOS24_HU | EP_ROM_EPD19HU_04 | EP_ROM_SDEXT05_07
   | EP_ROM_EPFILEIO | EP_ROM_HEASS10_HU | EP_ROM_EXDOS14I_HU | EP_ROM_PASZIANS
   | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_HU
   | EP_ROM_HUN_43,
@@ -749,7 +749,7 @@ static const uint64_t machineConfigs[] = {
   | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK
   | EP_ROM_IDE12_42,
   // ep128uk/EP_640k_EXOS24_SDEXT_utils.cfg
-  EP_RAM_640K | EP_ROM_EXOS24_UK | EP_ROM_EPD19UK_04 | EP_ROM_SDEXT04_07
+  EP_RAM_640K | EP_ROM_EXOS24_UK | EP_ROM_EPD19UK_04 | EP_ROM_SDEXT05_07
   | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_UK | EP_ROM_PASZIANS
   | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK,
   // ep64/EP_64k_EXDOS.cfg
