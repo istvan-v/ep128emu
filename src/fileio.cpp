@@ -34,38 +34,6 @@ static const unsigned char  cpcSNAFile_Magic[8] = {
   0x4D, 0x56, 0x20, 0x2D, 0x20, 0x53, 0x4E, 0x41        // "MV - SNA"
 };
 
-static uint32_t hash_32(const unsigned char *buf, size_t nBytes)
-{
-  size_t        n = nBytes >> 2;
-  unsigned int  h = 1U;
-
-  for (size_t i = 0; i < n; i++) {
-    h ^=  ((unsigned int) buf[0] & 0xFFU);
-    h ^= (((unsigned int) buf[1] & 0xFFU) << 8);
-    h ^= (((unsigned int) buf[2] & 0xFFU) << 16);
-    h ^= (((unsigned int) buf[3] & 0xFFU) << 24);
-    buf += 4;
-    uint64_t  tmp = (uint32_t) h * (uint64_t) 0xC2B0C3CCU;
-    h = ((unsigned int) tmp ^ (unsigned int) (tmp >> 32)) & 0xFFFFFFFFU;
-  }
-  switch (uint8_t(nBytes) & 3) {
-  case 3:
-    h ^= (((unsigned int) buf[2] & 0xFFU) << 16);
-  case 2:
-    h ^= (((unsigned int) buf[1] & 0xFFU) << 8);
-  case 1:
-    h ^=  ((unsigned int) buf[0] & 0xFFU);
-    {
-      uint64_t  tmp = (uint32_t) h * (uint64_t) 0xC2B0C3CCU;
-      h = ((unsigned int) tmp ^ (unsigned int) (tmp >> 32)) & 0xFFFFFFFFU;
-    }
-    break;
-  default:
-    break;
-  }
-  return uint32_t(h);
-}
-
 static void getFullPathFileName(const char *fileName, std::string& fullName)
 {
   fullName = Ep128Emu::getEp128EmuHomeDirectory();
@@ -80,6 +48,39 @@ static void getFullPathFileName(const char *fileName, std::string& fullName)
 // ----------------------------------------------------------------------------
 
 namespace Ep128Emu {
+
+  EP128EMU_REGPARM2 uint32_t File::hash_32(const unsigned char *buf,
+                                           size_t nBytes)
+  {
+    size_t        n = nBytes >> 2;
+    unsigned int  h = 1U;
+
+    for (size_t i = 0; i < n; i++) {
+      h ^=  ((unsigned int) buf[0] & 0xFFU);
+      h ^= (((unsigned int) buf[1] & 0xFFU) << 8);
+      h ^= (((unsigned int) buf[2] & 0xFFU) << 16);
+      h ^= (((unsigned int) buf[3] & 0xFFU) << 24);
+      buf += 4;
+      uint64_t  tmp = (uint32_t) h * (uint64_t) 0xC2B0C3CCU;
+      h = ((unsigned int) tmp ^ (unsigned int) (tmp >> 32)) & 0xFFFFFFFFU;
+    }
+    switch (uint8_t(nBytes) & 3) {
+    case 3:
+      h ^= (((unsigned int) buf[2] & 0xFFU) << 16);
+    case 2:
+      h ^= (((unsigned int) buf[1] & 0xFFU) << 8);
+    case 1:
+      h ^=  ((unsigned int) buf[0] & 0xFFU);
+      {
+        uint64_t  tmp = (uint32_t) h * (uint64_t) 0xC2B0C3CCU;
+        h = ((unsigned int) tmp ^ (unsigned int) (tmp >> 32)) & 0xFFFFFFFFU;
+      }
+      break;
+    default:
+      break;
+    }
+    return uint32_t(h);
+  }
 
   File::Buffer::Buffer()
   {

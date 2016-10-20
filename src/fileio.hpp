@@ -144,6 +144,8 @@ namespace Ep128Emu {
     {
       return buf.getData();
     }
+    static EP128EMU_REGPARM2 uint32_t hash_32(const unsigned char *buf,
+                                              size_t nBytes);
   };
 
 }       // namespace Ep128Emu
