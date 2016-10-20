@@ -10,6 +10,6 @@ fi
 rom="$HOME/.ep128emu/roms/ep128emu_roms-2.0.10.bin"
 if [ ! -s "$rom" ]; then
 	echo "Downloading ROM to $rom"
-	wget -O "$rom" http://ep128emu.enterpriseforever.com/roms/ep128emu_roms-2.0.10.bin || exit 1
+	wget -O "$rom" 'https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/?action=dlattach;attach=16433' || exit 1
 fi
 exec $0.bin
