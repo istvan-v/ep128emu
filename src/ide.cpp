@@ -22,8 +22,8 @@
 
 namespace Ep128 {
 
-  extern void checkVHDImage(std::FILE *imageFile, const char *fileName,
-                            uint16_t& c, uint16_t& h, uint16_t& s)
+  extern uint32_t checkVHDImage(std::FILE *imageFile, const char *fileName,
+                                uint16_t& c, uint16_t& h, uint16_t& s)
   {
     c = 0;
     h = 0;
@@ -131,28 +131,29 @@ namespace Ep128 {
         if ((buf[48] | buf[49] | buf[50] | buf[51] | (buf[52] & 0x80)) != 0)
           break;
         // check if size matches the actual file size
-        uint32_t  tmp = (uint32_t(buf[52]) << 24) | (uint32_t(buf[53]) << 16)
-                        | (uint32_t(buf[54]) << 8) | uint32_t(buf[55]);
-        if (tmp != (nSectors << 9))
+        uint32_t  lbaSize =
+            (uint32_t(buf[52]) << 24) | (uint32_t(buf[53]) << 16)
+            | (uint32_t(buf[54]) << 8) | uint32_t(buf[55]);
+        if ((lbaSize & 511U) || lbaSize > (nSectors << 9))
           break;
+        lbaSize = lbaSize >> 9;
         // check disk geometry
         c = (uint16_t(buf[56]) << 8) | uint16_t(buf[57]);
         h = uint16_t(buf[58]);
         s = uint16_t(buf[59]);
-        if (h > 16 || s > 255)
+        if (h > 16)
           break;
-        tmp = uint32_t(c) * uint32_t(h) * uint32_t(s);
-        if (tmp > nSectors)
+        uint32_t  tmp = uint32_t(c) * uint32_t(h) * uint32_t(s);
+        if (!(tmp > 0U && tmp <= lbaSize))
           break;
         if (tmp < nSectors) {
-          if (c >= 0xFFFF)
-            break;
-          if (((uint32_t(c + 1) * uint32_t(h) * uint32_t(s)) <= nSectors) ||
-              ((uint32_t(c) * uint32_t(h + 1) * uint32_t(s)) <= nSectors) ||
-              ((uint32_t(c) * uint32_t(h) * uint32_t(s + 1)) <= nSectors)) {
+          if (((tmp + (uint32_t(h) * uint32_t(s))) <= nSectors) ||
+              ((tmp + (uint32_t(c) * uint32_t(s))) <= nSectors) ||
+              ((tmp + (uint32_t(c) * uint32_t(h))) <= nSectors)) {
             break;
           }
         }
+        nSectors = lbaSize;
         // check disk type (must be 0x00000002, i.e. fixed hard disk)
         if ((buf[60] | buf[61] | buf[62] | (buf[63] ^ 0x02)) != 0)
           break;
@@ -165,7 +166,7 @@ namespace Ep128 {
           tmp = tmp + uint32_t(buf[i]);
         }
         if (tmp == 0xFFFFFFFFU)
-          return;
+          return nSectors;
       } while (false);
     }
     c = 0;
@@ -179,6 +180,7 @@ namespace Ep128 {
     }
     throw Ep128Emu::Exception("invalid IDE disk image size "
                               "- cannot calculate geometry");
+    return nSectors;
   }
 
   // --------------------------------------------------------------------------
@@ -380,7 +382,7 @@ namespace Ep128 {
       buf[i ^ 1] = uint8_t(c);
     }
     s = &(tmpBuf[0]);           // firmware revision
-    std::sprintf(s, "EP_20700");
+    std::sprintf(s, "EP_20A00");
     for (int i = 46; i < 54; i++) {
       char    c = ' ';
       if ((*s) != '\0')
@@ -420,10 +422,14 @@ namespace Ep128 {
     buf[111] = uint8_t(nHeads >> 8);
     buf[112] = uint8_t(nSectorsPerTrack & 0x00FF);
     buf[113] = uint8_t(nSectorsPerTrack >> 8);
-    buf[114] = uint8_t(nSectors & 0xFFU);
-    buf[115] = uint8_t((nSectors >> 8) & 0xFFU);
-    buf[116] = uint8_t((nSectors >> 16) & 0xFFU);
-    buf[117] = uint8_t((nSectors >> 24) & 0xFFU);
+    {
+      uint32_t  nSectorsCHS =
+          uint32_t(nCylinders) * uint32_t(nHeads) * uint32_t(nSectorsPerTrack);
+      buf[114] = uint8_t(nSectorsCHS & 0xFFU);
+      buf[115] = uint8_t((nSectorsCHS >> 8) & 0xFFU);
+      buf[116] = uint8_t((nSectorsCHS >> 16) & 0xFFU);
+      buf[117] = uint8_t((nSectorsCHS >> 24) & 0xFFU);
+    }
     buf[118] = uint8_t(multSectCnt);
     buf[119] = 0x01;
     buf[120] = uint8_t(nSectors & 0xFFU);
@@ -455,13 +461,11 @@ namespace Ep128 {
     nHeads = (ideController.headRegister & 0x0F) + 1;
     nSectorsPerTrack = ideController.sectorCountRegister;
     if (nSectors > 0U && nSectorsPerTrack > 0) {
-      if ((nSectors % (uint32_t(nSectorsPerTrack) * uint32_t(nHeads))) == 0U) {
-        nCylinders = uint16_t(nSectors / (uint32_t(nSectorsPerTrack)
-                                          * uint32_t(nHeads)));
-        diskChangeFlag = false;
-        commandDone(0x00);
-        return;
-      }
+      nCylinders = uint16_t(nSectors
+                            / (uint32_t(nSectorsPerTrack) * uint32_t(nHeads)));
+      diskChangeFlag = false;
+      commandDone(0x00);
+      return;
     }
     // invalid disk geometry
     nCylinders = 0;
@@ -667,13 +671,11 @@ namespace Ep128 {
         readOnlyMode = false;
       }
       (void) std::setvbuf(imageFile, (char *) 0, _IONBF, 0);
-      checkVHDImage(imageFile, fileName,
-                    defaultCylinders, defaultHeads, defaultSectorsPerTrack);
+      nSectors = checkVHDImage(imageFile, fileName, defaultCylinders,
+                               defaultHeads, defaultSectorsPerTrack);
       nCylinders = defaultCylinders;
       nHeads = defaultHeads;
       nSectorsPerTrack = defaultSectorsPerTrack;
-      nSectors = uint32_t(defaultCylinders) * uint32_t(defaultHeads)
-                 * uint32_t(defaultSectorsPerTrack);
       this->reset(3);
     }
     catch (...) {

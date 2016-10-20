@@ -192,20 +192,19 @@ namespace Ep128 {
     std::setvbuf(sdf, (char *) 0, _IONBF, 0);
     sdfno = fileno(sdf);
     {
-      uint16_t  c = 0;
-      uint16_t  h = 0;
-      uint16_t  s = 0;
       try {
-        checkVHDImage(sdf, sdimg_path, c, h, s);
-        sd_card_size = (uint32_t(c) * uint32_t(h) * uint32_t(s)) << 9;
-        uint32_t  tmp = sd_card_size;
+        uint16_t  c = 0;
+        uint16_t  h = 0;
+        uint16_t  s = 0;
+        uint32_t  tmp = checkVHDImage(sdf, sdimg_path, c, h, s);
         int       n = 0;
-        while (tmp > 4096U && !(tmp & 1U)) {
+        while ((tmp > 4096U || n < 2) && !(tmp & 1U)) {
           tmp = tmp >> 1;
           n++;
         }
-        if (!(tmp > 0U && tmp <= 4096U && n <= 19))
+        if (!(tmp > 0U && tmp <= 4096U && n >= 2 && n <= 10))
           throw Ep128Emu::Exception("invalid disk image geometry for SD card");
+        sd_card_size = tmp << (n + 9);
       }
       catch (...) {
         openImage((char *) 0);

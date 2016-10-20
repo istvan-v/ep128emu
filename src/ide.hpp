@@ -24,8 +24,10 @@
 
 namespace Ep128 {
 
-  extern void checkVHDImage(std::FILE *imageFile, const char *fileName,
-                            uint16_t& c, uint16_t& h, uint16_t& s);
+  // returns the number of sectors that can be addressed in LBA mode,
+  // this may be greater than c*h*s
+  extern uint32_t checkVHDImage(std::FILE *imageFile, const char *fileName,
+                                uint16_t& c, uint16_t& h, uint16_t& s);
 
   class IDEInterface {
    protected:
@@ -36,7 +38,7 @@ namespace Ep128 {
         IDEController&  ideController;
         std::FILE *imageFile;
         uint8_t   *buf;         // 65536 bytes, pointer is set by ideController
-        uint32_t  nSectors;
+        uint32_t  nSectors;     // LBA sector count
         uint16_t  nCylinders;
         uint16_t  nHeads;
         uint16_t  nSectorsPerTrack;
