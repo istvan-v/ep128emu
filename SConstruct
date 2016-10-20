@@ -673,8 +673,8 @@ if not mingwCrossCompile:
         makecfgEnvironment.Command(
             instROMDir + "/ep128emu_roms-2.0.10.bin", None,
             ['curl -o "' + instROMDir + '/ep128emu_roms-2.0.10.bin" '
-             + 'https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/'
-             + '?action=dlattach;attach=16433'])
+             + '"https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/'
+             + '?action=dlattach;attach=16433"'])
         makecfgEnvironment.Command(
             instROMDir + "/sdext05.rom",
             [makecfg, instROMDir + "/ep128emu_roms-2.0.10.bin"],
