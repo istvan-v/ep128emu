@@ -107,10 +107,8 @@ namespace Ep128 {
         uint32_t  lbaSize =
             (uint32_t(buf[52]) << 24) | (uint32_t(buf[53]) << 16)
             | (uint32_t(buf[54]) << 8) | uint32_t(buf[55]);
-        if ((lbaSize & 511U) ||
-            lbaSize < 0x000A0000U || lbaSize > (nSectors << 9)) {
+        if ((lbaSize & 511U) || lbaSize > (nSectors << 9))
           break;
-        }
         lbaSize = lbaSize >> 9;
         // check disk geometry
         c = (uint16_t(buf[56]) << 8) | uint16_t(buf[57]);
