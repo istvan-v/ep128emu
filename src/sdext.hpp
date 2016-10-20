@@ -58,8 +58,8 @@ namespace Ep128 {
     uint8_t   _write_b;
     uint8_t   _write_specified;
     const uint8_t *ans_p;
-    int       ans_index;
-    int       ans_size;
+    uint32_t  ans_bytes_left;
+    uint32_t  serialNum;        // generated from the image file name
     int       writePos;
     uint8_t   writeState;       // 0 = not writing, 1 = waiting, 2 = writing
     bool      ans_callback;
@@ -115,7 +115,7 @@ namespace Ep128 {
     {
       return uint32_t(flashCommand ? 0x00300000U :
                       (writeState ? 0x00200000U :
-                       (ans_size ? 0x00100000U : 0x00000000U)));
+                       (ans_bytes_left ? 0x00100000U : 0x00000000U)));
     }
     void saveState(Ep128Emu::File::Buffer&);
     void saveState(Ep128Emu::File&);

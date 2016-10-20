@@ -56,15 +56,15 @@ namespace Ep128 {
     0xFE,       // data token
     // the CSD itself
     0x00, 0x5D, 0x01, 0x32, 0x13, 0x50, 0x80, 0x00,
-    0x36, 0xD8, 0x4F, 0xFF, 0x16, 0x40, 0x00, 0x4F,
+    0x36, 0xD8, 0x4F, 0xFF, 0x16, 0x40, 0x00, 0x00,
     0, 0        // CRC bytes
   };
   static const uint8_t _read_cid_answer[] = {
     0xFF,       // waiting a bit
     0xFE,       // data token
     // the CID itself
-    0x01, 0x50, 0x41, 0x53, 0x30, 0x31, 0x36, 0x42,
-    0x41, 0x35, 0xE4, 0x39, 0x06, 0x00, 0x35, 0x03,
+    0x01, 0x45, 0x50, 0x31, 0x32, 0x38, 0x53, 0x44,     // "EP128SD"
+    0x10, 0x00, 0x00, 0x00, 0x00, 0x01, 0x0A, 0x00,     // Rev 1.0, Oct 2016
     0, 0        // CRC bytes
   };
   // no data token, nor CRC!
@@ -74,7 +74,7 @@ namespace Ep128 {
     0x80, 0xFF, 0x80, 0x00
   };
 
-#define ADD_ANS(ans) { ans_p = (ans); ans_index = 0; ans_size = sizeof(ans); }
+#define ADD_ANS(ans) { ans_p = (ans); ans_bytes_left = uint32_t(sizeof(ans)); }
 
   SDExt::SDExt()
     : sdext_enabled(false),
@@ -91,8 +91,8 @@ namespace Ep128 {
       _write_b(0xFF),
       _write_specified(0x00),
       ans_p((uint8_t *) 0),
-      ans_index(0),
-      ans_size(0),
+      ans_bytes_left(0U),
+      serialNum(0U),
       writePos(0),
       writeState(0x00),
       ans_callback(false),
@@ -150,8 +150,8 @@ namespace Ep128 {
     rom_page_ofs = 0x0000;
     is_hs_read = false;
     cmd_index = 0;
-    ans_size = 0;
-    ans_index = 0;
+    ans_p = (uint8_t *) 0;
+    ans_bytes_left = 0U;
     writePos = 0;
     writeState = 0x00;
     ans_callback = false;
@@ -169,6 +169,7 @@ namespace Ep128 {
 
   void SDExt::openImage(const char *sdimg_path)
   {
+    serialNum = 0U;
     writeProtectFlag = true;
     if (sdf)
       std::fclose(sdf);
@@ -211,6 +212,9 @@ namespace Ep128 {
         throw;
       }
     }
+    serialNum =
+        Ep128Emu::File::hash_32(reinterpret_cast< const unsigned char * >(
+                                    sdimg_path), std::strlen(sdimg_path));
   }
 
   void SDExt::openROMFile(const char *fileName)
@@ -283,24 +287,23 @@ namespace Ep128 {
   {
     uint8_t *bufp = &(_buffer.front());
     ans_p = bufp;
-    ans_index = 0;
     bufp[0] = 0xFF;             // wait a bit
     if (sd_card_pos > (sd_card_size - 512U)) {
       bufp[1] = 0x09;           // error, out of range
-      ans_size = 2;
+      ans_bytes_left = 2U;
       ans_callback = false;
       return;
     }
     if (safe_read(sdfno, bufp + 2, 512) != 512) {
-      bufp[1] = 0x03;           // CRC error
-      ans_size = 2;
+      bufp[1] = 0x03;           // CC error
+      ans_bytes_left = 2U;
       ans_callback = false;
       return;
     }
     bufp[1] = 0xFE;             // data token
     bufp[512 + 2] = 0;          // CRC
     bufp[512 + 3] = 0;          // CRC
-    ans_size = 512 + 4;
+    ans_bytes_left = 516U;
     sd_card_pos = sd_card_pos + 512U;
   }
 
@@ -358,12 +361,9 @@ namespace Ep128 {
       return;
     }
     if (cmd_index == 0 && (_write_b & 0xC0) != 0x40) {
-      if (ans_size) {
-        _read_b = ans_p[ans_index];
-        if (++ans_index >= ans_size) {
-          ans_index = 0;
-          ans_size = 0;
-        }
+      if (ans_bytes_left) {
+        _read_b = *(ans_p++);
+        ans_bytes_left--;
       }
       else {
         if (ans_callback)
@@ -398,11 +398,18 @@ namespace Ep128 {
         _read_b = status & 0x01;        // non-IDLE now (?) R1 answer
         break;
       case 9:                   // CMD9: read CSD register
-        {
-          ans_p = &(_buffer.front());
-          ans_index = 0;
-          ans_size = int(sizeof(_read_csd_answer));
-          std::memcpy(&(_buffer.front()), _read_csd_answer, size_t(ans_size));
+      case 10:                  // CMD10: read CID register
+        if (cmd[0] == 9) {
+          ans_p = _read_csd_answer;
+          ans_bytes_left = uint32_t(sizeof(_read_csd_answer));
+        }
+        else {
+          ans_p = _read_cid_answer;
+          ans_bytes_left = uint32_t(sizeof(_read_cid_answer));
+        }
+        std::memcpy(&(_buffer.front()), ans_p, ans_bytes_left);
+        ans_p = &(_buffer.front());
+        if (cmd[0] == 9) {
           size_t  n = sd_card_size >> 9;
           uint8_t m = 0;
           while (n > 4096 && m < 10 && !(n & 1)) {
@@ -424,10 +431,20 @@ namespace Ep128 {
           _buffer[11] = _buffer[11] | (m >> 1);
           _buffer[12] = _buffer[12] | ((m << 7) & 0x80);
         }
-        _read_b = 0x00;         // R1
-        break;
-      case 10:                  // CMD10: read CID register
-        ADD_ANS(_read_cid_answer);
+        else {
+          _buffer[11] = uint8_t((serialNum >> 24) & 0xFFU);
+          _buffer[12] = uint8_t((serialNum >> 16) & 0xFFU);
+          _buffer[13] = uint8_t((serialNum >> 8) & 0xFFU);
+          _buffer[14] = uint8_t(serialNum & 0xFFU);
+        }
+        {
+          unsigned char crc7 = 0x00;
+          for (size_t i = 0; i < ((ans_bytes_left - 5U) << 3); i++) {
+            crc7 = crc7 ^ (((ans_p[(i >> 3) + 2] << (i & 7)) >> 1) & 0x40);
+            crc7 = ((crc7 << 1) ^ ((crc7 & 0x40) >> 3)) | ((crc7 & 0x40) >> 6);
+          }
+          _buffer[ans_bytes_left - 3U] = ((crc7 & 0x7F) << 1) | 0x01;
+        }
         _read_b = 0x00;         // R1
         break;
       case 12:                  // CMD12: stop transmission (reading multiple)
