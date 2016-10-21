@@ -236,11 +236,11 @@ class Ep128EmuMachineConfiguration {
 // bit 15:    exos24hu.rom at segments 00h..03h
 // bit 16:    exos24uk.rom at segments 00h..03h
 // bit 17:    basic20.rom at segment 04h
-// bit 18:    basic21.rom at segment 04h
-// bit 19:    basic21.rom at segment 05h
-// bit 20:    basic21.rom at segment 06h
-// bit 21:    exdos10.rom at segment 20h
-// bit 22:    exdos13.rom at segments 20h..21h
+// bit 18:    basic20.rom at segment 06h
+// bit 19:    basic21.rom at segment 04h
+// bit 20:    basic21.rom at segment 05h
+// bit 21:    basic21.rom at segment 06h
+// bit 22:    exdos10.rom at segment 20h
 // bit 23:    exdos14isdos10uk-brd.rom at segments 20h..21h
 // bit 24:    exdos14isdos10uk-esp.rom at segments 20h..21h
 // bit 25:    exdos14isdos10uk-hfont.rom at segments 20h..21h
@@ -303,12 +303,12 @@ class Ep128EmuMachineConfiguration {
 #define EP_ROM_EXOS24_ES        uint64_t(0x00004000UL)
 #define EP_ROM_EXOS24_HU        uint64_t(0x00008000UL)
 #define EP_ROM_EXOS24_UK        uint64_t(0x00010000UL)
-#define EP_ROM_BASIC20          uint64_t(0x00020000UL)
-#define EP_ROM_BASIC21_04       uint64_t(0x00040000UL)
-#define EP_ROM_BASIC21_05       uint64_t(0x00080000UL)
-#define EP_ROM_BASIC21_06       uint64_t(0x00100000UL)
-#define EP_ROM_EXDOS10          uint64_t(0x00200000UL)
-#define EP_ROM_EXDOS13          uint64_t(0x00400000UL)
+#define EP_ROM_BASIC20_04       uint64_t(0x00020000UL)
+#define EP_ROM_BASIC20_06       uint64_t(0x00040000UL)
+#define EP_ROM_BASIC21_04       uint64_t(0x00080000UL)
+#define EP_ROM_BASIC21_05       uint64_t(0x00100000UL)
+#define EP_ROM_BASIC21_06       uint64_t(0x00200000UL)
+#define EP_ROM_EXDOS10          uint64_t(0x00400000UL)
 #define EP_ROM_EXDOS14I_BRD     uint64_t(0x00800000UL)
 #define EP_ROM_EXDOS14I_ES      uint64_t(0x01000000UL)
 #define EP_ROM_EXDOS14I_HU      uint64_t(0x02000000UL)
@@ -365,11 +365,11 @@ static const char *romFileNames[58] = {
   "exos24hu.rom",
   "exos24uk.rom",
   "basic20.rom",
+  "basic20.rom",
   "basic21.rom",
   "basic21.rom",
   "basic21.rom",
   "exdos10.rom",
-  "exdos13.rom",
   "exdos14isdos10uk-brd.rom",
   "exdos14isdos10uk-esp.rom",
   "exdos14isdos10uk-hfont.rom",
@@ -426,11 +426,11 @@ static const unsigned long romFileSegments[58] = {
   0x00010203UL,         // exos24hu.rom
   0x00010203UL,         // exos24uk.rom
   0x04FFFFFFUL,         // basic20.rom
+  0x06FFFFFFUL,         // basic20.rom
   0x04FFFFFFUL,         // basic21.rom
   0x05FFFFFFUL,         // basic21.rom
   0x06FFFFFFUL,         // basic21.rom
   0x20FFFFFFUL,         // exdos10.rom
-  0x2021FFFFUL,         // exdos13.rom
   0x2021FFFFUL,         // exdos14isdos10uk-brd.rom
   0x2021FFFFUL,         // exdos14isdos10uk-esp.rom
   0x2021FFFFUL,         // exdos14isdos10uk-hfont.rom
@@ -753,23 +753,23 @@ static const uint64_t machineConfigs[] = {
   | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_UK | EP_ROM_PASZIANS
   | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK,
   // ep64/EP_64k_EXDOS.cfg
-  EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_BASIC20 | EP_ROM_EXDOS10,
+  EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_BASIC20_04 | EP_ROM_EXDOS10,
   // ep64/EP_64k_EXDOS_FileIO.cfg
-  EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_BASIC20 | EP_ROM_EPFILEIO
+  EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_BASIC20_04 | EP_ROM_EPFILEIO
   | EP_ROM_EXDOS10,
   // ep64/EP_64k_EXDOS_NoCartridge.cfg
   EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_EXDOS10,
   // ep64/EP_64k_EXDOS_TASMON.cfg
-  EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_BASIC20 | EP_ROM_ASMON15_04
+  EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_ASMON15_04 | EP_ROM_BASIC20_06
   | EP_ROM_EXDOS10,
   // ep64/EP_64k_Tape.cfg
-  EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_BASIC20,
+  EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_BASIC20_04,
   // ep64/EP_64k_Tape_FileIO.cfg
-  EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_BASIC20 | EP_ROM_EPFILEIO,
+  EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_BASIC20_04 | EP_ROM_EPFILEIO,
   // ep64/EP_64k_Tape_NoCartridge.cfg
   EP_RAM_64K | EP_ROM_EXOS20,
   // ep64/EP_64k_Tape_TASMON.cfg
-  EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_BASIC20 | EP_ROM_ASMON15_04
+  EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_ASMON15_04 | EP_ROM_BASIC20_06
 };
 
 Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
@@ -848,7 +848,9 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
     vm.videoClockFrequency = 889846U;
     vm.soundClockFrequency = 500000U;
     vm.enableMemoryTimingEmulation = true;
-    vm.enableFileIO = bool(machineConfigs[n] & EP_ROM_EPFILEIO);
+    vm.enableFileIO =
+        ((machineConfigs[n] & (EP_ROM_EPFILEIO | EP_ROM_IDE12_42
+                               | EP_ROM_SDEXT05_07)) == EP_ROM_EPFILEIO);
     memory.ram.size = int(machineConfigs[n] & uint64_t(0x3F)) << 6;
     for (int i = 0; i < 58; i++) {
       if (machineConfigs[n] & (uint64_t(1) << (i + 6))) {
