@@ -311,9 +311,15 @@ Section "ep128emu source code" SecSrc
   File "..\util\epimgconv\iview\*.lua"
   File "..\util\epimgconv\iview\*.rom"
 
+  SetOutPath "$INSTDIR\src\util\epimgconv\iview\old"
+
+  File "..\util\epimgconv\iview\old\*.com"
+  File "..\util\epimgconv\iview\old\*.ext"
+  File "..\util\epimgconv\iview\old\*.hea"
+  File "..\util\epimgconv\iview\old\*.s"
+
   SetOutPath "$INSTDIR\src\util\epimgconv\iview\src"
 
-  File "..\util\epimgconv\iview\src\*.hea"
   File "..\util\epimgconv\iview\src\*.s"
 
   SetOutPath "$INSTDIR\src\util\epimgconv\src"
