@@ -3,8 +3,6 @@ BUILDING_CVIEW_COM      equ     ($ < 0c000h)
 
     if BUILDING_CVIEW_COM != 0
 CVIEW_BUFFER_SIZE       equ     1000h
-BUILD_FILE_EXTENSION    equ     1
-FILE_ENABLE_MOUSE       equ     1
 BUILD_EXTENSION_ROM     equ     0
     endif
 
@@ -44,11 +42,9 @@ copyViewer:
         cp    0fdh                      ; running as extension on an EP64?
         ret   nz
         ld    (segmentTable + 1), a
-      if FILE_ENABLE_MOUSE != 0
         ld    a, 21h                    ; = LD HL, nnnn
         ld    (keyboardWait.mouseInput1), a
         ld    (keyboardWait.mouseInput2), a
-      endif
         ld    a, 37h                    ; = SCF
         ld    (keyboardWait.l8), a
     endif
@@ -102,10 +98,6 @@ iviewCommandMain:
         di
         ld    a, 0ffh
         out   (0b2h), a
-      if BUILD_FILE_EXTENSION != 0
-        in    a, (0b0h)
-        out   (0b3h), a
-      endif
     endif
         ld    hl, resetRoutine          ; set up warm reset address
         ld    (0bff8h), hl
@@ -136,12 +128,7 @@ iviewCommandMain:
         inc   a
         exos  3                         ; close any previously opened file
         ld    de, fileCommandName       ; ...then use the FILE extension
-    if (BUILDING_CVIEW_COM == 0) || (BUILD_FILE_EXTENSION == 0)
         exos  26                        ; to select an image file
-    else
-        call  @File.FILE
-        or    a
-    endif
         jr    nz, .l7                   ; no FILE extension?
         ld    de, fileNameBuffer
         inc   a
@@ -694,35 +681,14 @@ keyboardWait:
         call  swapSegments
 .l1:    ld    de, 36                    ; * timer speed = 65536 / (TIME * 50)
         ld    hl, 0
-.l2:
-    if FILE_ENABLE_MOUSE == 0
-        in    a, (0b4h)
-        and   10h
-        jr    z, .l2
-.l3:    in    a, (0b4h)
-        and   10h
-        jr    nz, .l3
-    else
-      if (BUILD_EXTENSION_ROM != 0) && (BUILD_FILE_EXTENSION != 0)
-        ld    c, 0b3h
-        in    b, (c)
-        push  bc
-        inc   b                         ; FILE is on the next segment
-        out   (c), b
-      endif
-        exx
+.l2:    exx
 .mouseInput1:
         call  @File.MOUSEINPUT          ; * replaced with LD HL, nnnn
         exx                             ;   if running as extension on an EP64
-      if (BUILD_EXTENSION_ROM != 0) && (BUILD_FILE_EXTENSION != 0)
-        pop   bc
-        out   (c), b
-      endif
         or    a
 .mouseInput2:
         rra                             ; * modified similarly to .mouseInput1
         jr    nz, .l8                   ; left or right mouse button pressed?
-    endif
         ld    b, 10
 .l4:    ld    a, b
         dec   a
@@ -1672,22 +1638,11 @@ pixelDataBaseAddr:
 exosBoundary:
         defw 0bfffh
 
-  if BUILDING_CVIEW_COM != 0
-    if BUILD_FILE_EXTENSION != 0
-FILE_ROUTINE_ONLY       equ     1
-        module  File
-        phase   $ + 0c000h              ; FILE must be run on page 3
-        include "file.s"
-        dephase
-        endmod
-    else
-      if FILE_ENABLE_MOUSE != 0
+    if BUILDING_CVIEW_COM != 0
         module  File
         include "mouse.s"
         endmod
-      endif
     endif
-  endif
 
 viewerCodeEnd:
 

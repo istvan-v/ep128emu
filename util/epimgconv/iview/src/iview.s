@@ -735,22 +735,12 @@ CSEREL1         LD    D, (HL)
                 JR    NZ, CSEREL1
 KEYWAIT:        LD    DE, (WAIT)
 KEYWAIT0:       LD    HL, 450           ;9 s
-KEYWAIT1:
-    IF (!FILE_ENABLE_MOUSE) || (BUILD_EXTENSION_ROM && BUILD_FILE_EXTENSION)
-                IN    A, (0B4H)
-                AND   10H
-                JR    Z, KEYWAIT1
-KEYWAIT2:       IN    A, (0B4H)
-                AND   10H
-                JR    NZ, KEYWAIT2
-    ELSE
-                EXX
+KEYWAIT1:       EXX
                 CALL  @File.MOUSEINPUT
                 EXX
                 OR    A
                 RRA
                 JR    NZ, KEYEND        ;bal vagy jobb eger gomb?
-    ENDIF
                 LD    B, 10
 KEYASK:         LD    A, B
                 DEC   A

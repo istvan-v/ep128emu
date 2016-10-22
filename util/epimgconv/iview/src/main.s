@@ -1,37 +1,27 @@
 
 BUILD_EXTENSION_ROM     equ     0
-BUILD_FILE_EXTENSION    equ     0
 CVIEW_BUFFER_SIZE       equ     1000h
-FILE_ENABLE_MOUSE       equ     1
 
-  if BUILD_EXTENSION_ROM == 0
-    if BUILD_FILE_EXTENSION == 0
+    if BUILD_EXTENSION_ROM == 0
         output  "iview.ext"
-    else
-        output  "iview_f.ext"
-    endif
         org     0bffah
         defw    0600h, mainCodeEnd - mainCodeBegin, 0, 0, 0, 0, 0, 0
-  else
-    if BUILD_FILE_EXTENSION == 0
-        output  "iview.rom"
     else
-        output  "iview_f.rom"
-    endif
+        output  "iview.rom"
         org     0c000h
         defm    "EXOS_ROM"
         defw    0000h
-  endif
+    endif
 
-  macro exos n
+    macro exos n
         rst   30h
         defb  n
-  endm
+    endm
 
-  macro EXOS N
+    macro EXOS N
         rst   30h
         defb  N
-  endm
+    endm
 
 mainCodeBegin:
 
@@ -48,16 +38,8 @@ main:
         dec   a
         jr    z, .loadModule
 .nextExtension:
-  if BUILD_EXTENSION_ROM == 0
-    if BUILD_FILE_EXTENSION == 0
         xor   a
         ret
-    else
-        jp    File.extMain
-    endif
-  else
-        jp    jpToNextSegment
-  endif
 .parseCommand:
         call  checkCommandName
         jr    nz, .nextExtension
@@ -70,7 +52,7 @@ main:
         ld    hl, extensionTable
 .l1:    ld    a, (hl)
         or    a
-        jr    z, .nextExtension         ; end of table ?
+        ret   z                         ; end of table ?
         add   a, c                      ; BC = 3
         ld    c, a
         add   hl, bc
@@ -98,7 +80,7 @@ main:
         ld    h, a                      ; H = 0
 .l3:    ld    a, (de)
         or    a
-        jr    z, .nextExtension
+        ret   z
         inc   de
         cp    b
         jr    z, .l4
@@ -118,11 +100,7 @@ main:
         ld    a, (de)
         dec   de
         cp    'I'
-  if (BUILD_EXTENSION_ROM != 0) || (BUILD_FILE_EXTENSION == 0)
         jr    z, .l5                    ; IVIEW format ?
-  else
-        jp    z, IView.loadModule
-  endif
         cp    'v'
         jp    z, IPlay.loadModule
         cp    's'
@@ -130,14 +108,12 @@ main:
         cp    'd'
         jr    nz, .nextExtension
         jp    DL2.loadModule
-  if (BUILD_EXTENSION_ROM != 0) || (BUILD_FILE_EXTENSION == 0)
 .l5:    xor   a                         ; call IVIEW or CVIEW
         ld    ixl, e                    ; depending on compression type
         ld    ixh, d
         cp    (ix + 10)
         jp    z, IView.loadModule
         jp    CView.loadModule
-  endif
 
 checkCommandName:
         ld    hl, extensionTable
@@ -176,12 +152,10 @@ extensionTable:
         defm  "IVIEW"
         defw  IView.parseCommand, IView.shortHelpString
         defw  IView.longHelpString
-  if (BUILD_EXTENSION_ROM != 0) || (BUILD_FILE_EXTENSION == 0)
         defb  5
         defm  "CVIEW"
         defw  CView.parseCommand, CView.shortHelpString
         defw  CView.longHelpString
-  endif
         defb  5
         defm  "IPLAY"
         defw  IPlay.parseCommand, IPlay.shortHelpString
@@ -209,7 +183,7 @@ extensionTable:
 ;   defb  0
 
 errorMessages:
-        defb  000h
+        defb  00h
 
         endmod
 
@@ -306,11 +280,9 @@ printString:
         include "iview.s"
         endmod
 
-  if (BUILD_EXTENSION_ROM != 0) || (BUILD_FILE_EXTENSION == 0)
         module  CView
         include "cview.s"
         endmod
-  endif
 
         module  IPlay
         include "iplay.s"
@@ -324,63 +296,13 @@ printString:
         include "dl2.s"
         endmod
 
-  if (BUILD_FILE_EXTENSION != 0) || (FILE_ENABLE_MOUSE != 0)
-    if (BUILD_EXTENSION_ROM == 0) || (BUILD_FILE_EXTENSION == 0)
-FILE_ROUTINE_ONLY       equ     0
         module  File
-      if BUILD_FILE_EXTENSION == 0
         include "mouse.s"
-      else
-        include "file.s"
-      endif
         endmod
-    endif
-  endif
 
 mainCodeEnd:
 
-  if BUILD_EXTENSION_ROM == 0
-        output  "dtm.ext"
-        org   0bffah
-        defw  00600h, DTMPlayer.codeEnd - DTMPlayer.codeBegin, 0, 0, 0, 0, 0, 0
-  else
-        block 0ffe7h - $, 000h
-jpToNextSegment:
-        in    a, (0b1h)
-        ld    l, a
-        in    a, (0b3h)
-        inc   a
-        ld    h, a
-        out   (0b1h), a
-        ld    a, ((.lfffa & 03fffh) + 04000h)
-        cp    0d3h                      ; = OUT (nn), A
-        ld    a, l
-        out   (0b1h), a
-        ret   nz
-        ld    a, h
-.lfffa: out   (0b3h), a
-        jp    Main.main
-        nop
-        org   0c000h
-        defm  "IVIEWROM"
-        defw  00000h
-  endif
-
-        module  DTMPlayer
-        include "dtm.s"
-        endmod
-
-  if (BUILD_EXTENSION_ROM != 0) && (BUILD_FILE_EXTENSION != 0)
-FILE_ROUTINE_ONLY       equ     0
-        module  File
-        include "file.s"
-        endmod
-  endif
-
-  if BUILD_EXTENSION_ROM != 0
-        block 0fffah - $, 000h
-        out   (0b3h), a
-        jp    DTMPlayer.extMain_
-        nop
-  endif
+    if BUILD_EXTENSION_ROM != 0
+        block 10000h - $, 00h
+    endif
 
