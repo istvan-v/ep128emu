@@ -751,17 +751,18 @@ KEYASK:         LD    A, B
                 JR    NZ, NEMFK         ;nem a 4. sor?
                 OR    A
                 JR    Z, FK3
-                LD    A, (WAIT+1)
-                SUB   D
-                LD    C, A
-                LD    DE, TIMERTABLE+8
-FK1:            DEC   DE
+                PUSH  HL
+                LD    HL, TIMERTABLE+8
+FK1:            DEC   HL
                 RLA
                 JR    NC, FK1
-                LD    A, (DE)
-                LD    (WAIT+1), A
-                SUB   C
-                DEC   A
+                LD    A, (HL)
+                LD    HL, WAIT+1
+                LD    E, (HL)
+                LD    (HL), A
+                POP   HL
+                SBC   A, E              ;Carry = 1
+                ADD   A, D
                 JP    P, FK2
                 XOR   A
 FK2:            INC   A
