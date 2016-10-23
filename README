@@ -196,23 +196,34 @@ GNU C/C++ compiler, binutils, etc.), you need the following packages:
 
 Once these are installed, you can edit the file 'SConstruct' in the top
 level source directory for setting compiler flags etc., and run the
-command 'scons' for building the emulator. The resulting executable
-files (ep128emu and tapeedit) can be copied to any directory that is in
-the PATH; on MacOS X, an .app package is created in 'ep128emu.app'.
-When installing the first time, you also need to set up configuration
-files and ROM images:
+command 'scons -j 2' for building the emulator.
+An 'install' target is also supported by SConstruct, this will install
+the emulator binaries under ~/bin, and the configuration and data files
+under ~/.local/share/ep128emu. Running 'scons -c install' will remove
+most of the installed files.
+Alternatively, you can copy the executables (dtf, ep128emu, epcompress,
+epimgconv, epmakecfg and tapeedit) to any directory that is in the PATH;
+on MacOS X, an .app package is created in 'ep128emu.app'.
 
-  * download ep128emu_roms-2.0.10.bin from
-      https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/30/
-    and copy it to ~/.ep128emu/roms (or, in the case of MacOS X,
-    ~/Library/Application Support/ep128emu/roms)
-  * after installing the ROM package, run 'epmakecfg', and click OK to
-    the windows that pop up asking for the base directory of
-    configuration and data files, and if configuration files should be
-    installed
+When installing the first time, you also need to set up configuration
+files and ROM images.
+Before installation, download ep128emu_roms-2.0.10.bin from
+  https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/30/
+and copy it to:
+  ~/.local/share/ep128emu/roms                (for 'scons install')
+  ~/.ep128emu/roms                            (for manual installation)
+  ~/Library/Application Support/ep128emu/roms (on Mac OS X)
+If not using 'scons install', run 'epmakecfg' and click OK to the
+windows that pop up asking for the base directory of configuration and
+data files, and if configuration files should be installed.
 
 It is possible to reinstall configuration files later by running the
-'epmakecfg' utility.
+'epmakecfg' utility. ROM images can be installed manually by downloading
+ep128emu_roms-2.0.10.7z from the above location and extracting it in the
+correct directory. The .bin format ROM package can be unpacked with the
+command 'epcompress -x -a ep128emu_roms-2.0.10.bin' in the current
+directory, 'epmakecfg' does this automatically if it finds the package
+where the ROM images need to be installed.
 
 Windows
 -------
