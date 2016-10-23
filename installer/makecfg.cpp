@@ -38,6 +38,18 @@
 
 #include <vector>
 
+#ifdef MAKECFG_USE_CURL
+#  ifndef MAKECFG_ROM_URL_1
+#    define MAKECFG_ROM_URL_1   "https://enterpriseforever.com/"        \
+                                "letoltesek-downloads/egyeb-misc/"      \
+                                "?action=dlattach;attach=16433"
+#  endif
+#  ifndef MAKECFG_ROM_URL_2
+#    define MAKECFG_ROM_URL_2   "http://ep128.hu/Emu/ep128emu_roms-2.0.10.bin"
+#  endif
+#  include <curl/curl.h>
+#endif
+
 static int keyboardMap_EP[256] = {
   0x006E,     -1, 0x005C,     -1, 0x0062,     -1, 0x0063,     -1,
   0x0076,     -1, 0x0078,     -1, 0x007A,     -1, 0xFFE1,     -1,
@@ -939,30 +951,155 @@ class Ep128EmuGUIConfiguration {
 
 // ----------------------------------------------------------------------------
 
-static bool unpackROMFiles(const std::string& romDir)
+struct CurlRecvUserData {
+  Ep128EmuConfigInstallerGUI    *gui;
+  std::vector< unsigned char >  *inBuf;
+  bool    errorFlag;
+  char    windowTitleBuf[64];
+};
+
+size_t Ep128EmuConfigInstallerGUI::curlRecvCallback(void *buf, size_t size,
+                                                    size_t n, void *userData)
 {
-  std::string fName(romDir);
-  // assume there is a path delimiter character at the end of 'romDir'
-  fName += "ep128emu_roms-2.0.10.bin";
-  Ep128Emu::Decompressor  *decompressor = (Ep128Emu::Decompressor *) 0;
-  std::FILE     *f = std::fopen(fName.c_str(), "rb");
-  if (!f)
-    return false;
+#ifdef MAKECFG_USE_CURL
+  CurlRecvUserData&             userData_ =
+      *(reinterpret_cast< CurlRecvUserData * >(userData));
+  Ep128EmuConfigInstallerGUI&   gui = *(userData_.gui);
+  std::vector< unsigned char >& inBuf = *(userData_.inBuf);
+  size_t  nBytes = n * size;
+  if ((inBuf.size() + nBytes) > 0x00100000)
+    userData_.errorFlag = true;
+  if (nBytes < 1 || userData_.errorFlag)
+    return 0;
   try {
-    std::vector< unsigned char >  buf;
-    // read and decompress input file
-    {
-      std::vector< unsigned char >  inBuf;
+    std::sprintf(userData_.windowTitleBuf, "Downloaded %lu bytes\n",
+                 (unsigned long) (inBuf.size() + nBytes));
+    gui.mainWindow->label(userData_.windowTitleBuf);
+    Fl::wait(0.0);
+    if (gui.cancelButtonPressed) {
+      userData_.errorFlag = true;
+      inBuf.clear();
+      return 0;
+    }
+    inBuf.resize(inBuf.size() + nBytes);
+    std::memcpy(&(inBuf.front()) + (inBuf.size() - nBytes), buf, nBytes);
+    return nBytes;
+  }
+  catch (std::exception) {
+    userData_.errorFlag = true;
+    inBuf.clear();
+    return 0;
+  }
+#else
+  (void) buf;
+  (void) size;
+  (void) n;
+  (void) userData;
+  return 0;
+#endif
+}
+
+// returns true if the compressed ROM package file can be deleted
+
+bool Ep128EmuConfigInstallerGUI::unpackROMFiles(const std::string& romDir)
+{
+  std::vector< unsigned char >  inBuf;
+  std::string fName;
+  std::FILE   *f = (std::FILE *) 0;
+  bool        usingLocalFile = true;
+  {
+    fName = romDir;
+    // assume there is a path delimiter character at the end of 'romDir'
+    fName += "ep128emu_roms-2.0.10.bin";
+    f = std::fopen(fName.c_str(), "rb");
+  }
+  if (f) {
+    // read input file
+    try {
       while (true) {
         int     c = std::fgetc(f);
         if (c == EOF)
           break;
-        if (inBuf.size() >= 1000000)
+        if (inBuf.size() >= 0x00100000)
           throw Ep128Emu::Exception("invalid compressed ROM data size");
         inBuf.push_back((unsigned char) (c & 0xFF));
       }
+    }
+    catch (...) {
       std::fclose(f);
-      f = (std::FILE *) 0;
+      throw;
+    }
+    std::fclose(f);
+    f = (std::FILE *) 0;
+  }
+#ifdef MAKECFG_USE_CURL
+  else if (enableROMDownload) {
+    // use cURL to download the ROM package if enabled
+    usingLocalFile = false;
+    if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
+      throw Ep128Emu::Exception("Error initializing libcurl");
+    CURL    *curl_ = (CURL *) 0;
+    for (int i = 0; i < 2; i++) {
+      const char  *romURL = (i == 0 ? MAKECFG_ROM_URL_1 : MAKECFG_ROM_URL_2);
+      try {
+        CurlRecvUserData  curlCallbackUserData;
+        curlCallbackUserData.gui = this;
+        curlCallbackUserData.inBuf = &inBuf;
+        curlCallbackUserData.errorFlag = false;
+        curlCallbackUserData.windowTitleBuf[0] = '\0';
+        curl_ = curl_easy_init();
+        if (!curl_)
+          throw Ep128Emu::Exception("Error initializing cURL download");
+        if (curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION,
+                             &curlRecvCallback) != CURLE_OK ||
+            curl_easy_setopt(curl_, CURLOPT_WRITEDATA,
+                             &curlCallbackUserData) != CURLE_OK ||
+            curl_easy_setopt(curl_, CURLOPT_URL, romURL) != CURLE_OK) {
+          throw Ep128Emu::Exception("Error configuring cURL download");
+        }
+        inBuf.clear();
+        CURLcode err = curl_easy_perform(curl_);
+        mainWindow->label("Install ep128emu configuration files");
+        if (err != CURLE_OK || curlCallbackUserData.errorFlag ||
+            inBuf.size() < 100000) {
+          if (cancelButtonPressed) {
+            i = 1;
+            throw Ep128Emu::Exception("Download cancelled");
+          }
+          throw Ep128Emu::Exception(i == 0 ?
+                                    "Error downloading " MAKECFG_ROM_URL_1
+                                    : "Error downloading " MAKECFG_ROM_URL_2);
+        }
+        curl_easy_cleanup(curl_);
+        curl_ = (CURL *) 0;
+        break;
+      }
+      catch (...) {
+        if (curl_) {
+          curl_easy_cleanup(curl_);
+          curl_ = (CURL *) 0;
+          if (i == 0) {
+            errorMessage("Error downloading from "
+                         "https://enterpriseforever.com, "
+                         "trying http://ep128.hu instead");
+            continue;
+          }
+        }
+        curl_global_cleanup();
+        throw;
+      }
+    }
+    curl_global_cleanup();
+  }
+#endif
+  else {
+    return false;
+  }
+  Ep128Emu::Decompressor  *decompressor = (Ep128Emu::Decompressor *) 0;
+  try {
+    std::vector< unsigned char >  buf;
+    // read and decompress input file
+    {
       if (inBuf.size() < 4)
         throw Ep128Emu::Exception("invalid compressed ROM data size");
       decompressor = new Ep128Emu::Decompressor();
@@ -1039,7 +1176,7 @@ static bool unpackROMFiles(const std::string& romDir)
       std::fclose(f);
     throw;
   }
-  return true;
+  return usingLocalFile;
 }
 
 // ----------------------------------------------------------------------------
@@ -1262,15 +1399,33 @@ int main(int argc, char **argv)
   Ep128Emu::setWindowIcon(gui->mainWindow, 11);
   Ep128Emu::setWindowIcon(gui->errorWindow, 12);
   if (!forceInstallFlag) {
+    try {
+      Ep128Emu::File  f("ep128cfg.dat", true);
+    }
+    catch (...) {
+      gui->enableCfgInstall = true;
+      gui->cfgInstallValuator->value(1);
+    }
+#ifdef MAKECFG_USE_CURL
+    gui->romDownloadValuator->activate();
+    gui->romDownloadLabel->activate();
+#endif
     gui->mainWindow->show();
     do {
       Fl::wait(0.05);
-    } while (gui->mainWindow->shown());
+    } while (gui->mainWindow->shown() &&
+             !(gui->okButtonPressed || gui->cancelButtonPressed));
+    if (gui->cancelButtonPressed) {
+      delete gui;
+      return 0;
+    }
   }
-  else
+  else {
+    gui->enablePresetCfgInstall = true;
     gui->enableCfgInstall = true;
+  }
   try {
-    if (unpackROMFiles(romDirectory)) {
+    if (gui->unpackROMFiles(romDirectory)) {
       // if successfully extracted, delete compressed ROM package
       std::string tmp(romDirectory);
       tmp += "ep128emu_roms-2.0.10.bin";
@@ -1342,6 +1497,10 @@ int main(int argc, char **argv)
         dsCfg = (Ep128EmuDisplaySndConfiguration *) 0;
         mCfg = (Ep128EmuMachineConfiguration *) 0;
       }
+    }
+    if (!(gui->enablePresetCfgInstall)) {
+      delete gui;
+      return 0;
     }
     for (int i = 0; machineConfigs[i].fileName; i++) {
       config = new Ep128Emu::ConfigurationDB();

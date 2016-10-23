@@ -17,6 +17,8 @@ useLuaJIT = int(ARGUMENTS.get('luajit', 0))
 cmosZ80 = int(ARGUMENTS.get('z80cmos', 0))
 # build with experimental SD card emulation
 enableSDExt = int(ARGUMENTS.get('sdext', 0))
+# use cURL library in makecfg to download the ROM package
+enableCURL = int(ARGUMENTS.get('curl', 0))
 
 #env = Environment(ENV = os.environ)
 #CacheDir("./.build_cache/win32" if mingwCrossCompile else "./.build_cache/native")
@@ -334,6 +336,8 @@ if not disableLua:
             print 'WARNING: using old Lua 5.0.x API'
 else:
     haveLua = 0
+if enableCURL:
+    enableCURL = configure.CheckCHeader('curl/curl.h')
 configure.Finish()
 
 if not havePortAudioV19:
@@ -565,6 +569,12 @@ makecfgEnvironment.Append(CPPPATH = ['./installer'])
 makecfgEnvironment.Prepend(LIBS = ['ep128emu'])
 if haveSDL:
     makecfgEnvironment.Append(LIBS = ['SDL'])
+if enableCURL:
+    makecfgEnvironment.Append(CCFLAGS = ['-DMAKECFG_USE_CURL'])
+    if not mingwCrossCompile:
+        makecfgEnvironment.Append(LIBS = ['curl'])
+    else:
+        makecfgEnvironment.Append(LIBS = ['curldll'])
 makecfgEnvironment.Append(LIBS = ['sndfile'])
 if not mingwCrossCompile:
     makecfgEnvironment.Append(LIBS = ['pthread'])
