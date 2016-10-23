@@ -670,14 +670,22 @@ if not mingwCrossCompile:
                                 "resource/eptapeedit.desktop",
                                 "resource/zx128.desktop"])
     if not buildingLinuxPackage:
+        confFileList = []
+        confFiles = 0
+        f = open("./installer/makecfg.cpp")
+        for l in f:
+          if not confFiles:
+            confFiles = "machineConfigs" in l
+          elif "};" in l:
+            confFiles = None
+            break
+          elif '"' in l:
+            confFileList += [instConfDir + '/'
+                             + l[l.find('"') + 1:l.rfind('"')]]
+        f.close()
+        f = None
         makecfgEnvironment.Command(
-            instROMDir + "/ep128emu_roms-2.0.10.bin", None,
-            ['curl -o "' + instROMDir + '/ep128emu_roms-2.0.10.bin" '
-             + '"https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/'
-             + '?action=dlattach;attach=16433"'])
-        makecfgEnvironment.Command(
-            instROMDir + "/sdext05.rom",
-            [makecfg, instROMDir + "/ep128emu_roms-2.0.10.bin"],
+            [instROMDir] + [confFileList], [makecfg],
             ['./' + programNamePrefix + 'makecfg -f "' + instDataDir + '"'])
     else:
         makecfgEnvironment.Command(instROMDir, None, [])
