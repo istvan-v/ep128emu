@@ -1,15 +1,12 @@
 #!/bin/bash
 
-if [ ! -f ~/.ep128emu/roms/sdext05.rom ];then
-  mkdir -p ~/.ep128emu/roms
-  if [ ! -f ~/.ep128emu/roms/ep128emu_roms-2.0.10.bin ];then
-    if [ -f /usr/share/ep128emu/roms/ep128emu_roms-2.0.10.bin ];then
-      cp /usr/share/ep128emu/roms/ep128emu_roms-2.0.10.bin ~/.ep128emu/roms/
-    else
-      curl -o "$HOME/.ep128emu/roms/ep128emu_roms-2.0.10.bin"   \
-      'https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/?action=dlattach;attach=16433'
-    fi
-  epmakecfg "$HOME/.ep128emu"
+if [ ! -f ~/.ep128emu/roms/ep128emu_roms-2.0.10.bin ];then
+  if [ -f /usr/share/ep128emu/roms/ep128emu_roms-2.0.10.bin ];then
+    mkdir -p ~/.ep128emu/roms
+    ( cd ~/.ep128emu/roms && epcompress -x -a /usr/share/ep128emu/roms/ep128emu_roms-2.0.10.bin )
   fi
+fi
+if [ ! -f ~/.ep128emu/config/ep128uk/EP_640k_EXOS24_SDEXT_utils.cfg ];then
+  epmakecfg -f "$HOME/.ep128emu"
 fi
 exec ep128emu.bin "$@"
