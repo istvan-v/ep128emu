@@ -28,6 +28,8 @@
 
 #ifdef WIN32
 #  include <windows.h>
+#else
+#  include <dirent.h>
 #endif
 
 static void cfgErrorFunc(void *userData, const char *msg)
@@ -205,36 +207,97 @@ int main(int argc, char **argv)
     // load base configuration (if available)
     {
       Ep128Emu::File  *f = (Ep128Emu::File *) 0;
+#ifndef WIN32
+      std::string baseDir(Ep128Emu::getEp128EmuHomeDirectory());
+      bool    makecfgNeeded = false;
+      bool    makecfgDone = false;
+#endif
       try {
         try {
           f = new Ep128Emu::File(cfgFileName, true);
         }
         catch (Ep128Emu::Exception& e) {
-          std::string cmdLine = "\"";
-          cmdLine += argv[0];
-          size_t  i = cmdLine.length();
-          while (i > 1) {
-            i--;
-            if (cmdLine[i] == '/' || cmdLine[i] == '\\') {
-              i++;
+#ifndef WIN32
+          makecfgNeeded = true;
+        }
+        while (true) {
+          if (makecfgNeeded)
+#endif
+          {
+            std::string cmdLine = "\"";
+            cmdLine += argv[0];
+            size_t  i = cmdLine.length();
+            while (i > 1) {
+              i--;
+              if (cmdLine[i] == '/' || cmdLine[i] == '\\') {
+                i++;
+                break;
+              }
+            }
+            cmdLine.resize(i);
+#ifdef WIN32
+            cmdLine += "makecfg\"";
+#else
+#  ifndef __APPLE__
+            cmdLine += "epmakecfg\" -c \"";
+#  else
+            cmdLine += "epmakecfg\" -f \"";
+#  endif
+            cmdLine += baseDir;
+            cmdLine += '"';
+            makecfgDone = true;
+#endif
+            std::system(cmdLine.c_str());
+          }
+          f = new Ep128Emu::File(cfgFileName, true);
+#ifndef WIN32
+          config->registerChunkType(*f);
+          f->processAllChunks();
+          delete f;
+          f = (Ep128Emu::File *) 0;
+          if (makecfgDone)
+            break;
+          // check if there is a valid ROM image on segment 0x00
+          makecfgNeeded = config->memory.rom[0x00].file.empty();
+          if (!makecfgNeeded) {
+            std::FILE *tmp =
+                std::fopen(config->memory.rom[0x00].file.c_str(), "rb");
+            makecfgNeeded = (!tmp);
+            if (!makecfgNeeded) {
+              std::fclose(tmp);
               break;
             }
+            // get install directory from existing configuration
+            std::string romName;
+            Ep128Emu::splitPath(config->memory.rom[0x00].file,
+                                baseDir, romName);
+            DIR     *d = (DIR *) 0;
+            if (baseDir.length() > 6 && !romName.empty() &&
+                std::strcmp(baseDir.c_str() + (baseDir.length() - 6), "/roms/")
+                == 0) {
+              baseDir.resize(baseDir.length() - 6);
+              d = opendir(baseDir.c_str());
+            }
+            if (d)
+              closedir(d);
+            else
+              baseDir = Ep128Emu::getEp128EmuHomeDirectory();
           }
-          cmdLine.resize(i);
-#ifndef WIN32
-          cmdLine += "epmakecfg\"";
-#else
-          cmdLine += "makecfg\"";
+          // invalid configuration, try running makecfg if not done yet
+          delete config;
+          config = (Ep128Emu::EmulatorConfiguration *) 0;
+          makecfgNeeded = true;
+          config = new Ep128Emu::EmulatorConfiguration(
+              *vm, *(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
+              *audioOutput);
+          config->setErrorCallback(&cfgErrorFunc, (void *) 0);
 #endif
-#ifdef __APPLE__
-          cmdLine += " -f";
-#endif
-          std::system(cmdLine.c_str());
-          f = new Ep128Emu::File(cfgFileName, true);
         }
+#ifdef WIN32
         config->registerChunkType(*f);
         f->processAllChunks();
         delete f;
+#endif
       }
       catch (...) {
         if (f)
