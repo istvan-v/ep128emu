@@ -1582,10 +1582,12 @@ readBits:
 ;   0c0h, 0a0h, ..., 82h, 81h (parity even) = 9 to 15 bits
 ; byte 1, byte 2: value range + 1
 
-    macro convertBitCnt n
+    if BUILDING_CVIEW_COM != 0
+      macro convertBitCnt n
         defb  ((0100h >> n) & 0ffh) | ((8 - n) & 80h) | ((8000h >> n) & 7fh)
         defw  0001h + (0001h << n)
-    endm
+      endm
+    endif
 
 bitCntTable:
         convertBitCnt 0
