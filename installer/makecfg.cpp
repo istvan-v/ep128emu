@@ -1227,6 +1227,7 @@ int main(int argc, char **argv)
   Ep128Emu::setGUIColorScheme(1);
 #endif
   bool    forceInstallFlag = false;
+  bool    defaultCfgInstall = false;
   std::string installDirectory = "";
   {
     int     i = 0;
@@ -1236,6 +1237,10 @@ int main(int argc, char **argv)
           break;
         if (argv[i][1] == 'f' && argv[i][2] == '\0') {
           forceInstallFlag = true;
+          continue;
+        }
+        if (argv[i][1] == 'c' && argv[i][2] == '\0') {
+          defaultCfgInstall = true;
           continue;
         }
       }
@@ -1303,6 +1308,36 @@ int main(int argc, char **argv)
   Ep128Emu::stripString(installDirectory);
   if (installDirectory.length() == 0)
     return -1;
+  Ep128EmuConfigInstallerGUI  *gui = new Ep128EmuConfigInstallerGUI();
+  Ep128Emu::setWindowIcon(gui->mainWindow, 11);
+  Ep128Emu::setWindowIcon(gui->errorWindow, 12);
+  if (!forceInstallFlag) {
+    try {
+      Ep128Emu::File  f("ep128cfg.dat", true);
+    }
+    catch (...) {
+      defaultCfgInstall = true;
+    }
+    gui->enableCfgInstall = defaultCfgInstall;
+    gui->cfgInstallValuator->value(int(defaultCfgInstall));
+#ifdef MAKECFG_USE_CURL
+    gui->romDownloadValuator->activate();
+    gui->romDownloadLabel->activate();
+#endif
+    gui->mainWindow->show();
+    do {
+      Fl::wait(0.05);
+    } while (gui->mainWindow->shown() &&
+             !(gui->okButtonPressed || gui->cancelButtonPressed));
+    if (gui->cancelButtonPressed) {
+      delete gui;
+      return 0;
+    }
+  }
+  else {
+    gui->enablePresetCfgInstall = true;
+    gui->enableCfgInstall = true;
+  }
 #ifndef WIN32
   while (installDirectory[installDirectory.length() - 1] == '/' &&
          installDirectory.length() > 1) {
@@ -1395,49 +1430,22 @@ int main(int argc, char **argv)
   configDirectory += c;
   std::string romDirectory = installDirectory + "roms";
   romDirectory += c;
-  Ep128EmuConfigInstallerGUI  *gui = new Ep128EmuConfigInstallerGUI();
-  Ep128Emu::setWindowIcon(gui->mainWindow, 11);
-  Ep128Emu::setWindowIcon(gui->errorWindow, 12);
-  if (!forceInstallFlag) {
+  if (gui->enablePresetCfgInstall | gui->enableROMDownload) {
     try {
-      Ep128Emu::File  f("ep128cfg.dat", true);
-    }
-    catch (...) {
-      gui->enableCfgInstall = true;
-      gui->cfgInstallValuator->value(1);
-    }
-#ifdef MAKECFG_USE_CURL
-    gui->romDownloadValuator->activate();
-    gui->romDownloadLabel->activate();
-#endif
-    gui->mainWindow->show();
-    do {
-      Fl::wait(0.05);
-    } while (gui->mainWindow->shown() &&
-             !(gui->okButtonPressed || gui->cancelButtonPressed));
-    if (gui->cancelButtonPressed) {
-      delete gui;
-      return 0;
-    }
-  }
-  else {
-    gui->enablePresetCfgInstall = true;
-    gui->enableCfgInstall = true;
-  }
-  try {
-    if (gui->unpackROMFiles(romDirectory)) {
-      // if successfully extracted, delete compressed ROM package
-      std::string tmp(romDirectory);
-      tmp += "ep128emu_roms-2.0.10.bin";
-      std::FILE *f = std::fopen(tmp.c_str(), "r+b");
-      if (f) {
-        std::fclose(f);
-        std::remove(tmp.c_str());
+      if (gui->unpackROMFiles(romDirectory)) {
+        // if successfully extracted, delete compressed ROM package
+        std::string tmp(romDirectory);
+        tmp += "ep128emu_roms-2.0.10.bin";
+        std::FILE *f = std::fopen(tmp.c_str(), "r+b");
+        if (f) {
+          std::fclose(f);
+          std::remove(tmp.c_str());
+        }
       }
     }
-  }
-  catch (std::exception& e) {
-    gui->errorMessage(e.what());
+    catch (std::exception& e) {
+      gui->errorMessage(e.what());
+    }
   }
   try {
     Ep128Emu::ConfigurationDB     *config = (Ep128Emu::ConfigurationDB *) 0;
