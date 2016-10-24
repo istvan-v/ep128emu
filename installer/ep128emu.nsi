@@ -205,6 +205,19 @@ Section "ep128emu source code" SecSrc
   File "..\disk\*.zip"
   File "..\disk\*.bz2"
 
+  SetOutPath "$INSTDIR\src\ep128emu.app"
+
+  SetOutPath "$INSTDIR\src\ep128emu.app\Contents"
+
+  File "..\ep128emu.app\Contents\Info.plist"
+  File "..\ep128emu.app\Contents\PkgInfo"
+
+  SetOutPath "$INSTDIR\src\ep128emu.app\Contents\MacOS"
+
+  SetOutPath "$INSTDIR\src\ep128emu.app\Contents\Resources"
+
+  File "..\ep128emu.app\Contents\Resources\ep128emu.icns"
+
   SetOutPath "$INSTDIR\src\gui"
 
   File "..\gui\*.fl"
@@ -215,7 +228,6 @@ Section "ep128emu source code" SecSrc
 
   File "..\installer\*.nsi"
   File "..\installer\*.fl"
-  File "..\installer\ep128emu"
   File "..\installer\makecfg.cpp"
 
   SetOutPath "$INSTDIR\src\licenses"
@@ -232,19 +244,6 @@ Section "ep128emu source code" SecSrc
 
   File "..\msvc\include\*.h"
 
-  SetOutPath "$INSTDIR\src\ep128emu.app"
-
-  SetOutPath "$INSTDIR\src\ep128emu.app\Contents"
-
-  File "..\ep128emu.app\Contents\Info.plist"
-  File "..\ep128emu.app\Contents\PkgInfo"
-
-  SetOutPath "$INSTDIR\src\ep128emu.app\Contents\MacOS"
-
-  SetOutPath "$INSTDIR\src\ep128emu.app\Contents\Resources"
-
-  File "..\ep128emu.app\Contents\Resources\ep128emu.icns"
-
   SetOutPath "$INSTDIR\src\resource"
 
   File "..\resource\*.rc"
@@ -252,9 +251,6 @@ Section "ep128emu source code" SecSrc
   File "..\resource\*.png"
   File "..\resource\*.desktop"
   File "..\resource\Makefile"
-  File "..\resource\cpc464emu"
-  File "..\resource\zx128emu"
-  File "..\resource\makecfg-wrapper"
 
   SetOutPath "$INSTDIR\src\roms"
 
