@@ -1150,7 +1150,7 @@ decompressData:
         add   a, high decompressTables
         ld    ixh, a
         ld    (decompressDataBlock.l3 + 2), a
-        ld    (copyLZMatch.l1 + 1), a
+        ld    (copyLZMatch.dTblH + 1), a
         push  hl
         exx
         pop   hl                        ; HL' = compressed data read address
@@ -1382,7 +1382,7 @@ copyLZMatch:
         add   a, a
         add   a, a
         add   a, low (slotBitsTableL + 32 + 1)
-.l1:    ld    h, high decompressTables  ; *
+.dTblH: ld    h, high decompressTables  ; *
         call  readBits16_               ; decode match length
         exx
         inc   l
@@ -1393,22 +1393,22 @@ copyLZMatch:
         adc   a, (hl)
         ld    b, a                      ; B = length MSB
         push  bc
-        jr    nz, .l4                   ; length >= 256 bytes ?
+        jr    nz, .l1                   ; length >= 256 bytes?
         dec   c
-        jr    z, .l5                    ; length == 1 byte ?
+        jr    z, .l2                    ; length == 1 byte?
         dec   c
-        jr    nz, .l4                   ; length >= 3 bytes ?
+        jr    nz, .l1                   ; length >= 3 bytes?
         ld    a, 20h                    ; length == 2 bytes, read 3 prefix bits
         ld    b, low slotBitsTableO2 + 1
-        jp    .l6
-.l4:    ld    b, low slotBitsTableO3 + 1    ; length >= 3 bytes,
+        jp    .l3
+.l1:    ld    b, low slotBitsTableO3 + 1    ; length >= 3 bytes,
         exx
         ld    a, d                      ; variable prefix size
-        jp    .l7
-.l5:    ld    a, 40h                    ; length == 1 byte, read 2 prefix bits
+        jp    .l4
+.l2:    ld    a, 40h                    ; length == 1 byte, read 2 prefix bits
         ld    b, low slotBitsTableO1 + 1
-.l6:    exx
-.l7:    call  readBits                  ; read offset prefix bits
+.l3:    exx
+.l4:    call  readBits                  ; read offset prefix bits
         exx
         add   a, a
         add   a, a
@@ -1424,53 +1424,53 @@ copyLZMatch:
         ld    h, a
         cp    high 4000h
         ld    a, e                      ; calculate LZ77 match read address
-        jr    c, .l23                   ; offset <= 16384 bytes?
+        jr    c, .l16                   ; offset <= 16384 bytes?
         sub   c
         pop   bc                        ; BC = length (should be >= 3 here)
         ld    l, a
         ld    a, d
         sbc   a, h
         ld    h, a                      ; set up memory paging
-        jr    c, .l21                   ; page 2 or 3?
+        jr    c, .l14                   ; page 2 or 3?
         add   a, a                      ; page 0 or 1
-        jp    p, .l10                   ; page 0?
+        jp    p, .l5                    ; page 0?
         ld    a, (iy - 1)               ; page 1
-        jr    .l12
-.l10:   ld    a, (iy - 2)
-.l11:   set   6, h                      ; read from page 1
-.l12:   out   (0b1h), a
+        jr    .l7
+.l5:    ld    a, (iy - 2)
+.l6:    set   6, h                      ; read from page 1
+.l7:    out   (0b1h), a
         inc   e                         ; copy match data
         call  z, writeBlock
         ldi
         dec   de
-.l13:   inc   e
-        jr    z, .l16
-.l14:   bit   7, h
-        jr    nz, .l17
-.l15:   ldi
+.l8:    inc   e
+        jr    z, .l11
+.l9:    bit   7, h
+        jr    nz, .l12
+.l10:   ldi
         dec   de
-        jp    pe, .l13
+        jp    pe, .l8
         jp    decompressDataBlock.l15   ; return to main decompress loop
-.l16:   call  writeBlock
-        jr    .l14
-.l17:   ld    h, high 4000h
+.l11:   call  writeBlock
+        jr    .l9
+.l12:   ld    h, high 4000h
         push  iy
         in    a, (0b1h)
-.l18:   cp    (iy)
+.l13:   cp    (iy)
         dec   iy
-        jr    nz, .l18
+        jr    nz, .l13
         ld    a, (iy + 2)
         out   (0b1h), a                 ; read next segment
         pop   iy
-        jr    .l15
-.l21:   res   7, h                      ; page 2 or 3
+        jr    .l10
+.l14:   res   7, h                      ; page 2 or 3
         add   a, a
-        jp    p, .l22                   ; page 2 ?
+        jp    p, .l15                   ; page 2?
         ld    a, (iy - 3)               ; page 3
-        jr    .l12
-.l22:   ld    a, (iy - 4)
-        jr    .l11
-.l23:   sub   c                         ; offset <= 16384 bytes:
+        jr    .l7
+.l15:   ld    a, (iy - 4)
+        jr    .l6
+.l16:   sub   c                         ; offset <= 16384 bytes:
         pop   bc                        ; BC = length
         ld    l, a
         ld    a, d
@@ -1478,20 +1478,20 @@ copyLZMatch:
         ld    h, a
         ld    a, (iy - 1)
         out   (0b1h), a
-.l24:   inc   e                         ; copy match data
-        jr    z, .l26
-.l25:   ldi
+.l17:   inc   e                         ; copy match data
+        jr    z, .l19
+.l18:   ldi
         dec   de
-        jp    pe, .l24
+        jp    pe, .l17
         jp    decompressDataBlock.l15   ; return to main decompress loop
-.l26:   call  writeBlock
-        jr    z, .l25
+.l19:   call  writeBlock
+        jr    z, .l18
         ld    a, (iy - 1)
         out   (0b1h), a
         ld    a, h
         sub   high 4000h
         ld    h, a
-        jr    .l25
+        jr    .l18
 
 ; set decode table offset (L = A) and read match parameter bits (0 to 15) to BA
 ; returns with registers swapped (EXX)
