@@ -18,7 +18,7 @@ cmosZ80 = int(ARGUMENTS.get('z80cmos', 0))
 # build with experimental SD card emulation
 enableSDExt = int(ARGUMENTS.get('sdext', 0))
 # use cURL library in makecfg to download the ROM package
-enableCURL = int(ARGUMENTS.get('curl', 0))
+enableCURL = int(ARGUMENTS.get('curl', int(not mingwCrossCompile)))
 
 #env = Environment(ENV = os.environ)
 #CacheDir("./.build_cache/win32" if mingwCrossCompile else "./.build_cache/native")
@@ -578,6 +578,11 @@ if enableCURL:
 makecfgEnvironment.Append(LIBS = ['sndfile'])
 if not mingwCrossCompile:
     makecfgEnvironment.Append(LIBS = ['pthread'])
+    if sys.platform[:5] == 'linux':
+        for envName in ['DISPLAY', 'XAUTHORITY']:
+            if envName in os.environ:
+                makecfgEnvironment.Append(ENV = {
+                                              envName : os.environ[envName] })
 else:
     makecfgEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
 
@@ -658,15 +663,11 @@ if buildUtilities:
 # -----------------------------------------------------------------------------
 
 if not mingwCrossCompile:
-    if buildingLinuxPackage:
-        makecfgEnvironment.InstallAs([instBinDir + "/ep128emu.bin",
-                                      instBinDir + "/ep128emu"],
-                                     [ep128emu, "installer/ep128emu"])
-    else:
-        makecfgEnvironment.Install(instBinDir, ep128emu)
     makecfgEnvironment.Install(instBinDir,
-                               [tapeedit, makecfg,
-                                "resource/cpc464emu", "resource/zx128emu"])
+                               [ep128emu, tapeedit, makecfg])
+    for prgName in [instBinDir + "/zx128emu", instBinDir + "/cpc464emu"]:
+        makecfgEnvironment.Command(prgName, ep128emu,
+                                   ['ln -s -f ep128emu "' + prgName + '"'])
     if buildUtilities:
         makecfgEnvironment.Install(instBinDir, [dtf, epcompress, epimgconv])
     makecfgEnvironment.Install(instPixmapDir,
@@ -696,7 +697,9 @@ if not mingwCrossCompile:
         f = None
         makecfgEnvironment.Command(
             [instROMDir] + [confFileList], [makecfg],
-            ['./' + programNamePrefix + 'makecfg -f "' + instDataDir + '"'])
+            ['./' + programNamePrefix + 'makecfg -'
+             + ['f "', 'c "'][int('DISPLAY' in makecfgEnvironment['ENV'])]
+             + instDataDir + '"'])
     else:
         makecfgEnvironment.Command(instROMDir, None, [])
     makecfgEnvironment.Install(instConfDir,
