@@ -113,15 +113,12 @@ int main(int argc, char **argv)
         colorScheme = (colorScheme >= 0 && colorScheme <= 3 ? colorScheme : 0);
       }
       else if (std::strcmp(argv[i], "-ep128") == 0) {
-        cfgFileName = "ep128cfg.dat";
         machineType = 0;
       }
       else if (std::strcmp(argv[i], "-zx") == 0) {
-        cfgFileName = "zx128cfg.dat";
         machineType = 1;
       }
       else if (std::strcmp(argv[i], "-cpc") == 0) {
-        cfgFileName = "cpc_cfg.dat";
         machineType = 2;
       }
       else if (std::strcmp(argv[i], "-opengl") == 0) {
@@ -189,10 +186,12 @@ int main(int argc, char **argv)
         machineType = getSnapshotType(*snapshotFile);
     }
     if (machineType == 1) {
+      cfgFileName = "zx128cfg.dat";
       vm = new ZX128::ZX128VM(*(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
                               *audioOutput);
     }
     else if (machineType == 2) {
+      cfgFileName = "cpc_cfg.dat";
       vm = new CPC464::CPC464VM(*(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
                                 *audioOutput);
     }
