@@ -80,6 +80,20 @@ int main(int argc, char **argv)
 
 #ifdef WIN32
   timeBeginPeriod(1U);
+#else
+  // set machine type if the program name in argv[0] begins with "zx" or "cpc"
+  for (size_t i = 0; argv[0][i] != '\0'; i++) {
+    if (i == 0 || argv[0][i] == '/') {
+      if (argv[0][i] == '/')
+        i++;
+      if (std::strncmp(argv[0] + i, "zx", 2) == 0)
+        machineType = 1;
+      else if (std::strncmp(argv[0] + i, "cpc", 3) == 0)
+        machineType = 2;
+      else
+        machineType = -1;
+    }
+  }
 #endif
   try {
     // find out machine type to be emulated
