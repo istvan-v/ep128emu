@@ -1246,12 +1246,10 @@ slotBitsTableO3     equ     slotBitsTableO2 + (nOffs2Slots * 4)
 decodeTableEnd      equ     slotBitsTable + (totalSlots * 4)
 
 decompressDataBlock:
-        exx
-        call  read8Bits                 ; read number of symbols - 1 (BC)
+        call  read8Bits_                ; read number of symbols - 1 (BC)
         exx
         ld    c, a                      ; NOTE: MSB is in C, and LSB is in B
-        exx
-        call  read8Bits
+        call  read8Bits_
         exx
         ld    b, a
         inc   b
@@ -1283,23 +1281,23 @@ decompressDataBlock:
         add   a, low ((nLengthSlots + nOffs1Slots + nOffs2Slots) * 4)
         ld    ixl, a
 .l3:    ld    de, decompressTables      ; * initialize decode tables
-        scf
-.l4:    ld    bc, 1                     ; set initial base value (len=3, offs=2)
-        rl    c                         ; 2 is added to correct for the LDIs
+        defb  01h                       ; = LD BC,nnnn, 00h = NOP
+.l4:    ld    bc, 0                     ; set initial base value (len=1, offs=0)
+        inc   c                         ; 1 is added to correct for the LDI
 .l5:    ld    a, 10h
         exx
         call  readBits
         exx
-        ld    hl, bitCntTable
-        add   a, a
+        ld    l, a
         add   a, a
         add   a, l
+        add   a, low bitCntTable
         ld    l, a
-        adc   a, h
+        adc   a, high bitCntTable
         sub   l
         ld    h, a
-        ldi                             ; copy read bit count (MSB, LSB)
-        ldi
+        inc   e
+        ldi                             ; copy read bit count
         ld    a, c                      ; store and update base value
         ld    (de), a
         inc   e
@@ -1383,23 +1381,11 @@ copyLZMatch:
         exx
         add   a, a
         add   a, a
-        add   a, low (slotBitsTableL + 32)
-        ld    l, a                      ; decode match length
+        add   a, low (slotBitsTableL + 32 + 1)
 .l1:    ld    h, high decompressTables  ; *
-        ld    a, (hl)
+        call  readBits16_               ; decode match length
+        exx
         inc   l
-        or    a
-        jp    z, .l2
-        exx
-        call  readBits
-        exx
-.l2:    ld    b, a
-        ld    a, (hl)
-        inc   l
-        or    a
-        exx
-        call  nz, readBits
-        exx
         add   a, (hl)
         inc   l
         ld    c, a                      ; C = length LSB
@@ -1413,34 +1399,23 @@ copyLZMatch:
         dec   c
         jr    nz, .l4                   ; length >= 3 bytes ?
         ld    a, 20h                    ; length == 2 bytes, read 3 prefix bits
-        ld    b, low slotBitsTableO2
+        ld    b, low slotBitsTableO2 + 1
         jp    .l6
-.l4:    ld    b, low slotBitsTableO3    ; length >= 3 bytes,
+.l4:    ld    b, low slotBitsTableO3 + 1    ; length >= 3 bytes,
         exx
         ld    a, d                      ; variable prefix size
         jp    .l7
 .l5:    ld    a, 40h                    ; length == 1 byte, read 2 prefix bits
-        ld    b, low slotBitsTableO1
+        ld    b, low slotBitsTableO1 + 1
 .l6:    exx
 .l7:    call  readBits                  ; read offset prefix bits
         exx
         add   a, a
         add   a, a
         add   a, b
-        ld    l, a                      ; decode match offset
-        ld    a, (hl)
+        call  readBits16_               ; decode match offset
+        exx
         inc   l
-        or    a
-        exx
-        call  nz, readBits
-        exx
-        ld    b, a
-        ld    a, (hl)
-        inc   l
-        or    a
-        exx
-        call  nz, readBits
-        exx
         add   a, (hl)
         inc   l
         ld    c, a
@@ -1449,22 +1424,26 @@ copyLZMatch:
         ld    h, a
         cp    high 4000h
         ld    a, e                      ; calculate LZ77 match read address
-        jr    c, .l23                   ; offset <= 16384 bytes ?
+        jr    c, .l23                   ; offset <= 16384 bytes?
         sub   c
-        pop   bc                        ; BC = length
+        pop   bc                        ; BC = length (should be >= 3 here)
         ld    l, a
         ld    a, d
         sbc   a, h
         ld    h, a                      ; set up memory paging
-        jr    c, .l21                   ; page 2 or 3 ?
+        jr    c, .l21                   ; page 2 or 3?
         add   a, a                      ; page 0 or 1
-        jp    p, .l10                   ; page 0 ?
+        jp    p, .l10                   ; page 0?
         ld    a, (iy - 1)               ; page 1
         jr    .l12
 .l10:   ld    a, (iy - 2)
 .l11:   set   6, h                      ; read from page 1
 .l12:   out   (0b1h), a
-.l13:   inc   e                         ; copy match data
+        inc   e                         ; copy match data
+        call  z, writeBlock
+        ldi
+        dec   de
+.l13:   inc   e
         jr    z, .l16
 .l14:   bit   7, h
         jr    nz, .l17
@@ -1514,8 +1493,27 @@ copyLZMatch:
         ld    h, a
         jr    .l25
 
+; set decode table offset (L = A) and read match parameter bits (0 to 15) to BA
+; returns with registers swapped (EXX)
+
+readBits16_:
+        ld    l, a
+        xor   a
+        ld    b, a
+        or    (hl)
+        exx
+        ret   z                         ; 0 bits?
+        jp    po, readBits              ; 1 to 8 bits?
+        rla                             ; 9 to 15 bits
+        call  readBits
+        exx
+        ld    b, a
+
+read8Bits_:
+        exx
+
 read8Bits:
-        ld    a, 001h
+        ld    a, 01h
 
 readBits:
         sla   e
@@ -1578,11 +1576,34 @@ readBits:
         adc   a, a
         ret
 
+; byte 0: number of bits to read
+;   00h = none
+;   80h, 40h, ..., 02h, 01h (parity odd) = 1 to 8 bits
+;   0c0h, 0a0h, ..., 82h, 81h (parity even) = 9 to 15 bits
+; byte 1, byte 2: value range + 1
+
+    macro convertBitCnt n
+        defb  ((0100h >> n) & 0ffh) | ((8 - n) & 80h) | ((8000h >> n) & 7fh)
+        defw  0001h + (0001h << n)
+    endm
+
 bitCntTable:
-        defw  0000h, 0003h, 8000h, 0004h, 4000h, 0006h, 2000h, 000ah
-        defw  1000h, 0012h, 0800h, 0022h, 0400h, 0042h, 0200h, 0082h
-        defw  0100h, 0102h, 0180h, 0202h, 0140h, 0402h, 0120h, 0802h
-        defw  0110h, 1002h, 0108h, 2002h, 0104h, 4002h, 0102h, 8002h
+        convertBitCnt 0
+        convertBitCnt 1
+        convertBitCnt 2
+        convertBitCnt 3
+        convertBitCnt 4
+        convertBitCnt 5
+        convertBitCnt 6
+        convertBitCnt 7
+        convertBitCnt 8
+        convertBitCnt 9
+        convertBitCnt 10
+        convertBitCnt 11
+        convertBitCnt 12
+        convertBitCnt 13
+        convertBitCnt 14
+        convertBitCnt 15
 
 ; =============================================================================
 
