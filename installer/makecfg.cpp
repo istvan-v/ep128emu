@@ -38,6 +38,10 @@
 
 #include <vector>
 
+#ifndef MAKECFG_ROM_PKG_NAME
+#  define MAKECFG_ROM_PKG_NAME  "ep128emu_roms-2.0.10.bin"
+#endif
+
 #ifdef MAKECFG_USE_CURL
 #  ifndef MAKECFG_ROM_URL_1
 #    define MAKECFG_ROM_URL_1   "https://enterpriseforever.com/"        \
@@ -45,7 +49,7 @@
                                 "?action=dlattach;attach=16433"
 #  endif
 #  ifndef MAKECFG_ROM_URL_2
-#    define MAKECFG_ROM_URL_2   "http://ep128.hu/Emu/ep128emu_roms-2.0.10.bin"
+#    define MAKECFG_ROM_URL_2   "http://ep128.hu/Emu/" MAKECFG_ROM_PKG_NAME
 #  endif
 #  include <curl/curl.h>
 #endif
@@ -1010,8 +1014,14 @@ bool Ep128EmuConfigInstallerGUI::unpackROMFiles(const std::string& romDir)
   {
     fName = romDir;
     // assume there is a path delimiter character at the end of 'romDir'
-    fName += "ep128emu_roms-2.0.10.bin";
+    fName += MAKECFG_ROM_PKG_NAME;
     f = std::fopen(fName.c_str(), "rb");
+#if defined(__linux) || defined(__linux__)
+    if (!f) {
+      usingLocalFile = false;
+      f = std::fopen("/usr/share/ep128emu/roms/" MAKECFG_ROM_PKG_NAME, "rb");
+    }
+#endif
   }
   if (f) {
     // read input file
@@ -1435,7 +1445,7 @@ int main(int argc, char **argv)
       if (gui->unpackROMFiles(romDirectory)) {
         // if successfully extracted, delete compressed ROM package
         std::string tmp(romDirectory);
-        tmp += "ep128emu_roms-2.0.10.bin";
+        tmp += MAKECFG_ROM_PKG_NAME;
         std::FILE *f = std::fopen(tmp.c_str(), "r+b");
         if (f) {
           std::fclose(f);
