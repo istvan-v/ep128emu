@@ -4,18 +4,16 @@ BUILD_EXTENSION_ROM     equ     1
     if BUILD_EXTENSION_ROM == 0
         output  "uncompress.ext"
         org     0bffah
-        defb    000h, 006h
-        defw    codeEnd - codeBegin
-        block   12, 000h
+        defw    0600h, codeEnd - codeBegin, 0, 0, 0, 0, 0, 0
     else
         output  "uncompress.rom"
         org     0c000h
         defm    "EXOS_ROM"
-        defw    00000h
+        defw    0000h
     endif
 
     macro exos n
-        rst   030h
+        rst   30h
         defb  n
     endm
 
@@ -114,23 +112,23 @@ errorString:
 
 ; -----------------------------------------------------------------------------
 
-inFileReadBuffer        equ     04000h
-inFileReadBufferP0      equ     inFileReadBuffer - 04000h
-inFileReadBufSize       equ     01000h
-archiveIndexBuf         equ     05000h
-archiveIndexBufP0       equ     archiveIndexBuf - 04000h
-archiveMaxFiles         equ     (06000h - archiveIndexBuf) / 32
-decompReadBuffer        equ     06000h
-decompReadBufferP0      equ     decompReadBuffer - 04000h
-inputFileName           equ     06400h
-outputFileName          equ     06500h
-decompTablesBase        equ     06600h
-decompTablesBaseP0      equ     decompTablesBase - 04000h
-variablesBase           equ     066d4h
-variablesBaseP0         equ     variablesBase - 04000h
-decompStack             equ     06700h
-decompStackTop          equ     decompStack + 00100h
-decompStackTopP0        equ     decompStackTop - 04000h
+inFileReadBuffer        equ     4000h
+inFileReadBufferP0      equ     inFileReadBuffer - 4000h
+inFileReadBufSize       equ     1000h
+archiveIndexBuf         equ     5000h
+archiveIndexBufP0       equ     archiveIndexBuf - 4000h
+archiveMaxFiles         equ     (6000h - archiveIndexBuf) / 32
+decompReadBuffer        equ     6000h
+decompReadBufferP0      equ     decompReadBuffer - 4000h
+inputFileName           equ     6400h
+outputFileName          equ     6500h
+decompTablesBase        equ     6600h
+decompTablesBaseP0      equ     decompTablesBase - 4000h
+variablesBase           equ     66d4h
+variablesBaseP0         equ     variablesBase - 4000h
+decompStack             equ     6700h
+decompStackTop          equ     decompStack + 0100h
+decompStackTopP0        equ     decompStackTop - 4000h
 
 ; IX +  0:  input file bytes remaining
 ; IX +  2:  input file channel
@@ -1470,10 +1468,10 @@ readCompressedData:
 cmdNameLength   equ     10              ; length of "UNCOMPRESS"
 cmdName:
 versionMsg:
-        defm  "UNCOMPRESS version 1.03\r\n"
-        defb  000h
+        defm  "UNCOMPRESS version 1.04\r\n"
+        defb  00h
 usageMsg:
-        defm  "UNCOMPRESS version 1.03\r\n"
+        defm  "UNCOMPRESS version 1.04\r\n"
         defm  "Usage:\r\n"
         defm  "  UNCOMPRESS <infile> <outfile>\r\n"
         defm  "    uncompress 'infile' to 'outfile'\r\n"
@@ -1489,29 +1487,29 @@ usageMsg:
         defm  "    test all input files\r\n"
         defm  "  UNCOMPRESS /TA <infile>\r\n"
         defm  "    test compressed archive\r\n"
-        defb  000h
+        defb  00h
 
 testMsg1:
         defm  ": "
-        defb  000h
+        defb  00h
 
 testMsg2:
         defm  "OK"
 
 newLineMsg:
         defm  "\r\n"
-        defb  000h
+        defb  00h
 
 nextVolumeMsg:
         defm  ": ENTER:OK, STOP:abort\r\n"
-        defb  000h
+        defb  00h
 
 tmpFileName:
         defb  12
         defm  "UNCOMP__.TMP"
 
 errorTable:
-        defb  000h
+        defb  00h
 
 ; =============================================================================
 
@@ -1525,7 +1523,7 @@ decompressData:
         pop   hl                        ; HL' = compressed data read address
         res   7, h                      ; (on page 0)
         res   6, h
-        ld    e, 080h                   ; initialize shift register
+        ld    e, 80h                    ; initialize shift register
         exx
         ld    ((variablesBase & 0ff00h) + decodeTableEnd), sp
         call  setDecompressPaging
@@ -1545,7 +1543,7 @@ decompressDone:
         ld    ix, variablesBase
     if NO_BORDER_FX == 0
         xor   a                         ; and border color
-        out   (081h), a
+        out   (81h), a
     endif
         exx
         push  hl
@@ -1585,7 +1583,7 @@ getSegment:
         push  iy
         ld    ix, variablesBase
         ld    a, (iy - 1)
-        ld    bc, 04000h
+        ld    bc, 4000h
         call  writeSegment
         pop   iy
         pop   ix
@@ -1693,7 +1691,7 @@ nOffs2Slots             equ 8
 maxOffs3Slots           equ 32
 totalSlots              equ nLengthSlots+nOffs1Slots+nOffs2Slots+maxOffs3Slots
 ; NOTE: the upper byte of the address of all table entries must be the same
-slotBitsTable           equ 00000h
+slotBitsTable           equ 0000h
 slotBitsTableL          equ slotBitsTable
 slotBitsTableO1         equ slotBitsTableL + (nLengthSlots * 4)
 slotBitsTableO2         equ slotBitsTableO1 + (nOffs1Slots * 4)
@@ -1703,17 +1701,14 @@ decodeTableEnd          equ slotBitsTable + (totalSlots * 4)
 decompressDataBlock:
         ld    ixl, low variablesBase
         bit   0, (ix + haveStartAddress.offs)
-        jr    z, .l1
         exx
+        jr    z, .l1
         call  read8Bits                 ; ignore start address
         call  read8Bits
-        defb  0feh                      ; = CP nn
-.l1:    exx
-        call  read8Bits                 ; read number of symbols - 1 (BC)
+.l1:    call  read8Bits                 ; read number of symbols - 1 (BC)
         exx
         ld    c, a                      ; NOTE: MSB is in C, and LSB is in B
-        exx
-        call  read8Bits
+        call  read8Bits_
         exx
         ld    b, a
         inc   b
@@ -1745,23 +1740,23 @@ decompressDataBlock:
         add   a, low ((nLengthSlots + nOffs1Slots + nOffs2Slots) * 4)
         ld    (ix - 1), a
         ld    de, decompTablesBaseP0    ; initialize decode tables
-        scf
-.l4:    ld    bc, 1                     ; set initial base value (len=3, offs=2)
-        rl    c                         ; 2 is added to correct for the LDIs
+        defb  01h                       ; = LD BC,nnnn, 00h = NOP
+.l4:    ld    bc, 0                     ; set initial base value (len=1, offs=0)
+        inc   c                         ; 1 is added to correct for the LDI
 .l5:    ld    a, 10h
         exx
         call  readBits
         exx
-        ld    hl, bitCntTable
-        add   a, a
+        ld    l, a
         add   a, a
         add   a, l
+        add   a, low bitCntTable
         ld    l, a
-        adc   a, h
+        adc   a, high bitCntTable
         sub   l
         ld    h, a
-        ldi                             ; copy read bit count (MSB, LSB)
-        ldi
+        inc   e
+        ldi                             ; copy read bit count
         ld    a, c                      ; store and update base value
         ld    (de), a
         inc   e
@@ -1841,27 +1836,19 @@ decompressDataBlock:
         pop   af                        ; return with last block flag
         ret                             ; (A = 1, Z = 0 if last block)
 
+lzOffsetError:
+        ld    a, 0e6h                   ; .ESC (invalid escape sequence)
+        jp    decompressDone
+
 copyLZMatch:
         exx
         add   a, a
         add   a, a
-        add   a, low (slotBitsTableL + 32)
-        ld    l, a                      ; decode match length
+        add   a, low (slotBitsTableL + 32 + 1)
         ld    h, high decompTablesBaseP0
-        ld    a, (hl)
+        call  readBits16_               ; decode match length
+        exx
         inc   l
-        or    a
-        jp    z, .l1
-        exx
-        call  readBits
-        exx
-.l1:    ld    b, a
-        ld    a, (hl)
-        inc   l
-        or    a
-        exx
-        call  nz, readBits
-        exx
         add   a, (hl)
         inc   l
         ld    c, a                      ; C = length LSB
@@ -1875,61 +1862,55 @@ copyLZMatch:
         dec   c
         jr    nz, .l4                   ; length >= 3 bytes ?
         ld    a, 20h                    ; length == 2 bytes, read 3 prefix bits
-        ld    b, low slotBitsTableO2
+        ld    b, low slotBitsTableO2 + 1
         jp    .l6
-.l4:    ld    b, low slotBitsTableO3    ; length >= 3 bytes,
+.l4:    ld    b, low slotBitsTableO3 + 1    ; length >= 3 bytes,
         exx
         ld    a, d                      ; variable prefix size
         jp    .l7
 .l5:    ld    a, 40h                    ; length == 1 byte, read 2 prefix bits
-        ld    b, low slotBitsTableO1
+        ld    b, low slotBitsTableO1 + 1
 .l6:    exx
 .l7:    call  readBits                  ; read offset prefix bits
         exx
         add   a, a
         add   a, a
         add   a, b
-        ld    l, a                      ; decode match offset
-        ld    a, (hl)
+        call  readBits16_               ; decode match offset
+        exx
         inc   l
-        or    a
-        exx
-        call  nz, readBits
-        exx
-        ld    b, a
-        ld    a, (hl)
-        inc   l
-        or    a
-        exx
-        call  nz, readBits
-        exx
         add   a, (hl)
         inc   l
         ld    c, a
         ld    a, b
         adc   a, (hl)
+        jr    c, lzOffsetError          ; offset > 65536 bytes is not supported
         ld    h, a
         cp    high 4000h
         ld    a, e                      ; calculate LZ77 match read address
     if NO_BORDER_FX == 0
-        out   (081h), a
+        out   (81h), a
     endif
-        jr    c, .l23                   ; offset <= 16384 bytes ?
+        jr    c, .l23                   ; offset <= 16384 bytes?
         sub   c
-        pop   bc                        ; BC = length
+        pop   bc                        ; BC = length (should be >= 3 here)
         ld    l, a
         ld    a, d
         sbc   a, h
         ld    h, a                      ; set up memory paging
-        jr    c, .l21                   ; page 2 or 3 ?
+        jr    c, .l21                   ; page 2 or 3?
         add   a, a                      ; page 0 or 1
-        jp    p, .l10                   ; page 0 ?
+        jp    p, .l10                   ; page 0?
         ld    a, (iy - 1)               ; page 1
         jr    .l12
 .l10:   ld    a, (iy - 2)
 .l11:   set   6, h                      ; read from page 1
 .l12:   out   (0b1h), a
-.l13:   inc   e                         ; copy match data
+        inc   e                         ; copy match data
+        call  z, writeBlock
+        ldi
+        dec   de
+.l13:   inc   e
         jr    z, .l16
 .l14:   bit   7, h
         jr    nz, .l17
@@ -1979,8 +1960,27 @@ copyLZMatch:
         ld    h, a
         jr    .l25
 
+; set decode table offset (L = A) and read match parameter bits (0 to 15) to BA
+; returns with registers swapped (EXX)
+
+readBits16_:
+        ld    l, a
+        xor   a
+        ld    b, a
+        or    (hl)
+        exx
+        ret   z                         ; 0 bits?
+        jp    po, readBits              ; 1 to 8 bits?
+        rla                             ; 9 to 15 bits
+        call  readBits
+        exx
+        ld    b, a
+
+read8Bits_:
+        exx
+
 read8Bits:
-        ld    a, 001h
+        ld    a, 01h
 
 readBits:
         sla   e
@@ -2043,11 +2043,34 @@ readBits:
         adc   a, a
         ret
 
+; byte 0: number of bits to read
+;   00h = none
+;   80h, 40h, ..., 02h, 01h (parity odd) = 1 to 8 bits
+;   0c0h, 0a0h, ..., 82h, 81h (parity even) = 9 to 15 bits
+; byte 1, byte 2: base value + 1
+
+    macro convertBitCnt n
+        defb  ((0100h >> n) & 0ffh) | ((8 - n) & 80h) | ((8000h >> n) & 7fh)
+        defw  0001h + (0001h << n)
+    endm
+
 bitCntTable:
-        defw  0000h, 0003h, 8000h, 0004h, 4000h, 0006h, 2000h, 000ah
-        defw  1000h, 0012h, 0800h, 0022h, 0400h, 0042h, 0200h, 0082h
-        defw  0100h, 0102h, 0180h, 0202h, 0140h, 0402h, 0120h, 0802h
-        defw  0110h, 1002h, 0108h, 2002h, 0104h, 4002h, 0102h, 8002h
+        convertBitCnt 0
+        convertBitCnt 1
+        convertBitCnt 2
+        convertBitCnt 3
+        convertBitCnt 4
+        convertBitCnt 5
+        convertBitCnt 6
+        convertBitCnt 7
+        convertBitCnt 8
+        convertBitCnt 9
+        convertBitCnt 10
+        convertBitCnt 11
+        convertBitCnt 12
+        convertBitCnt 13
+        convertBitCnt 14
+        convertBitCnt 15
 
 codeEnd:
 
