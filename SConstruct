@@ -681,7 +681,8 @@ if not mingwCrossCompile:
                                 "resource/eptapeedit.desktop",
                                 "resource/zx128.desktop"])
     if not buildingLinuxPackage:
-        confFileList = []
+        confFileList = [instConfDir + '/EP_Keyboard_HU.cfg',
+                        instConfDir + '/EP_Keyboard_US.cfg']
         confFiles = 0
         f = open("./installer/makecfg.cpp")
         for l in f:
