@@ -1017,7 +1017,7 @@ bool Ep128EmuConfigInstallerGUI::unpackROMFiles(const std::string& romDir)
     fName += MAKECFG_ROM_PKG_NAME;
     f = std::fopen(fName.c_str(), "rb");
 #if defined(__linux) || defined(__linux__)
-    if (!f) {
+    if (!f && !enableROMDownload) {
       usingLocalFile = false;
       f = std::fopen("/usr/share/ep128emu/roms/" MAKECFG_ROM_PKG_NAME, "rb");
     }
