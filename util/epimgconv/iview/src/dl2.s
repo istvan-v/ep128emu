@@ -3,30 +3,43 @@ NO_BORDER_FX            equ     0
 moduleType              equ     'd'
 
 loadModule:
-        ld    a, b                      ; channel number must be 1
-        cp    1
-        ld    a, 0fbh                   ; .ICHAN
-        ret   nz
+        ld    a, b                      ; channel number
         ld    l, e
         ld    h, d
         ld    de, 0060h                 ; copy module header to 0. page
         ld    bc, 16
         ldir
-        ld    l, c                      ; if loading a module:
-        defb  0eah                      ; = JP PE, nnnn
-.l1:    exos  3                         ; close all channels,
-        ld    a, l                      ; but keep the input file open
-        dec   l
+        ld    l, 1
+        ld    h, a                      ; if loading a module:
+.l1:    ld    a, l
+        dec   a
+        cp    h                         ; close all channels,
+        jr    z, .l2                    ; but keep the input file open
+        exos  3
+.l2:    inc   l
         jr    nz, .l1
-        ld    c, 40h                    ; free all allocated memory
+        ld    a, 1
+        cp    h
+        jr    z, .l4                    ; channel number is 1?
+        ld    de, dummyFileName
+        exos  1
+.l3:    jp    nz, resetRoutine
+        inc   a
+        ld    c, h
+        exos  17
+        jr    nz, .l3
+.l4:    ld    c, 40h                    ; free all allocated memory
         call  exosReset_SP0100
         jp    loadCompressedFile.l3
 
 shortHelpString:
-        defm  "DL2   version 1.03\r\n"
+        defm  "DL2   version 1.04\r\n"
         defb  00h
 longHelpString:
         defb  00h
+dummyFileName:
+        defb  8
+        defm  "PRINTER:"
 
 ; =============================================================================
 
@@ -135,34 +148,26 @@ loadCompressedFile_:
         jr    c, .l1
         ld    de, dtfDecompressInit
         ld    hl, dtfCodeTable
-        push  bc
-.l1:    push  de
+.l1:    push  bc
+        push  de
         in    a, (0b0h)
         out   (0b1h), a
-.l2:    ld    c, (hl)                   ; BC = code block size
-        inc   hl
-        ld    b, (hl)
-        inc   hl
+        di
+        ld    sp, hl
+        jr    .l3
+.l2:    pop   hl
+        pop   de
+        ldir
+.l3:    pop   bc                        ; BC = code block size
         ld    a, c
         or    b
-        jr    z, .l3                    ; all loader code has been copied ?
-        ld    e, (hl)
-        inc   hl
-        ld    d, (hl)
-        inc   hl
-        push  de
-        ld    e, (hl)
-        inc   hl
-        ld    d, (hl)
-        inc   hl
-        ex    (sp), hl
-        ldir
+        jr    nz, .l2                   ; more loader code needs to be copied?
+        ld    sp, 00fch                 ; 2 * PUSH after LD SP, 0100H
+        ei
         pop   hl
-        jr    .l2
-.l3:    pop   hl
-        bit   3, l
-        jr    nz, .l4                   ; LZ format (started with RST 28H) ?
         pop   bc
+        bit   3, l
+        jr    nz, .l4                   ; LZ format (started with RST 28H)?
         ld    (dtfDecompressMain.l1 + 1), bc    ; store TOM block size
         ld    a, 0fdh
         out   (0b1h), a
