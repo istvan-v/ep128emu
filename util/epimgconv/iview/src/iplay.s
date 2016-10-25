@@ -52,11 +52,11 @@ usingFILEExtension      equ     variablesEnd - 37
 ; NOTE: this is overwritten by the decompressor
 inputFileHeader         equ     variablesEnd - 64
 fileNameBuffer          equ     variablesEnd
-playerDataEnd           equ     fileNameBuffer + 00100h
+playerDataEnd           equ     fileNameBuffer + 0100h
   if BUFFERING_MODE < 2
 fileReadBufferBegin     equ     playerDataEnd
   else
-fileReadBufferBegin     equ     03c00h
+fileReadBufferBegin     equ     3c00h
   endif
 
 ; -----------------------------------------------------------------------------
@@ -76,18 +76,19 @@ loadModule:
         call  copyPlayerCode
         pop   hl
         pop   bc
-        ld    a, b
-        ld    (inputFileChannel), a
         ld    a, 1
         ld    (loadingModule), a
+        ld    a, b
+        ld    (inputFileChannel), a
         ld    de, inputFileHeader
         ld    bc, 16
         ldir
-        ld    l, 0                      ; if loading a module:
-.l1:    ld    a, (inputFileChannel)
-        cp    l                         ; close all channels,
+        ld    l, 1
+        ld    h, a                      ; if loading a module:
+.l1:    ld    a, l
+        dec   a
+        cp    h                         ; close all channels,
         jr    z, .l2                    ; but keep the input file open
-        ld    a, l
         exos  3
 .l2:    inc   l
         jr    nz, .l1
@@ -101,10 +102,9 @@ copyPlayerCode:
         ld    de, playerCodeBegin
         ld    bc, playerCodeEnd - playerCodeBegin
         ldir
-        ld    h, d
         ld    l, e
-        xor   a
-        ld    (de), a
+        ld    h, d
+        ld    (hl), c
         inc   de
         ld    bc, playerDataEnd - (playerCodeEnd + 1)
         ldir
@@ -112,15 +112,15 @@ copyPlayerCode:
 
 shortHelpString:
         defm  "IPLAY version 1.04\r\n"
-        defb  000h
+        defb  00h
 longHelpString:
-        defb  000h
+        defb  00h
 
 loaderCodeEnd:
 
 ; =============================================================================
 
-        phase 00100h
+        phase 0100h
 
 playerCodeBegin:
 
