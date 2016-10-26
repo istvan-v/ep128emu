@@ -490,12 +490,13 @@ void Ep128EmuGUI::createMenus()
   if (typeid(vm) != typeid(Ep128::Ep128VM))
 #endif
   {
-    diskConfigWindow->sdCardImageGroup->hide();
     machineConfigWindow->vmEnableSDExtValuator->hide();
     machineConfigWindow->vmEnableFileIOValuator->resize(30, 248, 250, 25);
     machineConfigWindow->sdExtROMFileNameValuator->hide();
     machineConfigWindow->sdExtROMFileNameButton->hide();
 #ifndef ENABLE_SDEXT
+    diskConfigWindow->ideConfigGroup->label("IDE");
+    diskConfigWindow->sdCardImageGroup->hide();
   }
   if (typeid(vm) != typeid(Ep128::Ep128VM)) {
 #endif
@@ -1399,74 +1400,16 @@ void Ep128EmuGUI::screenshotCallback(void *userData,
   std::FILE     *f = (std::FILE *) 0;
   try {
     fName = gui_.screenshotFileName;
-    if (!gui_.browseFile(fName, gui_.screenshotDirectory, "BMP files\t*.bmp",
+    if (!gui_.browseFile(fName, gui_.screenshotDirectory, "PNG files\t*.png",
                          Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
                          "Save screenshot"))
       return;
-    Ep128Emu::addFileNameExtension(fName, "bmp");
+    Ep128Emu::addFileNameExtension(fName, "png");
     gui_.screenshotFileName = fName;
     f = std::fopen(fName.c_str(), "wb");
     if (!f)
       throw Ep128Emu::Exception("error opening screenshot file");
-    unsigned char tmpBuf[1078];
-    for (int i = 0; i < 54; i++)
-      tmpBuf[i] = 0x00;
-    for (int i = 0; i < 1024; i += 4) {         // palette:
-      tmpBuf[i + 54] = buf[(i >> 2) * 3 + 2];   // B
-      tmpBuf[i + 55] = buf[(i >> 2) * 3 + 1];   // G
-      tmpBuf[i + 56] = buf[(i >> 2) * 3];       // R
-      tmpBuf[i + 57] = 0x00;                    // unused
-    }
-    if (std::fwrite(&(tmpBuf[0]), sizeof(unsigned char), 1078, f) != 1078) {
-      throw Ep128Emu::Exception("error writing screenshot file "
-                                "- is the disk full ?");
-    }
-    size_t  compressedSize = 0;
-    for (int yc = h_; yc-- > 0; ) {
-      // RLE encode line
-      size_t  nBytes = rleCompressLine(&(tmpBuf[0]),
-                                       &(buf[(yc * w_) + 768]), size_t(w_));
-      if (yc == 0) {
-        tmpBuf[nBytes++] = 0x00;        // end of file
-        tmpBuf[nBytes++] = 0x01;
-      }
-      compressedSize += nBytes;
-      if (std::fwrite(&(tmpBuf[0]), sizeof(unsigned char), nBytes, f)
-          != nBytes) {
-        throw Ep128Emu::Exception("error writing screenshot file "
-                                  "- is the disk full ?");
-      }
-    }
-    if (std::fseek(f, 0L, SEEK_SET) < 0)
-      throw Ep128Emu::Exception("error writing screenshot file header");
-    for (int i = 0; i < 54; i++)
-      tmpBuf[i] = 0x00;
-    tmpBuf[0] = 0x42;                   // 'B'
-    tmpBuf[1] = 0x4D;                   // 'M'
-    tmpBuf[2] = (unsigned char) ((compressedSize + 1078) & 0xFF);
-    tmpBuf[3] = (unsigned char) (((compressedSize + 1078) >> 8) & 0xFF);
-    tmpBuf[4] = (unsigned char) ((compressedSize + 1078) >> 16);
-    tmpBuf[10] = 0x36;                  // bitmap data offset (1078) LSB
-    tmpBuf[11] = 0x04;                  // bitmap data offset (1078) MSB
-    tmpBuf[14] = 0x28;                  // size of BITMAPINFOHEADER
-    tmpBuf[18] = (unsigned char) (w_ & 0xFF);   // image width
-    tmpBuf[19] = (unsigned char) (w_ >> 8);
-    tmpBuf[22] = (unsigned char) (h_ & 0xFF);   // image height
-    tmpBuf[23] = (unsigned char) (h_ >> 8);
-    tmpBuf[26] = 0x01;                  // biPlanes
-    tmpBuf[28] = 0x08;                  // biBitCount
-    tmpBuf[30] = 0x01;                  // biCompression: BI_RLE8
-    tmpBuf[34] = (unsigned char) (compressedSize & 0xFF);   // bitmap data size
-    tmpBuf[35] = (unsigned char) ((compressedSize >> 8) & 0xFF);
-    tmpBuf[36] = (unsigned char) (compressedSize >> 16);
-    tmpBuf[38] = 0x13;                  // biXPelsPerMeter (72 dpi)
-    tmpBuf[39] = 0x0B;
-    tmpBuf[42] = 0x13;                  // biYPelsPerMeter (72 dpi)
-    tmpBuf[43] = 0x0B;
-    tmpBuf[47] = 0x01;                  // biClrUsed (256) MSB
-    tmpBuf[51] = 0x01;                  // biClrImportant (256) MSB
-    if (std::fwrite(&(tmpBuf[0]), sizeof(unsigned char), 54, f) != 54)
-      throw Ep128Emu::Exception("error writing screenshot file header");
+    // TODO: screenshot saving in PNG format
   }
   catch (std::exception& e) {
     if (f) {
