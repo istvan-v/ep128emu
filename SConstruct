@@ -508,7 +508,8 @@ ep128emuSources += fluidCompile(['gui/gui.fl', 'gui/disk_cfg.fl',
                                  'gui/disp_cfg.fl', 'gui/kbd_cfg.fl',
                                  'gui/snd_cfg.fl', 'gui/vm_cfg.fl',
                                  'gui/debug.fl', 'gui/about.fl'])
-ep128emuSources += ['gui/debugger.cpp', 'gui/monitor.cpp', 'gui/main.cpp']
+ep128emuSources += ['gui/debugger.cpp', 'gui/monitor.cpp', 'gui/main.cpp',
+                    'src/pngwrite.cpp']
 if mingwCrossCompile:
     ep128emuResourceObject = ep128emuEnvironment.Command(
         'resource/resource.o',
