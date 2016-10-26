@@ -353,7 +353,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
           }
         }
         Fl_Group ideConfigGroup {
-          label IDE open
+          label IDE/SD open
           xywh {10 35 380 370} box THIN_UP_BOX hide
         } {
           Fl_Group {} {
