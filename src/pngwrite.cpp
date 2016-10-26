@@ -1012,7 +1012,7 @@ namespace Ep128Emu {
 
   // ==========================================================================
 
-  class CompressorThread : public Thread {
+  class ZLibCompressorThread : public Thread {
    private:
     Compressor_ZLib compressor;
    public:
@@ -1023,12 +1023,12 @@ namespace Ep128Emu {
     size_t  blockSize;
     bool    errorFlag;
     // --------
-    CompressorThread();
-    virtual ~CompressorThread();
+    ZLibCompressorThread();
+    virtual ~ZLibCompressorThread();
     virtual void run();
   };
 
-  CompressorThread::CompressorThread()
+  ZLibCompressorThread::ZLibCompressorThread()
     : inBuf((unsigned char *) 0),
       inBufSize(0),
       startPos(0),
@@ -1037,11 +1037,11 @@ namespace Ep128Emu {
   {
   }
 
-  CompressorThread::~CompressorThread()
+  ZLibCompressorThread::~ZLibCompressorThread()
   {
   }
 
-  void CompressorThread::run()
+  void ZLibCompressorThread::run()
   {
     try {
       if (!inBuf)
@@ -1090,14 +1090,14 @@ namespace Ep128Emu {
     outBuf.clear();
     if (inBufSize < 1 || !inBuf)
       return;
-    CompressorThread  *compressorThreads[DEFLATE_MAX_THREADS];
+    ZLibCompressorThread  *compressorThreads[DEFLATE_MAX_THREADS];
     for (int i = 0; i < DEFLATE_MAX_THREADS; i++)
-      compressorThreads[i] = (CompressorThread *) 0;
+      compressorThreads[i] = (ZLibCompressorThread *) 0;
     try {
       size_t  startPos = 0;
       int     nThreads = 0;
       while (nThreads < DEFLATE_MAX_THREADS && startPos < inBufSize) {
-        compressorThreads[nThreads] = new CompressorThread();
+        compressorThreads[nThreads] = new ZLibCompressorThread();
         compressorThreads[nThreads]->inBuf = inBuf;
         compressorThreads[nThreads]->inBufSize = inBufSize;
         compressorThreads[nThreads]->startPos = startPos;
@@ -1153,7 +1153,7 @@ namespace Ep128Emu {
             >= compressorThreads[i]->outBuf.size()) {
           // end of compressed data for this thread
           delete compressorThreads[i];
-          compressorThreads[i] = (CompressorThread *) 0;
+          compressorThreads[i] = (ZLibCompressorThread *) 0;
           continue;
         }
         // pack output data
