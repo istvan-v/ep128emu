@@ -33,7 +33,7 @@ General
   * recording video and sound output to an AVI format video file, with
     768x576 RLE8 or 384x288 uncompressed YV12 video at 24 to 60 frames
     per second, and 48000 Hz stereo 16-bit PCM audio
-  * saving screenshots as 768x576 8-bit RLE compressed BMP files
+  * saving screenshots as 768x576 8-bit PNG format files
   * saving and loading snapshots of the state of the emulated machine
   * demo recording (snapshot combined with stream of keyboard and mouse
     events which can be played back with accurate timing)
@@ -417,9 +417,9 @@ Record video / Stop
 
 Save screenshot (F12, Alt + C)
 
-  Save a screenshot in 8 bit RLE compressed BMP format. The video output
-  is captured immediately after activating this menu item, and is saved
-  at a resolution of 768x576 without any processing (color correction,
+  Save a screenshot in 8 bit PNG format. The video output is captured
+  immediately after activating this menu item, and is saved at a
+  resolution of 768x576 without any processing (color correction,
   effects, etc.).
 
 Quit (Shift + F12)
