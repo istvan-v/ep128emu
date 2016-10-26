@@ -135,6 +135,27 @@ namespace Ep128Emu {
       }
     }
     else {
+      {
+        // FIXME: ugly hack to limit the length of the generated codes
+        // to the range supported by the Deflate format
+        unsigned char maxLen = 14;
+        if (encodeTable.size() == 19 && minSymbolCnt == 4 && reverseBits)
+          maxLen = 6;
+        size_t  totalCnt = 0;
+        for (size_t i = 0; i < symbolRangeUsed; i++)
+          totalCnt += size_t(symbolCounts[i]);
+        for (size_t i = 0; i < symbolRangeUsed; ) {
+          if (symbolCounts[i] != 0U &&
+              (totalCnt >> maxLen) >= size_t(symbolCounts[i])) {
+            symbolCounts[i] = symbolCounts[i] + 1U;
+            totalCnt++;
+            i = 0;
+          }
+          else {
+            i++;
+          }
+        }
+      }
       // build Huffman tree
       std::vector< HuffmanNode >  buf;
       buf.resize(n * 2);
@@ -247,14 +268,18 @@ namespace Ep128Emu {
       for (size_t i = 0; i < 16; i++)
         sizeCounts[i] = 0U;
       HuffmanNode *p = rootNode;
-      unsigned int  symLen = 1U;
+      unsigned int  symLen = 0U;
       while (true) {
         if (p->weight) {
           p->weight = 0;
-          if (symLen > 15U)
-            throw Exception("internal error in HuffmanEncoder::updateTables()");
-          sizeCounts[symLen] = sizeCounts[symLen] + 1U;
-          encodeTable[p->value] = (unsigned int) symLen << 24;
+          if (p->isLeafNode()) {
+            if (symLen > 15U) {
+              throw Exception("internal error in "
+                              "HuffmanEncoder::updateTables()");
+            }
+            sizeCounts[symLen] = sizeCounts[symLen] + 1U;
+            encodeTable[p->value] = (unsigned int) symLen << 24;
+          }
         }
         if (p->child0 && p->child0->weight) {
           p = p->child0;
@@ -280,7 +305,8 @@ namespace Ep128Emu {
         if (encodeTable[i] == 0U)
           continue;
         unsigned int  nBits = encodeTable[i] >> 24;
-        unsigned int  huffCode = sizeCodes[nBits - 1U];
+        unsigned int  huffCode = sizeCodes[nBits];
+        sizeCodes[nBits]++;
         if (reverseBits) {
           // Deflate format stores Huffman codes in most significant bit first
           // order, but everything else is least significant bit first
@@ -291,7 +317,6 @@ namespace Ep128Emu {
           huffCode = huffCode >> (16U - nBits);
         }
         encodeTable[i] = encodeTable[i] | huffCode;
-        sizeCodes[nBits - 1U]++;
       }
     }
     if (encodeTable.size() == 19 && minSymbolCnt == 4 && reverseBits) {
@@ -317,7 +342,7 @@ namespace Ep128Emu {
     for (size_t i = 0; i < symbolRangeUsed; i++) {
       unsigned int  codeLength = encodeTable[i] >> 24;
       unsigned int  rleCode = (codeLength == 0U ? codeLength : prvCode) << 24;
-      unsigned int  rleLength = 1U;
+      unsigned int  rleLength = 0U;
       unsigned int  maxLength = (!rleCode ? 138U : 6U);
       while ((i + rleLength) < symbolRangeUsed &&
              ((encodeTable[i + rleLength] ^ rleCode) & 0xFF000000U) == 0U) {
@@ -353,7 +378,7 @@ namespace Ep128Emu {
     for (size_t i = 0; i < symbolRangeUsed; i++) {
       unsigned int  codeLength = encodeTable[i] >> 24;
       unsigned int  rleCode = (codeLength == 0U ? codeLength : prvCode) << 24;
-      unsigned int  rleLength = 1U;
+      unsigned int  rleLength = 0U;
       unsigned int  maxLength = (!rleCode ? 138U : 6U);
       while ((i + rleLength) < symbolRangeUsed &&
              ((encodeTable[i + rleLength] ^ rleCode) & 0xFF000000U) == 0U) {
@@ -739,7 +764,7 @@ namespace Ep128Emu {
       distCode = 0U;
     }
     distCode = (distCode + (distBits << 24))
-               | (((unsigned int) (n - minMatchDist) & ((1U << distBits) - 1U))
+               | (((unsigned int) (d - minMatchDist) & ((1U << distBits) - 1U))
                   << ((distCode >> 24) & 0x7FU));
     buf.push_back(distCode);
   }
@@ -808,7 +833,8 @@ namespace Ep128Emu {
         if (len >= minMatchLen) {
           size_t  nBitsBase = getDistanceCodeLength(d);
           do {
-            size_t  nBits = nBitsBase + getLengthCodeLength(len);
+            size_t  nBits = nBitsBase + getLengthCodeLength(len)
+                            + bitCountTable[i + len];
             if (nBits > bestSize)
               continue;
             if (nBits == bestSize) {
@@ -902,9 +928,11 @@ namespace Ep128Emu {
         // write literal byte
         huffmanEncoderL.addSymbol(inBuf[i]);
         tmpOutBuf.push_back(huffmanEncoderL.encodeSymbol(inBuf[i]));
+        i++;
       }
     }
     // write end of block symbol (256)
+    huffmanEncoderL.addSymbol(0x0100);
     tmpOutBuf.push_back(huffmanEncoderL.encodeSymbol(0x0100));
   }
 
@@ -1110,7 +1138,7 @@ namespace Ep128Emu {
       // calculate Adler-32 checksum of input data
       unsigned int  adler32Sum;
       {
-        unsigned int  tmp1 = 0U;
+        unsigned int  tmp1 = 1U;
         unsigned int  tmp2 = 0U;
         for (size_t i = 0; i < inBufSize; i++) {
           tmp1 = tmp1 + (unsigned int) inBuf[i];

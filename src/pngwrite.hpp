@@ -121,6 +121,7 @@ namespace Ep128Emu {
       {
         return symbolRangeUsed;
       }
+      // reset symbol counts and clear encode table
       void clear();
     };
     // --------------------------------
