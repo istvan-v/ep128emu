@@ -359,8 +359,8 @@ static const EP_ROM_File epROMFiles[61] = {
   { "iview.rom",                0x3031FFFFU },
 #define EP_ROM_LISP             (uint64_t(1) << 51)
   { "lisp.rom",                 0x11FFFFFFU },
-#define EP_ROM_PASCAL11         (uint64_t(1) << 52)
-  { "pascal11.rom",             0x2223FFFFU },
+#define EP_ROM_PASCAL12         (uint64_t(1) << 52)
+  { "pascal12.rom",             0x43FFFFFFU },
 #define EP_ROM_TPT_32           (uint64_t(1) << 53)
   { "tpt.rom",                  0x32FFFFFFU },
 #define EP_ROM_ZT18_HU          (uint64_t(1) << 54)
@@ -596,7 +596,7 @@ static const EPMachineConfig machineConfigs[] = {
     EP_RAM_2048K | EP_ROM_EXOS24_UK | EP_ROM_ASMON15_04 | EP_ROM_EPD17Z12_06
     | EP_ROM_EPFILEIO | EP_ROM_LISP | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_UK
     | EP_ROM_FENAS12_22 | EP_ROM_ZX41_UK | EP_ROM_GENMON | EP_ROM_ZT18_UK
-    | EP_ROM_FORTH
+    | EP_ROM_FORTH | EP_ROM_PASCAL12
   },
   { "ep128uk/EP_128k_EXDOS.cfg",
     EP_RAM_128K | EP_ROM_EXOS21 | EP_ROM_BASIC21_04 | EP_ROM_EXDOS14I_UK
