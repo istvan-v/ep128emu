@@ -1426,7 +1426,7 @@ copyLZMatch:
         ld    a, e                      ; calculate LZ77 match read address
         jr    c, .l16                   ; offset <= 16384 bytes?
         sub   c
-        pop   bc                        ; BC = length (should be >= 3 here)
+        pop   bc                        ; BC = length (should be >= 2 here)
         ld    l, a
         ld    a, d
         sbc   a, h
