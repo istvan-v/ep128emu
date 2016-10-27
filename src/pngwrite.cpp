@@ -45,265 +45,228 @@ namespace Ep128Emu {
     3, 17, 15, 13, 11, 9, 7, 5, 4, 6, 8, 10, 12, 14, 16, 18, 0, 1, 2
   };
 
+  // --------------------------------------------------------------------------
+
+  class HuffmanNode {
+   private:
+    // bits 40 to 63: weight
+    // bits 30 to 39: value
+    // bits 15 to 29: buffer position + 1 of next node in package (0 = none)
+    // bits  0 to 14: buffer position + 1 of this node
+    uint64_t    nodeData;
+   public:
+    HuffmanNode()
+      : nodeData(0UL)
+    {
+    }
+    ~HuffmanNode()
+    {
+    }
+    inline void initNode(unsigned int value_, size_t weight_)
+    {
+      nodeData = (uint64_t(weight_) << 40) | (uint64_t(value_) << 30);
+    }
+    inline void setBufPos(HuffmanNode *buf)
+    {
+      nodeData = (nodeData & (uint64_t(-(int64_t(0x40000000L)))))
+                 | uint64_t((this - buf) + 1);
+    }
+    inline size_t getBufPos() const
+    {
+      return (size_t(nodeData & 0x7FFFUL) - 1);
+    }
+    inline bool operator<(const HuffmanNode& r) const
+    {
+      return (nodeData < r.nodeData);
+    }
+    inline size_t weight() const
+    {
+      return size_t((nodeData >> 40) & 0x00FFFFFFUL);
+    }
+    inline unsigned int value() const
+    {
+      return (unsigned int) ((nodeData >> 30) & 0x03FFUL);
+    }
+    inline HuffmanNode *nextNode(HuffmanNode *buf)
+    {
+      size_t  nextPos = size_t((nodeData >> 15) & 0x7FFFUL);
+      if (!nextPos)
+        return (HuffmanNode *) 0;
+      return &(buf[nextPos - 1]);
+    }
+    inline void merge(HuffmanNode& r, HuffmanNode *buf)
+    {
+      nodeData = nodeData + (r.nodeData & (uint64_t(0xFFFFFF00UL) << 32));
+      r.nodeData = r.nodeData & ((uint64_t(1) << 40) - 1UL);
+      HuffmanNode *p = this;
+      if (nodeData & 0x3FFF8000UL) {
+        if (!(r.nodeData & 0x3FFF8000UL)) {
+          r.nodeData = r.nodeData | (nodeData & 0x3FFF8000UL);
+          nodeData = nodeData ^ (nodeData & 0x3FFF8000UL);
+        }
+        else {
+          do {
+            p = &(buf[((p->nodeData & 0x3FFF8000UL) >> 15) - 1]);
+          } while (p->nodeData & 0x3FFF8000UL);
+        }
+      }
+      p->nodeData = p->nodeData | ((r.nodeData & 0x7FFFUL) << 15);
+    }
+    static void sortNodes(HuffmanNode *startPtr, HuffmanNode *endPtr,
+                          HuffmanNode *tmpBuf);
+  };
+
+  void HuffmanNode::sortNodes(HuffmanNode *startPtr, HuffmanNode *endPtr,
+                              HuffmanNode *tmpBuf)
+  {
+    size_t  n = size_t(endPtr - startPtr);
+    if (n < 2)
+      return;
+    size_t  m = n >> 1;
+    if (m > 1)
+      sortNodes(startPtr, startPtr + m, tmpBuf);
+    if ((n - m) > 1)
+      sortNodes(startPtr + m, endPtr, tmpBuf);
+    size_t  i = 0;
+    size_t  j = m;
+    for (size_t k = 0; k < n; k++) {
+      if (EP128EMU_UNLIKELY(j >= n))
+        tmpBuf[k].nodeData = startPtr[i++].nodeData;
+      else if (EP128EMU_UNLIKELY(i >= m) || startPtr[j] < startPtr[i])
+        tmpBuf[k].nodeData = startPtr[j++].nodeData;
+      else
+        tmpBuf[k].nodeData = startPtr[i++].nodeData;
+    }
+    for (i = 0; i < n; i++)
+      startPtr[i].nodeData = tmpBuf[i].nodeData;
+  }
+
+  // --------------------------------------------------------------------------
+
   Compressor_ZLib::HuffmanEncoder::HuffmanEncoder(size_t maxSymbolCnt_,
                                                   size_t minSymbolCnt_)
     : minSymbolCnt(minSymbolCnt_),
-      symbolRangeUsed(minSymbolCnt_)
+      symbolRangeUsed(minSymbolCnt_),
+      nodeBuf((void *) 0)
   {
     symbolCounts.resize(maxSymbolCnt_, 0U);
     encodeTable.resize(maxSymbolCnt_, 0U);
+    nodeBuf = new HuffmanNode[maxSymbolCnt_ * 20];
   }
 
   Compressor_ZLib::HuffmanEncoder::~HuffmanEncoder()
   {
+    delete[] reinterpret_cast< HuffmanNode * >(nodeBuf);
   }
 
-  void Compressor_ZLib::HuffmanEncoder::sortNodes(HuffmanNode*& startNode)
-  {
-    size_t  nodeCnt = 0;
-    HuffmanNode *p = startNode;
-    while (p != (HuffmanNode *) 0) {
-      nodeCnt++;
-      p = p->nextNode;
-    }
-    if (nodeCnt < 2)
-      return;
-    size_t  m = nodeCnt >> 1;
-    p = startNode;
-    for (size_t i = 0; i < m; i++) {
-      HuffmanNode *nxt = p->nextNode;
-      if ((i + 1) == m)
-        p->nextNode = (HuffmanNode *) 0;
-      p = nxt;
-    }
-    HuffmanNode *splitNode = p;
-    sortNodes(startNode);
-    sortNodes(splitNode);
-    HuffmanNode *p1 = startNode;
-    HuffmanNode *p2 = splitNode;
-    HuffmanNode *prvNode = (HuffmanNode *) 0;
-    while (true) {
-      if (p1 == (HuffmanNode *) 0) {
-        if (p2 == (HuffmanNode *) 0)
-          break;
-        p = p2;
-        p2 = p2->nextNode;
-      }
-      else if (p2 == (HuffmanNode *) 0) {
-        p = p1;
-        p1 = p1->nextNode;
-      }
-      else if (p2->weight < p1->weight) {
-        p = p2;
-        p2 = p2->nextNode;
-      }
-      else {
-        p = p1;
-        p1 = p1->nextNode;
-      }
-      if (prvNode != (HuffmanNode *) 0)
-        prvNode->nextNode = p;
-      else
-        startNode = p;
-      prvNode = p;
-    }
-    p->nextNode = (HuffmanNode *) 0;
-  }
-
-  void Compressor_ZLib::HuffmanEncoder::updateTables(bool reverseBits)
+  void Compressor_ZLib::HuffmanEncoder::updateTables(
+      bool reverseBits, size_t maxCodeLen, const unsigned char *codeLengthTable)
   {
     symbolRangeUsed = 0;
-    for (size_t i = 0; i < encodeTable.size(); i++)
-      encodeTable[i] = 0U;
-    // calculate the size of the Huffman tree
-    size_t  n = 0;
-    for (size_t i = 0; i < symbolCounts.size(); i++) {
-      if (symbolCounts[i] > 0) {
-        symbolRangeUsed = i + 1;
-        n++;
-      }
-    }
-    // check for trivial cases (symbols used <= 2)
-    if (n == 1 || n == 2) {
-      n = 0;
-      for (size_t i = 0; i < symbolRangeUsed; i++) {
-        if (symbolCounts[i] > 0) {
-          symbolCounts[i] = 0;
-          encodeTable[i] = 0x01000000U | (unsigned int) n;
-          n++;
+    if (codeLengthTable) {
+      // use a preset encoding table
+      for (size_t i = 0; i < encodeTable.size(); i++) {
+        symbolCounts[i] = 0;
+        if (codeLengthTable[i]) {
+          encodeTable[i] = (unsigned int) codeLengthTable[i] << 24;
+          symbolRangeUsed = i + 1;
         }
       }
     }
     else {
-      {
-        // FIXME: ugly hack to limit the length of the generated codes
-        // to the range supported by the Deflate format
-        unsigned char maxLen = 14;
-        if (encodeTable.size() == 19 && minSymbolCnt == 4 && reverseBits)
-          maxLen = 6;
-        size_t  totalCnt = 0;
-        for (size_t i = 0; i < symbolRangeUsed; i++)
-          totalCnt += size_t(symbolCounts[i]);
-        for (size_t i = 0; i < symbolRangeUsed; ) {
-          if (symbolCounts[i] != 0U &&
-              (totalCnt >> maxLen) >= size_t(symbolCounts[i])) {
-            symbolCounts[i] = symbolCounts[i] + 1U;
-            totalCnt++;
-            i = 0;
-          }
-          else {
-            i++;
-          }
-        }
-      }
-      // build Huffman tree
-      std::vector< HuffmanNode >  buf;
-      buf.resize(n * 2);
-      HuffmanNode *nodeList1 = (HuffmanNode *) 0;
-      HuffmanNode *nodeList1End = (HuffmanNode *) 0;
-      HuffmanNode *nodeList2 = (HuffmanNode *) 0;
-      HuffmanNode *nodeList2End = (HuffmanNode *) 0;
-      n = 0;
-      for (size_t i = 0; i < symbolRangeUsed; i++) {
+      for (size_t i = 0; i < encodeTable.size(); i++)
+        encodeTable[i] = 0U;
+      // calculate the size of the Huffman tree
+      size_t  n = 0;
+      for (size_t i = 0; i < symbolCounts.size(); i++) {
         if (symbolCounts[i] > 0) {
-          HuffmanNode *p = &(buf[n]);
+          symbolRangeUsed = i + 1;
           n++;
-          p->weight = symbolCounts[i];
-          symbolCounts[i] = 0;
-          p->value = i;
-          p->parent = (HuffmanNode *) 0;
-          p->child0 = (HuffmanNode *) 0;
-          p->child1 = (HuffmanNode *) 0;
-          p->nextNode = (HuffmanNode *) 0;
-          if (nodeList1End != (HuffmanNode *) 0)
-            nodeList1End->nextNode = p;
-          else
-            nodeList1 = p;
-          nodeList1End = p;
         }
       }
-      sortNodes(nodeList1);
-      nodeList1End = nodeList1;
-      if (nodeList1 != (HuffmanNode *) 0) {
-        while (nodeList1End->nextNode != (HuffmanNode *) 0)
-          nodeList1End = nodeList1End->nextNode;
-      }
-      HuffmanNode *rootNode = (HuffmanNode *) 0;
-      while (true) {
-        HuffmanNode *p1 = (HuffmanNode *) 0;
-        if (nodeList1 == (HuffmanNode *) 0) {
-          if (nodeList2 == (HuffmanNode *) 0)
-            break;
-          p1 = nodeList2;
-          nodeList2 = nodeList2->nextNode;
-          if (nodeList2 == (HuffmanNode *) 0)
-            nodeList2End = (HuffmanNode *) 0;
-        }
-        else if (nodeList2 == (HuffmanNode *) 0) {
-          p1 = nodeList1;
-          nodeList1 = nodeList1->nextNode;
-          if (nodeList1 == (HuffmanNode *) 0)
-            nodeList1End = (HuffmanNode *) 0;
-        }
-        else if (nodeList2->weight < nodeList1->weight) {
-          p1 = nodeList2;
-          nodeList2 = nodeList2->nextNode;
-          if (nodeList2 == (HuffmanNode *) 0)
-            nodeList2End = (HuffmanNode *) 0;
-        }
-        else {
-          p1 = nodeList1;
-          nodeList1 = nodeList1->nextNode;
-          if (nodeList1 == (HuffmanNode *) 0)
-            nodeList1End = (HuffmanNode *) 0;
-        }
-        HuffmanNode *p0 = (HuffmanNode *) 0;
-        if (nodeList1 == (HuffmanNode *) 0) {
-          if (nodeList2 == (HuffmanNode *) 0) {
-            rootNode = p1;
-            break;
+      // check for trivial cases (symbols used <= 2)
+      if (n == 1 || n == 2) {
+        n = 0;
+        for (size_t i = 0; i < symbolRangeUsed; i++) {
+          if (symbolCounts[i] > 0) {
+            symbolCounts[i] = 0;
+            encodeTable[i] = 0x01000000U | (unsigned int) n;
+            n++;
           }
-          p0 = nodeList2;
-          nodeList2 = nodeList2->nextNode;
-          if (nodeList2 == (HuffmanNode *) 0)
-            nodeList2End = (HuffmanNode *) 0;
         }
-        else if (nodeList2 == (HuffmanNode *) 0) {
-          p0 = nodeList1;
-          nodeList1 = nodeList1->nextNode;
-          if (nodeList1 == (HuffmanNode *) 0)
-            nodeList1End = (HuffmanNode *) 0;
-        }
-        else if (nodeList2->weight < nodeList1->weight) {
-          p0 = nodeList2;
-          nodeList2 = nodeList2->nextNode;
-          if (nodeList2 == (HuffmanNode *) 0)
-            nodeList2End = (HuffmanNode *) 0;
-        }
-        else {
-          p0 = nodeList1;
-          nodeList1 = nodeList1->nextNode;
-          if (nodeList1 == (HuffmanNode *) 0)
-            nodeList1End = (HuffmanNode *) 0;
-        }
-        rootNode = &(buf[n]);
-        n++;
-        rootNode->weight = p0->weight + p1->weight;
-        rootNode->value = 0;
-        rootNode->parent = (HuffmanNode *) 0;
-        rootNode->child0 = p0;
-        p0->parent = rootNode;
-        rootNode->child1 = p1;
-        p1->parent = rootNode;
-        rootNode->nextNode = (HuffmanNode *) 0;
-        if (nodeList2End != (HuffmanNode *) 0)
-          nodeList2End->nextNode = rootNode;
-        else
-          nodeList2 = rootNode;
-        nodeList2End = rootNode;
       }
-      // convert Huffman tree to canonical codes
-      unsigned int  sizeCounts[16];
-      unsigned int  sizeCodes[16];
-      for (size_t i = 0; i < 16; i++)
-        sizeCounts[i] = 0U;
-      HuffmanNode *p = rootNode;
-      unsigned int  symLen = 0U;
-      while (true) {
-        if (p->weight) {
-          p->weight = 0;
-          if (p->isLeafNode()) {
-            if (symLen > 15U) {
-              throw Exception("internal error in "
-                              "HuffmanEncoder::updateTables()");
+      else {
+        // build Huffman tree
+        HuffmanNode *buf0 = reinterpret_cast< HuffmanNode * >(nodeBuf);
+        HuffmanNode *buf1 = buf0 + symbolRangeUsed;
+        HuffmanNode *buf2 = buf1 + symbolRangeUsed;
+        HuffmanNode *allocPtr = buf2 + (symbolRangeUsed << 1);
+        for (size_t i = 0; i < symbolRangeUsed; i++) {
+          buf0[i].initNode((unsigned int) i, symbolCounts[i]);
+          symbolCounts[i] = 0U;
+        }
+        HuffmanNode::sortNodes(buf0, buf0 + symbolRangeUsed, buf1);
+        for (size_t i = 0; i < symbolRangeUsed; i++)
+          buf0[i].setBufPos(buf0);
+        size_t  buf1Size = 0;
+        for (size_t i = 0; i < maxCodeLen; i++) {
+          size_t  j, k, l;
+          // merge buffers
+          for (j = 0, k = 0, l = 0; j < symbolRangeUsed || k < buf1Size; l++) {
+            if (EP128EMU_UNLIKELY(k >= buf1Size)) {
+              *allocPtr = buf0[j++];
+              allocPtr->setBufPos(buf0);
+              buf2[l] = *allocPtr;
+              allocPtr++;
             }
-            sizeCounts[symLen] = sizeCounts[symLen] + 1U;
-            encodeTable[p->value] = (unsigned int) symLen << 24;
+            else if (EP128EMU_UNLIKELY(j >= symbolRangeUsed) ||
+                     buf1[k] < buf0[j]) {
+              buf2[l] = buf1[k++];
+            }
+            else {
+              *allocPtr = buf0[j++];
+              allocPtr->setBufPos(buf0);
+              buf2[l] = *allocPtr;
+              allocPtr++;
+            }
+          }
+          buf1Size = l >> 1;
+          // package pairs of nodes
+          for (j = 0; j < buf1Size; j++) {
+            k = j << 1;
+            l = k + 1;
+            buf2[k].merge(buf2[l], buf0);
+            buf0[buf2[k].getBufPos()] = buf2[k];
+            buf0[buf2[l].getBufPos()] = buf2[l];
+            buf1[j] = buf2[k];
           }
         }
-        if (p->child0 && p->child0->weight) {
-          p = p->child0;
-          symLen++;
-        }
-        else if (p->child1 && p->child1->weight) {
-          p = p->child1;
-          symLen++;
-        }
-        else if (p->parent) {
-          p = p->parent;
-          symLen--;
-        }
-        else {
-          break;
+        for (size_t i = 0; i < buf1Size; i++) {
+          HuffmanNode *p = buf1 + i;
+          do {
+            encodeTable[p->value()] = encodeTable[p->value()] + 0x01000000U;
+            p = p->nextNode(buf0);
+          } while (p);
         }
       }
-      buf.clear();
-      sizeCodes[0] = 0U;
-      for (size_t i = 1; i < 16; i++)
-        sizeCodes[i] = (sizeCodes[i - 1] + sizeCounts[i - 1]) << 1;
-      for (size_t i = 0; i < symbolRangeUsed; i++) {
-        if (encodeTable[i] == 0U)
-          continue;
+    }
+    // convert Huffman tree to canonical codes
+    unsigned int  sizeCounts[24];
+    unsigned int  sizeCodes[24];
+    for (size_t i = 0; i <= maxCodeLen; i++)
+      sizeCounts[i] = 0U;
+    for (size_t i = 0; i < symbolRangeUsed; i++) {
+      size_t  symLen = encodeTable[i] >> 24;
+      if (symLen > maxCodeLen)
+        throw Exception("internal error in HuffmanEncoder::updateTables()");
+      sizeCounts[symLen] = sizeCounts[symLen] + 1U;
+    }
+    sizeCounts[0] = 0U;
+    sizeCodes[0] = 0U;
+    for (size_t i = 1; i < 16; i++)
+      sizeCodes[i] = (sizeCodes[i - 1] + sizeCounts[i - 1]) << 1;
+    for (size_t i = 0; i < symbolRangeUsed; i++) {
+      if (encodeTable[i] != 0U) {
         unsigned int  nBits = encodeTable[i] >> 24;
         unsigned int  huffCode = sizeCodes[nBits];
         sizeCodes[nBits]++;
@@ -319,13 +282,11 @@ namespace Ep128Emu {
         encodeTable[i] = encodeTable[i] | huffCode;
       }
     }
-    if (encodeTable.size() == 19 && minSymbolCnt == 4 && reverseBits) {
+    if (encodeTable.size() == 19 && minSymbolCnt == 4 && maxCodeLen == 7) {
       // Deflate specific hack for the code length encoder
       symbolRangeUsed = 4;
       for (size_t i = 0; i < encodeTable.size(); i++) {
         if (encodeTable[i] != 0U) {
-          if (encodeTable[i] >= 0x08000000U)
-            throw Exception("internal error in HuffmanEncoder::updateTables()");
           if (size_t(deflateCodeLengthIndexTable[i]) >= symbolRangeUsed)
             symbolRangeUsed = size_t(deflateCodeLengthIndexTable[i]) + 1;
         }
@@ -651,22 +612,16 @@ namespace Ep128Emu {
     huffmanEncoderL.clear();
     huffmanEncoderD.clear();
     huffmanEncoderC.clear();
+    unsigned char   codeLengthTable[288];
     // literal / length encoder:
-    // 144 * 8 bits, 112 * 9 bits, 24 * 7 bits, 8 * 9 bits
-    for (unsigned int i = 0U; i < 288U; i++) {
-      huffmanEncoderL.addSymbol(i);
-      if (i < 144U || (i >= 256U && i < 280U))
-        huffmanEncoderL.addSymbol(i);
-      if (i >= 256U && i < 280U) {
-        huffmanEncoderL.addSymbol(i);
-        huffmanEncoderL.addSymbol(i);
-      }
-    }
-    huffmanEncoderL.updateTables();
+    // 144 * 8 bits, 112 * 9 bits, 24 * 7 bits, 8 * 8 bits
+    for (unsigned int i = 0U; i < 288U; i++)
+      codeLengthTable[i] = (i < 144U ? 8 : (i < 256U ? 9 : (i < 280U ? 7 : 8)));
+    huffmanEncoderL.updateTables(true, 15, codeLengthTable);
     // distance encoder: same weight for all symbols
     for (unsigned int i = 0U; i < 32U; i++)
-      huffmanEncoderD.addSymbol(i);
-    huffmanEncoderD.updateTables();
+      codeLengthTable[i] = 5;
+    huffmanEncoderD.updateTables(true, 15, codeLengthTable);
   }
 
   static EP128EMU_REGPARM1 unsigned int log2N(unsigned int n)
@@ -883,8 +838,8 @@ namespace Ep128Emu {
     }
     else {
       // generate optimal encode tables for length and offset values
-      huffmanEncoderL.updateTables();
-      huffmanEncoderD.updateTables();
+      huffmanEncoderL.updateTables(true, 15);
+      huffmanEncoderD.updateTables(true, 15);
     }
     // compress data by searching for repeated byte sequences,
     // and replacing them with length/distance codes
@@ -906,7 +861,7 @@ namespace Ep128Emu {
       tmpOutBuf.push_back(0x03000004U);
       huffmanEncoderL.updateDeflateSymLenCnts(huffmanEncoderC);
       huffmanEncoderD.updateDeflateSymLenCnts(huffmanEncoderC);
-      huffmanEncoderC.updateTables();
+      huffmanEncoderC.updateTables(true, 7);
       tmpOutBuf.push_back(
           0x0E000000U
           | (unsigned int) (huffmanEncoderL.getSymbolRangeUsed() - 257)

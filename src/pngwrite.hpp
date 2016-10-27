@@ -34,61 +34,26 @@ namespace Ep128Emu {
     // --------------------------------
     class HuffmanEncoder {
      private:
-      struct HuffmanNode {
-        size_t        weight;
-        unsigned int  value;
-        HuffmanNode   *parent;
-        HuffmanNode   *child0;
-        HuffmanNode   *child1;
-        HuffmanNode   *nextNode;
-        // --------
-        HuffmanNode()
-          : weight(0),
-            value(0),
-            parent((HuffmanNode *) 0),
-            child0((HuffmanNode *) 0),
-            child1((HuffmanNode *) 0),
-            nextNode((HuffmanNode *) 0)
-        {
-        }
-        HuffmanNode(size_t weight_, unsigned int value_,
-                    HuffmanNode *parent_ = (HuffmanNode *) 0,
-                    HuffmanNode *child0_ = (HuffmanNode *) 0,
-                    HuffmanNode *child1_ = (HuffmanNode *) 0,
-                    HuffmanNode *nextNode_ = (HuffmanNode *) 0)
-          : weight(weight_),
-            value(value_),
-            parent(parent_),
-            child0(child0_),
-            child1(child1_),
-            nextNode(nextNode_)
-        {
-        }
-        ~HuffmanNode()
-        {
-        }
-        inline bool isLeafNode() const
-        {
-          return (child0 == (HuffmanNode *) 0 && child1 == (HuffmanNode *) 0);
-        }
-      };
       size_t  minSymbolCnt;
       size_t  symbolRangeUsed;
       std::vector< unsigned int > symbolCounts;
       std::vector< unsigned int > encodeTable;
-      static void sortNodes(HuffmanNode*& startNode);
+      void    *nodeBuf;
      public:
       HuffmanEncoder(size_t maxSymbolCnt_ = 256, size_t minSymbolCnt_ = 0);
       virtual ~HuffmanEncoder();
-      // create encode table and reset symbol counts
-      void updateTables(bool reverseBits = true);
+      // Create encode table and reset symbol counts.
+      // If codeLengthTable is not NULL, it specifies a preset encoding.
+      void updateTables(bool reverseBits = true, size_t maxCodeLen = 16,
+                        const unsigned char *codeLengthTable =
+                            (unsigned char *) 0);
       // Send symbol count information to 'symLenEncoder' for Huffman
       // encoding the RLE compressed symbol length table of this encoder.
       // To add complete decoding information to a Deflate stream, the
       // following steps are needed:
       //   huffmanEncoderL.updateDeflateSymLenCnts(symLenEncoder);
       //   huffmanEncoderD.updateDeflateSymLenCnts(symLenEncoder);
-      //   symLenEncoder.updateTables();
+      //   symLenEncoder.updateTables(true, 7);
       //   outBuf.push_back(0x0E000000
       //                    | (huffmanEncoderL.getSymbolRangeUsed() - 257))
       //                    | ((huffmanEncoderD.getSymbolRangeUsed() - 1)) << 5)
