@@ -253,8 +253,8 @@ namespace Ep128Emu {
       }
     }
     // convert Huffman tree to canonical codes
-    unsigned int  sizeCounts[24];
-    unsigned int  sizeCodes[24];
+    unsigned int  sizeCounts[20];
+    unsigned int  sizeCodes[20];
     for (size_t i = 0; i <= maxCodeLen; i++)
       sizeCounts[i] = 0U;
     for (size_t i = 0; i < symbolRangeUsed; i++) {
@@ -265,7 +265,7 @@ namespace Ep128Emu {
     }
     sizeCounts[0] = 0U;
     sizeCodes[0] = 0U;
-    for (size_t i = 1; i < 16; i++)
+    for (size_t i = 1; i <= maxCodeLen; i++)
       sizeCodes[i] = (sizeCodes[i - 1] + sizeCounts[i - 1]) << 1;
     for (size_t i = 0; i < symbolRangeUsed; i++) {
       if (encodeTable[i] != 0U) {
