@@ -1304,11 +1304,8 @@ namespace Ep128Emu {
           std::memcpy(dstp, srcp, lineBytes);
         }
       }
-      {
-        Compressor_ZLib compressor;
-        compressor.compressData(outBuf, &(imgDataBuf.front()),
-                                imgDataBuf.size(), blockSize);
-      }
+      Compressor_ZLib::compressData(outBuf, &(imgDataBuf.front()),
+                                    imgDataBuf.size(), blockSize);
       f = std::fopen(fileName, "wb");
       if (!f)
         throw Ep128Emu::Exception("error opening PNG image file");
