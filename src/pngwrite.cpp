@@ -1194,5 +1194,144 @@ namespace Ep128Emu {
     }
   }
 
+  // ==========================================================================
+
+  static void writePNGUInt32(unsigned char *buf, uint32_t n)
+  {
+    buf[0] = (unsigned char) ((n >> 24) & 0xFFU);
+    buf[1] = (unsigned char) ((n >> 16) & 0xFFU);
+    buf[2] = (unsigned char) ((n >> 8) & 0xFFU);
+    buf[3] = (unsigned char) (n & 0xFFU);
+  }
+
+  static void writePNGChunk(std::FILE *f, uint32_t chunkID,
+                            const unsigned char *buf, size_t bufSize)
+  {
+    static const uint32_t crc32Table[4] = {
+      0x00000000U, 0x76DC4190U, 0xEDB88320U, 0x9B64C2B0U
+    };
+    unsigned char hdrBuf[12];
+    writePNGUInt32(&(hdrBuf[0]), uint32_t(bufSize));
+    writePNGUInt32(&(hdrBuf[4]), chunkID);
+    uint32_t  crc = ~0U;
+    for (long i = -4L; i < long(bufSize); i++) {
+      unsigned char c = (EP128EMU_UNLIKELY(i < 0L) ? hdrBuf[8L + i] : buf[i]);
+      for (int j = 0; j < 4; j++) {
+        crc = (crc >> 2) ^ crc32Table[(crc ^ uint32_t(c)) & 3U];
+        c = c >> 2;
+      }
+    }
+    writePNGUInt32(&(hdrBuf[8]), ~crc);
+    if (std::fwrite(&(hdrBuf[0]), sizeof(unsigned char), 8, f) != 8 ||
+        std::fwrite(buf, sizeof(unsigned char), bufSize, f) != bufSize ||
+        std::fwrite(&(hdrBuf[8]), sizeof(unsigned char), 4, f) != 4) {
+      throw Ep128Emu::Exception("error writing PNG image file");
+    }
+  }
+
+  void writePNGImage(const char *fileName,
+                     const unsigned char *inBuf, int w, int h, int nColors,
+                     bool optimizePalette, size_t blockSize)
+  {
+    static const char *pngSignature = "\211PNG\r\n\032\n";
+    if (!fileName || !fileName[0])
+      throw Exception("invalid PNG image file name");
+    std::FILE *f = (std::FILE *) 0;
+    try {
+      std::vector< unsigned char >  imgDataBuf;
+      std::vector< unsigned char >  outBuf;
+      std::vector< unsigned char >  hdrBuf(1024);
+      unsigned char *hdrBufP = &(hdrBuf.front());
+      unsigned char *paletteIndexTable = hdrBufP + 768;
+      unsigned char *colorReplaceTable = hdrBufP + 512;
+      nColors = (nColors > 0 ? (nColors < 256 ? nColors : 256) : 0);
+      size_t  imgDataOffs = size_t(nColors) * 3;
+      size_t  imgDataEnd =
+          imgDataOffs + (size_t(w) * size_t(h) * (!nColors ? 3 : 1));
+      if (nColors) {
+        if (optimizePalette) {
+          unsigned char *colorsUsed = hdrBufP + 256;
+          std::memset(colorsUsed, 0, 256);
+          for (size_t i = imgDataOffs; i < imgDataEnd; i++)
+            colorsUsed[inBuf[i]] = 1;
+          int     n = 0;
+          for (int i = 0; i < 256; i++) {
+            if (colorsUsed[i]) {
+              if (i >= nColors || n >= nColors) {
+                throw Exception("internal error in writePNGImage(): "
+                                "palette index is out of range");
+              }
+              paletteIndexTable[n] = (unsigned char) i;
+              colorReplaceTable[i] = (unsigned char) n;
+              n++;
+            }
+          }
+          nColors = n;
+        }
+        else {
+          for (int i = 0; i < nColors; i++) {
+            paletteIndexTable[i] = (unsigned char) i;
+            colorReplaceTable[i] = (unsigned char) i;
+          }
+        }
+      }
+      imgDataBuf.resize(size_t(h) + imgDataEnd - imgDataOffs);
+      for (size_t y = 0; y < size_t(h); y++) {
+        size_t  lineBytes = size_t(w) * (!nColors ? 3 : 1);
+        const unsigned char *srcp = inBuf + imgDataOffs + (y * lineBytes);
+        unsigned char   *dstp = &(imgDataBuf.front()) + (y * (lineBytes + 1));
+        *(dstp++) = 0;                  // filter type (none)
+        if (nColors && optimizePalette) {
+          for (int x = 0; x < w; x++)
+            dstp[x] = colorReplaceTable[srcp[x]];
+        }
+        else {
+          std::memcpy(dstp, srcp, lineBytes);
+        }
+      }
+      {
+        Compressor_ZLib compressor;
+        compressor.compressData(outBuf, &(imgDataBuf.front()),
+                                imgDataBuf.size(), blockSize);
+      }
+      f = std::fopen(fileName, "wb");
+      if (!f)
+        throw Ep128Emu::Exception("error opening PNG image file");
+      if (std::fwrite(pngSignature, sizeof(char), 8, f) != 8)
+        throw Ep128Emu::Exception("error writing PNG image file");
+      writePNGUInt32(hdrBufP, uint32_t(w));
+      writePNGUInt32(hdrBufP + 4, uint32_t(h));
+      hdrBufP[8] = 8;                           // bit depth
+      hdrBufP[9] = (nColors > 0 ? 3 : 2);       // color type
+      hdrBufP[10] = 0;                          // compression method (Deflate)
+      hdrBufP[11] = 0;                          // filter method (adaptive)
+      hdrBufP[12] = 0;                          // interlace method (none)
+      writePNGChunk(f, 0x49484452, hdrBufP, 13);    // "IHDR"
+      writePNGUInt32(hdrBufP, uint32_t(int(100000.0 / 2.2 + 0.5)));
+      writePNGChunk(f, 0x67414D41, hdrBufP, 4);     // "gAMA"
+      if (nColors > 0) {
+        for (int i = 0; i < nColors; i++) {
+          hdrBufP[i * 3] = inBuf[int(paletteIndexTable[i]) * 3];
+          hdrBufP[i * 3 + 1] = inBuf[int(paletteIndexTable[i]) * 3 + 1];
+          hdrBufP[i * 3 + 2] = inBuf[int(paletteIndexTable[i]) * 3 + 2];
+        }
+        writePNGChunk(f, 0x504C5445, hdrBufP, size_t(nColors) * 3);   // "PLTE"
+      }
+      writePNGChunk(f, 0x49444154, &(outBuf.front()), outBuf.size()); // "IDAT"
+      writePNGChunk(f, 0x49454E44, hdrBufP, 0);     // "IEND"
+      int     err = std::fflush(f) | std::fclose(f);
+      f = (std::FILE *) 0;
+      if (err != 0)
+        throw Ep128Emu::Exception("error writing PNG image file");
+    }
+    catch (...) {
+      if (f) {
+        std::fclose(f);
+        std::remove(fileName);
+      }
+      throw;
+    }
+  }
+
 }       // namespace Ep128Emu
 

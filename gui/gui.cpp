@@ -21,6 +21,7 @@
 #include "guicolor.hpp"
 #include "ep128vm.hpp"
 #include "zx128vm.hpp"
+#include "pngwrite.hpp"
 
 #include <typeinfo>
 
@@ -1397,7 +1398,6 @@ void Ep128EmuGUI::screenshotCallback(void *userData,
 {
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(userData));
   std::string   fName;
-  std::FILE     *f = (std::FILE *) 0;
   try {
     fName = gui_.screenshotFileName;
     if (!gui_.browseFile(fName, gui_.screenshotDirectory, "PNG files\t*.png",
@@ -1406,31 +1406,28 @@ void Ep128EmuGUI::screenshotCallback(void *userData,
       return;
     Ep128Emu::addFileNameExtension(fName, "png");
     gui_.screenshotFileName = fName;
-    f = std::fopen(fName.c_str(), "wb");
-    if (!f)
-      throw Ep128Emu::Exception("error opening screenshot file");
-    // TODO: screenshot saving in PNG format
+    try {
+      gui_.mainWindow->label("Saving screenshot...");
+      gui_.mainWindow->cursor(FL_CURSOR_WAIT);
+      Fl::redraw();
+      // should actually use Fl::flush() here, but only Fl::wait() does
+      // correctly update the display
+      Fl::wait(0.0);
+      Ep128Emu::writePNGImage(fName.c_str(), buf, w_, h_, 256, true, 16384);
+    }
+    catch (...) {
+      gui_.mainWindow->label(&(gui_.windowTitleBuf[0]));
+      gui_.mainWindow->cursor(
+          !(gui_.displayMode & 1) ? FL_CURSOR_DEFAULT : FL_CURSOR_NONE);
+      throw;
+    }
+    gui_.mainWindow->label(&(gui_.windowTitleBuf[0]));
+    gui_.mainWindow->cursor(
+        !(gui_.displayMode & 1) ? FL_CURSOR_DEFAULT : FL_CURSOR_NONE);
   }
   catch (std::exception& e) {
-    if (f) {
-      std::fclose(f);
-      f = (std::FILE *) 0;
-      if (fName.length() > 0)
-        std::remove(fName.c_str());
-    }
     gui_.errorMessage(e.what());
   }
-  catch (...) {
-    if (f) {
-      std::fclose(f);
-      f = (std::FILE *) 0;
-      if (fName.length() > 0)
-        std::remove(fName.c_str());
-    }
-    throw;
-  }
-  if (f)
-    std::fclose(f);
 }
 
 void Ep128EmuGUI::pollJoystickInput(void *userData)

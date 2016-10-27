@@ -176,6 +176,23 @@ namespace Ep128Emu {
                              size_t blockSize = 16384);
   };
 
+  // ==========================================================================
+
+  /*!
+   * Save a PNG format image to 'fileName' from the data in 'inBuf'.
+   * 'w' and 'h' are the image width and height in pixels, 'nColors' is the
+   * palette size (0 to 256, 0 means RGB format), and 'blockSize' is the block
+   * size to be used by Compressor_ZLib::compressData(). If 'optimizePalette'
+   * is true, unused colors are removed from the palette.
+   * The size of 'inBuf' should be nColors * 3 + w * h bytes if a palette is
+   * used, and w * h * 3 in the case of RGB format. If a palette is present,
+   * it is expected to be at the beginning of 'inBuf' as nColors * 3
+   * interleaved R, G, B values.
+   */
+  void writePNGImage(const char *fileName,
+                     const unsigned char *inBuf, int w, int h, int nColors,
+                     bool optimizePalette = false, size_t blockSize = 16384);
+
 }       // namespace Ep128Emu
 
 #endif  // EP128EMU_PNGWRITE_HPP
