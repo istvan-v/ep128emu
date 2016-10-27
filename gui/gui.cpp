@@ -1413,7 +1413,7 @@ void Ep128EmuGUI::screenshotCallback(void *userData,
       // should actually use Fl::flush() here, but only Fl::wait() does
       // correctly update the display
       Fl::wait(0.0);
-      Ep128Emu::writePNGImage(fName.c_str(), buf, w_, h_, 256, true, 16384);
+      Ep128Emu::writePNGImage(fName.c_str(), buf, w_, h_, 256, true, 32768);
     }
     catch (...) {
       gui_.mainWindow->label(&(gui_.windowTitleBuf[0]));
