@@ -27,6 +27,9 @@
 #include "pngwrite.hpp"
 
 #define DEFLATE_MAX_THREADS     4
+#if 0
+#  define PNGWRITE_DEBUG        1
+#endif
 
 namespace Ep128Emu {
 
@@ -752,6 +755,11 @@ namespace Ep128Emu {
                                         size_t *offsSumTable,
                                         size_t offs, size_t nBytes)
   {
+    unsigned short  lengthCodeLengthTable[256];
+    for (size_t i = minMatchLen; i <= maxMatchLen; i++) {
+      lengthCodeLengthTable[i - minMatchLen] =
+          (unsigned short) getLengthCodeLength(i);
+    }
     for (size_t i = nBytes; i-- > 0; ) {
       size_t  bestSize = 0x7FFFFFFF;
       size_t  bestLen = 1;
@@ -768,7 +776,7 @@ namespace Ep128Emu {
         if (bestSize < (maxMatchLen * 15)) {
           bestSize = bestSize + bitCountTable[i + len];
           if (bestOffs <= 1) {
-            // if a long RLE match is possible, use that
+            // if an RLE match with the maximum length is possible, use that
             matchTable[i].d = (unsigned short) bestOffs;
             matchTable[i].len = (unsigned short) bestLen;
             bitCountTable[i] = bestSize;
@@ -788,9 +796,12 @@ namespace Ep128Emu {
           len = nBytes - i;
         unsigned int  d = matchPtr[1];
         if (len >= minMatchLen) {
+          size_t  nxtLen = matchPtr[2];
           size_t  nBitsBase = getDistanceCodeLength(d);
+          nxtLen = (nxtLen > minMatchLen ? nxtLen : minMatchLen);
           do {
-            size_t  nBits = nBitsBase + getLengthCodeLength(len)
+            size_t  nBits = nBitsBase
+                            + size_t(lengthCodeLengthTable[len - minMatchLen])
                             + bitCountTable[i + len];
             if (nBits > bestSize)
               continue;
@@ -803,7 +814,7 @@ namespace Ep128Emu {
             bestSize = nBits;
             bestOffs = d;
             bestLen = len;
-          } while (--len >= minMatchLen);
+          } while (--len >= nxtLen);
         }
       }
       // and literal byte:
@@ -945,7 +956,7 @@ namespace Ep128Emu {
     std::vector< unsigned int > tmpBuf;
     size_t  bestSize = 0x7FFFFFFF;
     bool    doneFlag = false;
-    for (size_t i = 0; i < 40; i++) {
+    for (size_t i = 0; i < 8; i++) {
       if (doneFlag)     // if the compression cannot be optimized further,
         continue;       // quit the loop earlier
       tmpBuf.clear();
@@ -1234,6 +1245,10 @@ namespace Ep128Emu {
                      bool optimizePalette, size_t blockSize)
   {
     static const char *pngSignature = "\211PNG\r\n\032\n";
+#ifdef PNGWRITE_DEBUG
+    Timer   tt;
+    double  t0 = tt.getRealTime();
+#endif
     if (!fileName || !fileName[0])
       throw Exception("invalid PNG image file name");
     std::FILE *f = (std::FILE *) 0;
@@ -1331,6 +1346,10 @@ namespace Ep128Emu {
       }
       throw;
     }
+#ifdef PNGWRITE_DEBUG
+    double  t1 = tt.getRealTime();
+    std::fprintf(stderr, "Compression time = %f\n", t1 - t0);
+#endif
   }
 
 }       // namespace Ep128Emu
