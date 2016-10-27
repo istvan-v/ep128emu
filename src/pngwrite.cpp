@@ -27,7 +27,7 @@
 #include "pngwrite.hpp"
 
 #define DEFLATE_MAX_THREADS     4
-#define DEFLATE_BLOCK_SIZE      32768
+#define DEFLATE_BLOCK_SIZE      16384
 
 namespace Ep128Emu {
 
@@ -198,29 +198,32 @@ namespace Ep128Emu {
       else {
         // build Huffman tree
         HuffmanNode *buf0 = reinterpret_cast< HuffmanNode * >(nodeBuf);
-        HuffmanNode *buf1 = buf0 + symbolRangeUsed;
-        HuffmanNode *buf2 = buf1 + symbolRangeUsed;
-        HuffmanNode *allocPtr = buf2 + (symbolRangeUsed << 1);
+        HuffmanNode *buf1 = buf0 + n;
+        HuffmanNode *buf2 = buf1 + n;
+        HuffmanNode *allocPtr = buf2 + (n << 1);
+        n = 0;
         for (size_t i = 0; i < symbolRangeUsed; i++) {
-          buf0[i].initNode((unsigned int) i, symbolCounts[i]);
-          symbolCounts[i] = 0U;
+          if (symbolCounts[i] > 0) {
+            buf0[n].initNode((unsigned int) i, symbolCounts[i]);
+            symbolCounts[i] = 0;
+            n++;
+          }
         }
-        HuffmanNode::sortNodes(buf0, buf0 + symbolRangeUsed, buf1);
-        for (size_t i = 0; i < symbolRangeUsed; i++)
+        HuffmanNode::sortNodes(buf0, buf0 + n, buf1);
+        for (size_t i = 0; i < n; i++)
           buf0[i].setBufPos(buf0);
         size_t  buf1Size = 0;
         for (size_t i = 0; i < maxCodeLen; i++) {
           size_t  j, k, l;
           // merge buffers
-          for (j = 0, k = 0, l = 0; j < symbolRangeUsed || k < buf1Size; l++) {
+          for (j = 0, k = 0, l = 0; j < n || k < buf1Size; l++) {
             if (EP128EMU_UNLIKELY(k >= buf1Size)) {
               *allocPtr = buf0[j++];
               allocPtr->setBufPos(buf0);
               buf2[l] = *allocPtr;
               allocPtr++;
             }
-            else if (EP128EMU_UNLIKELY(j >= symbolRangeUsed) ||
-                     buf1[k] < buf0[j]) {
+            else if (EP128EMU_UNLIKELY(j >= n) || buf1[k] < buf0[j]) {
               buf2[l] = buf1[k++];
             }
             else {
