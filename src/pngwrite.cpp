@@ -27,7 +27,6 @@
 #include "pngwrite.hpp"
 
 #define DEFLATE_MAX_THREADS     4
-#define DEFLATE_BLOCK_SIZE      16384
 
 namespace Ep128Emu {
 
@@ -1071,7 +1070,7 @@ namespace Ep128Emu {
 
   void Compressor_ZLib::compressData(std::vector< unsigned char >& outBuf,
                                      const unsigned char *inBuf,
-                                     size_t inBufSize)
+                                     size_t inBufSize, size_t blockSize)
   {
     outBuf.clear();
     if (inBufSize < 1 || !inBuf)
@@ -1087,7 +1086,7 @@ namespace Ep128Emu {
         compressorThreads[nThreads]->inBuf = inBuf;
         compressorThreads[nThreads]->inBufSize = inBufSize;
         compressorThreads[nThreads]->startPos = startPos;
-        compressorThreads[nThreads]->blockSize = DEFLATE_BLOCK_SIZE;
+        compressorThreads[nThreads]->blockSize = blockSize;
         startPos = startPos + Compressor_ZLib::maxMatchDist;
         nThreads++;
       }

@@ -169,8 +169,11 @@ namespace Ep128Emu {
     void compressDataBlock(std::vector< unsigned int >& outBuf,
                            const unsigned char *inBuf, size_t offs,
                            size_t nBytes, size_t bufSize, bool isLastBlock);
+    // 'blockSize' must be a power of two and not greater than 32768,
+    // the optimal value depends on the input data
     static void compressData(std::vector< unsigned char >& outBuf,
-                             const unsigned char *inBuf, size_t inBufSize);
+                             const unsigned char *inBuf, size_t inBufSize,
+                             size_t blockSize = 16384);
   };
 
 }       // namespace Ep128Emu
