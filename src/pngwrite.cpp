@@ -1157,11 +1157,11 @@ namespace Ep128Emu {
           // write ZLib header:
           //   CINFO = 7 (32K dictionary size)
           //   CM = 8 (Deflate method)
-          //   FLEVEL = 2 (default compression level)
+          //   FLEVEL = 3 (high compression level)
           //   FDICT = 0 (no preset dictionary)
-          //   FCHECK = 28
+          //   FCHECK = 26 ((0x78DA % 31) == 0)
           outBuf.push_back(0x78);
-          outBuf.push_back(0x9C);
+          outBuf.push_back(0xDA);
         }
         startPos = compressorThreads[i]->startPos + 1;
         compressorThreads[i]->startPos =
@@ -1253,22 +1253,20 @@ namespace Ep128Emu {
       throw Exception("invalid PNG image file name");
     std::FILE *f = (std::FILE *) 0;
     try {
-      std::vector< unsigned char >  imgDataBuf;
-      std::vector< unsigned char >  outBuf;
-      std::vector< unsigned char >  hdrBuf(1024);
+      std::vector< unsigned char >  hdrBuf(1024, 0x00);
       unsigned char *hdrBufP = &(hdrBuf.front());
       unsigned char *paletteIndexTable = hdrBufP + 768;
       unsigned char *colorReplaceTable = hdrBufP + 512;
       nColors = (nColors > 0 ? (nColors < 256 ? nColors : 256) : 0);
-      size_t  imgDataOffs = size_t(nColors) * 3;
-      size_t  imgDataEnd =
-          imgDataOffs + (size_t(w) * size_t(h) * (!nColors ? 3 : 1));
+      const unsigned char *imgDataPtr = inBuf + size_t(nColors * 3);
+      size_t        lineBytesI = size_t(w);
+      unsigned char bitDepth = 8;
       if (nColors) {
         if (optimizePalette) {
           unsigned char *colorsUsed = hdrBufP + 256;
-          std::memset(colorsUsed, 0, 256);
-          for (size_t i = imgDataOffs; i < imgDataEnd; i++)
-            colorsUsed[inBuf[i]] = 1;
+          size_t  imgDataSize = size_t(h) * lineBytesI;
+          for (size_t i = 0; i < imgDataSize; i++)
+            colorsUsed[imgDataPtr[i]] = 1;
           int     n = 0;
           for (int i = 0; i < 256; i++) {
             if (colorsUsed[i]) {
@@ -1289,23 +1287,48 @@ namespace Ep128Emu {
             colorReplaceTable[i] = (unsigned char) i;
           }
         }
+        if (nColors <= 16)
+          bitDepth = (nColors > 4 ? 4 : (nColors > 2 ? 2 : 1));
       }
-      imgDataBuf.resize(size_t(h) + imgDataEnd - imgDataOffs);
-      for (size_t y = 0; y < size_t(h); y++) {
-        size_t  lineBytes = size_t(w) * (!nColors ? 3 : 1);
-        const unsigned char *srcp = inBuf + imgDataOffs + (y * lineBytes);
-        unsigned char   *dstp = &(imgDataBuf.front()) + (y * (lineBytes + 1));
-        *(dstp++) = 0;                  // filter type (none)
-        if (nColors && optimizePalette) {
-          for (int x = 0; x < w; x++)
-            dstp[x] = colorReplaceTable[srcp[x]];
-        }
-        else {
-          std::memcpy(dstp, srcp, lineBytes);
-        }
+      else {
+        lineBytesI = lineBytesI * 3;
+        optimizePalette = false;
       }
-      Compressor_ZLib::compressData(outBuf, &(imgDataBuf.front()),
-                                    imgDataBuf.size(), blockSize);
+      std::vector< unsigned char >  outBuf;
+      {
+        size_t  lineBytesO = (lineBytesI * size_t(bitDepth) + 7) >> 3;
+        std::vector< unsigned char >  imgDataBuf(size_t(h) * (lineBytesO + 1));
+        const unsigned char *srcp = imgDataPtr;
+        unsigned char   *dstp = &(imgDataBuf.front());
+        for (int y = 0; y < h; y++) {
+          *(dstp++) = 0;                // filter type (none)
+          switch (bitDepth & (~(optimizePalette ? 0 : 8))) {
+          case 1:
+            for (int x = 0; x < w; x++)
+              dstp[x >> 3] |= (colorReplaceTable[srcp[x]] << ((~x) & 7));
+            break;
+          case 2:
+            for (int x = 0; x < w; x++)
+              dstp[x >> 2] |= (colorReplaceTable[srcp[x]] << (((~x) & 3) << 1));
+            break;
+          case 4:
+            for (int x = 0; x < w; x++)
+              dstp[x >> 1] |= (colorReplaceTable[srcp[x]] << (((~x) & 1) << 2));
+            break;
+          case 8:
+            for (int x = 0; x < w; x++)
+              dstp[x] = colorReplaceTable[srcp[x]];
+            break;
+          default:
+            std::memcpy(dstp, srcp, lineBytesO);
+            break;
+          }
+          srcp = srcp + lineBytesI;
+          dstp = dstp + lineBytesO;
+        }
+        Compressor_ZLib::compressData(outBuf, &(imgDataBuf.front()),
+                                      imgDataBuf.size(), blockSize);
+      }
       f = std::fopen(fileName, "wb");
       if (!f)
         throw Ep128Emu::Exception("error opening PNG image file");
@@ -1313,7 +1336,7 @@ namespace Ep128Emu {
         throw Ep128Emu::Exception("error writing PNG image file");
       writePNGUInt32(hdrBufP, uint32_t(w));
       writePNGUInt32(hdrBufP + 4, uint32_t(h));
-      hdrBufP[8] = 8;                           // bit depth
+      hdrBufP[8] = bitDepth;                    // bit depth
       hdrBufP[9] = (nColors > 0 ? 3 : 2);       // color type
       hdrBufP[10] = 0;                          // compression method (Deflate)
       hdrBufP[11] = 0;                          // filter method (adaptive)
