@@ -1236,7 +1236,7 @@ namespace Ep128Emu {
     if (std::fwrite(&(hdrBuf[0]), sizeof(unsigned char), 8, f) != 8 ||
         std::fwrite(buf, sizeof(unsigned char), bufSize, f) != bufSize ||
         std::fwrite(&(hdrBuf[8]), sizeof(unsigned char), 4, f) != 4) {
-      throw Ep128Emu::Exception("error writing PNG image file");
+      throw Exception("error writing PNG image file");
     }
   }
 
@@ -1331,9 +1331,9 @@ namespace Ep128Emu {
       }
       f = std::fopen(fileName, "wb");
       if (!f)
-        throw Ep128Emu::Exception("error opening PNG image file");
+        throw Exception("error opening PNG image file");
       if (std::fwrite(pngSignature, sizeof(char), 8, f) != 8)
-        throw Ep128Emu::Exception("error writing PNG image file");
+        throw Exception("error writing PNG image file");
       writePNGUInt32(hdrBufP, uint32_t(w));
       writePNGUInt32(hdrBufP + 4, uint32_t(h));
       hdrBufP[8] = bitDepth;                    // bit depth
@@ -1357,7 +1357,7 @@ namespace Ep128Emu {
       int     err = std::fflush(f) | std::fclose(f);
       f = (std::FILE *) 0;
       if (err != 0)
-        throw Ep128Emu::Exception("error writing PNG image file");
+        throw Exception("error writing PNG image file");
     }
     catch (...) {
       if (f) {
