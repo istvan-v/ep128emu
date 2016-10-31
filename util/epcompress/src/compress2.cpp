@@ -818,9 +818,6 @@ namespace Ep128Compress {
     // suffixArray[n] matches prvMatchLenTable[n] characters with
     // suffixArray[n - 1]
     std::vector< unsigned short > prvMatchLenTable;
-    // suffixArray[n] matches nxtMatchLenTable[n] characters with
-    // suffixArray[n + 1]
-    std::vector< unsigned short > nxtMatchLenTable;
     std::vector< unsigned int >   tmpBuf;
     for (size_t startPos = 0; startPos < buf.size(); ) {
       size_t  startPos_ = 0;
@@ -832,33 +829,30 @@ namespace Ep128Compress {
       size_t  nBytes = endPos - startPos_;
       tmpBuf.resize(nBytes);
       suffixArray.resize(nBytes);
-      prvMatchLenTable.resize(nBytes);
-      nxtMatchLenTable.resize(nBytes);
+      prvMatchLenTable.resize(nBytes + 1);
+      // suffixArray[n] matches nxtMatchLenTable[n] characters with
+      // suffixArray[n + 1]
+      const unsigned short  *nxtMatchLenTable = &(prvMatchLenTable.front()) + 1;
       for (size_t i = 0; i < nBytes; i++)
         suffixArray[i] = (unsigned int) (startPos_ + i);
       sortFunc(&(suffixArray.front()), &(buf.front()), buf.size(), 0, nBytes,
                &(tmpBuf.front()));
+      prvMatchLenTable[0] = 0;
       for (size_t i = 0; i < nBytes; i++) {
-        if (i == 0) {
-          prvMatchLenTable[i] = 0;
+        size_t  len = 0;
+        size_t  p1 = suffixArray[i - 1];
+        size_t  p2 = suffixArray[i];
+        size_t  maxLen = buf.size() - (p1 > p2 ? p1 : p2);
+        maxLen = (maxLen < Compressor_M2::maxRepeatLen ?
+                  maxLen : Compressor_M2::maxRepeatLen);
+        while (len < maxLen && buf[p1] == buf[p2]) {
+          len++;
+          p1++;
+          p2++;
         }
-        else {
-          size_t  len = 0;
-          size_t  p1 = suffixArray[i - 1];
-          size_t  p2 = suffixArray[i];
-          size_t  maxLen = buf.size() - (p1 > p2 ? p1 : p2);
-          maxLen = (maxLen < Compressor_M2::maxRepeatLen ?
-                    maxLen : Compressor_M2::maxRepeatLen);
-          while (len < maxLen && buf[p1] == buf[p2]) {
-            len++;
-            p1++;
-            p2++;
-          }
-          prvMatchLenTable[i] = (unsigned short) len;
-          nxtMatchLenTable[i - 1] = prvMatchLenTable[i];
-        }
-        nxtMatchLenTable[i] = 0;
+        prvMatchLenTable[i] = (unsigned short) len;
       }
+      prvMatchLenTable[nBytes] = 0;
       // find all matches
       std::vector< unsigned long >  offsTable(
           Compressor_M2::maxRepeatLen + 1, (unsigned long) maxOffs);
@@ -869,15 +863,18 @@ namespace Ep128Compress {
         size_t  rleLen = rleLengthTable[i];
         if (rleLen > Compressor_M2::maxRepeatLen)
           rleLen = Compressor_M2::maxRepeatLen;
-        size_t  minLen = Compressor_M2::minRepeatLen;
+        size_t  minLen = 3;
         if (rleLen >= minLen) {
           minLen = rleLen + 1;
           offsTable[rleLen] = 0UL;
         }
-        if (minLen < 3)
-          minLen = 3;
-        size_t  maxLen = minLen - 1;
         size_t  matchLen = prvMatchLenTable[i_];
+        if (matchLen >= Compressor_M2::maxRepeatLen &&
+            (i - suffixArray[i_ - 1]) < (unsigned int) matchLen) {
+          minLen = matchLen + 1;
+          offsTable[matchLen] = (i - suffixArray[i_ - 1]) - 1UL;
+        }
+        size_t  maxLen = minLen - 1;
         if (matchLen >= minLen) {
           if (matchLen > maxLen)
             maxLen = matchLen;
