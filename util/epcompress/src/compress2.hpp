@@ -159,7 +159,6 @@ namespace Ep128Compress {
       std::vector< unsigned int > matchTable;
       // space allocated for matchTable
       std::vector< unsigned int > matchTableBuf;
-      size_t  matchTableBufPos;
       static void sortFunc(unsigned int *suffixArray,
                            const unsigned char *buf, size_t bufSize,
                            size_t startPos, size_t endPos,
