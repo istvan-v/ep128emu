@@ -605,17 +605,17 @@ namespace Ep128Emu {
     // that maxRepeatDist is an integer multiple of
     {
       size_t  searchTableStart = (offs / maxRepeatDist) * maxRepeatDist;
-      size_t  searchTableEnd = searchTableStart + maxRepeatDist;
       bool    searchTableNeeded = (offs == searchTableStart);
-      if (searchTableEnd > bufSize)
-        searchTableEnd = bufSize;
       if (searchTableNeeded) {
         if (!searchTable) {
           searchTable = new Ep128Compress::LZSearchTable(
                                 minRepeatLen, maxRepeatLen, lengthMaxValue,
                                 offs1MaxValue, offs2MaxValue, maxRepeatDist);
         }
-        searchTable->findMatches(inBuf, searchTableStart, searchTableEnd);
+        size_t  searchTableSize = bufSize - searchTableStart;
+        if (searchTableSize > maxRepeatDist)
+          searchTableSize = maxRepeatDist;
+        searchTable->findMatches(inBuf, searchTableStart, searchTableSize);
       }
       inBuf = inBuf + searchTableStart;
       offs = offs - searchTableStart;
