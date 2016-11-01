@@ -1084,8 +1084,13 @@ namespace Ep128Emu {
         }
         if (minLen < 3)
           minLen = 3;
-        size_t  maxLen = minLen - 1;
         size_t  matchLen = prvMatchLenTable[i_];
+          if (matchLen >= Compressor_M2::maxRepeatLen &&
+            (i - suffixArray[i_ - 1]) < (unsigned int) matchLen) {
+          minLen = matchLen + 1;
+          offsTable[matchLen] = (i - suffixArray[i_ - 1]) - 1UL;
+        }
+        size_t  maxLen = minLen - 1;
         if (matchLen >= minLen) {
           if (matchLen > maxLen)
             maxLen = matchLen;
