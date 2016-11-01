@@ -975,8 +975,6 @@ namespace Ep128Compress {
 
   RadixTree::~RadixTree()
   {
-    std::fprintf(stderr, "Buffer size allocated: %lu bytes\n",
-                 (unsigned long) buf.capacity() * sizeof(unsigned int));
   }
 
   size_t RadixTree::findMatches(std::vector< unsigned int >& matchBuf,
@@ -1039,7 +1037,7 @@ namespace Ep128Compress {
     }
     unsigned int  nextPos_ = bufSize;
     bufSize = bufSize + (3U + (nBits << 1));
-    if (size_t(bufSize) > buf.capacity())
+    if (EP128EMU_UNLIKELY(size_t(bufSize) > buf.capacity()))
       buf.reserve(((bufSize + (bufSize >> 2)) | 0x3FFFU) + 1U);
     buf.resize(bufSize, 0U);
     do {
@@ -1180,15 +1178,21 @@ namespace Ep128Compress {
   void LZSearchTable::addMatch(size_t bufPos,
                                unsigned int matchLen, unsigned int offs)
   {
-    if (matchTableBuf.size() >= matchTableBuf.capacity()) {
+    unsigned int  m = matchLen | (offs << 10);
+    if (matchTable[bufPos] == 0xFFFFFFFFU) {
+      if (!m) {
+        matchTable[bufPos] = 0U;
+        return;
+      }
+      matchTable[bufPos] = (unsigned int) matchTableBuf.size();
+    }
+    if (EP128EMU_UNLIKELY(matchTableBuf.size() >= matchTableBuf.capacity())) {
       size_t  tmp = 1024;
       while (tmp <= matchTableBuf.size())
         tmp = tmp << 1;
       matchTableBuf.reserve(tmp);
     }
-    if (matchTable[bufPos] == 0xFFFFFFFFU)
-      matchTable[bufPos] = (unsigned int) matchTableBuf.size();
-    matchTableBuf.push_back(matchLen | (offs << 10));
+    matchTableBuf.push_back(m);
   }
 
   // --------------------------------------------------------------------------
@@ -1232,6 +1236,7 @@ namespace Ep128Compress {
     matchTable.resize(nBytes_, 0xFFFFFFFFU);
     if (matchTableBuf.capacity() < 1024)
       matchTableBuf.reserve(1024);
+    matchTableBuf.push_back(0U);
     size_t  minLength = minLength_;
     size_t  maxLength = maxLength_;
     size_t  lengthMaxValue = lengthMaxValue_;
@@ -1242,12 +1247,20 @@ namespace Ep128Compress {
     // matches up to this length are found using the radix tree,
     // the suffix array based search is used only for the longer ones
     size_t  rtMaxLen = (maxLength < 15 ? maxLength : 15);
-    std::vector< unsigned short > rleLengthTable;
+    std::vector< unsigned short > rleLengthTable(nBytes_ + 1, 0);
     std::vector< unsigned int >   suffixArray;
     std::vector< unsigned int >   invSuffixArray;
     std::vector< unsigned short > prvMatchLenTable;
     std::vector< unsigned int >   offsTable(maxLength + 1, maxOffs);
     std::vector< unsigned int >   rtMatchTable((rtMaxLen + 1) * 2, 0U);
+    // find RLE (offset = 1) matches
+    for (size_t i = nBytes_; i-- > 1; ) {
+      if (buf[offs_ + i] == buf[offs_ + i - 1]) {
+        unsigned short  rleLength = rleLengthTable[i + 1];
+        rleLength += (unsigned short) (rleLength < maxLength);
+        rleLengthTable[i] = rleLength;
+      }
+    }
     for (size_t startPos = offs_; startPos < bufSize; ) {
       size_t  startPos_ =
           (startPos > size_t(maxOffs) ? (startPos - size_t(maxOffs)) : 0);
@@ -1255,29 +1268,18 @@ namespace Ep128Compress {
       if (endPos > bufSize || nBytes_ <= size_t(maxOffs * 2U))
         endPos = bufSize;
       size_t  nBytes = endPos - startPos_;
-      const unsigned char *bufp = buf + startPos_;
-      // find RLE (offset = 1) matches
-      rleLengthTable.clear();
-      rleLengthTable.resize(nBytes + 1, 0);
-      for (size_t i = nBytes; i-- > 1; ) {
-        if (bufp[i] == bufp[i - 1]) {
-          unsigned short  rleLength = rleLengthTable[i + 1];
-          rleLength += (unsigned short) (rleLength < maxLength);
-          rleLengthTable[i] = rleLength;
-        }
-      }
       // sort buffer positions alphabetically by bytes at each position
       suffixArray.resize(nBytes);
       invSuffixArray.resize(nBytes);
       for (size_t i = 0; i < nBytes; i++)
-        suffixArray[i] = (unsigned int) i;
+        suffixArray[i] = (unsigned int) (startPos_ + i);
       if (nBytes > 1) {
         sortFunc(&(suffixArray.front()), &(suffixArray.front()) + nBytes,
-                 bufp, nBytes, &(invSuffixArray.front()), maxLength);
+                 buf, bufSize, &(invSuffixArray.front()), maxLength);
       }
       // invert suffix array
       for (size_t i = 0; i < nBytes; i++)
-        invSuffixArray[suffixArray[i]] = (unsigned int) i;
+        invSuffixArray[suffixArray[i] - startPos_] = (unsigned int) i;
       // suffixArray[n] matches prvMatchLenTable[n] characters with
       // suffixArray[n - 1], and nxtMatchLenTable[n] characters with
       // suffixArray[n + 1]
@@ -1285,8 +1287,8 @@ namespace Ep128Compress {
       const unsigned short  *nxtMatchLenTable = &(prvMatchLenTable.front()) + 1;
       prvMatchLenTable[0] = 0;
       for (size_t i = 1; i < nBytes; i++) {
-        const unsigned char *p1 = &(bufp[suffixArray[i - 1]]);
-        const unsigned char *p2 = &(bufp[suffixArray[i]]);
+        const unsigned char *p1 = &(buf[suffixArray[i - 1]]);
+        const unsigned char *p2 = &(buf[suffixArray[i]]);
         size_t  maxLen = size_t((buf + bufSize) - (p1 > p2 ? p1 : p2));
         maxLen = (maxLen < maxLength ? maxLen : maxLength);
         size_t  minLen = rtMaxLen + 1;
@@ -1302,36 +1304,35 @@ namespace Ep128Compress {
       }
       prvMatchLenTable[nBytes] = 0;
       // find all matches:
-      for (size_t i = 0; i < nBytes; i++) {
-        size_t  maxLen = bufSize - (startPos_ + i);
+      for (size_t i = startPos_; i < startPos; i++) {
+        size_t  maxLen = ((bufSize - i) < rtMaxLen ? (bufSize - i) : rtMaxLen);
+        rt.addString(buf, i, maxLen);
+      }
+      for (size_t i = startPos; i < endPos; i++) {
+        size_t  maxLen = bufSize - i;
         maxLen = (maxLen < rtMaxLen ? maxLen : rtMaxLen);
-        if (i < (startPos - startPos_)) {
-          rt.addString(bufp, i, maxLen);
-          continue;
-        }
-        else {
+        {
+          size_t  rleLen = rleLengthTable[i - offs_];
           size_t  nMatches = 0;
-          if (size_t(rleLengthTable[i]) < rtMaxLen)
-            nMatches = rt.findMatches(rtMatchTable, bufp, i, maxLen, maxOffs);
-          rt.addString(bufp, i, maxLen);
-          maxLen = 0;
+          if (rleLen < rtMaxLen)
+            nMatches = rt.findMatches(rtMatchTable, buf, i, maxLen, maxOffs);
+          rt.addString(buf, i, maxLen);
+          maxLen = minLength - 1;
+          if (rleLen > maxLen) {
+            maxLen = rleLen;
+            offsTable[rleLen] = 0U;
+          }
           for (size_t j = 0; j < nMatches; j++) {
             unsigned int  l = rtMatchTable[j << 1];
             unsigned int  d = rtMatchTable[(j << 1) + 1];
-            if (l >= (unsigned int) minLength &&
+            if (l > maxLen &&
                 !((l == 1U && d > maxOffs1) || (l == 2U && d > maxOffs2))) {
               maxLen = l;
               offsTable[l] = d - 1U;
             }
           }
         }
-        unsigned int  i_ = invSuffixArray[i];
-#if 1
-        size_t  rleLen = rleLengthTable[i];
-        if (rleLen >= minLength && rleLen > maxLen) {
-          maxLen = rleLen;
-          offsTable[rleLen] = 0U;
-        }
+        unsigned int  i_ = invSuffixArray[i - startPos_];
         size_t  matchLen = prvMatchLenTable[i_];
         if (matchLen >= maxLength && (i - suffixArray[i_ - 1]) < matchLen) {
           // hack to work around highly redundant input data: since maximum
@@ -1343,12 +1344,12 @@ namespace Ep128Compress {
             offsTable[matchLen] = ((unsigned int) i - suffixArray[i_ - 1]) - 1U;
           }
         }
-        size_t  minLen = ((maxLen + 1) > minLength ? (maxLen + 1) : minLength);
+        size_t  minLen = maxLen + 1;
         minLen = (minLen > (rtMaxLen + 1) ? minLen : (rtMaxLen + 1));
         if (matchLen >= minLen) {
           if (matchLen > maxLen)
             maxLen = matchLen;
-          unsigned int  d = offsTable[matchLen];
+          unsigned int  d = maxOffs;
           size_t  ndx = i_;
           while (true) {
             ndx--;
@@ -1382,9 +1383,8 @@ namespace Ep128Compress {
             }
           }
         }
-#endif
         // store the matches that were found
-        i_ = i + startPos_ - offs_;
+        i_ = i - offs_;
         unsigned int  prvDist = maxOffs;
         bool    firstMatch = (lengthMaxValue > 1023);
         for (size_t k = maxLen; k >= minLength; k--) {
