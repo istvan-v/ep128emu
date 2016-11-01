@@ -327,6 +327,7 @@ namespace Ep128Compress {
   void Compressor_M0::optimizeMatches(LZMatchParameters *matchTable,
                                       BitCountTableEntry *bitCountTable,
                                       const size_t *lengthBitsTable_,
+                                      size_t *offsSumTable,
                                       const unsigned char *inBuf,
                                       size_t offs, size_t nBytes)
   {
@@ -374,8 +375,10 @@ namespace Ep128Compress {
             if (nBits > bestSize)
               continue;
             if (nBits == bestSize) {
-              if (d >= bestOffs)
+              if ((offsSumTable[i + len] + d)
+                  > (offsSumTable[i + bestLen] + bestOffs)) {
                 continue;
+              }
             }
             bestSize = nBits;
             bestLen = len;
@@ -391,8 +394,10 @@ namespace Ep128Compress {
             if (nBits > bestSize)
               continue;
             if (nBits == bestSize) {
-              if (d >= bestOffs)
+              if ((offsSumTable[i + len] + d)
+                  > (offsSumTable[i + bestLen] + bestOffs)) {
                 continue;
+              }
             }
             bestSize = nBits;
             bestLen = len;
@@ -417,8 +422,10 @@ namespace Ep128Compress {
           if (nBits > bestSize)
             continue;
           if (nBits == bestSize) {
-            if (d >= bestOffs)
+            if ((offsSumTable[i + len] + d)
+                > (offsSumTable[i + bestLen] + bestOffs)) {
               continue;
+            }
           }
           bestSize = nBits;
           bestLen = len;
@@ -431,7 +438,9 @@ namespace Ep128Compress {
       {
         long    nBits = long(tmpCharBitsTable[inBuf[offs + i]])
                         + bitCountTable[i + 1].totalBits;
-        if (nBits <= bestSize) {
+        if (nBits < bestSize ||
+            (nBits == bestSize &&
+             (offsSumTable[i + 1] <= (offsSumTable[i + bestLen] + bestOffs)))) {
           bestSize = nBits;
           bestLen = 1;
           bestOffs = 0;
@@ -445,6 +454,7 @@ namespace Ep128Compress {
       matchTable[i].seqDiff = bestSeqDiff;
       bitCountTable[i] = bitCountTable[i + bestLen];
       bitCountTable[i].totalBits = bestSize;
+      offsSumTable[i] = offsSumTable[i + bestLen] + bestOffs;
       if (bestOffs > 8) {
         for (int nn = 0; true; nn++) {
           if (size_t(bitCountTable[i].prvDistances[nn]) == bestOffs)
@@ -490,6 +500,7 @@ namespace Ep128Compress {
     std::vector< LZMatchParameters >  matchTable(nBytes);
     {
       std::vector< BitCountTableEntry > bitCountTable(nBytes + 1);
+      std::vector< size_t > offsSumTable(nBytes + 1, 0);
       std::vector< size_t > lengthBitsTable_(maxRepeatLen + 1, 0x7FFF);
       for (size_t i = minRepeatLen; i <= maxRepeatLen; i++) {
         lengthBitsTable_[i] = tmpCharBitsTable[lengthCodeTable[i]]
@@ -499,8 +510,8 @@ namespace Ep128Compress {
       for (size_t i = 0; i < 4; i++)
         bitCountTable[nBytes].prvDistances[i] = 0;
       optimizeMatches(&(matchTable.front()), &(bitCountTable.front()),
-                      &(lengthBitsTable_.front()), &(inBuf.front()),
-                      offs, nBytes);
+                      &(lengthBitsTable_.front()), &(offsSumTable.front()),
+                      &(inBuf.front()), offs, nBytes);
     }
     for (size_t i = offs; i < endPos; ) {
       LZMatchParameters&  tmp = matchTable[i - offs];

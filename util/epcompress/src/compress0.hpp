@@ -127,7 +127,7 @@ namespace Ep128Compress {
                            unsigned char seqDiff, size_t d, size_t n);
     void optimizeMatches(LZMatchParameters *matchTable,
                          BitCountTableEntry *bitCountTable,
-                         const size_t *lengthBitsTable_,
+                         const size_t *lengthBitsTable_, size_t *offsSumTable,
                          const unsigned char *inBuf,
                          size_t offs, size_t nBytes);
     void compressData_(std::vector< unsigned int >& tmpOutBuf,
