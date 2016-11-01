@@ -18,6 +18,7 @@
 
 #include "ep128emu.hpp"
 #include "compress.hpp"
+#include "comprlib.hpp"
 #include "compress2.hpp"
 
 #include <list>
@@ -32,926 +33,6 @@ namespace Ep128Compress {
   const size_t Compressor_M2::offs3SlotCntTable[4] = {
     4, 8, 16, 32
   };
-
-  Compressor_M2::EncodeTable::EncodeTable(size_t nSlots_, size_t nSymbols_,
-                                          const size_t *slotPrefixSizeTable_,
-                                          size_t minPrefixSize_,
-                                          size_t maxPrefixSize_,
-                                          const size_t *prefixSlotCntTable_)
-    : nSlots(nSlots_),
-      nSymbols(nSymbols_),
-      nSymbolsUsed(nSymbols_),
-      nSymbolsEncoded(nSymbols_),
-      totalSlotWeight(0),
-      unusedSymbolSize(8192),
-      minPrefixSize(minPrefixSize_),
-      maxPrefixSize(maxPrefixSize_),
-      prefixOnlySymbolCnt(0)
-  {
-    if (nSymbols < 1)
-      throw Ep128Emu::Exception("EncodeTable::EncodeTable(): nSymbols < 1");
-    if (slotPrefixSizeTable_ != (size_t *) 0) {
-      minPrefixSize = 0;
-      maxPrefixSize = 0;
-    }
-    if (maxPrefixSize <= minPrefixSize) {
-      maxPrefixSize = minPrefixSize;
-      prefixSlotCntTable_ = (size_t *) 0;
-    }
-    prefixSlotCntTable.resize((maxPrefixSize - minPrefixSize) + 1);
-    symbolCntTable.resize(nSymbols + 1);
-    unencodedSymbolCostTable.resize(nSymbols + 1);
-    symbolSlotNumTable.resize(nSymbols);
-    symbolSizeTable.resize(nSymbols);
-    for (size_t i = minPrefixSize; i <= maxPrefixSize; i++) {
-      if (prefixSlotCntTable_ != (size_t *) 0) {
-        prefixSlotCntTable[i - minPrefixSize] =
-            prefixSlotCntTable_[i - minPrefixSize];
-      }
-      else if (maxPrefixSize > minPrefixSize) {
-        prefixSlotCntTable[i - minPrefixSize] = size_t(1) << i;
-      }
-      else {
-        prefixSlotCntTable[i - minPrefixSize] = nSlots;
-      }
-    }
-    if (slotPrefixSizeTable_ != (size_t *) 0) {
-      if (nSlots < 1)
-        throw Ep128Emu::Exception("EncodeTable::EncodeTable(): nSlots < 1");
-      slotPrefixSizeTable.resize(nSlots);
-      slotWeightTable.resize(nSlots);
-      slotBitsTable.resize(nSlots);
-      slotBaseSymbolTable.resize(nSlots);
-      maxPrefixSize = 0;
-      for (size_t i = 0; i < nSlots; i++) {
-        slotPrefixSizeTable[i] = slotPrefixSizeTable_[i];
-        if (slotPrefixSizeTable[i] > maxPrefixSize)
-          maxPrefixSize = slotPrefixSizeTable[i];
-      }
-      for (size_t i = 0; i < nSlots; i++) {
-        slotWeightTable[i] =
-            size_t(1) << (maxPrefixSize - slotPrefixSizeTable[i]);
-      }
-      minPrefixSize = 0;
-      maxPrefixSize = 0;
-      totalSlotWeight = 0;
-      for (size_t i = 0; i < nSlots; i++)
-        totalSlotWeight = totalSlotWeight + slotWeightTable[i];
-    }
-    else {
-      setPrefixSize(minPrefixSize);
-    }
-    this->clear();
-  }
-
-  Compressor_M2::EncodeTable::~EncodeTable()
-  {
-  }
-
-  void Compressor_M2::EncodeTable::setPrefixSize(size_t n)
-  {
-    if (n < 1) {
-      throw Ep128Emu::Exception("EncodeTable::setPrefixSize(): "
-                                "prefix size < 1");
-    }
-    if (n < minPrefixSize || n > maxPrefixSize) {
-      throw Ep128Emu::Exception("EncodeTable::setPrefixSize(): "
-                                "prefix size is out of range");
-    }
-    nSlots = prefixSlotCntTable[n - minPrefixSize];
-    if (nSlots < 1)
-      throw Ep128Emu::Exception("EncodeTable::setPrefixSize(): nSlots < 1");
-    slotPrefixSizeTable.resize(nSlots);
-    slotWeightTable.resize(nSlots);
-    slotBitsTable.resize(nSlots);
-    slotBaseSymbolTable.resize(nSlots);
-    for (size_t i = 0; i < nSlots; i++) {
-      slotPrefixSizeTable[i] = n;
-      slotWeightTable[i] = 1;
-    }
-    totalSlotWeight = nSlots;
-  }
-
-  inline size_t Compressor_M2::EncodeTable::calculateEncodedSize() const
-  {
-    size_t  totalSize = 0;
-    size_t  p = 0;
-    for (size_t i = 0; i < nSlots; i++) {
-      size_t  symbolCnt = size_t(symbolCntTable[p]);
-      p = p + (size_t(1) << slotBitsTable[i]);
-      size_t  symbolSize = slotPrefixSizeTable[i] + slotBitsTable[i];
-      if (p >= nSymbolsUsed) {
-        return (totalSize + ((size_t(symbolCntTable[nSymbolsUsed]) - symbolCnt)
-                             * symbolSize));
-      }
-      totalSize += ((size_t(symbolCntTable[p]) - symbolCnt) * symbolSize);
-    }
-    // add the cost of any symbols that could not be encoded
-    totalSize += (size_t(unencodedSymbolCostTable[nSymbolsUsed])
-                  - size_t(unencodedSymbolCostTable[p]));
-    return totalSize;
-  }
-
-  inline size_t Compressor_M2::EncodeTable::calculateEncodedSize(
-      size_t firstSlot, unsigned int firstSymbol, size_t baseSize) const
-  {
-    size_t  totalSize = baseSize;
-    size_t  p = size_t(firstSymbol);
-    for (size_t i = firstSlot; i < nSlots; i++) {
-      size_t  symbolCnt = size_t(symbolCntTable[p]);
-      p = p + (size_t(1) << slotBitsTable[i]);
-      size_t  symbolSize = slotPrefixSizeTable[i] + slotBitsTable[i];
-      if (p >= nSymbolsUsed) {
-        return (totalSize + ((size_t(symbolCntTable[nSymbolsUsed]) - symbolCnt)
-                             * symbolSize));
-      }
-      totalSize += ((size_t(symbolCntTable[p]) - symbolCnt) * symbolSize);
-    }
-    // add the cost of any symbols that could not be encoded
-    totalSize += (size_t(unencodedSymbolCostTable[nSymbolsUsed])
-                  - size_t(unencodedSymbolCostTable[p]));
-    return totalSize;
-  }
-
-  size_t Compressor_M2::EncodeTable::optimizeSlotBitsTable_fast()
-  {
-    size_t  totalSymbolCnt = symbolCntTable[nSymbolsUsed];
-    size_t  slotWeightSum = totalSlotWeight;
-    size_t  slotBegin = 0;
-    size_t  slotEnd = 0;
-    for (size_t i = 0; i < nSlots; i++) {
-      slotBegin = slotEnd;
-      if (totalSymbolCnt < 1) {
-        slotBitsTable[i] = 0;
-        continue;
-      }
-      if ((i + 1) < nSlots) {
-        size_t  bestSize = 0;
-        long    bestDiff = 0x7FFFFFFFL;
-        for (size_t j = 0; j <= 15; j++) {
-          slotEnd = slotBegin + (size_t(1) << j);
-          if (slotEnd > nSymbolsUsed)
-            slotEnd = nSymbolsUsed;
-          if ((slotEnd + ((nSlots - (i + 1)) << 15)) < nSymbolsUsed)
-            continue;
-          size_t  tmp = symbolCntTable[slotEnd] - symbolCntTable[slotBegin];
-          tmp = size_t(tmp * uint64_t(0x01000000U) / totalSymbolCnt);
-          size_t  tmp2 = size_t(slotWeightTable[i] * uint64_t(0x01000000U)
-                                / slotWeightSum);
-          long    d = long(tmp) - long(tmp2);
-          if (d < 0L)
-            d = (-d);
-          if (d < bestDiff || (tmp == 0 && d == bestDiff)) {
-            bestSize = j;
-            bestDiff = d;
-          }
-        }
-        slotBitsTable[i] = bestSize;
-      }
-      else {
-        for (size_t j = 0; true; j++) {
-          slotEnd = slotBegin + (size_t(1) << j);
-          if (slotEnd > nSymbolsUsed)
-            slotEnd = nSymbolsUsed;
-          size_t  tmp = symbolCntTable[slotEnd] - symbolCntTable[slotBegin];
-          if (tmp >= totalSymbolCnt) {
-            slotBitsTable[i] = j;
-            break;
-          }
-          if (j >= 15) {
-            throw Ep128Emu::Exception("internal error in "
-                                      "EncodeTable::optimizeSlotBitsTable()");
-          }
-        }
-      }
-      slotEnd = slotBegin + (size_t(1) << slotBitsTable[i]);
-      if (slotEnd > nSymbolsUsed)
-        slotEnd = nSymbolsUsed;
-      size_t  symbolsUsed =
-          symbolCntTable[slotEnd] - symbolCntTable[slotBegin];
-      totalSymbolCnt = totalSymbolCnt - symbolsUsed;
-      slotWeightSum = slotWeightSum - slotWeightTable[i];
-    }
-    size_t  bestSize = calculateEncodedSize();
-    for (int l = 0; l < 4; l++) {
-      int     offs = ((l & 1) == 0 ? 1 : -1);
-      while (true) {
-        size_t  bestSlot = 0;
-        bool    doneFlag = true;
-        for (size_t i = 0; i < nSlots; i++) {
-          if (!((slotBitsTable[i] >= 15 && offs > 0) ||
-                (slotBitsTable[i] < 1 && offs < 0))) {
-            slotBitsTable[i] = size_t(int(slotBitsTable[i]) + offs);
-            size_t  newSize = calculateEncodedSize();
-            slotBitsTable[i] = size_t(int(slotBitsTable[i]) - offs);
-            if (newSize < bestSize) {
-              bestSize = newSize;
-              bestSlot = i;
-              doneFlag = false;
-            }
-          }
-        }
-        if (doneFlag)
-          break;
-        slotBitsTable[bestSlot] = size_t(int(slotBitsTable[bestSlot]) + offs);
-      }
-    }
-    std::vector< size_t > bestEncodeTable(nSlots);
-    for (size_t i = 0; i < nSlots; i++)
-      bestEncodeTable[i] = slotBitsTable[i];
-    bool    doneFlag = false;
-    do {
-      doneFlag = true;
-      for (size_t i = 0; (i + 1) < nSlots; i++) {
-        size_t  firstSlot = i;
-        size_t  baseSize = 0;
-        unsigned int  firstSymbol = 0U;
-        if (firstSlot > 0) {
-          for (size_t j = 0; j < firstSlot; j++) {
-            size_t  symbolCnt = size_t(symbolCntTable[firstSymbol]);
-            firstSymbol = firstSymbol + (1U << (unsigned int) slotBitsTable[j]);
-            size_t  symbolSize = slotPrefixSizeTable[j] + slotBitsTable[j];
-            if (size_t(firstSymbol) >= nSymbolsUsed)
-              break;
-            baseSize += ((size_t(symbolCntTable[firstSymbol]) - symbolCnt)
-                         * symbolSize);
-          }
-          if (size_t(firstSymbol) >= nSymbolsUsed)
-            continue;
-        }
-        for (size_t j = i + 1; j < nSlots; j++) {
-          if (bestEncodeTable[i] == bestEncodeTable[j])
-            continue;
-          slotBitsTable[i] = bestEncodeTable[j];
-          slotBitsTable[j] = bestEncodeTable[i];
-          size_t  newSize =
-              calculateEncodedSize(firstSlot, firstSymbol, baseSize);
-          if (newSize < bestSize) {
-            bestSize = newSize;
-            doneFlag = false;
-            bestEncodeTable[i] = slotBitsTable[i];
-            bestEncodeTable[j] = slotBitsTable[j];
-          }
-          else {
-            slotBitsTable[i] = bestEncodeTable[i];
-            slotBitsTable[j] = bestEncodeTable[j];
-          }
-        }
-      }
-      for (size_t i = nSlots; i > 0; ) {
-        i--;
-        int     bestOffsets[3];
-        bestOffsets[0] = 0;
-        bestOffsets[1] = 0;
-        bestOffsets[2] = 0;
-        size_t  firstSlot = (i > 2 ? (i - 2) : 0);
-        size_t  baseSize = 0;
-        unsigned int  firstSymbol = 0U;
-        if (firstSlot > 0) {
-          for (size_t j = 0; j < firstSlot; j++) {
-            size_t  symbolCnt = size_t(symbolCntTable[firstSymbol]);
-            firstSymbol = firstSymbol + (1U << (unsigned int) slotBitsTable[j]);
-            size_t  symbolSize = slotPrefixSizeTable[j] + slotBitsTable[j];
-            if (size_t(firstSymbol) >= nSymbolsUsed)
-              break;
-            baseSize += ((size_t(symbolCntTable[firstSymbol]) - symbolCnt)
-                         * symbolSize);
-          }
-          if (size_t(firstSymbol) >= nSymbolsUsed)
-            continue;
-        }
-        for (int offs2 = (i >= 2 ? -1 : 1); offs2 <= 1; offs2++) {
-          if (i >= 2) {
-            int     tmp = int(bestEncodeTable[i - 2]) + offs2;
-            if (tmp < 0 || tmp > 15)
-              continue;
-            slotBitsTable[i - 2] = size_t(tmp);
-          }
-          for (int offs1 = (i >= 1 ? -1 : 1); offs1 <= 1; offs1++) {
-            if (i >= 1) {
-              int     tmp = int(bestEncodeTable[i - 1]) + offs1;
-              if (tmp < 0 || tmp > 15)
-                continue;
-              slotBitsTable[i - 1] = size_t(tmp);
-            }
-            for (int offs0 = -1; offs0 <= 1; offs0++) {
-              int     tmp = int(bestEncodeTable[i]) + offs0;
-              if (tmp < 0 || tmp > 15)
-                continue;
-              slotBitsTable[i] = size_t(tmp);
-              size_t  newSize =
-                  calculateEncodedSize(firstSlot, firstSymbol, baseSize);
-              if (newSize < bestSize) {
-                bestSize = newSize;
-                doneFlag = false;
-                bestOffsets[0] = offs0;
-                bestOffsets[1] = offs1;
-                bestOffsets[2] = offs2;
-              }
-            }
-          }
-        }
-        int     tmp = int(bestEncodeTable[i]) + bestOffsets[0];
-        slotBitsTable[i] = size_t(tmp);
-        bestEncodeTable[i] = size_t(tmp);
-        if (i >= 1) {
-          tmp = int(bestEncodeTable[i - 1]) + bestOffsets[1];
-          slotBitsTable[i - 1] = size_t(tmp);
-          bestEncodeTable[i - 1] = size_t(tmp);
-        }
-        if (i >= 2) {
-          tmp = int(bestEncodeTable[i - 2]) + bestOffsets[2];
-          slotBitsTable[i - 2] = size_t(tmp);
-          bestEncodeTable[i - 2] = size_t(tmp);
-        }
-      }
-    } while (!doneFlag);
-    for (size_t i = nSlots; i-- > 0; ) {
-      while (true) {
-        if (slotBitsTable[i] < 1)
-          break;
-        slotBitsTable[i] = slotBitsTable[i] - 1;
-        size_t  newSize = calculateEncodedSize();
-        if (newSize > bestSize) {
-          slotBitsTable[i] = slotBitsTable[i] + 1;
-          break;
-        }
-        else {
-          bestSize = newSize;
-        }
-      }
-    }
-    return bestSize;
-  }
-
-  size_t Compressor_M2::EncodeTable::optimizeSlotBitsTable()
-  {
-    for (size_t i = 0; i < nSlots; i++)
-      slotBitsTable[i] = 0;
-    if (nSymbolsUsed < 1)
-      return 0;
-    size_t  nSlotsD2 = (nSlots + 1) >> 1;
-    std::vector< uint8_t >  slotBitsBuffer(nSlotsD2 * nSymbolsUsed, 0x00);
-    std::vector< uint32_t > encodedSizeBuffer(nSymbolsUsed + 1);
-    std::vector< uint8_t >  minSlotSizeTable(nSymbolsUsed, 0x00);
-    // minSlotNumTable[N] is the binary weight of N, this is used to skip
-    // calculating the encoded cost at any symbol index that cannot be the
-    // end point with a given number of slots
-    std::vector< uint8_t >  minSlotNumTable(nSymbolsUsed, 0x00);
-    for (size_t i = 0; i <= nSymbolsUsed; i++) {
-      encodedSizeBuffer[i] = uint32_t(unencodedSymbolCostTable[nSymbolsUsed]
-                                      - unencodedSymbolCostTable[i]);
-    }
-    for (size_t i = 0; i < nSymbolsUsed; i++) {
-      size_t  j = 0;
-      size_t  nxtSlotEnd = i + 2;
-      while (j < 15 && nxtSlotEnd < nSymbolsUsed) {
-        if (symbolCntTable[nxtSlotEnd] != symbolCntTable[i])
-          break;
-        nxtSlotEnd = nxtSlotEnd * 2 - i;
-        j++;
-      }
-      minSlotSizeTable[i] = uint8_t(j);
-      size_t  bitCnt = (i & 0x55555555) + ((i >> 1) & 0x55555555);
-      bitCnt = (bitCnt & 0x33333333) + ((bitCnt >> 2) & 0x33333333);
-      bitCnt = (bitCnt & 0x07070707) + ((bitCnt >> 4) & 0x07070707);
-      bitCnt = bitCnt + (bitCnt >> 8);
-      bitCnt = (bitCnt + (bitCnt >> 16)) & 0xFF;
-      minSlotNumTable[i] = uint8_t(bitCnt);
-    }
-    for (size_t slotNum = (nSlots < nSymbolsUsed ? nSlots : nSymbolsUsed);
-         slotNum-- > 0; ) {
-      size_t  maxSlotSize = 0;
-      while ((size_t(1) << maxSlotSize) < nSymbolsUsed && maxSlotSize < 15)
-        maxSlotSize++;
-      size_t  maxPos = nSymbolsUsed - ((size_t(1) << maxSlotSize) >> 1);
-      while (slotNum >= maxPos) {
-        maxSlotSize--;
-        maxPos = nSymbolsUsed - ((nSymbolsUsed - maxPos) >> 1);
-      }
-      size_t  endPos = (slotNum << 15) + 1;
-      endPos = (endPos < nSymbolsUsed ? endPos : nSymbolsUsed);
-      maxPos = (maxPos < endPos ? maxPos : endPos);
-      for (size_t i = slotNum; true; i++) {
-        if (i >= maxPos) {
-          if (i >= endPos)
-            break;
-          maxSlotSize--;
-          maxPos = nSymbolsUsed - ((nSymbolsUsed - maxPos) >> 1);
-        }
-        if (size_t(minSlotNumTable[i]) > slotNum)
-          continue;
-        size_t  baseSymbolCnt = size_t(symbolCntTable[i]);
-        size_t  slotEnd = i + (size_t(1) << minSlotSizeTable[i]);
-        size_t  maxSymbolSize = slotPrefixSizeTable[slotNum] + maxSlotSize;
-        size_t  bestSize = 0x7FFFFFFF;
-        size_t  bestSlotSize = 0;
-        size_t  nBits;
-        switch (maxSlotSize - size_t(minSlotSizeTable[i])) {
-        case 15:
-          nBits = ((size_t(symbolCntTable[slotEnd]) - baseSymbolCnt)
-                   * (maxSymbolSize - 15))
-                  + size_t(encodedSizeBuffer[slotEnd]);
-          slotEnd = slotEnd * 2 - i;
-          bestSlotSize = (nBits < bestSize ? 15 : bestSlotSize);
-          bestSize = (nBits < bestSize ? nBits : bestSize);
-        case 14:
-          nBits = ((size_t(symbolCntTable[slotEnd]) - baseSymbolCnt)
-                   * (maxSymbolSize - 14))
-                  + size_t(encodedSizeBuffer[slotEnd]);
-          slotEnd = slotEnd * 2 - i;
-          bestSlotSize = (nBits < bestSize ? 14 : bestSlotSize);
-          bestSize = (nBits < bestSize ? nBits : bestSize);
-        case 13:
-          nBits = ((size_t(symbolCntTable[slotEnd]) - baseSymbolCnt)
-                   * (maxSymbolSize - 13))
-                  + size_t(encodedSizeBuffer[slotEnd]);
-          slotEnd = slotEnd * 2 - i;
-          bestSlotSize = (nBits < bestSize ? 13 : bestSlotSize);
-          bestSize = (nBits < bestSize ? nBits : bestSize);
-        case 12:
-          nBits = ((size_t(symbolCntTable[slotEnd]) - baseSymbolCnt)
-                   * (maxSymbolSize - 12))
-                  + size_t(encodedSizeBuffer[slotEnd]);
-          slotEnd = slotEnd * 2 - i;
-          bestSlotSize = (nBits < bestSize ? 12 : bestSlotSize);
-          bestSize = (nBits < bestSize ? nBits : bestSize);
-        case 11:
-          nBits = ((size_t(symbolCntTable[slotEnd]) - baseSymbolCnt)
-                   * (maxSymbolSize - 11))
-                  + size_t(encodedSizeBuffer[slotEnd]);
-          slotEnd = slotEnd * 2 - i;
-          bestSlotSize = (nBits < bestSize ? 11 : bestSlotSize);
-          bestSize = (nBits < bestSize ? nBits : bestSize);
-        case 10:
-          nBits = ((size_t(symbolCntTable[slotEnd]) - baseSymbolCnt)
-                   * (maxSymbolSize - 10))
-                  + size_t(encodedSizeBuffer[slotEnd]);
-          slotEnd = slotEnd * 2 - i;
-          bestSlotSize = (nBits < bestSize ? 10 : bestSlotSize);
-          bestSize = (nBits < bestSize ? nBits : bestSize);
-        case 9:
-          nBits = ((size_t(symbolCntTable[slotEnd]) - baseSymbolCnt)
-                   * (maxSymbolSize - 9))
-                  + size_t(encodedSizeBuffer[slotEnd]);
-          slotEnd = slotEnd * 2 - i;
-          bestSlotSize = (nBits < bestSize ? 9 : bestSlotSize);
-          bestSize = (nBits < bestSize ? nBits : bestSize);
-        case 8:
-          nBits = ((size_t(symbolCntTable[slotEnd]) - baseSymbolCnt)
-                   * (maxSymbolSize - 8))
-                  + size_t(encodedSizeBuffer[slotEnd]);
-          slotEnd = slotEnd * 2 - i;
-          bestSlotSize = (nBits < bestSize ? 8 : bestSlotSize);
-          bestSize = (nBits < bestSize ? nBits : bestSize);
-        case 7:
-          nBits = ((size_t(symbolCntTable[slotEnd]) - baseSymbolCnt)
-                   * (maxSymbolSize - 7))
-                  + size_t(encodedSizeBuffer[slotEnd]);
-          slotEnd = slotEnd * 2 - i;
-          bestSlotSize = (nBits < bestSize ? 7 : bestSlotSize);
-          bestSize = (nBits < bestSize ? nBits : bestSize);
-        case 6:
-          nBits = ((size_t(symbolCntTable[slotEnd]) - baseSymbolCnt)
-                   * (maxSymbolSize - 6))
-                  + size_t(encodedSizeBuffer[slotEnd]);
-          slotEnd = slotEnd * 2 - i;
-          bestSlotSize = (nBits < bestSize ? 6 : bestSlotSize);
-          bestSize = (nBits < bestSize ? nBits : bestSize);
-        case 5:
-          nBits = ((size_t(symbolCntTable[slotEnd]) - baseSymbolCnt)
-                   * (maxSymbolSize - 5))
-                  + size_t(encodedSizeBuffer[slotEnd]);
-          slotEnd = slotEnd * 2 - i;
-          bestSlotSize = (nBits < bestSize ? 5 : bestSlotSize);
-          bestSize = (nBits < bestSize ? nBits : bestSize);
-        case 4:
-          nBits = ((size_t(symbolCntTable[slotEnd]) - baseSymbolCnt)
-                   * (maxSymbolSize - 4))
-                  + size_t(encodedSizeBuffer[slotEnd]);
-          slotEnd = slotEnd * 2 - i;
-          bestSlotSize = (nBits < bestSize ? 4 : bestSlotSize);
-          bestSize = (nBits < bestSize ? nBits : bestSize);
-        case 3:
-          nBits = ((size_t(symbolCntTable[slotEnd]) - baseSymbolCnt)
-                   * (maxSymbolSize - 3))
-                  + size_t(encodedSizeBuffer[slotEnd]);
-          slotEnd = slotEnd * 2 - i;
-          bestSlotSize = (nBits < bestSize ? 3 : bestSlotSize);
-          bestSize = (nBits < bestSize ? nBits : bestSize);
-        case 2:
-          nBits = ((size_t(symbolCntTable[slotEnd]) - baseSymbolCnt)
-                   * (maxSymbolSize - 2))
-                  + size_t(encodedSizeBuffer[slotEnd]);
-          slotEnd = slotEnd * 2 - i;
-          bestSlotSize = (nBits < bestSize ? 2 : bestSlotSize);
-          bestSize = (nBits < bestSize ? nBits : bestSize);
-        case 1:
-          nBits = ((size_t(symbolCntTable[slotEnd]) - baseSymbolCnt)
-                   * (maxSymbolSize - 1))
-                  + size_t(encodedSizeBuffer[slotEnd]);
-          slotEnd = slotEnd * 2 - i;
-          bestSlotSize = (nBits < bestSize ? 1 : bestSlotSize);
-          bestSize = (nBits < bestSize ? nBits : bestSize);
-        case 0:
-          slotEnd = (slotEnd < nSymbolsUsed ? slotEnd : nSymbolsUsed);
-          nBits = ((size_t(symbolCntTable[slotEnd]) - baseSymbolCnt)
-                   * maxSymbolSize)
-                  + size_t(encodedSizeBuffer[slotEnd]);
-          bestSlotSize = (nBits < bestSize ? 0 : bestSlotSize);
-          bestSize = (nBits < bestSize ? nBits : bestSize);
-        }
-        slotBitsBuffer[(slotNum >> 1) * nSymbolsUsed + i] |=
-            uint8_t((maxSlotSize - bestSlotSize) << ((slotNum & 1) << 2));
-        encodedSizeBuffer[i] = uint32_t(bestSize);
-      }
-    }
-    size_t  slotBegin = 0;
-    for (size_t i = 0; i < nSlots; i++) {
-      slotBitsTable[i] =
-          size_t((slotBitsBuffer[(i >> 1) * nSymbolsUsed + slotBegin]
-                 >> ((i & 1) << 2)) & 0x0F);
-      slotBegin += (size_t(1) << slotBitsTable[i]);
-      if (slotBegin >= nSymbolsUsed)
-        break;
-    }
-    for (size_t i = nSlots; i-- > 0; ) {
-      while (true) {
-        if (slotBitsTable[i] < 1)
-          break;
-        slotBitsTable[i] = slotBitsTable[i] - 1;
-        if (calculateEncodedSize() != size_t(encodedSizeBuffer[0])) {
-          slotBitsTable[i] = slotBitsTable[i] + 1;
-          break;
-        }
-      }
-    }
-    return size_t(encodedSizeBuffer[0]);
-  }
-
-  void Compressor_M2::EncodeTable::updateTables(bool fastMode)
-  {
-    try {
-      size_t  totalSymbolCnt = 0;
-      size_t  totalUnencodedSymbolCost = 0;
-      for (size_t i = 0; i < nSymbolsUsed; i++) {
-        size_t  tmp = size_t(symbolCntTable[i]);
-        symbolCntTable[i] = (unsigned int) totalSymbolCnt;
-        totalSymbolCnt += tmp;
-        tmp = size_t(unencodedSymbolCostTable[i]);
-        unencodedSymbolCostTable[i] = (unsigned int) totalUnencodedSymbolCost;
-        totalUnencodedSymbolCost += tmp;
-      }
-      symbolCntTable[nSymbolsUsed] = totalSymbolCnt;
-      unencodedSymbolCostTable[nSymbolsUsed] =
-          (unsigned int) totalUnencodedSymbolCost;
-      size_t  bestSize = 0x7FFFFFFF;
-      size_t  bestPrefixSize = minPrefixSize;
-      std::vector< size_t > bestSlotBitsTable;
-      for (size_t prefixSize = minPrefixSize;
-           prefixSize <= maxPrefixSize;
-           prefixSize++) {
-        if (maxPrefixSize > minPrefixSize)
-          setPrefixSize(prefixSize);
-        if (nSymbolsUsed > (size_t(0x8000) << prefixSize) && prefixSize > 0) {
-          if (prefixSize >= maxPrefixSize) {
-            throw Ep128Emu::Exception("internal error in "
-                                      "EncodeTable::updateTables()");
-          }
-          continue;
-        }
-        size_t  encodedSize = 0;
-        if (fastMode)
-          encodedSize = optimizeSlotBitsTable_fast();
-        else
-          encodedSize = optimizeSlotBitsTable();
-        if (maxPrefixSize > minPrefixSize) {
-          encodedSize += (nSlots * 4);
-          encodedSize += (prefixOnlySymbolCnt * prefixSize);
-        }
-        if (encodedSize < bestSize) {
-          bestSize = encodedSize;
-          bestPrefixSize = prefixSize;
-          bestSlotBitsTable.resize(nSlots);
-          for (size_t i = 0; i < nSlots; i++)
-            bestSlotBitsTable[i] = slotBitsTable[i];
-        }
-      }
-      if (maxPrefixSize > minPrefixSize)
-        setPrefixSize(bestPrefixSize);
-      for (size_t i = 0; i < nSlots; i++)
-        slotBitsTable[i] = bestSlotBitsTable[i];
-      unsigned int  baseSymbol = 0U;
-      for (size_t i = 0; i < nSlots; i++) {
-        slotBaseSymbolTable[i] = baseSymbol;
-        unsigned int  prvBaseSymbol = baseSymbol;
-        baseSymbol = prvBaseSymbol + (1U << (unsigned int) slotBitsTable[i]);
-        if (baseSymbol > nSymbols)
-          baseSymbol = nSymbols;
-        size_t  symbolSize = slotPrefixSizeTable[i] + slotBitsTable[i];
-        for (unsigned int j = prvBaseSymbol; j < baseSymbol; j++) {
-          symbolSlotNumTable[j] = (unsigned char) i;
-          symbolSizeTable[j] = (unsigned char) symbolSize;
-        }
-      }
-      for (size_t i = 0; i <= nSymbolsUsed; i++) {
-        symbolCntTable[i] = 0U;
-        unencodedSymbolCostTable[i] = 0U;
-      }
-      nSymbolsUsed = 0;
-      nSymbolsEncoded = baseSymbol;
-      prefixOnlySymbolCnt = 0;
-    }
-    catch (...) {
-      this->clear();
-      throw;
-    }
-  }
-
-  void Compressor_M2::EncodeTable::clear()
-  {
-    for (size_t i = 0; i < nSlots; i++) {
-      slotBitsTable[i] = 0;
-      slotBaseSymbolTable[i] = 0U;
-    }
-    for (size_t i = 0; true; i++) {
-      symbolCntTable[i] = 0U;
-      unencodedSymbolCostTable[i] = 0U;
-      if (i >= nSymbolsUsed && i >= nSymbolsEncoded)
-        break;
-      symbolSlotNumTable[i] = 0;
-      symbolSizeTable[i] = 1;
-    }
-    nSymbolsUsed = 0;
-    nSymbolsEncoded = 0;
-    prefixOnlySymbolCnt = 0;
-  }
-
-  // --------------------------------------------------------------------------
-
-  void Compressor_M2::SearchTable::sortFunc(
-      unsigned int *suffixArray, const unsigned char *buf, size_t bufSize,
-      size_t startPos, size_t endPos, unsigned int *tmpBuf)
-  {
-    if ((startPos + 1) >= endPos)
-      return;
-    size_t  splitPos = (startPos + endPos) >> 1;
-    if ((startPos + 2) < endPos) {
-      sortFunc(suffixArray, buf, bufSize, startPos, splitPos, tmpBuf);
-      sortFunc(suffixArray, buf, bufSize, splitPos, endPos, tmpBuf);
-    }
-    size_t  i = startPos;
-    size_t  j = splitPos;
-    for (size_t k = 0; k < (endPos - startPos); k++) {
-      if (i >= splitPos) {
-        tmpBuf[k] = suffixArray[j];
-        j++;
-      }
-      else if (j >= endPos) {
-        tmpBuf[k] = suffixArray[i];
-        i++;
-      }
-      else {
-        size_t  pos1 = suffixArray[i];
-        size_t  pos2 = suffixArray[j];
-        size_t  len1 = bufSize - pos1;
-        if (len1 > Compressor_M2::maxRepeatLen)
-          len1 = Compressor_M2::maxRepeatLen;
-        size_t  len2 = bufSize - pos2;
-        if (len2 > Compressor_M2::maxRepeatLen)
-          len2 = Compressor_M2::maxRepeatLen;
-        size_t  l = (len1 < len2 ? len1 : len2);
-        const void  *ptr1 = (const void *) (&(buf[pos1]));
-        const void  *ptr2 = (const void *) (&(buf[pos2]));
-        int     c = std::memcmp(ptr1, ptr2, l);
-        if (c == 0)
-          c = (pos1 < pos2 ? -1 : 1);
-        if (c < 0) {
-          tmpBuf[k] = suffixArray[i];
-          i++;
-        }
-        else {
-          tmpBuf[k] = suffixArray[j];
-          j++;
-        }
-      }
-    }
-    for (size_t k = 0; k < (endPos - startPos); k++)
-      suffixArray[startPos + k] = tmpBuf[k];
-  }
-
-  void Compressor_M2::SearchTable::addMatch(size_t bufPos,
-                                            size_t matchLen, size_t offs)
-  {
-    if (matchLen > 0) {
-      if (matchLen > Compressor_M2::maxRepeatLen)
-        matchLen = Compressor_M2::maxRepeatLen;
-    }
-    if ((matchTableBuf.size() + 2) > matchTableBuf.capacity()) {
-      size_t  tmp = 1024;
-      while (tmp < (matchTableBuf.size() + 2))
-        tmp = tmp << 1;
-      matchTableBuf.reserve(tmp);
-    }
-    if (matchTable[bufPos] == 0xFFFFFFFFU)
-      matchTable[bufPos] = (unsigned int) matchTableBuf.size();
-    matchTableBuf.push_back((unsigned int) matchLen);
-    matchTableBuf.push_back((unsigned int) offs);
-  }
-
-  Compressor_M2::SearchTable::SearchTable(
-      const std::vector< unsigned char >& buf, unsigned int maxOffs)
-  {
-    if (buf.size() < 1) {
-      throw Ep128Emu::Exception("Compressor_M2::SearchTable::SearchTable(): "
-                                "zero input buffer size");
-    }
-    matchTable.resize(buf.size(), 0xFFFFFFFFU);
-    matchTableBuf.reserve(1024);
-    std::vector< unsigned short > rleLengthTable(buf.size(), 0);
-    // find RLE (offset = 1) matches
-    {
-      size_t        rleLength = 1;
-      unsigned int  rleByte = (unsigned int) buf[buf.size() - 1];
-      for (size_t i = buf.size() - 1; i > 0; ) {
-        i--;
-        if ((unsigned int) buf[i] != rleByte) {
-          rleByte = (unsigned int) buf[i];
-          rleLength = 0;
-        }
-        if (rleLength >= Compressor_M2::minRepeatLen)
-          rleLengthTable[i + 1] = (unsigned short) rleLength;
-        if (rleLength < size_t(Compressor_M2::lengthMaxValue))
-          rleLength++;
-      }
-    }
-    std::vector< unsigned int > offs1Table(buf.size(), maxOffs);
-    std::vector< unsigned int > offs2Table(buf.size(), maxOffs);
-    {
-      std::vector< size_t > lastPosTable(65536, size_t(0x7FFFFFFF));
-      // find 1-byte matches
-      for (size_t i = 0; i < buf.size(); i++) {
-        unsigned int  c = (unsigned int) buf[i];
-        if (lastPosTable[c] < i) {
-          size_t  d = i - (lastPosTable[c] + 1);
-          if (d < maxOffs)
-            offs1Table[i] = (unsigned int) d;
-        }
-        lastPosTable[c] = i;
-      }
-      // find 2-byte matches
-      for (size_t i = 0; i < 256; i++)
-        lastPosTable[i] = 0x7FFFFFFF;
-      for (size_t i = 0; (i + 1) < buf.size(); i++) {
-        unsigned int  c = (unsigned int) buf[i]
-                          | ((unsigned int) buf[i + 1] << 8);
-        if (lastPosTable[c] < i) {
-          size_t  d = i - (lastPosTable[c] + 1);
-          if (d < maxOffs)
-            offs2Table[i] = (unsigned int) d;
-        }
-        lastPosTable[c] = i;
-      }
-    }
-    // buffer positions sorted alphabetically by bytes at each position
-    std::vector< unsigned int >   suffixArray;
-    // suffixArray[n] matches prvMatchLenTable[n] characters with
-    // suffixArray[n - 1]
-    std::vector< unsigned short > prvMatchLenTable;
-    std::vector< unsigned int >   tmpBuf;
-    for (size_t startPos = 0; startPos < buf.size(); ) {
-      size_t  startPos_ = 0;
-      if (startPos >= maxOffs)
-        startPos_ = startPos - maxOffs;
-      size_t  endPos = startPos + maxOffs;
-      if (endPos > buf.size() || buf.size() <= (maxOffs * 3U))
-        endPos = buf.size();
-      size_t  nBytes = endPos - startPos_;
-      tmpBuf.resize(nBytes);
-      suffixArray.resize(nBytes);
-      prvMatchLenTable.resize(nBytes + 1);
-      // suffixArray[n] matches nxtMatchLenTable[n] characters with
-      // suffixArray[n + 1]
-      const unsigned short  *nxtMatchLenTable = &(prvMatchLenTable.front()) + 1;
-      for (size_t i = 0; i < nBytes; i++)
-        suffixArray[i] = (unsigned int) (startPos_ + i);
-      sortFunc(&(suffixArray.front()), &(buf.front()), buf.size(), 0, nBytes,
-               &(tmpBuf.front()));
-      prvMatchLenTable[0] = 0;
-      for (size_t i = 0; i < nBytes; i++) {
-        size_t  len = 0;
-        size_t  p1 = suffixArray[i - 1];
-        size_t  p2 = suffixArray[i];
-        size_t  maxLen = buf.size() - (p1 > p2 ? p1 : p2);
-        maxLen = (maxLen < Compressor_M2::maxRepeatLen ?
-                  maxLen : Compressor_M2::maxRepeatLen);
-        while (len < maxLen && buf[p1] == buf[p2]) {
-          len++;
-          p1++;
-          p2++;
-        }
-        prvMatchLenTable[i] = (unsigned short) len;
-      }
-      prvMatchLenTable[nBytes] = 0;
-      // find all matches
-      std::vector< unsigned long >  offsTable(
-          Compressor_M2::maxRepeatLen + 1, (unsigned long) maxOffs);
-      for (size_t i_ = 0; i_ < nBytes; i_++) {
-        size_t  i = suffixArray[i_];
-        if (i < startPos)
-          continue;
-        size_t  rleLen = rleLengthTable[i];
-        if (rleLen > Compressor_M2::maxRepeatLen)
-          rleLen = Compressor_M2::maxRepeatLen;
-        size_t  minLen = 3;
-        if (rleLen >= minLen) {
-          minLen = rleLen + 1;
-          offsTable[rleLen] = 0UL;
-        }
-        size_t  matchLen = prvMatchLenTable[i_];
-        if (matchLen >= Compressor_M2::maxRepeatLen &&
-            (i - suffixArray[i_ - 1]) < (unsigned int) matchLen) {
-          minLen = matchLen + 1;
-          offsTable[matchLen] = (i - suffixArray[i_ - 1]) - 1UL;
-        }
-        size_t  maxLen = minLen - 1;
-        if (matchLen >= minLen) {
-          if (matchLen > maxLen)
-            maxLen = matchLen;
-          unsigned long d = offsTable[matchLen];
-          size_t  ndx = i_;
-          while (true) {
-            ndx--;
-            unsigned long tmp =
-                (unsigned long) i - ((unsigned long) suffixArray[ndx] + 1UL);
-            d = (tmp < d ? tmp : d);
-            if (size_t(prvMatchLenTable[ndx]) < matchLen) {
-              if (d < offsTable[matchLen])
-                offsTable[matchLen] = d;
-              matchLen = prvMatchLenTable[ndx];
-              if (matchLen < minLen)
-                break;
-            }
-          }
-        }
-        matchLen = nxtMatchLenTable[i_];
-        if (matchLen >= minLen) {
-          if (matchLen > maxLen)
-            maxLen = matchLen;
-          unsigned long d = offsTable[matchLen];
-          size_t  ndx = i_;
-          while (true) {
-            ndx++;
-            unsigned long tmp =
-                (unsigned long) i - ((unsigned long) suffixArray[ndx] + 1UL);
-            d = (tmp < d ? tmp : d);
-            if (size_t(nxtMatchLenTable[ndx]) < matchLen) {
-              if (d < offsTable[matchLen])
-                offsTable[matchLen] = d;
-              matchLen = nxtMatchLenTable[ndx];
-              if (matchLen < minLen)
-                break;
-            }
-          }
-        }
-        offsTable[1] = offs1Table[i];
-        offsTable[2] = offs2Table[i];
-        unsigned long prvDist = maxOffs;
-        for (size_t k = maxLen; k >= Compressor_M2::minRepeatLen; k--) {
-          unsigned long d = offsTable[k];
-          offsTable[k] = maxOffs;
-          if (d < prvDist) {
-            prvDist = d;
-            addMatch(i, k, size_t(d + 1UL));
-            if (d == 0UL)
-              break;
-          }
-        }
-        addMatch(i, 0, 0);
-      }
-      startPos = endPos;
-    }
-    // find very long matches
-    for (size_t i = buf.size() - 1; i > 0; ) {
-      if (size_t(matchTableBuf[matchTable[i]]) == Compressor_M2::maxRepeatLen) {
-        size_t        len = Compressor_M2::maxRepeatLen;
-        unsigned int  offs = matchTableBuf[matchTable[i] + 1];
-        while (--i > 0) {
-          // NOTE: the offset always changes when the match length decreases
-          if (matchTableBuf[matchTable[i] + 1] != offs)
-            break;
-          len = (len < size_t(Compressor_M2::lengthMaxValue) ? (len + 1) : len);
-          matchTableBuf[matchTable[i]] = (unsigned int) len;
-        }
-        continue;
-      }
-      i--;
-    }
-  }
-
-  Compressor_M2::SearchTable::~SearchTable()
-  {
-  }
 
   // --------------------------------------------------------------------------
 
@@ -1023,10 +104,10 @@ namespace Ep128Compress {
       if (len > (nBytes - i))
         len = nBytes - i;
       if (len > maxRepeatLen) {
-        if (matchPtr[1] > 1) {
+        if (matchPtr[1] > 1024) {
           // long LZ77 match
           bestSize = bitCountTable[i + len] + matchSize3;
-          bestOffs = matchPtr[1];
+          bestOffs = matchPtr[1] >> 10;
           bestLen = len;
           len = maxRepeatLen;
         }
@@ -1039,11 +120,12 @@ namespace Ep128Compress {
         }
       }
       // otherwise check all possible LZ77 match lengths,
-      for ( ; len > 0; matchPtr = matchPtr + 2, len = matchPtr[0]) {
+      matchPtr++;
+      for ( ; len > 0; len = (*(++matchPtr) & 0x03FFU)) {
         if (len > (nBytes - i))
           len = nBytes - i;
-        unsigned int  d = matchPtr[1];
-        size_t        nxtLen = matchPtr[2];
+        unsigned int  d = *matchPtr >> 10;
+        size_t        nxtLen = matchPtr[1] & 0x03FFU;
         nxtLen = (nxtLen >= config.minLength ? nxtLen : (config.minLength - 1));
         if (len <= nxtLen)
           continue;                     // ignore match
@@ -1129,9 +211,9 @@ namespace Ep128Compress {
       if (len > (nBytes - i))
         len = nBytes - i;
       if (len > maxRepeatLen) {
-        if (matchPtr[1] > 1) {
+        if (matchPtr[1] > 1024) {
           // long LZ77 match
-          bestOffs = matchPtr[1];
+          bestOffs = matchPtr[1] >> 10;
           bestLen = len;
           bestSize = getRepeatCodeLength(bestOffs, len)
                      + bitCountTable[i + len];
@@ -1148,10 +230,11 @@ namespace Ep128Compress {
         }
       }
       // otherwise check all possible LZ77 match lengths,
-      for ( ; len > 0; matchPtr = matchPtr + 2, len = matchPtr[0]) {
+      matchPtr++;
+      for ( ; len > 0; len = (*(++matchPtr) & 0x03FFU)) {
         if (len > (nBytes - i))
           len = nBytes - i;
-        unsigned int  d = matchPtr[1];
+        unsigned int  d = *matchPtr >> 10;
         if (len >= 3) {
           // flag bit + offset bits
           size_t  nBitsBase = offs3EncodeTable.getSymbolSize(
@@ -1506,7 +589,7 @@ namespace Ep128Compress {
                        2, 5, &(offs3SlotCntTable[0])),
       offs3NumSlots(4),
       offs3PrefixSize(2),
-      searchTable((SearchTable *) 0),
+      searchTable((LZSearchTable *) 0),
       savedOutBufPos(0x7FFFFFFF),
       outputShiftReg(0x00),
       outputBitCnt(0)
@@ -1535,9 +618,12 @@ namespace Ep128Compress {
       }
       if (searchTable) {
         delete searchTable;
-        searchTable = (SearchTable *) 0;
+        searchTable = (LZSearchTable *) 0;
       }
-      searchTable = new SearchTable(inBuf, (unsigned int) config.maxOffset);
+      searchTable =
+          new LZSearchTable(config.minLength, maxRepeatLen, lengthMaxValue,
+                            offs1MaxValue, offs2MaxValue, config.maxOffset);
+      searchTable->findMatches(&(inBuf.front()), 0, inBuf.size());
       // split large files to improve statistical compression
       std::list< SplitOptimizationBlock >   splitPositions;
       std::map< uint64_t, size_t >          splitOptimizationCache;
@@ -1620,7 +706,7 @@ namespace Ep128Compress {
               if (!compressData(tmpBuf, inBuf, startAddr, false,
                                 startPos, endPos - startPos, true)) {
                 delete searchTable;
-                searchTable = (SearchTable *) 0;
+                searchTable = (LZSearchTable *) 0;
                 if (progressDisplayEnabled)
                   progressMessage("");
                 return false;
@@ -1681,7 +767,7 @@ namespace Ep128Compress {
                            ((*i_).startPos + (*i_).nBytes) >= inBuf.size()),
                           (*i_).startPos, (*i_).nBytes, false)) {
           delete searchTable;
-          searchTable = (SearchTable *) 0;
+          searchTable = (LZSearchTable *) 0;
           if (progressDisplayEnabled)
             progressMessage("");
           return false;
@@ -1691,7 +777,7 @@ namespace Ep128Compress {
         i_++;
       }
       delete searchTable;
-      searchTable = (SearchTable *) 0;
+      searchTable = (LZSearchTable *) 0;
       if (progressDisplayEnabled) {
         setProgressPercentage(100);
         progressMessage("");
@@ -1768,7 +854,7 @@ namespace Ep128Compress {
     catch (...) {
       if (searchTable) {
         delete searchTable;
-        searchTable = (SearchTable *) 0;
+        searchTable = (LZSearchTable *) 0;
       }
       if (progressDisplayEnabled)
         progressMessage("");

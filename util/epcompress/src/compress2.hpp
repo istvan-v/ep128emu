@@ -21,6 +21,7 @@
 
 #include "ep128emu.hpp"
 #include "compress.hpp"
+#include "comprlib.hpp"
 
 #include <vector>
 
@@ -44,136 +45,7 @@ namespace Ep128Compress {
     static const unsigned int offs3MaxValue = (unsigned int) maxRepeatDist;
     static const size_t offs3SlotCntTable[4];
     static const size_t literalSequenceMinLength = lengthNumSlots + 9;
-    // --------
-   public:
-    class EncodeTable {
-     private:
-      size_t    nSlots;
-      size_t    nSymbols;
-      size_t    nSymbolsUsed;
-      size_t    nSymbolsEncoded;
-      size_t    totalSlotWeight;
-      size_t    unusedSymbolSize;
-      size_t    minPrefixSize;
-      size_t    maxPrefixSize;
-      size_t    prefixOnlySymbolCnt;
-      std::vector< size_t >   prefixSlotCntTable;
-      std::vector< size_t >   slotPrefixSizeTable;
-      std::vector< size_t >   slotWeightTable;
-      std::vector< size_t >   slotBitsTable;
-      std::vector< unsigned int >   slotBaseSymbolTable;
-      std::vector< unsigned int >   symbolCntTable;
-      std::vector< unsigned int >   unencodedSymbolCostTable;
-      std::vector< unsigned char >  symbolSlotNumTable;
-      std::vector< unsigned char >  symbolSizeTable;
-      void setPrefixSize(size_t n);
-      inline size_t calculateEncodedSize() const;
-      inline size_t calculateEncodedSize(size_t firstSlot,
-                                         unsigned int firstSymbol,
-                                         size_t baseSize) const;
-      size_t optimizeSlotBitsTable_fast();
-      size_t optimizeSlotBitsTable();
-     public:
-      // If 'slotPrefixSizeTable_' is non-NULL, a variable prefix length
-      // encoding is generated with 'nSlots_' slots, and the table is expected
-      // to contain the prefix size in bits for each slot.
-      // Otherwise, if 'minPrefixSize_' is greater than or equal to
-      // 'maxPrefixSize_', a fixed prefix size of 'minPrefixSize_' bits will be
-      // used with 'nSlots_' slots, and 'nSlots_' must be less than or equal to
-      // 2 ^ 'minPrefixSize_'.
-      // Finally, if 'maxPrefixSize_' is greater than 'minPrefixSize_', then
-      // all fixed prefix sizes in the specified range are tried, and the one
-      // that results in the smallest encoded size will be used. The number of
-      // slots, which must be less than or equal to 2 ^ prefix_size, can be
-      // specified for each prefix size in 'prefixSlotCntTable_' (the number of
-      // elements is 'maxPrefixSize_' + 1 - 'minPrefixSize_'); if the table is
-      // NULL, then the number of slots defaults to the maximum possible value
-      // (2 ^ prefix_size).
-      // In all cases, 'nSymbols_' is the highest value to be encoded + 1, so
-      // the valid range will be 0 to 'nSymbols_' - 1.
-      EncodeTable(size_t nSlots_, size_t nSymbols_,
-                  const size_t *slotPrefixSizeTable_ = (size_t *) 0,
-                  size_t minPrefixSize_ = 4,
-                  size_t maxPrefixSize_ = 0,
-                  const size_t *prefixSlotCntTable_ = (size_t *) 0);
-      virtual ~EncodeTable();
-      inline void addSymbol(unsigned int n, size_t unencodedCost = 16384)
-      {
-        symbolCntTable[n] += 1U;
-        unencodedSymbolCostTable[n] += (unsigned int) unencodedCost;
-        if (size_t(n) >= nSymbolsUsed)
-          nSymbolsUsed = size_t(n) + 1;
-      }
-      inline void addPrefixOnlySymbol()
-      {
-        prefixOnlySymbolCnt++;
-      }
-      inline void setUnencodedSymbolSize(size_t n)
-      {
-        unusedSymbolSize = n;
-      }
-      inline size_t getSymbolsEncoded() const
-      {
-        return nSymbolsEncoded;
-      }
-      inline size_t getSymbolSize(unsigned int n) const
-      {
-        if (size_t(n) >= nSymbolsEncoded)
-          return unusedSymbolSize;
-        return symbolSizeTable[n];
-      }
-      inline size_t getSymbolSlotIndex(unsigned int n) const
-      {
-        if (size_t(n) >= nSymbolsEncoded)
-          throw Ep128Emu::Exception("internal error: encoding invalid symbol");
-        return symbolSlotNumTable[n];
-      }
-      inline unsigned int encodeSymbol(unsigned int n) const
-      {
-        size_t  slotNum = getSymbolSlotIndex(n);
-        return ((unsigned int) (slotBitsTable[slotNum] << 24)
-                | (n - slotBaseSymbolTable[slotNum]));
-      }
-      inline size_t getSlotCnt() const
-      {
-        return slotBitsTable.size();
-      }
-      inline size_t getSlotPrefixSize(size_t n) const
-      {
-        return slotPrefixSizeTable[n];
-      }
-      inline size_t getSlotSize(size_t n) const
-      {
-        return slotBitsTable[n];
-      }
-      void updateTables(bool fastMode = false);
-      void clear();
-    };
-    // --------
    private:
-    class SearchTable {
-     private:
-      // for each buffer position P, matchTableBuf[matchTable[P]] is the
-      // first element of an array of interleaved length/offset pairs,
-      // terminated with zero length and offset
-      std::vector< unsigned int > matchTable;
-      // space allocated for matchTable
-      std::vector< unsigned int > matchTableBuf;
-      static void sortFunc(unsigned int *suffixArray,
-                           const unsigned char *buf, size_t bufSize,
-                           size_t startPos, size_t endPos,
-                           unsigned int *tmpBuf);
-      void addMatch(size_t bufPos, size_t matchLen, size_t offs);
-     public:
-      SearchTable(const std::vector< unsigned char >& buf,
-                  unsigned int maxOffs);
-      virtual ~SearchTable();
-      inline const unsigned int * getMatches(size_t bufPos) const
-      {
-        return (&(matchTableBuf.front()) + matchTable[bufPos]);
-      }
-    };
-    // --------
     struct LZMatchParameters {
       unsigned int  d;
       unsigned int  len;
@@ -213,7 +85,7 @@ namespace Ep128Compress {
     EncodeTable   offs3EncodeTable;
     size_t        offs3NumSlots;
     size_t        offs3PrefixSize;
-    SearchTable   *searchTable;
+    LZSearchTable *searchTable;
     size_t        savedOutBufPos;
     unsigned char outputShiftReg;
     int           outputBitCnt;
