@@ -80,7 +80,7 @@ namespace Ep128Emu {
     inline size_t getMatchCodeLength(size_t n, size_t d) const;
     void optimizeMatches(LZMatchParameters *matchTable,
                          const unsigned char *inBuf, size_t *bitCountTable,
-                         size_t *offsSumTable, size_t offs, size_t nBytes);
+                         size_t offs, size_t nBytes);
     void compressData(std::vector< unsigned int >& outBuf,
                       const unsigned char *inBuf, size_t offs, size_t nBytes,
                       bool firstPass);
