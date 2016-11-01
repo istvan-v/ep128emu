@@ -278,7 +278,6 @@ namespace Ep128Emu {
   void Compressor_ZLib::optimizeMatches(LZMatchParameters *matchTable,
                                         const unsigned char *inBuf,
                                         size_t *bitCountTable,
-                                        size_t *offsSumTable,
                                         size_t offs, size_t nBytes)
   {
     unsigned short  lengthCodeLengthTable[256];
@@ -306,7 +305,6 @@ namespace Ep128Emu {
             matchTable[i].d = (unsigned short) bestOffs;
             matchTable[i].len = (unsigned short) bestLen;
             bitCountTable[i] = bestSize;
-            offsSumTable[i] = offsSumTable[i + bestLen] + bestOffs;
             continue;
           }
         }
@@ -332,12 +330,8 @@ namespace Ep128Emu {
                           + bitCountTable[i + len];
           if (nBits > bestSize)
             continue;
-          if (nBits == bestSize) {
-            if ((offsSumTable[i + len] + d)
-                > (offsSumTable[i + bestLen] + bestOffs)) {
-              continue;
-            }
-          }
+          if (nBits == bestSize && d >= bestOffs)
+            continue;
           bestSize = nBits;
           bestOffs = d;
           bestLen = len;
@@ -346,21 +340,14 @@ namespace Ep128Emu {
       // and literal byte:
       size_t  nBits = bitCountTable[i + 1]
                       + huffmanEncoderL.getSymbolSize(inBuf[offs + i]);
-      do {
-        if (nBits > bestSize)
-          break;
-        if (nBits == bestSize) {
-          if (offsSumTable[i + 1] > (offsSumTable[i + bestLen] + bestOffs))
-            break;
-        }
+      if (nBits <= bestSize) {
         bestSize = nBits;
         bestOffs = 0;
         bestLen = 1;
-      } while (false);
+      }
       matchTable[i].d = (unsigned short) bestOffs;
       matchTable[i].len = (unsigned short) bestLen;
       bitCountTable[i] = bestSize;
-      offsSumTable[i] = offsSumTable[i + bestLen] + bestOffs;
     }
   }
 
@@ -385,9 +372,8 @@ namespace Ep128Emu {
     std::vector< LZMatchParameters >  matchTable(nBytes);
     {
       std::vector< size_t > bitCountTable(nBytes + 1, 0);
-      std::vector< size_t > offsSumTable(nBytes + 1, 0);
       optimizeMatches(&(matchTable.front()), inBuf, &(bitCountTable.front()),
-                      &(offsSumTable.front()), offs, nBytes);
+                      offs, nBytes);
     }
     // write block header and encode tables
     if (firstPass) {
@@ -449,17 +435,17 @@ namespace Ep128Emu {
     // that maxMatchDist is an integer multiple of
     {
       size_t  searchTableStart = (offs / maxMatchDist) * maxMatchDist;
-      size_t  searchTableEnd = searchTableStart + maxMatchDist;
       bool    searchTableNeeded = (offs == searchTableStart);
-      if (searchTableEnd > bufSize)
-        searchTableEnd = bufSize;
       if (searchTableNeeded) {
         if (!searchTable) {
           searchTable = new Ep128Compress::LZSearchTable(
                                 minMatchLen, maxMatchLen, maxMatchLen,
                                 0, 0, maxMatchDist);
         }
-        searchTable->findMatches(inBuf, searchTableStart, searchTableEnd);
+        size_t  searchTableSize = bufSize - searchTableStart;
+        if (searchTableSize > maxMatchDist)
+          searchTableSize = maxMatchDist;
+        searchTable->findMatches(inBuf, searchTableStart, searchTableSize);
       }
       inBuf = inBuf + searchTableStart;
       offs = offs - searchTableStart;
