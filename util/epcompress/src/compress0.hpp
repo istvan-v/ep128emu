@@ -21,6 +21,7 @@
 
 #include "ep128emu.hpp"
 #include "compress.hpp"
+#include "comprlib.hpp"
 
 #include <vector>
 
@@ -33,87 +34,14 @@ namespace Ep128Compress {
     static const size_t minRepeatLen = 2;
     static const size_t maxRepeatLen = 256;
     // --------
-    class HuffmanCompressor {
+    class DSearchTable : public LZSearchTable {
      private:
-      struct HuffmanNode {
-        size_t        weight;
-        unsigned int  value;
-        HuffmanNode   *parent;
-        HuffmanNode   *child0;
-        HuffmanNode   *child1;
-        HuffmanNode   *nextNode;
-        // --------
-        HuffmanNode()
-          : weight(0),
-            value(0),
-            parent((HuffmanNode *) 0),
-            child0((HuffmanNode *) 0),
-            child1((HuffmanNode *) 0),
-            nextNode((HuffmanNode *) 0)
-        {
-        }
-        HuffmanNode(size_t weight_, unsigned int value_,
-                    HuffmanNode *parent_ = (HuffmanNode *) 0,
-                    HuffmanNode *child0_ = (HuffmanNode *) 0,
-                    HuffmanNode *child1_ = (HuffmanNode *) 0,
-                    HuffmanNode *nextNode_ = (HuffmanNode *) 0)
-          : weight(weight_),
-            value(value_),
-            parent(parent_),
-            child0(child0_),
-            child1(child1_),
-            nextNode(nextNode_)
-        {
-        }
-        ~HuffmanNode()
-        {
-        }
-        inline bool isLeafNode() const
-        {
-          return (child0 == (HuffmanNode *) 0 && child1 == (HuffmanNode *) 0);
-        }
-      };
-      size_t  nCharValues;
-      std::vector< size_t >   charCounts;
-      static void sortNodes(HuffmanNode*& startNode);
-      void buildEncodeTable(std::vector< unsigned int >& encodeTable,
-                            const HuffmanNode *p,
-                            unsigned int n, unsigned int nBits);
-     public:
-      HuffmanCompressor(size_t nCharValues_ = 256);
-      virtual ~HuffmanCompressor();
-      void calculateCompression(std::vector< unsigned int >& outBuf,
-                                std::vector< unsigned int >& encodeTable);
-      inline void addChar(unsigned int c)
-      {
-        charCounts[c]++;
-      }
-    };
-    // --------
-    class SearchTable {
-     private:
-      const std::vector< unsigned char >&   buf;
-      // for each buffer position P, matchTableBuf[matchTable[P]] is the
-      // first element of an array of interleaved length/offset pairs,
-      // terminated with zero length and offset
-      std::vector< size_t > matchTable;
-      // space allocated for matchTable
-      std::vector< unsigned int > matchTableBuf;
-      size_t  matchTableBufPos;
       std::vector< std::vector< unsigned char > >   seqDiffTable;
       std::vector< std::vector< unsigned short > >  maxSeqLenTable;
-      static void sortFunc(unsigned int *suffixArray,
-                           const unsigned char *buf, size_t bufSize,
-                           size_t startPos, size_t endPos,
-                           unsigned int *tmpBuf);
-      void addMatch(size_t bufPos, size_t matchPos, size_t matchLen);
      public:
-      SearchTable(const std::vector< unsigned char >& inBuf);
-      virtual ~SearchTable();
-      inline const unsigned int * getMatches(size_t bufPos) const
-      {
-        return (&(matchTableBuf.front()) + matchTable[bufPos]);
-      }
+      DSearchTable(size_t minLength, size_t maxLength, size_t maxOffs);
+      virtual ~DSearchTable();
+      void findMatches(const unsigned char *buf, size_t bufSize);
       inline size_t getSequenceLength(size_t bufPos, size_t d) const
       {
         return size_t(maxSeqLenTable[d - Compressor_M0::minRepeatDist][bufPos]);
@@ -183,10 +111,14 @@ namespace Ep128Compress {
     unsigned char   *distanceBitsTable;
     unsigned int    *distanceValueTable;
     size_t          *tmpCharBitsTable;
-    SearchTable     *searchTable;
+    DSearchTable    *searchTable;
     size_t          prvDistances[4];
     unsigned char   outputShiftReg;
     int             outputBitCnt;
+    // for literals and distance codes
+    HuffmanEncoder  huffmanEncoder1;
+    // for length codes
+    HuffmanEncoder  huffmanEncoder2;
     // --------
     void huffmanCompressBlock(std::vector< unsigned int >& ioBuf);
     void initializeLengthCodeTables();

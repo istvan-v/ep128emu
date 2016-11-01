@@ -18,6 +18,7 @@
 
 #include "ep128emu.hpp"
 #include "compress.hpp"
+#include "comprlib.hpp"
 #include "compress0.hpp"
 
 #include <list>
@@ -63,422 +64,38 @@ static inline size_t estimateSymbolLength(size_t cnt, size_t totalCount)
 
 namespace Ep128Compress {
 
-  Compressor_M0::HuffmanCompressor::HuffmanCompressor(size_t nCharValues_)
-    : nCharValues(nCharValues_)
-  {
-    charCounts.resize(nCharValues);
-    for (size_t i = 0; i < nCharValues; i++)
-      charCounts[i] = 0;
-  }
-
-  Compressor_M0::HuffmanCompressor::~HuffmanCompressor()
+  Compressor_M0::DSearchTable::DSearchTable(size_t minLength, size_t maxLength,
+                                            size_t maxOffs)
+    : LZSearchTable(minLength, maxLength, maxLength, 0, maxOffs, maxOffs)
   {
   }
 
-  void Compressor_M0::HuffmanCompressor::sortNodes(HuffmanNode*& startNode)
+  Compressor_M0::DSearchTable::~DSearchTable()
   {
-    size_t  nodeCnt = 0;
-    HuffmanNode *p = startNode;
-    while (p != (HuffmanNode *) 0) {
-      nodeCnt++;
-      p = p->nextNode;
-    }
-    if (nodeCnt < 2)
-      return;
-    size_t  m = nodeCnt >> 1;
-    p = startNode;
-    for (size_t i = 0; i < m; i++) {
-      HuffmanNode *nxt = p->nextNode;
-      if ((i + 1) == m)
-        p->nextNode = (HuffmanNode *) 0;
-      p = nxt;
-    }
-    HuffmanNode *splitNode = p;
-    sortNodes(startNode);
-    sortNodes(splitNode);
-    HuffmanNode *p1 = startNode;
-    HuffmanNode *p2 = splitNode;
-    HuffmanNode *prvNode = (HuffmanNode *) 0;
-    while (true) {
-      if (p1 == (HuffmanNode *) 0) {
-        if (p2 == (HuffmanNode *) 0)
-          break;
-        p = p2;
-        p2 = p2->nextNode;
-      }
-      else if (p2 == (HuffmanNode *) 0) {
-        p = p1;
-        p1 = p1->nextNode;
-      }
-      else if (p2->weight < p1->weight) {
-        p = p2;
-        p2 = p2->nextNode;
-      }
-      else {
-        p = p1;
-        p1 = p1->nextNode;
-      }
-      if (prvNode != (HuffmanNode *) 0)
-        prvNode->nextNode = p;
-      else
-        startNode = p;
-      prvNode = p;
-    }
-    p->nextNode = (HuffmanNode *) 0;
   }
 
-  void Compressor_M0::HuffmanCompressor::buildEncodeTable(
-      std::vector< unsigned int >& encodeTable,
-      const HuffmanNode *p, unsigned int n = 0U, unsigned int nBits = 0U)
+  void Compressor_M0::DSearchTable::findMatches(const unsigned char *buf,
+                                                size_t bufSize)
   {
-    if (p == (HuffmanNode *) 0)
-      return;
-    if (p->isLeafNode()) {
-      encodeTable[p->value] = (nBits << 24) | n;
-    }
-    else {
-      n = n << 1;
-      nBits++;
-      if (p->child0)
-        buildEncodeTable(encodeTable, p->child0, n, nBits);
-      if (p->child1)
-        buildEncodeTable(encodeTable, p->child1, n | 1U, nBits);
-    }
-  }
-
-  void Compressor_M0::HuffmanCompressor::calculateCompression(
-      std::vector< unsigned int >& outBuf,
-      std::vector< unsigned int >& encodeTable)
-  {
-    encodeTable.resize(nCharValues);
-    for (size_t i = 0; i < nCharValues; i++)
-      encodeTable[i] = 0U;
-    size_t  nCharValuesUsed = 0;
-    size_t  totalCharsUncompressed = 0;
-    size_t  totalBitsUncompressed = 0;
-    size_t  totalBitsCompressed = 0;
-    size_t  bitsPerCharUncompressed = 0;
-    {
-      size_t  tmp = 1;
-      while (tmp < nCharValues) {
-        tmp = tmp << 1;
-        bitsPerCharUncompressed++;
-      }
-    }
-    for (size_t i = 0; i < nCharValues; i++) {
-      if (charCounts[i] > 0) {
-        nCharValuesUsed++;
-        totalCharsUncompressed += charCounts[i];
-      }
-    }
-    totalBitsUncompressed = totalCharsUncompressed * bitsPerCharUncompressed;
-    // check for trivial cases (zero or one symbol only)
-    if (nCharValuesUsed == 0) {
-      outBuf.push_back(0x01000000U);
-      return;
-    }
-    if (nCharValuesUsed == 1) {
-      for (size_t i = 0; i < nCharValues; i++) {
-        if (charCounts[i] > 0)
-          encodeTable[i] = 0x01000000U;
-      }
-    }
-    else {
-      // build Huffman tree
-      std::vector< HuffmanNode >  buf;
-      buf.resize(nCharValues * 2);
-      HuffmanNode *nodeList1 = (HuffmanNode *) 0;
-      HuffmanNode *nodeList1End = (HuffmanNode *) 0;
-      HuffmanNode *nodeList2 = (HuffmanNode *) 0;
-      HuffmanNode *nodeList2End = (HuffmanNode *) 0;
-      size_t  n = 0;
-      for (size_t i = 0; i < nCharValues; i++) {
-        if (charCounts[i] > 0) {
-          HuffmanNode *p = &(buf[n]);
-          n++;
-          p->weight = charCounts[i];
-          p->value = i;
-          p->parent = (HuffmanNode *) 0;
-          p->child0 = (HuffmanNode *) 0;
-          p->child1 = (HuffmanNode *) 0;
-          p->nextNode = (HuffmanNode *) 0;
-          if (nodeList1End != (HuffmanNode *) 0)
-            nodeList1End->nextNode = p;
-          else
-            nodeList1 = p;
-          nodeList1End = p;
-        }
-      }
-      sortNodes(nodeList1);
-      nodeList1End = nodeList1;
-      if (nodeList1 != (HuffmanNode *) 0) {
-        while (nodeList1End->nextNode != (HuffmanNode *) 0)
-          nodeList1End = nodeList1End->nextNode;
-      }
-      HuffmanNode *rootNode = (HuffmanNode *) 0;
-      while (true) {
-        HuffmanNode *p1 = (HuffmanNode *) 0;
-        if (nodeList1 == (HuffmanNode *) 0) {
-          if (nodeList2 == (HuffmanNode *) 0)
-            break;
-          p1 = nodeList2;
-          nodeList2 = nodeList2->nextNode;
-          if (nodeList2 == (HuffmanNode *) 0)
-            nodeList2End = (HuffmanNode *) 0;
-        }
-        else if (nodeList2 == (HuffmanNode *) 0) {
-          p1 = nodeList1;
-          nodeList1 = nodeList1->nextNode;
-          if (nodeList1 == (HuffmanNode *) 0)
-            nodeList1End = (HuffmanNode *) 0;
-        }
-        else if (nodeList2->weight < nodeList1->weight) {
-          p1 = nodeList2;
-          nodeList2 = nodeList2->nextNode;
-          if (nodeList2 == (HuffmanNode *) 0)
-            nodeList2End = (HuffmanNode *) 0;
-        }
-        else {
-          p1 = nodeList1;
-          nodeList1 = nodeList1->nextNode;
-          if (nodeList1 == (HuffmanNode *) 0)
-            nodeList1End = (HuffmanNode *) 0;
-        }
-        HuffmanNode *p0 = (HuffmanNode *) 0;
-        if (nodeList1 == (HuffmanNode *) 0) {
-          if (nodeList2 == (HuffmanNode *) 0) {
-            rootNode = p1;
-            break;
-          }
-          p0 = nodeList2;
-          nodeList2 = nodeList2->nextNode;
-          if (nodeList2 == (HuffmanNode *) 0)
-            nodeList2End = (HuffmanNode *) 0;
-        }
-        else if (nodeList2 == (HuffmanNode *) 0) {
-          p0 = nodeList1;
-          nodeList1 = nodeList1->nextNode;
-          if (nodeList1 == (HuffmanNode *) 0)
-            nodeList1End = (HuffmanNode *) 0;
-        }
-        else if (nodeList2->weight < nodeList1->weight) {
-          p0 = nodeList2;
-          nodeList2 = nodeList2->nextNode;
-          if (nodeList2 == (HuffmanNode *) 0)
-            nodeList2End = (HuffmanNode *) 0;
-        }
-        else {
-          p0 = nodeList1;
-          nodeList1 = nodeList1->nextNode;
-          if (nodeList1 == (HuffmanNode *) 0)
-            nodeList1End = (HuffmanNode *) 0;
-        }
-        rootNode = &(buf[n]);
-        n++;
-        rootNode->weight = p0->weight + p1->weight;
-        rootNode->value = 0;
-        rootNode->parent = (HuffmanNode *) 0;
-        rootNode->child0 = p0;
-        p0->parent = rootNode;
-        rootNode->child1 = p1;
-        p1->parent = rootNode;
-        rootNode->nextNode = (HuffmanNode *) 0;
-        if (nodeList2End != (HuffmanNode *) 0)
-          nodeList2End->nextNode = rootNode;
-        else
-          nodeList2 = rootNode;
-        nodeList2End = rootNode;
-      }
-      buildEncodeTable(encodeTable, rootNode);
-      buf.clear();
-    }
-    // convert encode table to canonical Huffman codes
-    size_t  sizeCounts[16];
-    size_t  sizeCodes[16];
-    for (size_t i = 0; i < 16; i++)
-      sizeCounts[i] = 0;
-    for (size_t i = 0; i < nCharValues; i++) {
-      if (charCounts[i] > 0)
-        sizeCounts[(encodeTable[i] >> 24) - 1U]++;
-    }
-    sizeCodes[0] = 0;
-    for (size_t i = 1; i < 16; i++)
-      sizeCodes[i] = (sizeCodes[i - 1] + sizeCounts[i - 1]) << 1;
-    for (size_t i = 0; i < nCharValues; i++) {
-      if (charCounts[i] > 0) {
-        size_t  j = size_t(encodeTable[i] >> 24);
-        encodeTable[i] = (unsigned int) ((j << 24) | sizeCodes[j - 1]);
-        sizeCodes[j - 1]++;
-      }
-    }
-    // avoid the code 1111111 since it currently breaks the decompressor
-    for (size_t i = 0; i < nCharValues; i++) {
-      if (encodeTable[i] == 0x0700007FU) {
-        encodeTable[i] = 0x080000FEU;
-        break;
-      }
-    }
-    // calculate compressed size
-    for (size_t i = 1; i <= 16; i++) {
-      unsigned int  prvChar = 0U - 1U;
-      size_t        sizeCnt = 0;
-      for (size_t j = 0; j < nCharValues; j++) {
-        if (size_t(encodeTable[j] >> 24) == i) {
-          sizeCnt++;
-          unsigned int  newChar = (unsigned int) j;
-          unsigned int  d = newChar - prvChar;
-          prvChar = newChar;
-          totalBitsCompressed += getGammaCodeLength(d);
-        }
-      }
-      totalBitsCompressed += getGammaCodeLength(sizeCnt + 1);
-    }
-    // if the size cannot be reduced, store the data without compression
-    if (totalBitsCompressed >= totalBitsUncompressed) {
-      for (size_t i = 0; i < nCharValues; i++)
-        encodeTable[i] = (unsigned int) ((bitsPerCharUncompressed << 24) | i);
-      outBuf.push_back(0x01000000U);
-      return;
-    }
-    // add decode table to the output buffer
-    outBuf.push_back(0x01000001U);
-    for (size_t i = 1; i <= 16; i++) {
-      size_t  sizeCnt = 0;
-      for (size_t j = 0; j < nCharValues; j++) {
-        if (size_t(encodeTable[j] >> 24) == i)
-          sizeCnt++;
-      }
-      writeGammaCode(outBuf, sizeCnt + 1);
-      unsigned int  prvChar = 0U - 1U;
-      for (size_t j = 0; j < nCharValues; j++) {
-        if (size_t(encodeTable[j] >> 24) == i) {
-          unsigned int  newChar = (unsigned int) j;
-          unsigned int  d = newChar - prvChar;
-          prvChar = newChar;
-          writeGammaCode(outBuf, d);
-        }
-      }
-    }
-  }
-
-  // --------------------------------------------------------------------------
-
-  void Compressor_M0::SearchTable::sortFunc(
-      unsigned int *suffixArray, const unsigned char *buf, size_t bufSize,
-      size_t startPos, size_t endPos, unsigned int *tmpBuf)
-  {
-    if ((startPos + 1) >= endPos)
-      return;
-    size_t  splitPos = (startPos + endPos) >> 1;
-    if ((startPos + 2) < endPos) {
-      sortFunc(suffixArray, buf, bufSize, startPos, splitPos, tmpBuf);
-      sortFunc(suffixArray, buf, bufSize, splitPos, endPos, tmpBuf);
-    }
-    size_t  i = startPos;
-    size_t  j = splitPos;
-    for (size_t k = 0; k < (endPos - startPos); k++) {
-      if (i >= splitPos) {
-        tmpBuf[k] = suffixArray[j];
-        j++;
-      }
-      else if (j >= endPos) {
-        tmpBuf[k] = suffixArray[i];
-        i++;
-      }
-      else {
-        size_t  pos1 = suffixArray[i];
-        size_t  pos2 = suffixArray[j];
-        size_t  len1 = bufSize - pos1;
-        if (len1 > Compressor_M0::maxRepeatLen)
-          len1 = Compressor_M0::maxRepeatLen;
-        size_t  len2 = bufSize - pos2;
-        if (len2 > Compressor_M0::maxRepeatLen)
-          len2 = Compressor_M0::maxRepeatLen;
-        size_t  l = (len1 < len2 ? len1 : len2);
-        const void  *ptr1 = (const void *) (&(buf[pos1]));
-        const void  *ptr2 = (const void *) (&(buf[pos2]));
-        int     c = std::memcmp(ptr1, ptr2, l);
-        if (c == 0)
-          c = (pos1 < pos2 ? -1 : 1);
-        if (c < 0) {
-          tmpBuf[k] = suffixArray[i];
-          i++;
-        }
-        else {
-          tmpBuf[k] = suffixArray[j];
-          j++;
-        }
-      }
-    }
-    for (size_t k = 0; k < (endPos - startPos); k++)
-      suffixArray[startPos + k] = tmpBuf[k];
-  }
-
-  void Compressor_M0::SearchTable::addMatch(size_t bufPos,
-                                            size_t matchPos, size_t matchLen)
-  {
-    size_t  offs = 0;
-    if (matchLen > 0) {
-      if (matchPos >= bufPos)
-        return;
-      offs = bufPos - matchPos;
-      if (offs > Compressor_M0::maxRepeatDist)
-        return;
-      if (matchLen > Compressor_M0::maxRepeatLen)
-        matchLen = Compressor_M0::maxRepeatLen;
-    }
-    if ((matchTableBuf.size() + 2) > matchTableBuf.capacity()) {
-      size_t  tmp = 1024;
-      while (tmp < (matchTableBuf.size() + 2))
-        tmp = tmp << 1;
-      matchTableBuf.reserve(tmp);
-    }
-    if (matchTable[bufPos] == 0x7FFFFFFF)
-      matchTable[bufPos] = matchTableBuf.size();
-    matchTableBuf.push_back((unsigned int) matchLen);
-    matchTableBuf.push_back((unsigned int) offs);
-  }
-
-  Compressor_M0::SearchTable::SearchTable(
-      const std::vector< unsigned char >& inBuf)
-    : buf(inBuf)
-  {
-    if (buf.size() < 1) {
-      throw Ep128Emu::Exception("Compressor_M0::SearchTable::SearchTable(): "
+    if (bufSize < 1) {
+      throw Ep128Emu::Exception("Compressor_M0::DSearchTable::DSearchTable(): "
                                 "zero input buffer size");
     }
-    matchTable.resize(buf.size(), 0x7FFFFFFF);
-    matchTableBuf.reserve(1024);
-    std::vector< unsigned short > rleLengthTable(buf.size(), 0);
-    // find RLE (offset = 1) matches
-    {
-      size_t        rleLength = 1;
-      unsigned int  rleByte = (unsigned int) buf[buf.size() - 1];
-      for (size_t i = buf.size() - 1; i > 0; ) {
-        i--;
-        if ((unsigned int) buf[i] != rleByte) {
-          rleByte = (unsigned int) buf[i];
-          rleLength = 0;
-        }
-        if (rleLength >= Compressor_M0::minRepeatLen)
-          rleLengthTable[i + 1] = (unsigned short) rleLength;
-        if (rleLength < Compressor_M0::maxRepeatLen)
-          rleLength++;
-      }
-    }
     // find matches with delta value (offset range: 1..4, delta range: -64..64)
+    seqDiffTable.clear();
+    maxSeqLenTable.clear();
     seqDiffTable.resize(4);
     maxSeqLenTable.resize(4);
     for (size_t i = 0; i < 4; i++) {
-      seqDiffTable[i].resize(buf.size());
-      maxSeqLenTable[i].resize(buf.size());
-      for (size_t j = 0; j < buf.size(); j++) {
+      seqDiffTable[i].resize(bufSize);
+      maxSeqLenTable[i].resize(bufSize);
+      for (size_t j = 0; j < bufSize; j++) {
         seqDiffTable[i][j] = 0x00;
         maxSeqLenTable[i][j] = 0;
       }
     }
     for (size_t i = Compressor_M0::minRepeatDist;
-         (i + Compressor_M0::minRepeatLen) <= buf.size();
+         (i + Compressor_M0::minRepeatLen) <= bufSize;
          i++) {
       for (size_t j = 1; j <= 4; j++) {
         if (i >= j) {
@@ -486,7 +103,7 @@ namespace Ep128Compress {
           if (d != 0x00 && (d >= 0xC0 || d <= 0x40)) {
             size_t  k = i;
             size_t  l = i - j;
-            while (k < buf.size() && (k - i) < Compressor_M0::maxRepeatLen &&
+            while (k < bufSize && (k - i) < Compressor_M0::maxRepeatLen &&
                    buf[k] == ((buf[l] + d) & 0xFF)) {
               k++;
               l++;
@@ -500,189 +117,120 @@ namespace Ep128Compress {
         }
       }
     }
-    std::vector< unsigned int > offs2Table(
-        buf.size(), (unsigned int) Compressor_M0::maxRepeatDist);
-    {
-      std::vector< size_t > lastPosTable(65536, size_t(0x7FFFFFFF));
-      // find 2-byte matches
-      for (size_t i = 0; (i + 1) < buf.size(); i++) {
-        unsigned int  c = (unsigned int) buf[i]
-                          | ((unsigned int) buf[i + 1] << 8);
-        if (lastPosTable[c] < i) {
-          size_t  d = i - (lastPosTable[c] + 1);
-          if (d < Compressor_M0::maxRepeatDist)
-            offs2Table[i] = (unsigned int) d;
-        }
-        lastPosTable[c] = i;
-      }
-    }
-    // buffer positions sorted alphabetically by bytes at each position
-    std::vector< unsigned int >   suffixArray;
-    // suffixArray[n] matches prvMatchLenTable[n] characters with
-    // suffixArray[n - 1]
-    std::vector< unsigned short > prvMatchLenTable;
-    // suffixArray[n] matches nxtMatchLenTable[n] characters with
-    // suffixArray[n + 1]
-    std::vector< unsigned short > nxtMatchLenTable;
-    std::vector< unsigned int >   tmpBuf;
-    for (size_t startPos = 0; startPos < buf.size(); ) {
-      size_t  startPos_ = 0;
-      if (startPos >= Compressor_M0::maxRepeatDist)
-        startPos_ = startPos - Compressor_M0::maxRepeatDist;
-      size_t  endPos = startPos + Compressor_M0::maxRepeatDist;
-      if (endPos > buf.size() ||
-          buf.size() <= (Compressor_M0::maxRepeatDist * 3)) {
-        endPos = buf.size();
-      }
-      size_t  nBytes = endPos - startPos_;
-      tmpBuf.resize(nBytes);
-      suffixArray.resize(nBytes);
-      prvMatchLenTable.resize(nBytes);
-      nxtMatchLenTable.resize(nBytes);
-      for (size_t i = 0; i < nBytes; i++)
-        suffixArray[i] = (unsigned int) (startPos_ + i);
-      sortFunc(&(suffixArray.front()), &(buf.front()), buf.size(), 0, nBytes,
-               &(tmpBuf.front()));
-      for (size_t i = 0; i < nBytes; i++) {
-        if (i == 0) {
-          prvMatchLenTable[i] = 0;
-        }
-        else {
-          size_t  len = 0;
-          size_t  p1 = suffixArray[i - 1];
-          size_t  p2 = suffixArray[i];
-          size_t  maxLen = buf.size() - (p1 > p2 ? p1 : p2);
-          maxLen = (maxLen < Compressor_M0::maxRepeatLen ?
-                    maxLen : Compressor_M0::maxRepeatLen);
-          while (len < maxLen && buf[p1] == buf[p2]) {
-            len++;
-            p1++;
-            p2++;
-          }
-          prvMatchLenTable[i] = (unsigned short) len;
-          nxtMatchLenTable[i - 1] = prvMatchLenTable[i];
-        }
-        nxtMatchLenTable[i] = 0;
-      }
-      // find all matches
-      std::vector< unsigned long >  offsTable(
-          Compressor_M0::maxRepeatLen + 1,
-          (unsigned long) Compressor_M0::maxRepeatDist);
-      for (size_t i_ = 0; i_ < nBytes; i_++) {
-        size_t  i = suffixArray[i_];
-        if (i < startPos)
-          continue;
-        size_t  rleLen = rleLengthTable[i];
-        if (rleLen > Compressor_M0::maxRepeatLen)
-          rleLen = Compressor_M0::maxRepeatLen;
-        size_t  minLen = Compressor_M0::minRepeatLen;
-        if (rleLen >= minLen) {
-          minLen = rleLen + 1;
-          offsTable[rleLen] = 0UL;
-        }
-        if (minLen < 3)
-          minLen = 3;
-        size_t  maxLen = minLen - 1;
-        size_t  matchLen = prvMatchLenTable[i_];
-        if (matchLen >= minLen) {
-          if (matchLen > maxLen)
-            maxLen = matchLen;
-          unsigned long d = offsTable[matchLen];
-          size_t  ndx = i_;
-          while (true) {
-            ndx--;
-            unsigned long tmp =
-                (unsigned long) i - ((unsigned long) suffixArray[ndx] + 1UL);
-            d = (tmp < d ? tmp : d);
-            if (size_t(prvMatchLenTable[ndx]) < matchLen) {
-              if (d < offsTable[matchLen])
-                offsTable[matchLen] = d;
-              matchLen = prvMatchLenTable[ndx];
-              if (matchLen < minLen)
-                break;
-            }
-          }
-        }
-        matchLen = nxtMatchLenTable[i_];
-        if (matchLen >= minLen) {
-          if (matchLen > maxLen)
-            maxLen = matchLen;
-          unsigned long d = offsTable[matchLen];
-          size_t  ndx = i_;
-          while (true) {
-            ndx++;
-            unsigned long tmp =
-                (unsigned long) i - ((unsigned long) suffixArray[ndx] + 1UL);
-            d = (tmp < d ? tmp : d);
-            if (size_t(nxtMatchLenTable[ndx]) < matchLen) {
-              if (d < offsTable[matchLen])
-                offsTable[matchLen] = d;
-              matchLen = nxtMatchLenTable[ndx];
-              if (matchLen < minLen)
-                break;
-            }
-          }
-        }
-        offsTable[2] = offs2Table[i];
-        unsigned long prvDist = Compressor_M0::maxRepeatDist;
-        for (size_t k = maxLen; k >= Compressor_M0::minRepeatLen; k--) {
-          unsigned long d = offsTable[k];
-          offsTable[k] = Compressor_M0::maxRepeatDist;
-          if (d < prvDist) {
-            prvDist = d;
-            addMatch(i, i - size_t(d + 1UL), k);
-            if (d == 0UL)
-              break;
-          }
-        }
-        addMatch(i, 0, 0);
-      }
-      startPos = endPos;
-    }
-  }
-
-  Compressor_M0::SearchTable::~SearchTable()
-  {
+    LZSearchTable::findMatches(buf, 0, bufSize);
   }
 
   // --------------------------------------------------------------------------
 
   void Compressor_M0::huffmanCompressBlock(std::vector< unsigned int >& ioBuf)
   {
-    HuffmanCompressor   huff1(324);
-    HuffmanCompressor   huff2(28);
     size_t  n = ioBuf.size();
     if (n <= 4)
       return;
+    huffmanEncoder1.clear();
+    huffmanEncoder2.clear();
+    // calculate uncompressed size and symbol usage statistics
+    size_t  uncompressedSize1 = 1;
+    size_t  uncompressedSize2 = 1;
     size_t  charCnt1 = 0;
     size_t  charCnt2 = 0;
     for (size_t i = 4; i < n; i++) {
       if (ioBuf[i] <= 0x17FU) {
+        uncompressedSize1 = uncompressedSize1 + 9;
         charCnt1++;
-        huff1.addChar(ioBuf[i]);
+        huffmanEncoder1.addSymbol(ioBuf[i]);
       }
       else if (ioBuf[i] <= 0x1FFU) {
+        uncompressedSize2 = uncompressedSize2 + 5;
         charCnt2++;
-        huff2.addChar(ioBuf[i] - 0x180U);
+        huffmanEncoder2.addSymbol(ioBuf[i] & 0x7FU);
       }
     }
+    // create optimal encoding tables
+    huffmanEncoder1.updateTables(false, 16);
+    huffmanEncoder2.updateTables(false, 16);
     std::vector< unsigned int > encodeTable1(324, 0U);
     std::vector< unsigned int > encodeTable2(28, 0U);
-    std::vector< unsigned int > tmpBuf;
-    huff1.calculateCompression(tmpBuf, encodeTable1);
-    huff2.calculateCompression(tmpBuf, encodeTable2);
-    ioBuf.resize(n + tmpBuf.size());    // reserve space for the decode table
+    for (unsigned int i = 0U; i < 352U; i++) {
+      std::vector< unsigned int >&  encodeTable =
+          (i < 324U ? encodeTable1 : encodeTable2);
+      HuffmanEncoder& huffmanEncoder =
+          (i < 324U ? huffmanEncoder1 : huffmanEncoder2);
+      unsigned int  c = (i < 324U ? i : (i - 324U));
+      if (huffmanEncoder.getSymbolSize(c) > 16)
+        continue;
+      unsigned int  tmp = huffmanEncoder.encodeSymbol(c);
+      // avoid the code 1111111 since it currently breaks the decompressor
+      encodeTable[c] = (tmp != 0x0700007FU ? tmp : 0x080000FEU);
+    }
+    // create decode tables to be written to the output buffer,
+    // and calculate their sizes
+    std::vector< unsigned int > decodeTable1;
+    std::vector< unsigned int > decodeTable2;
+    size_t  compressedSize1 = 1;
+    size_t  compressedSize2 = 1;
+    for (int i = 0; i < 2; i++) {
+      std::vector< unsigned int >&  encodeTable =
+          (!i ? encodeTable1 : encodeTable2);
+      std::vector< unsigned int >&  decodeTable =
+          (!i ? decodeTable1 : decodeTable2);
+      size_t&       compressedSize = (!i ? compressedSize1 : compressedSize2);
+      unsigned int  n = (!i ? 324U : 28U);
+      decodeTable.push_back(0x01000001U);
+      for (unsigned int l = 1U; l <= 16U; l++) {
+        size_t  sizeCnt = 1;
+        for (unsigned int c = 0U; c < n; c++)
+          sizeCnt += size_t((encodeTable[c] >> 24) == l);
+        compressedSize += getGammaCodeLength(sizeCnt);
+        writeGammaCode(decodeTable, sizeCnt);
+        unsigned int  prvCode = 0U - 1U;
+        for (unsigned int c = 0U; c < n; c++) {
+          if ((encodeTable[c] >> 24) == l) {
+            size_t  d = size_t(c - prvCode);
+            prvCode = c;
+            compressedSize += getGammaCodeLength(d);
+            writeGammaCode(decodeTable, d);
+          }
+        }
+      }
+    }
+    // calculate total compressed size
+    for (size_t i = 4; i < n; i++) {
+      if (ioBuf[i] <= 0x17FU)
+        compressedSize1 += size_t(encodeTable1[ioBuf[i]] >> 24);
+      else if (ioBuf[i] <= 0x1FFU)
+        compressedSize2 += size_t(encodeTable2[ioBuf[i] & 0x7FU] >> 24);
+    }
+    // if the size cannot be reduced, store the data without compression
+    if (compressedSize1 >= uncompressedSize1) {
+      decodeTable1.resize(1);
+      decodeTable1[0] = 0x01000000U;
+      for (unsigned int i = 0U; i < 324U; i++)
+        encodeTable1[i] = 0x09000000U | i;
+    }
+    if (compressedSize2 >= uncompressedSize2) {
+      decodeTable2.resize(1);
+      decodeTable2[0] = 0x01000000U;
+      for (unsigned int i = 0U; i < 28U; i++)
+        encodeTable2[i] = 0x05000000U | i;
+    }
+    // encode input data
+    size_t  decodeTablesSize = decodeTable1.size() + decodeTable2.size();
+    ioBuf.resize(n + decodeTablesSize); // reserve space for the decode tables
     for (size_t i = n; i-- > 4; ) {
       if (ioBuf[i] <= 0x17FU)
-        ioBuf[i + tmpBuf.size()] = encodeTable1[ioBuf[i]];
+        ioBuf[i + decodeTablesSize] = encodeTable1[ioBuf[i]];
       else if (ioBuf[i] <= 0x1FFU)
-        ioBuf[i + tmpBuf.size()] = encodeTable2[ioBuf[i] - 0x180U];
+        ioBuf[i + decodeTablesSize] = encodeTable2[ioBuf[i] & 0x7FU];
       else
-        ioBuf[i + tmpBuf.size()] = ioBuf[i];
+        ioBuf[i + decodeTablesSize] = ioBuf[i];
     }
-    // insert decode table after the block header
-    for (size_t i = 0; i < tmpBuf.size(); i++)
-      ioBuf[i + 4] = tmpBuf[i];
+    // insert decode tables after the block header
+    std::memcpy(&(ioBuf.front()) + 4, &(decodeTable1.front()),
+                decodeTable1.size() * sizeof(unsigned int));
+    std::memcpy(&(ioBuf.front()) + 4 + decodeTable1.size(),
+                &(decodeTable2.front()),
+                decodeTable2.size() * sizeof(unsigned int));
     // update estimated symbol sizes
     for (size_t i = 0x0000; i < 0x0144; i++) {
       size_t  nBits = size_t(encodeTable1[i] >> 24);
@@ -793,12 +341,9 @@ namespace Ep128Compress {
       size_t  maxLen = nBytes - i;
       // check LZ77 matches
       const unsigned int  *matchPtr = searchTable->getMatches(offs + i);
-      while (size_t(matchPtr[0]) >= minLen) {
-        size_t  len = matchPtr[0];
-        size_t  d = matchPtr[1];
-        matchPtr = matchPtr + 2;
-        if (d > config.maxOffset)
-          continue;
+      while (size_t(*matchPtr & 0x03FFU) >= minLen) {
+        size_t  len = *matchPtr & 0x03FFU;
+        size_t  d = *(matchPtr++) >> 10;
         len = (len < maxLen ? len : maxLen);
         size_t  offsBits = tmpCharBitsTable[distanceCodeTable[d]];
         if (d > 8) {
@@ -1066,9 +611,11 @@ namespace Ep128Compress {
       distanceBitsTable((unsigned char *) 0),
       distanceValueTable((unsigned int *) 0),
       tmpCharBitsTable((size_t *) 0),
-      searchTable((SearchTable *) 0),
+      searchTable((DSearchTable *) 0),
       outputShiftReg(0x00),
-      outputBitCnt(0)
+      outputBitCnt(0),
+      huffmanEncoder1(324, 0),
+      huffmanEncoder2(28, 0)
   {
     try {
       lengthCodeTable = new unsigned short[maxRepeatLen + 1];
@@ -1132,9 +679,15 @@ namespace Ep128Compress {
       }
       if (searchTable) {
         delete searchTable;
-        searchTable = (SearchTable *) 0;
+        searchTable = (DSearchTable *) 0;
       }
-      searchTable = new SearchTable(inBuf);
+      searchTable =
+          new DSearchTable(
+                  (config.minLength > minRepeatLen ?
+                   config.minLength : minRepeatLen), maxRepeatLen,
+                  (config.maxOffset < maxRepeatDist ?
+                   config.maxOffset : maxRepeatDist));
+      searchTable->findMatches(&(inBuf.front()), inBuf.size());
       if (config.optimizeIterations > 16)
         config.optimizeIterations = 16;
       // split large files to improve statistical compression
@@ -1185,7 +738,7 @@ namespace Ep128Compress {
                             tmpBlock.isLastBlock,
                             tmpBlock.startPos, tmpBlock.nBytes)) {
             delete searchTable;
-            searchTable = (SearchTable *) 0;
+            searchTable = (DSearchTable *) 0;
             if (progressDisplayEnabled)
               progressMessage("");
             return false;
@@ -1234,7 +787,7 @@ namespace Ep128Compress {
                             tmpBlock.isLastBlock,
                             tmpBlock.startPos, tmpBlock.nBytes)) {
             delete searchTable;
-            searchTable = (SearchTable *) 0;
+            searchTable = (DSearchTable *) 0;
             if (progressDisplayEnabled)
               progressMessage("");
             return false;
@@ -1260,7 +813,7 @@ namespace Ep128Compress {
           break;
       }
       delete searchTable;
-      searchTable = (SearchTable *) 0;
+      searchTable = (DSearchTable *) 0;
       std::vector< unsigned int >   outBufTmp;
       std::list< SplitOptimizationBlock >::iterator i_ = splitPositions.begin();
       while (i_ != splitPositions.end()) {
@@ -1316,7 +869,7 @@ namespace Ep128Compress {
     catch (...) {
       if (searchTable) {
         delete searchTable;
-        searchTable = (SearchTable *) 0;
+        searchTable = (DSearchTable *) 0;
       }
       if (progressDisplayEnabled)
         progressMessage("");
