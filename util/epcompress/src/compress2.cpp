@@ -104,7 +104,7 @@ namespace Ep128Compress {
       if (len > (nBytes - i))
         len = nBytes - i;
       if (len > maxRepeatLen) {
-        if (matchPtr[1] > 1024) {
+        if (matchPtr[1] > 1024U) {
           // long LZ77 match
           bestSize = bitCountTable[i + len] + matchSize3;
           bestOffs = matchPtr[1] >> 10;
@@ -121,11 +121,11 @@ namespace Ep128Compress {
       }
       // otherwise check all possible LZ77 match lengths,
       matchPtr++;
-      for ( ; len > 0; len = (*(++matchPtr) & 0x03FFU)) {
+      for ( ; len > 0; len = (*matchPtr & 0x03FFU)) {
         if (len > (nBytes - i))
           len = nBytes - i;
         unsigned int  d = *matchPtr >> 10;
-        size_t        nxtLen = matchPtr[1] & 0x03FFU;
+        size_t        nxtLen = *(++matchPtr) & 0x03FFU;
         nxtLen = (nxtLen >= config.minLength ? nxtLen : (config.minLength - 1));
         if (len <= nxtLen)
           continue;                     // ignore match
@@ -211,7 +211,7 @@ namespace Ep128Compress {
       if (len > (nBytes - i))
         len = nBytes - i;
       if (len > maxRepeatLen) {
-        if (matchPtr[1] > 1024) {
+        if (matchPtr[1] > 1024U) {
           // long LZ77 match
           bestOffs = matchPtr[1] >> 10;
           bestLen = len;
