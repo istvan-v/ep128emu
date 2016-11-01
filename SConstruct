@@ -644,11 +644,10 @@ if buildUtilities:
     epimgconvEnvironment['CXXFLAGS'] = ep128emuGUIEnvironment['CXXFLAGS']
     epimgconvEnvironment['LIBS'] = ep128emuGUIEnvironment['LIBS']
     epimgconvEnvironment.Append(CPPPATH = ['./util/epcompress/src'])
-    if not mingwCrossCompile:
-        epimgconvEnvironment.Prepend(LIBS = [compressLib])
-    else:
-        epimgconvEnvironment.Prepend(LIBS = [compressLib, 'fltk_images',
-                                             'fltk_png', 'fltk_jpeg', 'z'])
+    if mingwCrossCompile:
+        epimgconvEnvironment.Prepend(LIBS = ['fltk_images', 'fltk_png',
+                                             'fltk_jpeg', 'z'])
+    epimgconvEnvironment.Prepend(LIBS = [compressLib, ep128emuLib])
     epimgconv = epimgconvEnvironment.Program(
                     'epimgconv', Split('''
                         util/epimgconv/src/attr16.cpp
@@ -663,6 +662,7 @@ if buildUtilities:
                         util/epimgconv/src/pixel4.cpp
                     '''))
     Depends(epimgconv, compressLib)
+    Depends(epimgconv, ep128emuLib)
 
 # -----------------------------------------------------------------------------
 
