@@ -16,7 +16,7 @@ buildRelease = not enableDebug and int(ARGUMENTS.get('release', 1))
 useLuaJIT = int(ARGUMENTS.get('luajit', 0))
 cmosZ80 = int(ARGUMENTS.get('z80cmos', 0))
 # build with experimental SD card emulation
-enableSDExt = int(ARGUMENTS.get('sdext', 0))
+enableSDExt = int(ARGUMENTS.get('sdext', 1))
 # use cURL library in makecfg to download the ROM package
 enableCURL = int(ARGUMENTS.get('curl', int(not mingwCrossCompile)))
 
@@ -28,7 +28,7 @@ if buildRelease:
     if linux32CrossCompile or (mingwCrossCompile and not win64CrossCompile):
         compilerFlags = ' -march=pentium2 -mtune=generic '
 if enableDebug and not buildRelease:
-    compilerFlags = ' -Wno-long-long -Wshadow -Winline -g -O2 ' + compilerFlags
+    compilerFlags = ' -Wno-long-long -Wshadow -g -O0 ' + compilerFlags
     compilerFlags = ' -Wall -W -ansi -pedantic ' + compilerFlags
 else:
     compilerFlags = ' -Wall -O3 ' + compilerFlags
@@ -383,6 +383,7 @@ ep128emuLibSources = Split('''
     src/bplist.cpp
     src/cfg_db.cpp
     src/compress.cpp
+    src/comprlib.cpp
     src/debuglib.cpp
     src/decompm2.cpp
     src/display.cpp
@@ -603,6 +604,7 @@ if buildUtilities:
     else:
         compressLibEnvironment = ep128emuLibEnvironment.Copy()
     compressLibEnvironment.Append(CPPPATH = ['./util/epcompress/src'])
+    compressLibEnvironment.Prepend(LIBS = [ep128emuLib])
     compressLib = compressLibEnvironment.StaticLibrary(
                       'epcompress', Split('''
                           util/epcompress/src/archive.cpp
@@ -616,6 +618,7 @@ if buildUtilities:
                           util/epcompress/src/sfxcode.cpp
                           util/epcompress/src/sfxdecomp.cpp
                       '''))
+    Depends(compressLib, ep128emuLib)
     if not oldSConsVersion:
         epcompressEnvironment = compressLibEnvironment.Clone()
     else:
