@@ -21,6 +21,7 @@
 #define EP128EMU_PNGWRITE_HPP
 
 #include "ep128emu.hpp"
+#include "comprlib.hpp"
 #include <vector>
 
 namespace Ep128Emu {
@@ -32,87 +33,6 @@ namespace Ep128Emu {
     static const size_t minMatchLen = 3;
     static const size_t maxMatchLen = 258;
     // --------------------------------
-    class HuffmanEncoder {
-     private:
-      size_t  minSymbolCnt;
-      size_t  symbolRangeUsed;
-      std::vector< unsigned int > symbolCounts;
-      std::vector< unsigned int > encodeTable;
-      void    *nodeBuf;
-     public:
-      HuffmanEncoder(size_t maxSymbolCnt_ = 256, size_t minSymbolCnt_ = 0);
-      virtual ~HuffmanEncoder();
-      // Create encode table and reset symbol counts.
-      // If codeLengthTable is not NULL, it specifies a preset encoding.
-      void updateTables(bool reverseBits = true, size_t maxCodeLen = 16,
-                        const unsigned char *codeLengthTable =
-                            (unsigned char *) 0);
-      // Send symbol count information to 'symLenEncoder' for Huffman
-      // encoding the RLE compressed symbol length table of this encoder.
-      // To add complete decoding information to a Deflate stream, the
-      // following steps are needed:
-      //   huffmanEncoderL.updateDeflateSymLenCnts(symLenEncoder);
-      //   huffmanEncoderD.updateDeflateSymLenCnts(symLenEncoder);
-      //   symLenEncoder.updateTables(true, 7);
-      //   outBuf.push_back(0x0E000000
-      //                    | (huffmanEncoderL.getSymbolRangeUsed() - 257))
-      //                    | ((huffmanEncoderD.getSymbolRangeUsed() - 1)) << 5)
-      //                    | ((symLenEncoder.getSymbolRangeUsed() - 4)) << 10);
-      //   symLenEncoder.writeDeflateEncoding(outBuf);
-      //   huffmanEncoderL.writeDeflateEncoding(outBuf, symLenEncoder);
-      //   huffmanEncoderD.writeDeflateEncoding(outBuf, symLenEncoder);
-      void updateDeflateSymLenCnts(HuffmanEncoder& symLenEncoder) const;
-      // write Huffman encoding to 'outBuf' in Deflate format
-      void writeDeflateEncoding(std::vector< unsigned int >& outBuf) const;
-      void writeDeflateEncoding(std::vector< unsigned int >& outBuf,
-                                const HuffmanEncoder& symLenEncoder) const;
-      inline void addSymbol(unsigned int c)
-      {
-        symbolCounts[c]++;
-      }
-      inline unsigned int encodeSymbol(unsigned int c) const
-      {
-        if (encodeTable[c] == 0U)
-          throw Exception("internal error in HuffmanEncoder::encodeSymbol()");
-        return encodeTable[c];
-      }
-      inline size_t getSymbolSize(unsigned int c) const
-      {
-        if (encodeTable[c] == 0U)
-          return 0x3FFF;
-        return size_t((encodeTable[c] >> 24) & 0x7FU);
-      }
-      inline size_t getSymbolRangeUsed() const
-      {
-        return symbolRangeUsed;
-      }
-      // reset symbol counts and clear encode table
-      void clear();
-    };
-    // --------------------------------
-    class SearchTable {
-     private:
-      // for each buffer position P, matchTableBuf[matchTable[P]] is the
-      // first element of an array of interleaved length/offset pairs,
-      // terminated with zero length and offset
-      std::vector< unsigned int >   matchTable;
-      // space allocated for matchTable
-      std::vector< unsigned short > matchTableBuf;
-      size_t  matchTableBufPos;
-      static void sortFunc(unsigned int *suffixArray,
-                           const unsigned char *buf, size_t bufSize,
-                           size_t startPos, size_t endPos,
-                           unsigned int *tmpBuf);
-      void addMatch(size_t bufPos, size_t matchLen, size_t offs);
-     public:
-      SearchTable(const unsigned char *buf, size_t bufSize);
-      virtual ~SearchTable();
-      inline const unsigned short * getMatches(size_t bufPos) const
-      {
-        return (&(matchTableBuf.front()) + matchTable[bufPos]);
-      }
-    };
-    // --------
     struct LZMatchParameters {
       unsigned short  d;
       unsigned short  len;
@@ -143,16 +63,17 @@ namespace Ep128Emu {
     };
     // --------------------------------
    private:
-    SearchTable     *searchTable;
+    Ep128Compress::LZSearchTable  *searchTable;
     // for literals and length codes (size = 288)
-    HuffmanEncoder  huffmanEncoderL;
+    Ep128Compress::HuffmanEncoder huffmanEncoderL;
     // for distance codes (size = 32)
-    HuffmanEncoder  huffmanEncoderD;
+    Ep128Compress::HuffmanEncoder huffmanEncoderD;
     // for symbol length codes in the header (size = 19)
-    HuffmanEncoder  huffmanEncoderC;
+    Ep128Compress::HuffmanEncoder huffmanEncoderC;
     // --------
     // initialize Huffman encoders with the fixed codes
     void setDefaultEncoding();
+    void writeHuffmanEncoding(std::vector< unsigned int >& buf);
     void writeMatchCode(std::vector< unsigned int >& buf, size_t d, size_t n);
     inline size_t getLengthCodeLength(size_t n) const;
     inline size_t getDistanceCodeLength(size_t d) const;
