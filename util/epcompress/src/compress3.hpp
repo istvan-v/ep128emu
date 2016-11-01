@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 
 #include "ep128emu.hpp"
 #include "compress.hpp"
+#include "comprlib.hpp"
 
 #include <vector>
 
@@ -30,33 +31,9 @@ namespace Ep128Compress {
    private:
     static const size_t minRepeatDist = 1;
     static const size_t maxRepeatDist = 65535;
-    static const size_t minRepeatLen = 1;
+    static const size_t minRepeatLen = 2;
     static const size_t maxRepeatLen = 512;
     static const unsigned int lengthMaxValue = 65535U;
-    // --------
-    class SearchTable {
-     private:
-      const std::vector< unsigned char >&   buf;
-      // for each buffer position P, matchTableBuf[matchTable[P]] is the
-      // first element of an array of interleaved length/offset pairs,
-      // terminated with zero length and offset
-      std::vector< size_t > matchTable;
-      // space allocated for matchTable
-      std::vector< unsigned short > matchTableBuf;
-      size_t  matchTableBufPos;
-      static void sortFunc(unsigned int *suffixArray,
-                           const unsigned char *buf, size_t bufSize,
-                           size_t startPos, size_t endPos,
-                           unsigned int *tmpBuf);
-      void addMatch(size_t bufPos, size_t matchPos, size_t matchLen);
-     public:
-      SearchTable(const std::vector< unsigned char >& inBuf);
-      virtual ~SearchTable();
-      inline const unsigned short * getMatches(size_t bufPos) const
-      {
-        return (&(matchTableBuf.front()) + matchTable[bufPos]);
-      }
-    };
     // --------
     struct LZMatchParameters {
       unsigned short  d;
@@ -87,7 +64,7 @@ namespace Ep128Compress {
       }
     };
     // --------
-    SearchTable   *searchTable;
+    LZSearchTable   *searchTable;
     // --------
     void writeRepeatCode(std::vector< unsigned int >& buf, size_t d, size_t n);
     inline size_t getRepeatCodeLength(size_t d, size_t n) const;

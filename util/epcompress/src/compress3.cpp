@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 #include "ep128emu.hpp"
 #include "compress.hpp"
+#include "comprlib.hpp"
 #include "compress3.hpp"
 
 namespace Ep128Compress {
@@ -42,285 +43,6 @@ namespace Ep128Compress {
     }
     n = ((unsigned int) nBits << 24) | (n & ((1U << nBits) - 1U));
     return n;
-  }
-
-  void Compressor_M3::SearchTable::sortFunc(
-      unsigned int *suffixArray, const unsigned char *buf, size_t bufSize,
-      size_t startPos, size_t endPos, unsigned int *tmpBuf)
-  {
-    if ((startPos + 1) >= endPos)
-      return;
-    size_t  splitPos = (startPos + endPos) >> 1;
-    if ((startPos + 2) < endPos) {
-      sortFunc(suffixArray, buf, bufSize, startPos, splitPos, tmpBuf);
-      sortFunc(suffixArray, buf, bufSize, splitPos, endPos, tmpBuf);
-    }
-    size_t  i = startPos;
-    size_t  j = splitPos;
-    for (size_t k = 0; k < (endPos - startPos); k++) {
-      if (i >= splitPos) {
-        tmpBuf[k] = suffixArray[j];
-        j++;
-      }
-      else if (j >= endPos) {
-        tmpBuf[k] = suffixArray[i];
-        i++;
-      }
-      else {
-        size_t  pos1 = suffixArray[i];
-        size_t  pos2 = suffixArray[j];
-        size_t  len1 = bufSize - pos1;
-        if (len1 > Compressor_M3::maxRepeatLen)
-          len1 = Compressor_M3::maxRepeatLen;
-        size_t  len2 = bufSize - pos2;
-        if (len2 > Compressor_M3::maxRepeatLen)
-          len2 = Compressor_M3::maxRepeatLen;
-        size_t  l = (len1 < len2 ? len1 : len2);
-        const void  *ptr1 = (const void *) (&(buf[pos1]));
-        const void  *ptr2 = (const void *) (&(buf[pos2]));
-        int     c = std::memcmp(ptr1, ptr2, l);
-        if (c == 0)
-          c = (pos1 < pos2 ? -1 : 1);
-        if (c < 0) {
-          tmpBuf[k] = suffixArray[i];
-          i++;
-        }
-        else {
-          tmpBuf[k] = suffixArray[j];
-          j++;
-        }
-      }
-    }
-    for (size_t k = 0; k < (endPos - startPos); k++)
-      suffixArray[startPos + k] = tmpBuf[k];
-  }
-
-  void Compressor_M3::SearchTable::addMatch(size_t bufPos,
-                                            size_t matchPos, size_t matchLen)
-  {
-    size_t  offs = 0;
-    if (matchLen > 0) {
-      if (matchPos >= bufPos)
-        return;
-      offs = bufPos - matchPos;
-      if (offs > Compressor_M3::maxRepeatDist)
-        return;
-      if (matchLen > Compressor_M3::maxRepeatLen)
-        matchLen = Compressor_M3::maxRepeatLen;
-    }
-    if ((matchTableBuf.size() + 2) > matchTableBuf.capacity()) {
-      size_t  tmp = 1024;
-      while (tmp < (matchTableBuf.size() + 2))
-        tmp = tmp << 1;
-      matchTableBuf.reserve(tmp);
-    }
-    if (matchTable[bufPos] == 0x7FFFFFFF)
-      matchTable[bufPos] = matchTableBuf.size();
-    matchTableBuf.push_back((unsigned short) matchLen);
-    matchTableBuf.push_back((unsigned short) offs);
-  }
-
-  Compressor_M3::SearchTable::SearchTable(
-      const std::vector< unsigned char >& inBuf)
-    : buf(inBuf)
-  {
-    if (buf.size() < 1) {
-      throw Ep128Emu::Exception("Compressor_M3::SearchTable::SearchTable(): "
-                                "zero input buffer size");
-    }
-    matchTable.resize(buf.size(), 0x7FFFFFFF);
-    matchTableBuf.reserve(1024);
-    std::vector< unsigned short > rleLengthTable(buf.size(), 0);
-    // find RLE (offset = 1) matches
-    {
-      size_t        rleLength = 1;
-      unsigned int  rleByte = (unsigned int) buf[buf.size() - 1];
-      for (size_t i = buf.size() - 1; i > 0; ) {
-        i--;
-        if ((unsigned int) buf[i] != rleByte) {
-          rleByte = (unsigned int) buf[i];
-          rleLength = 0;
-        }
-        if (rleLength >= Compressor_M3::minRepeatLen)
-          rleLengthTable[i + 1] = (unsigned short) rleLength;
-        if (rleLength < size_t(Compressor_M3::lengthMaxValue))
-          rleLength++;
-      }
-    }
-    std::vector< unsigned short > offs1Table(
-        buf.size(), (unsigned short) Compressor_M3::maxRepeatDist);
-    std::vector< unsigned short > offs2Table(
-        buf.size(), (unsigned short) Compressor_M3::maxRepeatDist);
-    {
-      std::vector< size_t > lastPosTable(65536, size_t(0x7FFFFFFF));
-      // find 1-byte matches
-      for (size_t i = 0; i < buf.size(); i++) {
-        unsigned int  c = (unsigned int) buf[i];
-        if (lastPosTable[c] < i) {
-          size_t  d = i - (lastPosTable[c] + 1);
-          if (d < Compressor_M3::maxRepeatDist)
-            offs1Table[i] = (unsigned short) d;
-        }
-        lastPosTable[c] = i;
-      }
-      // find 2-byte matches
-      for (size_t i = 0; i < 256; i++)
-        lastPosTable[i] = 0x7FFFFFFF;
-      for (size_t i = 0; (i + 1) < buf.size(); i++) {
-        unsigned int  c = (unsigned int) buf[i]
-                          | ((unsigned int) buf[i + 1] << 8);
-        if (lastPosTable[c] < i) {
-          size_t  d = i - (lastPosTable[c] + 1);
-          if (d < Compressor_M3::maxRepeatDist)
-            offs2Table[i] = (unsigned short) d;
-        }
-        lastPosTable[c] = i;
-      }
-    }
-    // buffer positions sorted alphabetically by bytes at each position
-    std::vector< unsigned int >   suffixArray;
-    // suffixArray[n] matches prvMatchLenTable[n] characters with
-    // suffixArray[n - 1]
-    std::vector< unsigned short > prvMatchLenTable;
-    // suffixArray[n] matches nxtMatchLenTable[n] characters with
-    // suffixArray[n + 1]
-    std::vector< unsigned short > nxtMatchLenTable;
-    std::vector< unsigned int >   tmpBuf;
-    for (size_t startPos = 0; startPos < buf.size(); ) {
-      size_t  startPos_ = 0;
-      if (startPos >= Compressor_M3::maxRepeatDist)
-        startPos_ = startPos - Compressor_M3::maxRepeatDist;
-      size_t  endPos = startPos + Compressor_M3::maxRepeatDist;
-      if (endPos > buf.size() ||
-          buf.size() <= (Compressor_M3::maxRepeatDist * 3)) {
-        endPos = buf.size();
-      }
-      size_t  nBytes = endPos - startPos_;
-      tmpBuf.resize(nBytes);
-      suffixArray.resize(nBytes);
-      prvMatchLenTable.resize(nBytes);
-      nxtMatchLenTable.resize(nBytes);
-      for (size_t i = 0; i < nBytes; i++)
-        suffixArray[i] = (unsigned int) (startPos_ + i);
-      sortFunc(&(suffixArray.front()), &(buf.front()), buf.size(), 0, nBytes,
-               &(tmpBuf.front()));
-      for (size_t i = 0; i < nBytes; i++) {
-        if (i == 0) {
-          prvMatchLenTable[i] = 0;
-        }
-        else {
-          size_t  len = 0;
-          size_t  p1 = suffixArray[i - 1];
-          size_t  p2 = suffixArray[i];
-          size_t  maxLen = buf.size() - (p1 > p2 ? p1 : p2);
-          maxLen = (maxLen < Compressor_M3::maxRepeatLen ?
-                    maxLen : Compressor_M3::maxRepeatLen);
-          while (len < maxLen && buf[p1] == buf[p2]) {
-            len++;
-            p1++;
-            p2++;
-          }
-          prvMatchLenTable[i] = (unsigned short) len;
-          nxtMatchLenTable[i - 1] = prvMatchLenTable[i];
-        }
-        nxtMatchLenTable[i] = 0;
-      }
-      // find all matches
-      std::vector< unsigned long >  offsTable(
-          Compressor_M3::maxRepeatLen + 1,
-          (unsigned long) Compressor_M3::maxRepeatDist);
-      for (size_t i_ = 0; i_ < nBytes; i_++) {
-        size_t  i = suffixArray[i_];
-        if (i < startPos)
-          continue;
-        size_t  rleLen = rleLengthTable[i];
-        if (rleLen > Compressor_M3::maxRepeatLen)
-          rleLen = Compressor_M3::maxRepeatLen;
-        size_t  minLen = Compressor_M3::minRepeatLen;
-        if (rleLen >= minLen) {
-          minLen = rleLen + 1;
-          offsTable[rleLen] = 0UL;
-        }
-        if (minLen < 3)
-          minLen = 3;
-        size_t  maxLen = minLen - 1;
-        size_t  matchLen = prvMatchLenTable[i_];
-        if (matchLen >= minLen) {
-          if (matchLen > maxLen)
-            maxLen = matchLen;
-          unsigned long d = offsTable[matchLen];
-          size_t  ndx = i_;
-          while (true) {
-            ndx--;
-            unsigned long tmp =
-                (unsigned long) i - ((unsigned long) suffixArray[ndx] + 1UL);
-            d = (tmp < d ? tmp : d);
-            if (size_t(prvMatchLenTable[ndx]) < matchLen) {
-              if (d < offsTable[matchLen])
-                offsTable[matchLen] = d;
-              matchLen = prvMatchLenTable[ndx];
-              if (matchLen < minLen)
-                break;
-            }
-          }
-        }
-        matchLen = nxtMatchLenTable[i_];
-        if (matchLen >= minLen) {
-          if (matchLen > maxLen)
-            maxLen = matchLen;
-          unsigned long d = offsTable[matchLen];
-          size_t  ndx = i_;
-          while (true) {
-            ndx++;
-            unsigned long tmp =
-                (unsigned long) i - ((unsigned long) suffixArray[ndx] + 1UL);
-            d = (tmp < d ? tmp : d);
-            if (size_t(nxtMatchLenTable[ndx]) < matchLen) {
-              if (d < offsTable[matchLen])
-                offsTable[matchLen] = d;
-              matchLen = nxtMatchLenTable[ndx];
-              if (matchLen < minLen)
-                break;
-            }
-          }
-        }
-        offsTable[1] = offs1Table[i];
-        offsTable[2] = offs2Table[i];
-        unsigned long prvDist = Compressor_M3::maxRepeatDist;
-        for (size_t k = maxLen; k >= Compressor_M3::minRepeatLen; k--) {
-          unsigned long d = offsTable[k];
-          offsTable[k] = Compressor_M3::maxRepeatDist;
-          if (d < prvDist) {
-            prvDist = d;
-            addMatch(i, i - size_t(d + 1UL), k);
-            if (d == 0UL)
-              break;
-          }
-        }
-        addMatch(i, 0, 0);
-      }
-      startPos = endPos;
-    }
-    // find very long matches
-    for (size_t i = buf.size() - 1; i > 0; ) {
-      if (size_t(matchTableBuf[matchTable[i]]) == Compressor_M3::maxRepeatLen) {
-        size_t          len = Compressor_M3::maxRepeatLen;
-        unsigned short  offs = matchTableBuf[matchTable[i] + 1];
-        while (--i > 0) {
-          // NOTE: the offset always changes when the match length decreases
-          if (matchTableBuf[matchTable[i] + 1] != offs)
-            break;
-          len = (len < size_t(Compressor_M3::lengthMaxValue) ? (len + 1) : len);
-          matchTableBuf[matchTable[i]] = (unsigned short) len;
-        }
-        continue;
-      }
-      i--;
-    }
-  }
-
-  Compressor_M3::SearchTable::~SearchTable()
-  {
   }
 
   // --------------------------------------------------------------------------
@@ -368,24 +90,21 @@ namespace Ep128Compress {
                                       unsigned char *bitIncMaxTable,
                                       size_t nBytes)
   {
+    size_t  maxLen = (config.splitOptimizationDepth < 9 ? maxRepeatLen : 1023);
+    size_t  minLen = (config.minLength > 2 ? config.minLength : 2);
     for (size_t i = nBytes; --i > 0; ) {
       size_t  bestSize = 0x7FFFFFFF;
       size_t  bestLen = 1;
       size_t  bestOffs = 0;
-      const unsigned short  *matchPtr = searchTable->getMatches(i);
-      size_t  len = matchPtr[0];        // match length
-      if (len > (nBytes - i)) {
-        while (size_t(matchPtr[2]) >= (nBytes - i))
-          matchPtr = matchPtr + 2;
-        len = nBytes - i;
-      }
-      if (len > 2 || (len == 2 && matchPtr[1] <= 510)) {
-        size_t  d = matchPtr[1];
+      const unsigned int  *matchPtr = searchTable->getMatches(i);
+      size_t  len = *matchPtr;          // match length
+      if (len >= minLen) {
+        size_t  d = *(++matchPtr) >> 10;
         bestLen = len;
         bestOffs = d;
         bestSize = getRepeatCodeLength(d, len) + size_t((i + len) < nBytes)
                    + bitCountTable[i + len];
-        if (len > maxRepeatLen) {
+        if (len > maxLen) {
           // long LZ77 match
           if (d == 1) {
             // if a long RLE match is possible, use that
@@ -395,38 +114,29 @@ namespace Ep128Compress {
             bitIncMaxTable[i] = bitIncMaxTable[i + len];
             continue;
           }
-          len = maxRepeatLen;
+          len = maxLen;
         }
         // otherwise check all possible LZ77 match lengths,
-        size_t  nxtLen = (matchPtr[2] > 2U ? matchPtr[2] : 2U);
-        while (true) {
-          if (--len <= nxtLen) {
-            if (len <= 2) {
-              if (matchPtr[2] == 2)
-                d = matchPtr[3];
-              if (len == 2 && d <= 510) {
-                size_t  nBits = (getSymbolSize((unsigned int) (len - 1)) << 1)
-                                + getSymbolSize(d + 1) + 5
-                                + bitCountTable[i + len];
-                if (nBits < bestSize) {
-                  bestSize = nBits;
-                  bestOffs = d;
-                  bestLen = len;
-                }
-              }
-              break;
+        for ( ; len > 0; len = (*matchPtr & 0x03FFU)) {
+          unsigned int  d = *matchPtr >> 10;
+          size_t  nxtLen = *(++matchPtr) & 0x03FFU;
+          nxtLen = (nxtLen >= minLen ? nxtLen : (minLen - 1));
+          size_t  nBitsBase = getSymbolSize(d) + 6;
+          while (len > nxtLen) {
+            size_t  nBits = (getSymbolSize((unsigned int) (len - 1)) << 1)
+                            + nBitsBase + bitCountTable[i + len];
+            if (EP128EMU_UNLIKELY(len < 3)) {
+              if (EP128EMU_UNLIKELY(d > 510U))
+                nBits = 0x7FFFFFFF;
+              else
+                nBits = (nBits - nBitsBase) + (getSymbolSize(d + 1) + 5);
             }
-            len = nxtLen;
-            matchPtr = matchPtr + 2;
-            d = matchPtr[1];
-            nxtLen = (matchPtr[2] > 2U ? matchPtr[2] : 2U);
-          }
-          size_t  nBits = (getSymbolSize((unsigned int) (len - 1)) << 1)
-                          + getSymbolSize(d) + 6 + bitCountTable[i + len];
-          if (nBits < bestSize) {
-            bestSize = nBits;
-            bestOffs = d;
-            bestLen = len;
+            if (nBits < bestSize) {
+              bestSize = nBits;
+              bestOffs = d;
+              bestLen = len;
+            }
+            len--;
           }
         }
       }
@@ -529,7 +239,7 @@ namespace Ep128Compress {
 
   Compressor_M3::Compressor_M3(std::vector< unsigned char >& outBuf_)
     : Compressor(outBuf_),
-      searchTable((SearchTable *) 0)
+      searchTable((LZSearchTable *) 0)
   {
   }
 
@@ -552,7 +262,7 @@ namespace Ep128Compress {
     }
     if (searchTable) {
       delete searchTable;
-      searchTable = (SearchTable *) 0;
+      searchTable = (LZSearchTable *) 0;
     }
     size_t        savedOutBufPos = 0x7FFFFFFF;
     unsigned char outputShiftReg = 0xFF;
@@ -567,7 +277,15 @@ namespace Ep128Compress {
       std::vector< unsigned char >  inBufRev(nBytes);
       for (size_t i = 0; i < nBytes; i++)
         inBufRev[(nBytes - 1) - i] = inBuf[i];          // reverse input data
-      searchTable = new SearchTable(inBufRev);
+      searchTable =
+          new LZSearchTable(
+              (config.minLength > minRepeatLen ?
+               config.minLength : minRepeatLen),
+              (config.splitOptimizationDepth < 9 ? maxRepeatLen : 1023),
+              lengthMaxValue, 0, 510,
+              (config.maxOffset < maxRepeatDist ?
+               config.maxOffset : maxRepeatDist));
+      searchTable->findMatches(&(inBufRev.front()), 0, nBytes);
       std::vector< unsigned int >   tmpBuf;
       compressData_(tmpBuf, inBufRev);
       // calculate compressed size
@@ -598,12 +316,12 @@ namespace Ep128Compress {
         outBufTmp.push_back(0x88000000U | (unsigned int) (tmp & 0xFF));
       }
       delete searchTable;
-      searchTable = (SearchTable *) 0;
+      searchTable = (LZSearchTable *) 0;
     }
     catch (...) {
       if (searchTable) {
         delete searchTable;
-        searchTable = (SearchTable *) 0;
+        searchTable = (LZSearchTable *) 0;
       }
       throw;
     }
