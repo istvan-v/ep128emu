@@ -25,7 +25,7 @@ class Ep128EmuConfigInstallerGUI {open
   }
   decl {static size_t curlRecvCallback(void *buf, size_t size, size_t n, void *userData);} {private local
   }
-  decl {bool unpackROMFiles(const std::string& romDir);} {public local
+  decl {bool unpackROMFiles(const std::string& romDir, double& decompressTime);} {public local
   }
   Function {Ep128EmuConfigInstallerGUI()} {open
   } {

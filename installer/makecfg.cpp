@@ -1005,7 +1005,8 @@ size_t Ep128EmuConfigInstallerGUI::curlRecvCallback(void *buf, size_t size,
 
 // returns true if the compressed ROM package file can be deleted
 
-bool Ep128EmuConfigInstallerGUI::unpackROMFiles(const std::string& romDir)
+bool Ep128EmuConfigInstallerGUI::unpackROMFiles(const std::string& romDir,
+                                                double& decompressTime)
 {
   std::vector< unsigned char >  inBuf;
   std::string fName;
@@ -1113,7 +1114,19 @@ bool Ep128EmuConfigInstallerGUI::unpackROMFiles(const std::string& romDir)
       if (inBuf.size() < 4)
         throw Ep128Emu::Exception("invalid compressed ROM data size");
       decompressor = new Ep128Emu::Decompressor();
+      Ep128Emu::Timer   tt;
+      double  t1 = tt.getRealTime();
       decompressor->decompressData(buf, inBuf);
+      t1 = tt.getRealTime() - t1;
+      buf.clear();
+      double  t2 = tt.getRealTime();
+      decompressor->decompressData(buf, inBuf);
+      t2 = tt.getRealTime() - t2;
+      if (t1 <= 0.0)
+        t1 = t2;
+      else if (t2 <= 0.0)
+        t2 = t1;
+      decompressTime = (t1 < t2 ? t1 : t2);
       delete decompressor;
       decompressor = (Ep128Emu::Decompressor *) 0;
       if (buf.size() < 0x4000 || buf.size() > 0x00300000)
@@ -1440,9 +1453,11 @@ int main(int argc, char **argv)
   configDirectory += c;
   std::string romDirectory = installDirectory + "roms";
   romDirectory += c;
+  bool    compressFiles = false;
   if (gui->enablePresetCfgInstall | gui->enableROMDownload) {
     try {
-      if (gui->unpackROMFiles(romDirectory)) {
+      double  decompressTime = 1.0;
+      if (gui->unpackROMFiles(romDirectory, decompressTime)) {
         // if successfully extracted, delete compressed ROM package
         std::string tmp(romDirectory);
         tmp += MAKECFG_ROM_PKG_NAME;
@@ -1452,6 +1467,8 @@ int main(int argc, char **argv)
           std::remove(tmp.c_str());
         }
       }
+      // enable snapshot compression by default on fast machines
+      compressFiles = (decompressTime < 0.035);
     }
     catch (std::exception& e) {
       gui->errorMessage(e.what());
@@ -1500,6 +1517,7 @@ int main(int argc, char **argv)
         setKeyboardConfiguration(*config, (gui->keyboardMapHU ? 1 : 0));
         std::string fileIODir = installDirectory + "files";
         config->createKey("fileio.workingDirectory", fileIODir);
+        config->createKey("compressFiles", compressFiles);
         try {
           Ep128Emu::File  f;
           config->saveState(f);
