@@ -30,7 +30,7 @@ namespace Ep128Emu {
   class Compressor_M2 {
    public:
     static const size_t minRepeatDist = 1;
-    static const size_t maxRepeatDist = 131072; // was 262144 in epcompress
+    static const size_t maxRepeatDist = 131072; // was 524288 in epcompress
     static const size_t minRepeatLen = 1;
     static const size_t maxRepeatLen = 128;     // was 512 in epcompress
     static const unsigned int lengthMaxValue = 65535U;

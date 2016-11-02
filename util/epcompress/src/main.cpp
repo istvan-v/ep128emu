@@ -39,7 +39,7 @@ static bool   noCleanup = true;
 static bool   forceRawMode = false;
 // minimum LZ77 match length (1 to 3)
 static size_t minLength = 1;
-// maximum LZ77 match offset (1 to 262144)
+// maximum LZ77 match offset (1 to 524288)
 static size_t maxOffset = 65536;
 // force block size if non-zero
 static size_t blockSize = 0;
@@ -397,8 +397,8 @@ int main(int argc, char **argv)
         maxOffset = size_t(std::atoi(argv[i]));
         if (maxOffset < 1)
           maxOffset = 1;
-        if (maxOffset > 262144)
-          maxOffset = 262144;
+        if (maxOffset > 524288)
+          maxOffset = 524288;
       }
       else if (tmp == "-blocksize") {
         if (++i >= argc)
@@ -627,7 +627,7 @@ int main(int argc, char **argv)
       std::printf("        limit LZ77 length to >= N bytes (1 to 3, "
                   "default: 1)\n");
       std::printf("    -maxoffs <N>\n");
-      std::printf("        limit LZ77 offset to <= N bytes (1 to 262144, "
+      std::printf("        limit LZ77 offset to <= N bytes (1 to 524288, "
                   "default: 65536)\n");
       std::printf("    -blocksize <N>\n");
       std::printf("        force using a block size of N bytes (16 to 65536), "

@@ -60,8 +60,8 @@ namespace Ep128Compress {
       minLength = 3;
     if (maxOffset < 1)
       maxOffset = 1;
-    if (maxOffset > 262144)
-      maxOffset = 262144;
+    if (maxOffset > 524288)
+      maxOffset = 524288;
     if (blockSize < 1)
       blockSize = 0;
     else if (blockSize < 16)

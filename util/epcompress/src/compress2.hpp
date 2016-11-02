@@ -30,7 +30,7 @@ namespace Ep128Compress {
   class Compressor_M2 : public Compressor {
    private:
     static const size_t minRepeatDist = 1;
-    static const size_t maxRepeatDist = 262144;
+    static const size_t maxRepeatDist = 524288;
     static const size_t minRepeatLen = 1;
     static const size_t maxRepeatLen = 512;
     static const unsigned int lengthMaxValue = 65535U;
