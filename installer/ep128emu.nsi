@@ -387,7 +387,7 @@ Section "Download and install ROM images" SecDLRoms
 
   SetOutPath "$INSTDIR\roms"
 
-  INetC::get "https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/?action=dlattach;attach=16433" "$INSTDIR\roms\ep128emu_roms-2.0.10.bin"
+  INetC::get "https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/?action=dlattach;attach=16486" "$INSTDIR\roms\ep128emu_roms-2.0.10.bin"
   Pop $R0
   StrCmp $R0 "OK" downloadDone 0
   StrCmp $R0 "Cancelled" downloadDone 0
@@ -653,6 +653,7 @@ Section "Uninstall"
   Delete "$INSTDIR\roms\epd19hft.rom"
   Delete "$INSTDIR\roms\epd19uk.rom"
   Delete "$INSTDIR\roms\epfileio.rom"
+  Delete "$INSTDIR\roms\esb.rom"
   Delete "$INSTDIR\roms\esp.rom"
   Delete "$INSTDIR\roms\exdos0.rom"
   Delete "$INSTDIR\roms\exdos1.rom"

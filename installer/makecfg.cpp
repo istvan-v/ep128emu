@@ -46,7 +46,7 @@
 #  ifndef MAKECFG_ROM_URL_1
 #    define MAKECFG_ROM_URL_1   "https://enterpriseforever.com/"        \
                                 "letoltesek-downloads/egyeb-misc/"      \
-                                "?action=dlattach;attach=16433"
+                                "?action=dlattach;attach=16486"
 #  endif
 #  ifndef MAKECFG_ROM_URL_2
 #    define MAKECFG_ROM_URL_2   "http://ep128.hu/Emu/" MAKECFG_ROM_PKG_NAME
