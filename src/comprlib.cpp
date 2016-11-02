@@ -158,7 +158,7 @@ namespace Ep128Compress {
         }
       }
       // check for trivial cases (symbols used <= 2)
-      if (n == 1 || n == 2) {
+      if (n <= 2) {
         n = 0;
         for (size_t i = 0; i < symbolRangeUsed; i++) {
           if (symbolCounts[i] > 0) {
