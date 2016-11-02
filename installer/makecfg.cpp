@@ -1106,7 +1106,6 @@ bool Ep128EmuConfigInstallerGUI::unpackROMFiles(const std::string& romDir,
   else {
     return false;
   }
-  Ep128Emu::Decompressor  *decompressor = (Ep128Emu::Decompressor *) 0;
   try {
     std::vector< unsigned char >  buf;
     // read and decompress input file
@@ -1116,18 +1115,15 @@ bool Ep128EmuConfigInstallerGUI::unpackROMFiles(const std::string& romDir,
       Ep128Emu::Timer   tt;
       double  t0 = tt.getRealTime();
       double  t1, t2;
-      decompressor = new Ep128Emu::Decompressor();
       do {
         buf.clear();
         t1 = tt.getRealTime();
-        decompressor->decompressData(buf, inBuf);
+        Ep128Emu::decompressData(buf, &(inBuf.front()), inBuf.size());
         t2 = tt.getRealTime();
         t1 = t2 - t1;
         if (t1 > 0.0 && t1 < decompressTime)
           decompressTime = t1;
       } while ((t2 - t0) < 0.35);
-      delete decompressor;
-      decompressor = (Ep128Emu::Decompressor *) 0;
       if (buf.size() < 0x4000 || buf.size() > 0x00300000)
         throw Ep128Emu::Exception("invalid packed ROM data size");
     }
@@ -1192,8 +1188,6 @@ bool Ep128EmuConfigInstallerGUI::unpackROMFiles(const std::string& romDir,
       throw Ep128Emu::Exception("error writing ROM file");
   }
   catch (...) {
-    if (decompressor)
-      delete decompressor;
     if (f)
       std::fclose(f);
     throw;
@@ -1467,7 +1461,7 @@ int main(int argc, char **argv)
         }
       }
       // enable snapshot compression by default on fast machines
-      compressFiles = (decompressTime < 0.033);
+      compressFiles = (decompressTime < 0.023);
     }
     catch (std::exception& e) {
       gui->errorMessage(e.what());

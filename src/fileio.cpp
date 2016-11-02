@@ -498,15 +498,10 @@ namespace Ep128Emu {
         throw Exception("error reading file");
       }
       tmpBuf.reserve(fileSize);
-      Ep128Emu::Decompressor  *decompressor = (Ep128Emu::Decompressor *) 0;
       try {
-        decompressor = new Ep128Emu::Decompressor();
-        decompressor->decompressData(tmpBuf, inBuf);
-        delete decompressor;
+        Ep128Emu::decompressData(tmpBuf, &(inBuf.front()), inBuf.size());
       }
       catch (...) {
-        if (decompressor)
-          delete decompressor;
         throw Exception("invalid file header or error in compressed file");
       }
     }
