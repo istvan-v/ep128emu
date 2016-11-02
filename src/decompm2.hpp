@@ -33,29 +33,28 @@ namespace Ep128Emu {
     unsigned int  offs3DecodeTable[32 * 2];
     size_t        offs3PrefixSize;
     unsigned char shiftRegister;
-    int           shiftRegisterCnt;
     const unsigned char *inputBuffer;
     size_t        inputBufferSize;
     size_t        inputBufferPosition;
     // --------
     unsigned int readBits(size_t nBits);
     unsigned char readLiteralByte();
-    // returns LZ match length (1..65535), or zero for literal byte,
+    // returns LZ match length (1..65535),
     // or length + 0x80000000 for literal sequence
     unsigned int readMatchLength();
     unsigned int readLZMatchParameter(unsigned char slotNum,
                                       const unsigned int *decodeTable);
     void readDecodeTables();
-    bool decompressDataBlock(std::vector< unsigned char >& buf,
-                             std::vector< bool >& bytesUsed,
-                             unsigned int& startAddr);
+    bool decompressDataBlock(std::vector< unsigned char >& buf);
    public:
     Decompressor();
     virtual ~Decompressor();
-    virtual void decompressData(
-        std::vector< unsigned char >& outBuf,
-        const std::vector< unsigned char >& inBuf);
+    virtual void decompressData(std::vector< unsigned char >& outBuf,
+                                const unsigned char *inBuf, size_t inBufSize);
   };
+
+  extern void decompressData(std::vector< unsigned char >& outBuf,
+                             const unsigned char *inBuf, size_t inBufSize);
 
   // --------------------------------------------------------------------------
 
