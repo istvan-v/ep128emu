@@ -363,10 +363,10 @@ static const EP_ROM_File epROMFiles[61] = {
   { "pascal12.rom",             0x43FFFFFFU },
 #define EP_ROM_TPT_32           (uint64_t(1) << 53)
   { "tpt.rom",                  0x32FFFFFFU },
-#define EP_ROM_ZT18_HU          (uint64_t(1) << 54)
-  { "zt18hun.rom",              0x4041FFFFU },
-#define EP_ROM_ZT18_UK          (uint64_t(1) << 55)
-  { "zt18uk.rom",               0x4041FFFFU },
+#define EP_ROM_ZT19_HU          (uint64_t(1) << 54)
+  { "zt19hun.rom",              0x4041FFFFU },
+#define EP_ROM_ZT19_UK          (uint64_t(1) << 55)
+  { "zt19uk.rom",               0x4041FFFFU },
 #define EP_ROM_ZX41_HU          (uint64_t(1) << 56)
   { "zx41.rom",                 0x3031FFFFU },
 #define EP_ROM_ZX41_UK          (uint64_t(1) << 57)
@@ -415,7 +415,7 @@ static const EPMachineConfig machineConfigs[] = {
   { "ep128brd/EP2048k_EXOS24_EXDOS_utils.cfg",
     EP_RAM_2048K | EP_ROM_EXOS24_BRD | EP_ROM_ASMON15_04 | EP_ROM_EPD17Z12_06
     | EP_ROM_EPFILEIO | EP_ROM_LISP | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_BRD
-    | EP_ROM_FENAS12_22 | EP_ROM_ZX41_UK | EP_ROM_GENMON | EP_ROM_ZT18_UK
+    | EP_ROM_FENAS12_22 | EP_ROM_ZX41_UK | EP_ROM_GENMON | EP_ROM_ZT19_UK
     | EP_ROM_FORTH | EP_ROM_BRD_43
   },
   { "ep128brd/EP_128k_EXDOS.cfg",
@@ -456,24 +456,24 @@ static const EPMachineConfig machineConfigs[] = {
     EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_ASMON15_04 | EP_ROM_EPD17Z12_06
     | EP_ROM_EPFILEIO | EP_ROM_FENAS12_12 | EP_ROM_EXDOS14I_BRD
     | EP_ROM_PASZIANS | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW
-    | EP_ROM_ZT18_UK | EP_ROM_BRD_43
+    | EP_ROM_ZT19_UK | EP_ROM_BRD_43
   },
   { "ep128brd/EP_640k_EXOS232_IDE_utils.cfg",
     EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_ASMON15_04 | EP_ROM_EPD19UK_06
     | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_BRD
     | EP_ROM_PASZIANS | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW
-    | EP_ROM_ZT18_UK | EP_ROM_IDE12_42 | EP_ROM_BRD_43
+    | EP_ROM_ZT19_UK | EP_ROM_IDE12_42 | EP_ROM_BRD_43
   },
   { "ep128brd/EP_640k_EXOS24_SDEXT_utils.cfg",
     EP_RAM_640K | EP_ROM_EXOS24_BRD | EP_ROM_EPD19UK_04 | EP_ROM_SDEXT05_07
     | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_BRD
     | EP_ROM_PASZIANS | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW
-    | EP_ROM_ZT18_UK | EP_ROM_BRD_43
+    | EP_ROM_ZT19_UK | EP_ROM_BRD_43
   },
   { "ep128esp/EP2048k_EXOS24_EXDOS_utils.cfg",
     EP_RAM_2048K | EP_ROM_EXOS24_ES | EP_ROM_ASMON15_04 | EP_ROM_EPD17Z12_06
     | EP_ROM_EPFILEIO | EP_ROM_LISP | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_ES
-    | EP_ROM_FENAS12_22 | EP_ROM_ZX41_UK | EP_ROM_GENMON | EP_ROM_ZT18_UK
+    | EP_ROM_FENAS12_22 | EP_ROM_ZX41_UK | EP_ROM_GENMON | EP_ROM_ZT19_UK
     | EP_ROM_FORTH | EP_ROM_ESP_43
   },
   { "ep128esp/EP_128k_EXDOS.cfg",
@@ -513,25 +513,25 @@ static const EPMachineConfig machineConfigs[] = {
   { "ep128esp/EP_640k_EXOS232_EXDOS_utils.cfg",
     EP_RAM_640K | EP_ROM_EXOS232_ES | EP_ROM_ASMON15_04 | EP_ROM_EPD17Z12_06
     | EP_ROM_EPFILEIO | EP_ROM_FENAS12_12 | EP_ROM_EXDOS14I_ES | EP_ROM_PASZIANS
-    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK
+    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT19_UK
     | EP_ROM_ESP_43
   },
   { "ep128esp/EP_640k_EXOS232_IDE_utils.cfg",
     EP_RAM_640K | EP_ROM_EXOS232_ES | EP_ROM_ASMON15_04 | EP_ROM_EPD19UK_06
     | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_ES | EP_ROM_PASZIANS
-    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK
+    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT19_UK
     | EP_ROM_IDE12_42 | EP_ROM_ESP_43
   },
   { "ep128esp/EP_640k_EXOS24_SDEXT_utils.cfg",
     EP_RAM_640K | EP_ROM_EXOS24_ES | EP_ROM_EPD19UK_04 | EP_ROM_SDEXT05_07
     | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_ES | EP_ROM_PASZIANS
-    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK
+    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT19_UK
     | EP_ROM_ESP_43
   },
   { "ep128hun/EP2048k_EXOS24_EXDOS_utils.cfg",
     EP_RAM_2048K | EP_ROM_EXOS24_HU | EP_ROM_ASMON15_04 | EP_ROM_EPD17Z12_06
     | EP_ROM_EPFILEIO | EP_ROM_LISP | EP_ROM_HEASS10_HU | EP_ROM_EXDOS14I_HU
-    | EP_ROM_FENAS12_22 | EP_ROM_ZX41_HU | EP_ROM_GENMON | EP_ROM_ZT18_HU
+    | EP_ROM_FENAS12_22 | EP_ROM_ZX41_HU | EP_ROM_GENMON | EP_ROM_ZT19_HU
     | EP_ROM_FORTH | EP_ROM_HUN_43
   },
   { "ep128hun/EP_128k_EXDOS.cfg",
@@ -577,25 +577,25 @@ static const EPMachineConfig machineConfigs[] = {
   { "ep128hun/EP_640k_EXOS232_EXDOS_utils.cfg",
     EP_RAM_640K | EP_ROM_EXOS232_HU | EP_ROM_ASMON15_04 | EP_ROM_EPD17Z12_06
     | EP_ROM_EPFILEIO | EP_ROM_FENAS12_12 | EP_ROM_EXDOS14I_HU | EP_ROM_PASZIANS
-    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_HU
+    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT19_HU
     | EP_ROM_HUN_43
   },
   { "ep128hun/EP_640k_EXOS232_IDE_utils.cfg",
     EP_RAM_640K | EP_ROM_EXOS232_HU | EP_ROM_ASMON15_04 | EP_ROM_EPD19HU_06
     | EP_ROM_EPFILEIO | EP_ROM_HEASS10_HU | EP_ROM_EXDOS14I_HU | EP_ROM_PASZIANS
-    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_HU
+    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT19_HU
     | EP_ROM_IDE12_42 | EP_ROM_HUN_43
   },
   { "ep128hun/EP_640k_EXOS24_SDEXT_utils.cfg",
     EP_RAM_640K | EP_ROM_EXOS24_HU | EP_ROM_EPD19HU_04 | EP_ROM_SDEXT05_07
     | EP_ROM_EPFILEIO | EP_ROM_HEASS10_HU | EP_ROM_EXDOS14I_HU | EP_ROM_PASZIANS
-    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_HU
+    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT19_HU
     | EP_ROM_HUN_43
   },
   { "ep128uk/EP2048k_EXOS24_EXDOS_utils.cfg",
     EP_RAM_2048K | EP_ROM_EXOS24_UK | EP_ROM_ASMON15_04 | EP_ROM_EPD17Z12_06
     | EP_ROM_EPFILEIO | EP_ROM_LISP | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_UK
-    | EP_ROM_FENAS12_22 | EP_ROM_ZX41_UK | EP_ROM_GENMON | EP_ROM_ZT18_UK
+    | EP_ROM_FENAS12_22 | EP_ROM_ZX41_UK | EP_ROM_GENMON | EP_ROM_ZT19_UK
     | EP_ROM_FORTH | EP_ROM_PASCAL12
   },
   { "ep128uk/EP_128k_EXDOS.cfg",
@@ -652,18 +652,18 @@ static const EPMachineConfig machineConfigs[] = {
   { "ep128uk/EP_640k_EXOS232_EXDOS_utils.cfg",
     EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_ASMON15_04 | EP_ROM_EPD17Z12_06
     | EP_ROM_EPFILEIO | EP_ROM_FENAS12_12 | EP_ROM_EXDOS14I_UK | EP_ROM_PASZIANS
-    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK
+    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT19_UK
   },
   { "ep128uk/EP_640k_EXOS232_IDE_utils.cfg",
     EP_RAM_640K | EP_ROM_EXOS232_UK | EP_ROM_ASMON15_04 | EP_ROM_EPD19UK_06
     | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_UK | EP_ROM_PASZIANS
-    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK
+    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT19_UK
     | EP_ROM_IDE12_42
   },
   { "ep128uk/EP_640k_EXOS24_SDEXT_utils.cfg",
     EP_RAM_640K | EP_ROM_EXOS24_UK | EP_ROM_EPD19UK_04 | EP_ROM_SDEXT05_07
     | EP_ROM_EPFILEIO | EP_ROM_HEASS10_UK | EP_ROM_EXDOS14I_UK | EP_ROM_PASZIANS
-    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT18_UK
+    | EP_ROM_IVIEW_30 | EP_ROM_TPT_32 | EP_ROM_EDCW | EP_ROM_ZT19_UK
   },
   { "ep64/EP_64k_EXDOS.cfg",
     EP_RAM_64K | EP_ROM_EXOS20 | EP_ROM_BASIC20_04 | EP_ROM_EXDOS10
@@ -1113,20 +1113,19 @@ bool Ep128EmuConfigInstallerGUI::unpackROMFiles(const std::string& romDir,
     {
       if (inBuf.size() < 4)
         throw Ep128Emu::Exception("invalid compressed ROM data size");
-      decompressor = new Ep128Emu::Decompressor();
       Ep128Emu::Timer   tt;
-      double  t1 = tt.getRealTime();
-      decompressor->decompressData(buf, inBuf);
-      t1 = tt.getRealTime() - t1;
-      buf.clear();
-      double  t2 = tt.getRealTime();
-      decompressor->decompressData(buf, inBuf);
-      t2 = tt.getRealTime() - t2;
-      if (t1 <= 0.0)
-        t1 = t2;
-      else if (t2 <= 0.0)
-        t2 = t1;
-      decompressTime = (t1 < t2 ? t1 : t2);
+      double  t0 = tt.getRealTime();
+      double  t1, t2;
+      decompressor = new Ep128Emu::Decompressor();
+      do {
+        buf.clear();
+        t1 = tt.getRealTime();
+        decompressor->decompressData(buf, inBuf);
+        t2 = tt.getRealTime();
+        t1 = t2 - t1;
+        if (t1 > 0.0 && t1 < decompressTime)
+          decompressTime = t1;
+      } while ((t2 - t0) < 0.35);
       delete decompressor;
       decompressor = (Ep128Emu::Decompressor *) 0;
       if (buf.size() < 0x4000 || buf.size() > 0x00300000)
@@ -1468,7 +1467,7 @@ int main(int argc, char **argv)
         }
       }
       // enable snapshot compression by default on fast machines
-      compressFiles = (decompressTime < 0.035);
+      compressFiles = (decompressTime < 0.033);
     }
     catch (std::exception& e) {
       gui->errorMessage(e.what());
@@ -1517,7 +1516,10 @@ int main(int argc, char **argv)
         setKeyboardConfiguration(*config, (gui->keyboardMapHU ? 1 : 0));
         std::string fileIODir = installDirectory + "files";
         config->createKey("fileio.workingDirectory", fileIODir);
-        config->createKey("compressFiles", compressFiles);
+        if (compressFiles) {
+          config->createKey("compressFiles", compressFiles);
+          (*config)["display.quality"] = 3;
+        }
         try {
           Ep128Emu::File  f;
           config->saveState(f);
