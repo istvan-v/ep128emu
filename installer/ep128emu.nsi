@@ -410,7 +410,7 @@ Section "Install configuration files" SecInstCfg
   SectionIn RO
 
   SetOutPath "$INSTDIR"
-  ExecWait '"$INSTDIR\makecfg.exe" "$INSTDIR"'
+  ExecWait '"$INSTDIR\makecfg.exe" "-c" "$INSTDIR"'
 
 SectionEnd
 
