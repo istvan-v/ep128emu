@@ -96,7 +96,7 @@ namespace Ep128Compress {
                                  size_t *bitCountTable,
                                  size_t offs, size_t nBytes);
     void optimizeMatches(LZMatchParameters *matchTable,
-                         size_t *bitCountTable, size_t *offsSumTable,
+                         size_t *bitCountTable, uint64_t *offsSumTable,
                          size_t offs, size_t nBytes);
     size_t compressData_(std::vector< unsigned int >& tmpOutBuf,
                          const std::vector< unsigned char >& inBuf,

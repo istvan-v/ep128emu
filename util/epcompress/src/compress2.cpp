@@ -197,15 +197,20 @@ namespace Ep128Compress {
 
   void Compressor_M2::optimizeMatches(LZMatchParameters *matchTable,
                                       size_t *bitCountTable,
-                                      size_t *offsSumTable,
+                                      uint64_t *offsSumTable,
                                       size_t offs, size_t nBytes)
   {
-    size_t  len1BitsP1 = lengthEncodeTable.getSymbolSize(1U - minRepeatLen) + 1;
-    size_t  len2BitsP1 = lengthEncodeTable.getSymbolSize(2U - minRepeatLen) + 1;
+    size_t  len1BitsP1 = 16383;
+    size_t  len2BitsP1 = 16383;
+    if (config.minLength < 3)
+      len2BitsP1 = lengthEncodeTable.getSymbolSize(2U - minRepeatLen) + 1;
+    if (config.minLength < 2)
+      len1BitsP1 = lengthEncodeTable.getSymbolSize(1U - minRepeatLen) + 1;
     for (size_t i = nBytes; i-- > 0; ) {
       size_t  bestSize = 0x7FFFFFFF;
       size_t  bestLen = 1;
       size_t  bestOffs = 0;
+      uint64_t  bestOffsSum = uint64_t(0) - uint64_t(1);
       const unsigned int  *matchPtr = searchTable->getMatches(offs + i);
       size_t  len = matchPtr[0];        // match length
       if (len > (nBytes - i))
@@ -217,6 +222,7 @@ namespace Ep128Compress {
           bestLen = len;
           bestSize = getRepeatCodeLength(bestOffs, len)
                      + bitCountTable[i + len];
+          bestOffsSum = offsSumTable[i + len] + bestOffs;
           len = maxRepeatLen;
         }
         else {
@@ -225,7 +231,7 @@ namespace Ep128Compress {
           matchTable[i].len = (unsigned int) len;
           bitCountTable[i] = bitCountTable[i + len]
                              + getRepeatCodeLength(1, len);
-          offsSumTable[i] = offsSumTable[i + len] + 1;
+          offsSumTable[i] = offsSumTable[i + len] + 1UL;
           continue;
         }
       }
@@ -243,73 +249,55 @@ namespace Ep128Compress {
             size_t  nBits = lengthEncodeTable.getSymbolSize(
                                 (unsigned int) (len - minRepeatLen))
                             + nBitsBase + bitCountTable[i + len];
-            if (nBits > bestSize)
-              continue;
-            if (nBits == bestSize) {
-              if ((offsSumTable[i + len] + d)
-                  > (offsSumTable[i + bestLen] + bestOffs)) {
-                continue;
-              }
+            if (nBits < bestSize ||
+                (nBits == bestSize &&
+                 (offsSumTable[i + len] + d) <= bestOffsSum)) {
+              bestSize = nBits;
+              bestOffs = d;
+              bestLen = len;
+              bestOffsSum = offsSumTable[i + len] + d;
             }
-            bestSize = nBits;
-            bestOffs = d;
-            bestLen = len;
           } while (--len >= 3);
         }
         // check short match lengths:
         if (len == 2) {                                         // 2 bytes
-          if (config.minLength <= 2 &&
-              d <= offs2EncodeTable.getSymbolsEncoded()) {
+          if (d <= offs2EncodeTable.getSymbolsEncoded()) {
             size_t  nBits = len2BitsP1 + offs2EncodeTable.getSymbolSize(
                                              d - (unsigned int) minRepeatDist)
                             + bitCountTable[i + 2];
-            do {
-              if (nBits > bestSize)
-                break;
-              if (nBits == bestSize) {
-                if ((offsSumTable[i + 2] + d)
-                    > (offsSumTable[i + bestLen] + bestOffs)) {
-                  break;
-                }
-              }
+            if (nBits < bestSize ||
+                (nBits == bestSize &&
+                 (offsSumTable[i + 2] + d) <= bestOffsSum)) {
               bestSize = nBits;
               bestOffs = d;
               bestLen = 2;
-            } while (false);
+              bestOffsSum = offsSumTable[i + 2] + d;
+            }
           }
         }
-        if (config.minLength <= 1 &&
-            d <= offs1EncodeTable.getSymbolsEncoded()) {        // 1 byte
+        if (d <= offs1EncodeTable.getSymbolsEncoded()) {        // 1 byte
           size_t  nBits = len1BitsP1 + offs1EncodeTable.getSymbolSize(
                                            d - (unsigned int) minRepeatDist)
                           + bitCountTable[i + 1];
-          if (nBits > bestSize)
-            continue;
-          if (nBits == bestSize) {
-            if ((offsSumTable[i + 1] + d)
-                > (offsSumTable[i + bestLen] + bestOffs)) {
-              continue;
-            }
+          if (nBits < bestSize ||
+              (nBits == bestSize && (offsSumTable[i + 1] + d) <= bestOffsSum)) {
+            bestSize = nBits;
+            bestOffs = d;
+            bestLen = 1;
+            bestOffsSum = offsSumTable[i + 1] + d;
           }
-          bestSize = nBits;
-          bestOffs = d;
-          bestLen = 1;
         }
       }
       if (bestSize >= (bitCountTable[i + 1] + 8)) {
         // literal byte,
         size_t  nBits = bitCountTable[i + 1] + 9;
-        do {
-          if (nBits > bestSize)
-            break;
-          if (nBits == bestSize) {
-            if (offsSumTable[i + 1] > (offsSumTable[i + bestLen] + bestOffs))
-              break;
-          }
+        if (nBits < bestSize ||
+            (nBits == bestSize && offsSumTable[i + 1] <= bestOffsSum)) {
           bestSize = nBits;
           bestOffs = 0;
           bestLen = 1;
-        } while (false);
+          bestOffsSum = offsSumTable[i + 1];
+        }
         if ((i + literalSequenceMinLength) <= nBytes &&
             (bitCountTable[i + literalSequenceMinLength]
              + (literalSequenceMinLength * 8)) <= bestSize) {
@@ -331,12 +319,13 @@ namespace Ep128Compress {
             bestOffs = 0;
             bestLen = k;
           }
+          bestOffsSum = offsSumTable[i + bestLen] + bestOffs;
         }
       }
       matchTable[i].d = (unsigned int) bestOffs;
       matchTable[i].len = (unsigned int) bestLen;
       bitCountTable[i] = bestSize;
-      offsSumTable[i] = offsSumTable[i + bestLen] + bestOffs;
+      offsSumTable[i] = bestOffsSum;
     }
   }
 
@@ -362,7 +351,7 @@ namespace Ep128Compress {
     {
       std::vector< size_t > bitCountTable(nBytes + 1, 0);
       if (!firstPass) {
-        std::vector< size_t > offsSumTable(nBytes + 1, 0);
+        std::vector< uint64_t > offsSumTable(nBytes + 1, 0UL);
         lengthEncodeTable.setUnencodedSymbolSize(lengthNumSlots + 15);
         optimizeMatches(&(matchTable.front()), &(bitCountTable.front()),
                         &(offsSumTable.front()), offs, nBytes);
@@ -620,9 +609,15 @@ namespace Ep128Compress {
         delete searchTable;
         searchTable = (LZSearchTable *) 0;
       }
-      searchTable =
-          new LZSearchTable(config.minLength, maxRepeatLen, lengthMaxValue,
-                            offs1MaxValue, offs2MaxValue, config.maxOffset);
+      {
+        size_t  maxOffs = inBuf.size() - 1;
+        maxOffs = (maxOffs > 1 ?
+                   (maxOffs < config.maxOffset ? maxOffs : config.maxOffset)
+                   : 1);
+        searchTable =
+            new LZSearchTable(config.minLength, maxRepeatLen, lengthMaxValue,
+                              offs1MaxValue, offs2MaxValue, maxOffs);
+      }
       searchTable->findMatches(&(inBuf.front()), 0, inBuf.size());
       // split large files to improve statistical compression
       std::list< SplitOptimizationBlock >   splitPositions;
