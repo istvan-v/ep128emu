@@ -244,7 +244,8 @@ namespace Ep128Compress {
     // --------
     static void sortFunc(unsigned int *startPtr, unsigned int *endPtr,
                          const unsigned char *buf, size_t bufSize,
-                         unsigned int *tmpBuf, size_t maxLen);
+                         unsigned int *tmpBuf, size_t maxLen,
+                         const unsigned short *rleLenTable);
     void addMatches(size_t bufPos, unsigned int *offsTable, size_t maxLen);
    public:
     // minLength:   minimum match length

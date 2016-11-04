@@ -1139,14 +1139,15 @@ namespace Ep128Compress {
 
   void LZSearchTable::sortFunc(unsigned int *startPtr, unsigned int *endPtr,
                                const unsigned char *buf, size_t bufSize,
-                               unsigned int *tmpBuf, size_t maxLen)
+                               unsigned int *tmpBuf, size_t maxLen,
+                               const unsigned short *rleLenTable)
   {
     // create suffix array using merge sort algorithm
     unsigned int  *midPtr = startPtr + (size_t(endPtr - startPtr) >> 1);
     if (size_t(midPtr - startPtr) > 1)
-      sortFunc(startPtr, midPtr, buf, bufSize, tmpBuf, maxLen);
+      sortFunc(startPtr, midPtr, buf, bufSize, tmpBuf, maxLen, rleLenTable);
     if (size_t(endPtr - midPtr) > 1)
-      sortFunc(midPtr, endPtr, buf, bufSize, tmpBuf, maxLen);
+      sortFunc(midPtr, endPtr, buf, bufSize, tmpBuf, maxLen, rleLenTable);
     const unsigned int  *p1 = startPtr;
     const unsigned int  *p2 = midPtr;
     for (size_t k = 0; k < size_t(endPtr - startPtr); k++) {
@@ -1161,7 +1162,19 @@ namespace Ep128Compress {
         size_t  pos2 = *p2;
         size_t  l = bufSize - (pos1 > pos2 ? pos1 : pos2);
         l = (l < maxLen ? l : maxLen);
-        int     c = std::memcmp(&(buf[pos1]), &(buf[pos2]), l);
+        int     c = 0;
+        if (buf[pos1] == buf[pos2]) {
+          size_t  rl1 = rleLenTable[pos1];
+          size_t  rl2 = rleLenTable[pos2];
+          size_t  rleLen = (rl1 < rl2 ? rl1 : rl2);
+          if (l > rleLen) {
+            c = std::memcmp(buf + (pos1 + rleLen), buf + (pos2 + rleLen),
+                            l - rleLen);
+          }
+        }
+        else {
+          c = int(buf[pos1]) - int(buf[pos2]);
+        }
         if (c < 0 || (c == 0 && pos1 < pos2))
           tmpBuf[k] = *(p1++);
         else
@@ -1283,11 +1296,22 @@ namespace Ep128Compress {
       // sort buffer positions alphabetically by bytes at each position
       suffixArray.resize(nBytes);
       invSuffixArray.resize(nBytes);
+      prvMatchLenTable.resize(nBytes + 1);
+      // create temporary RLE length table to optimize sorting the suffix array
+      prvMatchLenTable[nBytes - 1] = 1;
+      for (size_t i = nBytes - 1; i-- > 0; ) {
+        prvMatchLenTable[i] = 1;
+        if (buf[startPos_ + i] == buf[startPos_ + i + 1]) {
+          unsigned short  l = prvMatchLenTable[i + 1];
+          prvMatchLenTable[i] = l + (unsigned short) (l < maxLength);
+        }
+      }
       for (size_t i = 0; i < nBytes; i++)
         suffixArray[i] = (unsigned int) (startPos_ + i);
       if (nBytes > 1) {
         sortFunc(&(suffixArray.front()), &(suffixArray.front()) + nBytes,
-                 buf, bufSize, &(invSuffixArray.front()), maxLength);
+                 buf, bufSize, &(invSuffixArray.front()), maxLength,
+                 &(prvMatchLenTable.front()) - startPos_);
       }
       // invert suffix array
       for (size_t i = 0; i < nBytes; i++)
@@ -1295,7 +1319,6 @@ namespace Ep128Compress {
       // suffixArray[n] matches prvMatchLenTable[n] characters with
       // suffixArray[n - 1], and nxtMatchLenTable[n] characters with
       // suffixArray[n + 1]
-      prvMatchLenTable.resize(nBytes + 1);
       const unsigned short  *nxtMatchLenTable = &(prvMatchLenTable.front()) + 1;
       prvMatchLenTable[0] = 0;
       for (size_t i = 1; i < nBytes; i++) {
