@@ -211,7 +211,11 @@ namespace Ep128Compress {
    public:
     RadixTree(size_t bufSize_ = 0x00100000);
     ~RadixTree();
-    size_t findMatches(std::vector< unsigned int >& matchBuf,
+    // writes the shortest offset - 1 of matches found to offsTable[1..maxLen]
+    // (each offset is stored only at its maximum length), and returns the
+    // maximum length; for each inBufPos, findMatches() should be called first,
+    // then addString()
+    size_t findMatches(unsigned int *offsTable,
                        const unsigned char *inBuf, size_t inBufPos,
                        size_t maxLen, size_t maxDistance = 0xFFFFFFFFU);
     void addString(const unsigned char *inBuf, size_t inBufPos, size_t len);
@@ -238,10 +242,10 @@ namespace Ep128Compress {
     uint32_t    maxOffs2_;
     uint32_t    maxOffs_;
     // --------
-    void sortFunc(unsigned int *startPtr, unsigned int *endPtr,
-                  const unsigned char *buf, size_t bufSize,
-                  unsigned int *tmpBuf, size_t maxLen);
-    void addMatch(size_t bufPos, unsigned int matchLen, unsigned int offs);
+    static void sortFunc(unsigned int *startPtr, unsigned int *endPtr,
+                         const unsigned char *buf, size_t bufSize,
+                         unsigned int *tmpBuf, size_t maxLen);
+    void addMatches(size_t bufPos, unsigned int *offsTable, size_t maxLen);
    public:
     // minLength:   minimum match length
     // maxLength:   maximum match length for optimal search (must be <= 1023)
