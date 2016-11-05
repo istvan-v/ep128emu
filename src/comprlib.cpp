@@ -43,6 +43,8 @@ namespace Ep128Compress {
     inline void initNode(unsigned int value_, size_t weight_)
     {
       nodeData = (uint32_t(weight_) << 10) | uint32_t(value_);
+      bufPos = 0;
+      nextPos = 0;
     }
     inline void setBufPos(HuffmanNode *buf)
     {
