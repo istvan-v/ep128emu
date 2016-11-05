@@ -23,14 +23,18 @@ namespace Ep128Compress {
 
   class HuffmanNode {
    private:
-    // bits 40 to 63: weight
-    // bits 30 to 39: value
-    // bits 15 to 29: buffer position + 1 of next node in package (0 = none)
-    // bits  0 to 14: buffer position + 1 of this node
-    uint64_t    nodeData;
+    // bits 10 to 31: weight
+    // bits  0 to  9: value
+    uint32_t    nodeData;
+    // buffer position + 1 of this node
+    uint16_t    bufPos;
+    // buffer position + 1 of next node in package (0 = none)
+    uint16_t    nextPos;
    public:
     HuffmanNode()
-      : nodeData(0UL)
+      : nodeData(0U),
+        bufPos(0),
+        nextPos(0)
     {
     }
     ~HuffmanNode()
@@ -38,53 +42,49 @@ namespace Ep128Compress {
     }
     inline void initNode(unsigned int value_, size_t weight_)
     {
-      nodeData = (uint64_t(weight_) << 40) | (uint64_t(value_) << 30);
+      nodeData = (uint32_t(weight_) << 10) | uint32_t(value_);
     }
     inline void setBufPos(HuffmanNode *buf)
     {
-      nodeData = (nodeData & (uint64_t(-(int64_t(0x40000000L)))))
-                 | uint64_t((this - buf) + 1);
+      bufPos = uint16_t((this - buf) + 1);
     }
     inline size_t getBufPos() const
     {
-      return (size_t(nodeData & 0x7FFFUL) - 1);
+      return size_t(bufPos - 1);
     }
     inline bool operator<(const HuffmanNode& r) const
     {
-      return (nodeData < r.nodeData);
+      return ((nodeData & 0xFFFFFC00U) < (r.nodeData & 0xFFFFFC00U));
     }
     inline size_t weight() const
     {
-      return size_t((nodeData >> 40) & 0x00FFFFFFUL);
+      return size_t(nodeData >> 10);
     }
     inline unsigned int value() const
     {
-      return (unsigned int) ((nodeData >> 30) & 0x03FFUL);
+      return (nodeData & 0x03FFU);
     }
     inline HuffmanNode *nextNode(HuffmanNode *buf)
     {
-      size_t  nextPos = size_t((nodeData >> 15) & 0x7FFFUL);
       if (!nextPos)
         return (HuffmanNode *) 0;
       return &(buf[nextPos - 1]);
     }
     inline void merge(HuffmanNode& r, HuffmanNode *buf)
     {
-      nodeData = nodeData + (r.nodeData & (uint64_t(0xFFFFFF00UL) << 32));
-      r.nodeData = r.nodeData & ((uint64_t(1) << 40) - 1UL);
+      nodeData = nodeData + (r.nodeData & 0xFFFFFC00U);
       HuffmanNode *p = this;
-      if (nodeData & 0x3FFF8000UL) {
-        if (!(r.nodeData & 0x3FFF8000UL)) {
-          r.nodeData = r.nodeData | (nodeData & 0x3FFF8000UL);
-          nodeData = nodeData ^ (nodeData & 0x3FFF8000UL);
+      if (nextPos) {
+        if (!r.nextPos) {
+          r.nextPos = nextPos;
         }
         else {
           do {
-            p = &(buf[((p->nodeData & 0x3FFF8000UL) >> 15) - 1]);
-          } while (p->nodeData & 0x3FFF8000UL);
+            p = &(buf[p->nextPos - 1]);
+          } while (p->nextPos);
         }
       }
-      p->nodeData = p->nodeData | ((r.nodeData & 0x7FFFUL) << 15);
+      p->nextPos = r.bufPos;
     }
     static void sortNodes(HuffmanNode *startPtr, HuffmanNode *endPtr,
                           HuffmanNode *tmpBuf);
@@ -200,6 +200,8 @@ namespace Ep128Compress {
               buf2[l] = buf1[k++];
             }
             else {
+              // sort by weight first, then nodes not in a package (from buf0)
+              // are sorted before packages to minimize code length variance
               *allocPtr = buf0[j++];
               allocPtr->setBufPos(buf0);
               buf2[l] = *allocPtr;
