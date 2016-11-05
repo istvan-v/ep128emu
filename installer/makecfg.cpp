@@ -44,12 +44,12 @@
 
 #ifdef MAKECFG_USE_CURL
 #  ifndef MAKECFG_ROM_URL_1
-#    define MAKECFG_ROM_URL_1   "https://enterpriseforever.com/"        \
-                                "letoltesek-downloads/egyeb-misc/"      \
-                                "?action=dlattach;attach=16486"
+#    define MAKECFG_ROM_URL_1   "http://ep128.hu/Emu/" MAKECFG_ROM_PKG_NAME
 #  endif
 #  ifndef MAKECFG_ROM_URL_2
-#    define MAKECFG_ROM_URL_2   "http://ep128.hu/Emu/" MAKECFG_ROM_PKG_NAME
+#    define MAKECFG_ROM_URL_2   "https://enterpriseforever.com/"        \
+                                "letoltesek-downloads/egyeb-misc/"      \
+                                "?action=dlattach;attach=16486"
 #  endif
 #  include <curl/curl.h>
 #endif
@@ -1090,9 +1090,8 @@ bool Ep128EmuConfigInstallerGUI::unpackROMFiles(const std::string& romDir,
           curl_easy_cleanup(curl_);
           curl_ = (CURL *) 0;
           if (i == 0) {
-            errorMessage("Error downloading from "
-                         "https://enterpriseforever.com, "
-                         "trying http://ep128.hu instead");
+            errorMessage("Error downloading from http://ep128.hu, "
+                         "trying https://enterpriseforever.com instead");
             continue;
           }
         }

@@ -387,14 +387,14 @@ Section "Download and install ROM images" SecDLRoms
 
   SetOutPath "$INSTDIR\roms"
 
-  INetC::get "https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/?action=dlattach;attach=16486" "$INSTDIR\roms\ep128emu_roms-2.0.10.bin"
+  INetC::get "http://ep128.hu/Emu/ep128emu_roms-2.0.10.bin" "$INSTDIR\roms\ep128emu_roms-2.0.10.bin"
   Pop $R0
   StrCmp $R0 "OK" downloadDone 0
   StrCmp $R0 "Cancelled" downloadDone 0
 
-  MessageBox MB_OK "WARNING: download from enterpriseforever.com failed ($R0), trying ep128.hu instead"
+  MessageBox MB_OK "WARNING: download from ep128.hu failed ($R0), trying enterpriseforever.com instead"
 
-  INetC::get "http://ep128.hu/Emu/ep128emu_roms-2.0.10.bin" "$INSTDIR\roms\ep128emu_roms-2.0.10.bin"
+  INetC::get "https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/?action=dlattach;attach=16486" "$INSTDIR\roms\ep128emu_roms-2.0.10.bin"
   Pop $R0
   StrCmp $R0 "OK" downloadDone 0
   StrCmp $R0 "Cancelled" downloadDone 0
