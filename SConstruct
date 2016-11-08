@@ -46,7 +46,7 @@ fltkLibsLinux = '-lfltk -lfltk_images -lfltk_jpeg -lfltk_png'
 fltkLibsMinGW = fltkLibsLinux + ' -lz -lcomdlg32 -lcomctl32 -lole32'
 fltkLibsMinGW = fltkLibsMinGW + ' -luuid -lws2_32 -lwinmm -lgdi32'
 fltkLibsLinux = fltkLibsLinux + ' -lfltk_z -lXinerama -lXext -lXft'
-fltkLibsLinux = fltkLibsLinux + ' -lXfixes -lX11 -lfontconfig -ldl -lpthread'
+fltkLibsLinux = fltkLibsLinux + ' -lXfixes -lX11 -lfontconfig -ldl'
 
 packageConfigs = {
     'FLTK' : [
@@ -86,7 +86,7 @@ def configurePackage(env, pkgName):
     global linux32CrossCompile, mingwCrossCompile, win64CrossCompile
     if not disablePkgConfig:
         for s in packageConfigs[pkgName][1]:
-            if len(s) < 1:
+            if not s:
                 print 'Checking for package ' + pkgName + '...',
                 # hack to work around fltk-config adding unwanted compiler flags
                 savedCFlags = env['CCFLAGS']
@@ -98,7 +98,7 @@ def configurePackage(env, pkgName):
                 if not env.ParseConfig(packageConfigs[pkgName][0] + s):
                     raise Exception()
                 print 'yes'
-                if len(s) < 1:
+                if not s:
                     env['CCFLAGS'] = savedCFlags
                     env['CXXFLAGS'] = savedCXXFlags
                 return 1
@@ -110,7 +110,7 @@ def configurePackage(env, pkgName):
         env.MergeFlags(
             packageConfigs[pkgName][2 + int(bool(mingwCrossCompile))])
         configure = env.Configure()
-        if len(packageConfigs[pkgName][4]) > 0:
+        if packageConfigs[pkgName][4]:
             pkgFound = configure.CheckCHeader(packageConfigs[pkgName][4])
         else:
             pkgFound = configure.CheckCXXHeader(packageConfigs[pkgName][5])
@@ -169,7 +169,7 @@ if linux32CrossCompile:
     compilerFlags = ' -m32 ' + compilerFlags
 ep128emuLibEnvironment.Append(CCFLAGS = Split(compilerFlags))
 ep128emuLibEnvironment.Append(CPPPATH = ['.', './src'])
-if len(userFlags) > 0:
+if userFlags:
     ep128emuLibEnvironment.MergeFlags(userFlags)
 if not mingwCrossCompile:
     ep128emuLibEnvironment.Append(CPPPATH = ['/usr/local/include'])
@@ -181,12 +181,10 @@ else:
     linkFlags = ' -m32 -L. -L/usr/X11R6/lib '
 ep128emuLibEnvironment.Append(LINKFLAGS = Split(linkFlags))
 if mingwCrossCompile:
-    if not win64CrossCompile:
-        mingwPrefix = 'C:/mingw32'
-        ep128emuLibEnvironment.Prepend(CCFLAGS = ['-m32'])
-    else:
-        mingwPrefix = 'C:/mingw64'
-        ep128emuLibEnvironment.Prepend(CCFLAGS = ['-m64'])
+    wordSize = ['32', '64'][int(bool(win64CrossCompile))]
+    mingwPrefix = 'C:/mingw' + wordSize
+    ep128emuLibEnvironment.Prepend(CCFLAGS = ['-m' + wordSize])
+    ep128emuLibEnvironment.Prepend(LINKFLAGS = ['-m' + wordSize])
     ep128emuLibEnvironment.Append(CPPPATH = [mingwPrefix + '/include'])
     if sys.platform[:3] == 'win':
         toolNamePrefix = ''
@@ -216,6 +214,8 @@ if buildRelease:
 ep128emuGUIEnvironment = copyEnvironment(ep128emuLibEnvironment)
 if mingwCrossCompile:
     ep128emuGUIEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
+else:
+    ep128emuGUIEnvironment.Append(LIBS = ['pthread'])
 configurePackage(ep128emuGUIEnvironment, 'FLTK')
 makecfgEnvironment = copyEnvironment(ep128emuGUIEnvironment)
 configurePackage(ep128emuGUIEnvironment, 'sndfile')
