@@ -318,6 +318,11 @@ if cmosZ80:
 if enableSDExt:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DENABLE_SDEXT'])
 
+ep128emuGUIEnvironment.MergeFlags(ep128emuLibEnvironment['CCFLAGS'])
+ep128emuGLGUIEnvironment.MergeFlags(ep128emuLibEnvironment['CCFLAGS'])
+makecfgEnvironment.MergeFlags(ep128emuLibEnvironment['CCFLAGS'])
+tapeeditEnvironment.MergeFlags(ep128emuLibEnvironment['CCFLAGS'])
+
 def fluidCompile(flNames):
     cppNames = []
     for flName in flNames:
