@@ -49,7 +49,7 @@
 #  ifndef MAKECFG_ROM_URL_2
 #    define MAKECFG_ROM_URL_2   "https://enterpriseforever.com/"        \
                                 "letoltesek-downloads/egyeb-misc/"      \
-                                "?action=dlattach;attach=16486"
+                                "?action=dlattach;attach=16518"
 #  endif
 #  include <curl/curl.h>
 #endif

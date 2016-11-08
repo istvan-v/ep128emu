@@ -394,7 +394,7 @@ Section "Download and install ROM images" SecDLRoms
 
   MessageBox MB_OK "WARNING: download from ep128.hu failed ($R0), trying enterpriseforever.com instead"
 
-  INetC::get "https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/?action=dlattach;attach=16486" "$INSTDIR\roms\ep128emu_roms-2.0.10.bin"
+  INetC::get "https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/?action=dlattach;attach=16518" "$INSTDIR\roms\ep128emu_roms-2.0.10.bin"
   Pop $R0
   StrCmp $R0 "OK" downloadDone 0
   StrCmp $R0 "Cancelled" downloadDone 0
