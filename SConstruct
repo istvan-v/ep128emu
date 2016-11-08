@@ -19,9 +19,11 @@ cmosZ80 = int(ARGUMENTS.get('z80cmos', 0))
 enableSDExt = int(ARGUMENTS.get('sdext', 1))
 # use cURL library in makecfg to download the ROM package
 enableCURL = int(ARGUMENTS.get('curl', int(not mingwCrossCompile)))
-
-#env = Environment(ENV = os.environ)
-#CacheDir("./.build_cache/win32" if mingwCrossCompile else "./.build_cache/native")
+userFlags = ARGUMENTS.get('cflags', '')
+disablePkgConfig = int(ARGUMENTS.get('nopkgconfig',
+                                     int(linux32CrossCompile or \
+                                         mingwCrossCompile)))
+enableBuildCache = int(ARGUMENTS.get('cache', 0))
 
 compilerFlags = ''
 if buildRelease:
@@ -35,9 +37,94 @@ else:
     compilerFlags = compilerFlags + ' -fno-inline-functions '
     compilerFlags = compilerFlags + ' -fomit-frame-pointer -ffast-math '
 
-fltkConfig = 'fltk-config'
-
 # -----------------------------------------------------------------------------
+
+# pkgname : [ pkgconfig, [ package_names ],
+#             linux_flags, mingw_flags, c_header, cxx_header, optional ]
+
+fltkLibsLinux = '-lfltk -lfltk_images -lfltk_jpeg -lfltk_png'
+fltkLibsMinGW = fltkLibsLinux + ' -lz -lcomdlg32 -lcomctl32 -lole32'
+fltkLibsMinGW = fltkLibsMinGW + ' -luuid -lws2_32 -lwinmm -lgdi32'
+fltkLibsLinux = fltkLibsLinux + ' -lfltk_z -lXinerama -lXext -lXft'
+fltkLibsLinux = fltkLibsLinux + ' -lXfixes -lX11 -lfontconfig -ldl -lpthread'
+
+packageConfigs = {
+    'FLTK' : [
+        'fltk-config --use-images --cflags --cxxflags --ldflags', [''],
+        fltkLibsLinux, fltkLibsMinGW, '', 'FL/Fl.H', 0 ],
+    'FLTK-GL' : [
+        'fltk-config --use-gl --use-images --cflags --cxxflags --ldflags', [''],
+        '-lfltk_gl ' + fltkLibsLinux + ' -lGL',
+        '-lfltk_gl ' + fltkLibsMinGW + ' -lopengl32',
+        '', 'FL/Fl_Gl_Window.H', 0 ],
+    'sndfile' : [
+        'pkg-config --silence-errors --cflags --libs',
+        ['sndfile'],
+        '-lsndfile', '-lsndfile', 'sndfile.h', '', 0 ],
+    'PortAudio' : [
+        'pkg-config --silence-errors --cflags --libs',
+        ['portaudio-2.0', 'portaudio2', 'portaudio'],
+        '-lportaudio -lasound -lm -ldl -lpthread -lrt', '-lportaudio -lwinmm',
+        'portaudio.h', '', 0 ],
+    'Lua' : [
+        'pkg-config --silence-errors --cflags --libs',
+        ['lua-5.3', 'lua53', 'lua-5.2', 'lua52', 'lua-5.1', 'lua51', 'lua'],
+        '-llua', '', 'lua.h', '', 1 ],
+    'SDL' : [
+        'pkg-config --silence-errors --cflags --libs',
+        ['sdl', 'sdl1'],
+        '-lSDL', '-lSDL -lwinmm', 'SDL/SDL.h', '', 1],
+    'cURL' : [
+        'pkg-config --silence-errors --cflags --libs',
+        ['libcurl', 'curl'],
+        '-lcurl -lssl -lcrypto', '-lcurldll',
+        'curl/curl.h', '', 1]
+}
+
+def configurePackage(env, pkgName):
+    global packageConfigs, disablePkgConfig
+    global linux32CrossCompile, mingwCrossCompile, win64CrossCompile
+    if not disablePkgConfig:
+        for s in packageConfigs[pkgName][1]:
+            if len(s) < 1:
+                print 'Checking for package ' + pkgName + '...',
+                # hack to work around fltk-config adding unwanted compiler flags
+                savedCFlags = env['CCFLAGS']
+                savedCXXFlags = env['CXXFLAGS']
+            else:
+                print 'Checking for package ' + s + '...',
+                s = ' ' + s
+            try:
+                if not env.ParseConfig(packageConfigs[pkgName][0] + s):
+                    raise Exception()
+                print 'yes'
+                if len(s) < 1:
+                    env['CCFLAGS'] = savedCFlags
+                    env['CXXFLAGS'] = savedCXXFlags
+                return 1
+            except:
+                print 'no'
+                continue
+        pkgFound = 0
+    else:
+        env.MergeFlags(
+            packageConfigs[pkgName][2 + int(bool(mingwCrossCompile))])
+        configure = env.Configure()
+        if len(packageConfigs[pkgName][4]) > 0:
+            pkgFound = configure.CheckCHeader(packageConfigs[pkgName][4])
+        else:
+            pkgFound = configure.CheckCXXHeader(packageConfigs[pkgName][5])
+        configure.Finish()
+    if not pkgFound:
+        if not packageConfigs[pkgName][6]:
+            print ' *** error configuring ' + pkgName
+            raise SystemExit(-1)
+        print 'WARNING: package ' + pkgName + ' not found'
+        return 0
+    return 1
+
+if enableBuildCache:
+    CacheDir("./.build_cache")
 
 programNamePrefix = ""
 buildingLinuxPackage = 0
@@ -71,12 +158,19 @@ except:
     print 'WARNING: using old SCons version'
     oldSConsVersion = 1
 
+def copyEnvironment(env):
+    if oldSConsVersion:
+        return env.Copy()
+    return env.Clone()
+
 ep128emuLibEnvironment = Environment(ENV = { 'PATH' : os.environ['PATH'],
                                              'HOME' : os.environ['HOME'] })
 if linux32CrossCompile:
     compilerFlags = ' -m32 ' + compilerFlags
 ep128emuLibEnvironment.Append(CCFLAGS = Split(compilerFlags))
 ep128emuLibEnvironment.Append(CPPPATH = ['.', './src'])
+if len(userFlags) > 0:
+    ep128emuLibEnvironment.MergeFlags(userFlags)
 if not mingwCrossCompile:
     ep128emuLibEnvironment.Append(CPPPATH = ['/usr/local/include'])
 if sys.platform[:6] == 'darwin':
@@ -106,59 +200,39 @@ if mingwCrossCompile:
     ep128emuLibEnvironment['CXX'] = toolNamePrefix + 'g++'
     ep128emuLibEnvironment['LINK'] = toolNamePrefix + 'g++'
     ep128emuLibEnvironment['RANLIB'] = toolNamePrefix + 'ranlib'
-    if not disableLua:
-        if useLuaJIT:
-            ep128emuLibEnvironment.Append(
-                CPPPATH = [mingwPrefix + '/include/lua5.1'])
-        else:
-            ep128emuLibEnvironment.Append(
-                CPPPATH = [mingwPrefix + '/include/lua5.3'])
-    ep128emuLibEnvironment.Append(LIBS = ['comdlg32', 'comctl32', 'ole32',
-                                          'uuid', 'ws2_32', 'winmm', 'gdi32',
-                                          'user32', 'kernel32'])
+    ep128emuLibEnvironment['PROGSUFFIX'] = '.exe'
+    if useLuaJIT:
+        packageConfigs['Lua'][3] =      \
+            '-I' + mingwPrefix + '/include/lua5.1 -llua51'
+    else:
+        packageConfigs['Lua'][3] =      \
+            '-I' + mingwPrefix + '/include/lua5.3 -llua53'
+    ep128emuLibEnvironment.Append(LIBS = ['user32', 'kernel32'])
     ep128emuLibEnvironment.Prepend(CCFLAGS = ['-mthreads'])
     ep128emuLibEnvironment.Prepend(LINKFLAGS = ['-mthreads'])
+if buildRelease:
+    ep128emuLibEnvironment.Append(LINKFLAGS = ['-s'])
 
-if not oldSConsVersion:
-    ep128emuGUIEnvironment = ep128emuLibEnvironment.Clone()
-else:
-    ep128emuGUIEnvironment = ep128emuLibEnvironment.Copy()
+ep128emuGUIEnvironment = copyEnvironment(ep128emuLibEnvironment)
 if mingwCrossCompile:
-    ep128emuGUIEnvironment.Prepend(LIBS = ['fltk'])
-else:
-    try:
-        if not ep128emuGUIEnvironment.ParseConfig(
-            '%s --use-images --cxxflags --ldflags' % fltkConfig):
-            raise Exception()
-    except:
-        print 'WARNING: could not run fltk-config'
-        ep128emuGUIEnvironment.Append(LIBS = ['fltk_images', 'fltk'])
-        if not oldSConsVersion:
-            ep128emuGUIEnvironment.Append(LIBS = ['fltk_jpeg', 'fltk_png',
-                                                  'fltk_z'])
-        ep128emuGUIEnvironment.Append(LIBS = ['X11'])
+    ep128emuGUIEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
+configurePackage(ep128emuGUIEnvironment, 'FLTK')
+makecfgEnvironment = copyEnvironment(ep128emuGUIEnvironment)
+configurePackage(ep128emuGUIEnvironment, 'sndfile')
+tapeeditEnvironment = copyEnvironment(ep128emuGUIEnvironment)
+haveLua = 0
+haveSDL = 0
+if not disableLua:
+    haveLua = configurePackage(ep128emuGUIEnvironment, 'Lua')
+if not disableSDL:
+    haveSDL = configurePackage(ep128emuGUIEnvironment, 'SDL')
+configurePackage(ep128emuGUIEnvironment, 'PortAudio')
 
-if not oldSConsVersion:
-    ep128emuGLGUIEnvironment = ep128emuLibEnvironment.Clone()
-else:
-    ep128emuGLGUIEnvironment = ep128emuLibEnvironment.Copy()
-if mingwCrossCompile:
-    ep128emuGLGUIEnvironment.Prepend(LIBS = ['fltk_gl', 'fltk',
-                                             'glu32', 'opengl32'])
-else:
-    try:
-        if not ep128emuGLGUIEnvironment.ParseConfig(
-            '%s --use-gl --use-images --cxxflags --ldflags' % fltkConfig):
-            raise Exception()
-    except:
-        print 'WARNING: could not run fltk-config'
-        ep128emuGLGUIEnvironment.Append(LIBS = ['fltk_images', 'fltk_gl'])
-        ep128emuGLGUIEnvironment.Append(LIBS = ['fltk'])
-        if not oldSConsVersion:
-            ep128emuGLGUIEnvironment.Append(LIBS = ['fltk_jpeg', 'fltk_png',
-                                                    'fltk_z'])
-    if sys.platform[:5] == 'linux':
-        ep128emuGLGUIEnvironment.Append(LIBS = ['GL', 'X11'])
+ep128emuGLGUIEnvironment = copyEnvironment(ep128emuGUIEnvironment)
+configurePackage(ep128emuGLGUIEnvironment, 'FLTK-GL')
+if sys.platform[:5] == 'linux' and not mingwCrossCompile:
+    ep128emuGUIEnvironment.Append(LIBS = ['X11'])
+    ep128emuGLGUIEnvironment.Append(LIBS = ['GL', 'X11'])
 
 ep128emuLibEnvironment['CPPPATH'] = ep128emuGLGUIEnvironment['CPPPATH']
 
@@ -173,122 +247,33 @@ imageLibTestProgram = '''
     }
 '''
 
-portAudioLibTestProgram = '''
-    #include <stdio.h>
-    #include <portaudio.h>
-    int main()
-    {
-      (void) Pa_Initialize();
-      (void) Pa_GetDeviceInfo(0);
-      (void) Pa_Terminate();
-      return 0;
-    }
-'''
-
-def imageLibTest(env):
-    usingJPEGLib = 'jpeg' in env['LIBS']
-    usingPNGLib = 'png' in env['LIBS']
-    usingZLib = 'z' in env['LIBS']
-    if usingJPEGLib or usingPNGLib or usingZLib:
-        if not oldSConsVersion:
-            tmpEnv = env.Clone()
-        else:
-            tmpEnv = env.Copy()
-        if usingJPEGLib:
-            tmpEnv['LIBS'].remove('jpeg')
-        if usingPNGLib:
-            tmpEnv['LIBS'].remove('png')
-        if usingZLib:
-            tmpEnv['LIBS'].remove('z')
-        tmpConfig = tmpEnv.Configure()
-        if tmpConfig.TryLink(imageLibTestProgram, '.cpp'):
+def imageLibTest(env1, env2, env3, env4):
+    # remove unneeded and possibly conflicting libraries added by fltk-config
+    for libName in ['jpeg', 'png']:
+        if libName in env1['LIBS']:
+            tmpEnv = copyEnvironment(env1)
+            tmpEnv['LIBS'].remove(libName)
+            tmpConfig = tmpEnv.Configure()
+            if tmpConfig.TryLink(imageLibTestProgram, '.cpp'):
+                env1['LIBS'].remove(libName)
+                env2['LIBS'].remove(libName)
+                env3['LIBS'].remove(libName)
+                env4['LIBS'].remove(libName)
             tmpConfig.Finish()
-            if usingJPEGLib:
-                env['LIBS'].remove('jpeg')
-            if usingPNGLib:
-                env['LIBS'].remove('png')
-            if usingZLib:
-                env['LIBS'].remove('z')
-        else:
-            if (usingJPEGLib
-                and not tmpConfig.CheckLib('jpeg', None, None, 'C++', 0)):
-                env['LIBS'].remove('jpeg')
-            if (usingPNGLib
-                and not tmpConfig.CheckLib('png', None, None, 'C++', 0)):
-                env['LIBS'].remove('png')
-            if (usingZLib
-                and not tmpConfig.CheckLib('z', None, None, 'C++', 0)):
-                env['LIBS'].remove('z')
-            tmpConfig.Finish()
-            tmpConfig2 = env.Configure()
-            if not tmpConfig2.TryLink(imageLibTestProgram, '.cpp'):
-                print ' *** error: libjpeg, libpng, or zlib is not found'
-                Exit(-1)
-            tmpConfig2.Finish()
-
-def portAudioLibTest(env, libNames):
-    if not oldSConsVersion:
-        tmpEnv = env.Clone()
-    else:
-        tmpEnv = env.Copy()
-    if libNames.__len__() > 0:
-        tmpEnv.Append(LIBS = libNames)
-    tmpEnv.Append(LIBS = ['pthread'])
-    if sys.platform[:5] == 'linux':
-        tmpEnv.Append(LIBS = ['rt'])
-    tmpConfig = tmpEnv.Configure()
-    retval = tmpConfig.TryLink(portAudioLibTestProgram, '.c')
-    tmpConfig.Finish()
-    return retval
-
-def checkPortAudioLib(env):
-    alsaLibNeeded = 0
-    jackLibNeeded = 0
-    if not portAudioLibTest(env, []):
-        if portAudioLibTest(env, ['asound']):
-            alsaLibNeeded = 1
-        elif portAudioLibTest(env, ['jack']):
-            jackLibNeeded = 1
-        elif portAudioLibTest(env, ['jack', 'asound']):
-            alsaLibNeeded = 1
-            jackLibNeeded = 1
-        else:
-            print ' *** error: PortAudio library is not found'
-            Exit(-1)
-    if jackLibNeeded:
-        env.Append(LIBS = ['jack'])
-    if alsaLibNeeded:
-        env.Append(LIBS = ['asound'])
 
 if not oldSConsVersion:
-    imageLibTest(ep128emuGUIEnvironment)
-    imageLibTest(ep128emuGLGUIEnvironment)
+    imageLibTest(makecfgEnvironment, tapeeditEnvironment,
+                 ep128emuGUIEnvironment, ep128emuGLGUIEnvironment)
 
 configure = ep128emuLibEnvironment.Configure()
-if not configure.CheckCHeader('sndfile.h'):
-    print ' *** error: libsndfile 1.0 is not found'
-    Exit(-1)
-if not configure.CheckCHeader('portaudio.h'):
-    print ' *** error: PortAudio is not found'
-    Exit(-1)
-elif configure.CheckType('PaStreamCallbackTimeInfo', '#include <portaudio.h>'):
+if configure.CheckType('PaStreamCallbackTimeInfo', '#include <portaudio.h>'):
     havePortAudioV19 = 1
 else:
     havePortAudioV19 = 0
     print 'WARNING: using old v18 PortAudio interface'
-if not configure.CheckCXXHeader('FL/Fl.H'):
-    if configure.CheckCXXHeader('/usr/include/fltk-1.1/FL/Fl.H'):
-        ep128emuLibEnvironment.Append(CPPPATH = ['/usr/include/fltk-1.1'])
-    else:
-        print ' *** error: FLTK 1.1 is not found'
-    Exit(-1)
 fltkVersion13 = 0
 if configure.CheckCXXHeader('FL/Fl_Cairo.H'):
     fltkVersion13 = 1
-    if sys.platform[:5] == 'linux' and not mingwCrossCompile:
-        ep128emuGUIEnvironment.Append(LIBS = ['Xinerama', 'Xft'])
-        ep128emuGLGUIEnvironment.Append(LIBS = ['Xinerama', 'Xft'])
-    # print 'WARNING: using FLTK 1.3.x - this may not work reliably yet'
 else:
     ep128emuLibEnvironment.Append(CPPPATH = ['./Fl_Native_File_Chooser'])
     ep128emuGUIEnvironment.Append(CPPPATH = ['./Fl_Native_File_Chooser'])
@@ -306,38 +291,14 @@ if configure.CheckCHeader('stdint.h'):
 if sys.platform[:5] == 'linux' and not mingwCrossCompile:
     if configure.CheckCHeader('linux/fd.h'):
         ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_LINUX_FD_H'])
-if not disableSDL:
-    haveSDL = configure.CheckCHeader('SDL/SDL.h')
-else:
-    haveSDL = 0
+
 oldLuaVersion = 0
 luaPkgName = ''
-if not disableLua:
-    haveLua = configure.CheckCHeader('lua.h')
-    haveLua = haveLua and configure.CheckCHeader('lauxlib.h')
-    haveLua = haveLua and configure.CheckCHeader('lualib.h')
-    if not haveLua and sys.platform[:5] == 'linux' and not mingwCrossCompile:
-        for pkgName in ['lua-5.1', 'lua51', 'lua-5.3', 'lua53',
-                        'lua-5.2', 'lua52', 'lua']:
-            print 'Checking for Lua package ' + pkgName + '...'
-            try:
-                if not ep128emuLibEnvironment.ParseConfig(
-                           'pkg-config --silence-errors --cflags ' + pkgName):
-                    raise Exception()
-            except:
-                continue
-            luaPkgName = pkgName
-            haveLua = 1
-            break
-    elif haveLua:
-        if not configure.CheckType('lua_Integer',
-                                   '#include <lua.h>\n#include <lauxlib.h>'):
-            oldLuaVersion = 1
-            print 'WARNING: using old Lua 5.0.x API'
-else:
-    haveLua = 0
-if enableCURL:
-    enableCURL = configure.CheckCHeader('curl/curl.h')
+if haveLua:
+    if not configure.CheckType('lua_Integer',
+                               '#include <lua.h>\n#include <lauxlib.h>'):
+        oldLuaVersion = 1
+        print 'WARNING: using old Lua 5.0.x API'
 configure.Finish()
 
 if not havePortAudioV19:
@@ -356,17 +317,6 @@ if cmosZ80:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DZ80_ENABLE_CMOS'])
 if enableSDExt:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DENABLE_SDEXT'])
-
-ep128emuGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
-ep128emuGUIEnvironment['CPPPATH'] = ep128emuLibEnvironment['CPPPATH']
-ep128emuGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
-ep128emuGLGUIEnvironment['CCFLAGS'] = ep128emuLibEnvironment['CCFLAGS']
-ep128emuGLGUIEnvironment['CPPPATH'] = ep128emuLibEnvironment['CPPPATH']
-ep128emuGLGUIEnvironment['CXXFLAGS'] = ep128emuLibEnvironment['CXXFLAGS']
-
-if buildRelease:
-    ep128emuGUIEnvironment.Append(LINKFLAGS = ['-s'])
-    ep128emuGLGUIEnvironment.Append(LINKFLAGS = ['-s'])
 
 def fluidCompile(flNames):
     cppNames = []
@@ -412,10 +362,7 @@ ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu',
 
 # -----------------------------------------------------------------------------
 
-if not oldSConsVersion:
-    ep128LibEnvironment = ep128emuLibEnvironment.Clone()
-else:
-    ep128LibEnvironment = ep128emuLibEnvironment.Copy()
+ep128LibEnvironment = copyEnvironment(ep128emuLibEnvironment)
 ep128LibEnvironment.Append(CPPPATH = ['./z80'])
 sdextSources = []
 if enableSDExt:
@@ -436,10 +383,7 @@ ep128Lib = ep128LibEnvironment.StaticLibrary('ep128', Split('''
 
 # -----------------------------------------------------------------------------
 
-if not oldSConsVersion:
-    zx128LibEnvironment = ep128emuLibEnvironment.Clone()
-else:
-    zx128LibEnvironment = ep128emuLibEnvironment.Copy()
+zx128LibEnvironment = copyEnvironment(ep128emuLibEnvironment)
 zx128LibEnvironment.Append(CPPPATH = ['./z80'])
 
 zx128Lib = zx128LibEnvironment.StaticLibrary('zx128', Split('''
@@ -453,10 +397,7 @@ zx128Lib = zx128LibEnvironment.StaticLibrary('zx128', Split('''
 
 # -----------------------------------------------------------------------------
 
-if not oldSConsVersion:
-    cpc464LibEnvironment = ep128emuLibEnvironment.Clone()
-else:
-    cpc464LibEnvironment = ep128emuLibEnvironment.Copy()
+cpc464LibEnvironment = copyEnvironment(ep128emuLibEnvironment)
 cpc464LibEnvironment.Append(CPPPATH = ['./z80'])
 
 cpc464Lib = cpc464LibEnvironment.StaticLibrary('cpc464', Split('''
@@ -472,36 +413,10 @@ cpc464Lib = cpc464LibEnvironment.StaticLibrary('cpc464', Split('''
 
 # -----------------------------------------------------------------------------
 
-if not oldSConsVersion:
-    ep128emuEnvironment = ep128emuGLGUIEnvironment.Clone()
-else:
-    ep128emuEnvironment = ep128emuGLGUIEnvironment.Copy()
+ep128emuEnvironment = copyEnvironment(ep128emuGLGUIEnvironment)
 ep128emuEnvironment.Append(CPPPATH = ['./z80', './gui'])
-if luaPkgName:
-    # using pkg-config
-    if not ep128emuEnvironment.ParseConfig('pkg-config --libs ' + luaPkgName):
-        print ' *** error: Lua library is not found'
-        Exit(-1)
-elif haveLua:
-    if not mingwCrossCompile:
-        ep128emuEnvironment.Append(LIBS = ['lua'])
-    elif not useLuaJIT:
-        ep128emuEnvironment.Append(LIBS = ['lua53'])
-    else:
-        ep128emuEnvironment.Append(LIBS = ['lua51'])
-    if oldLuaVersion:
-        ep128emuEnvironment.Append(LIBS = ['lualib'])
-if haveSDL:
-    ep128emuEnvironment.Append(LIBS = ['SDL'])
-ep128emuEnvironment.Append(LIBS = ['portaudio', 'sndfile'])
-if not mingwCrossCompile:
-    if not oldSConsVersion:
-        checkPortAudioLib(ep128emuEnvironment)
-    ep128emuEnvironment.Append(LIBS = ['pthread'])
-    if sys.platform[:5] == 'linux':
-        ep128emuEnvironment.Append(LIBS = ['rt'])
-else:
-    ep128emuEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
+if haveLua and oldLuaVersion:
+    ep128emuEnvironment.Append(LIBS = ['lualib'])
 ep128emuEnvironment.Prepend(LIBS = ['ep128', 'zx128', 'cpc464', 'ep128emu'])
 
 ep128emuSources = ['gui/gui.cpp']
@@ -532,21 +447,11 @@ if sys.platform[:6] == 'darwin':
 
 # -----------------------------------------------------------------------------
 
-if not oldSConsVersion:
-    tapeeditEnvironment = ep128emuGUIEnvironment.Clone()
-else:
-    tapeeditEnvironment = ep128emuGUIEnvironment.Copy()
 tapeeditEnvironment.Append(CPPPATH = ['./tapeutil'])
 tapeeditEnvironment.Prepend(LIBS = ['ep128emu'])
-if haveSDL:
-    tapeeditEnvironment.Append(LIBS = ['SDL'])
-tapeeditEnvironment.Append(LIBS = ['sndfile'])
 tapeeditSources = fluidCompile(['tapeutil/tapeedit.fl'])
 tapeeditSources += ['tapeutil/tapeio.cpp']
-if not mingwCrossCompile:
-    tapeeditEnvironment.Append(LIBS = ['pthread'])
-else:
-    tapeeditEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
+if mingwCrossCompile:
     tapeeditResourceObject = tapeeditEnvironment.Command(
         'resource/te_resrc.o',
         ['resource/tapeedit.rc', 'resource/tapeedit.ico'],
@@ -563,46 +468,8 @@ if sys.platform[:6] == 'darwin':
 
 # -----------------------------------------------------------------------------
 
-if not oldSConsVersion:
-    makecfgEnvironment = ep128emuGUIEnvironment.Clone()
-else:
-    makecfgEnvironment = ep128emuGUIEnvironment.Copy()
-makecfgEnvironment.Append(CPPPATH = ['./installer'])
-makecfgEnvironment.Prepend(LIBS = ['ep128emu'])
-if haveSDL:
-    makecfgEnvironment.Append(LIBS = ['SDL'])
-if enableCURL:
-    makecfgEnvironment.Append(CCFLAGS = ['-DMAKECFG_USE_CURL'])
-    if not mingwCrossCompile:
-        makecfgEnvironment.Append(LIBS = ['curl'])
-    else:
-        makecfgEnvironment.Append(LIBS = ['curldll'])
-makecfgEnvironment.Append(LIBS = ['sndfile'])
-if not mingwCrossCompile:
-    makecfgEnvironment.Append(LIBS = ['pthread'])
-    if sys.platform[:5] == 'linux':
-        for envName in ['DISPLAY', 'XAUTHORITY']:
-            if envName in os.environ:
-                makecfgEnvironment.Append(ENV = {
-                                              envName : os.environ[envName] })
-else:
-    makecfgEnvironment.Prepend(LINKFLAGS = ['-mwindows'])
-
-makecfg = makecfgEnvironment.Program(programNamePrefix + 'makecfg',
-    ['installer/makecfg.cpp'] + fluidCompile(['installer/mkcfg.fl']))
-Depends(makecfg, ep128emuLib)
-
-if sys.platform[:6] == 'darwin':
-    Command('ep128emu.app/Contents/MacOS/makecfg', 'makecfg',
-            'mkdir -p ep128emu.app/Contents/MacOS ; cp -pf $SOURCES $TARGET')
-
-# -----------------------------------------------------------------------------
-
 if buildUtilities:
-    if not oldSConsVersion:
-        compressLibEnvironment = ep128emuLibEnvironment.Clone()
-    else:
-        compressLibEnvironment = ep128emuLibEnvironment.Copy()
+    compressLibEnvironment = copyEnvironment(ep128emuLibEnvironment)
     compressLibEnvironment.Append(CPPPATH = ['./util/epcompress/src'])
     compressLibEnvironment.Prepend(LIBS = [ep128emuLib])
     compressLib = compressLibEnvironment.StaticLibrary(
@@ -619,35 +486,19 @@ if buildUtilities:
                           util/epcompress/src/sfxdecomp.cpp
                       '''))
     Depends(compressLib, ep128emuLib)
-    if not oldSConsVersion:
-        epcompressEnvironment = compressLibEnvironment.Clone()
-    else:
-        epcompressEnvironment = compressLibEnvironment.Copy()
+    epcompressEnvironment = copyEnvironment(compressLibEnvironment)
     epcompressEnvironment.Prepend(LIBS = [compressLib])
-    if buildRelease:
-        epcompressEnvironment.Append(LINKFLAGS = ['-s'])
     epcompress = epcompressEnvironment.Program(
                      'epcompress', ['util/epcompress/src/main.cpp'])
     Depends(epcompress, compressLib)
-    if not oldSConsVersion:
-        dtfEnvironment = epcompressEnvironment.Clone()
-    else:
-        dtfEnvironment = epcompressEnvironment.Copy()
+    dtfEnvironment = copyEnvironment(epcompressEnvironment)
     dtf = dtfEnvironment.Program('dtf', ['util/dtf/dtf.cpp'])
     Depends(dtf, compressLib)
-    if not oldSConsVersion:
-        epimgconvEnvironment = epcompressEnvironment.Clone()
-    else:
-        epimgconvEnvironment = epcompressEnvironment.Copy()
-    epimgconvEnvironment['CCFLAGS'] = ep128emuGUIEnvironment['CCFLAGS']
-    epimgconvEnvironment['CPPPATH'] = ep128emuGUIEnvironment['CPPPATH']
-    epimgconvEnvironment['CXXFLAGS'] = ep128emuGUIEnvironment['CXXFLAGS']
-    epimgconvEnvironment['LIBS'] = ep128emuGUIEnvironment['LIBS']
+    epimgconvEnvironment = copyEnvironment(makecfgEnvironment)
     epimgconvEnvironment.Append(CPPPATH = ['./util/epcompress/src'])
-    if mingwCrossCompile:
-        epimgconvEnvironment.Prepend(LIBS = ['fltk_images', 'fltk_png',
-                                             'fltk_jpeg', 'z'])
     epimgconvEnvironment.Prepend(LIBS = [compressLib, ep128emuLib])
+    if mingwCrossCompile:
+        epimgconvEnvironment['LINKFLAGS'].remove('-mwindows')
     epimgconv = epimgconvEnvironment.Program(
                     'epimgconv', Split('''
                         util/epimgconv/src/attr16.cpp
@@ -663,6 +514,28 @@ if buildUtilities:
                     '''))
     Depends(epimgconv, compressLib)
     Depends(epimgconv, ep128emuLib)
+
+# -----------------------------------------------------------------------------
+
+makecfgEnvironment.Append(CPPPATH = ['./installer'])
+makecfgEnvironment.Prepend(LIBS = ['ep128emu'])
+if enableCURL:
+    if configurePackage(makecfgEnvironment, 'cURL'):
+        makecfgEnvironment.Append(CCFLAGS = ['-DMAKECFG_USE_CURL'])
+if not mingwCrossCompile:
+    if sys.platform[:5] == 'linux':
+        for envName in ['DISPLAY', 'XAUTHORITY']:
+            if envName in os.environ:
+                makecfgEnvironment.Append(ENV = {
+                                              envName : os.environ[envName] })
+
+makecfg = makecfgEnvironment.Program(programNamePrefix + 'makecfg',
+    ['installer/makecfg.cpp'] + fluidCompile(['installer/mkcfg.fl']))
+Depends(makecfg, ep128emuLib)
+
+if sys.platform[:6] == 'darwin':
+    Command('ep128emu.app/Contents/MacOS/makecfg', 'makecfg',
+            'mkdir -p ep128emu.app/Contents/MacOS ; cp -pf $SOURCES $TARGET')
 
 # -----------------------------------------------------------------------------
 
