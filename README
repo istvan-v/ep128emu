@@ -191,8 +191,8 @@ GNU C/C++ compiler, binutils, etc.), you need the following packages:
 The following packages are optional:
 
   * SDL (http://www.libsdl.org/) 1.2 for joystick input; NOTE: on Linux,
-    version 1.2.10 does not work, so using 1.2.9 or the latest version
-    (currently 1.2.15) is recommended
+    versions 1.2.10 and newer do not work if they are statically linked
+    and were built with video support (--enable-video)
   * Lua (http://www.lua.org/ or http://www.luajit.org/) for scripting in
     the debugger; version 5.1 or newer is recommended, but 5.0 is also
     supported

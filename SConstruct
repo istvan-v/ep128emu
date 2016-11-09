@@ -5,7 +5,8 @@ import sys, os
 win64CrossCompile = int(ARGUMENTS.get('win64', 0))
 mingwCrossCompile = win64CrossCompile or int(ARGUMENTS.get('win32', 0))
 linux32CrossCompile = int(ARGUMENTS.get('linux32', 0))
-# set this to 1 on Linux with SDL version 1.2.10
+# on Linux, statically linked SDL version >= 1.2.10 that was not built
+# without video support (--disable-video) breaks FLTK
 disableSDL = int(ARGUMENTS.get('nosdl', 0))
 disableLua = int(ARGUMENTS.get('nolua', 0))
 buildUtilities = int(ARGUMENTS.get('utils', 1))
