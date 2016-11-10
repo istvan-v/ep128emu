@@ -18,6 +18,7 @@ Changes in version 2.0.10
   * new Lua functions: writeROM(), writeWordROM(), and loadROMSegment()
   * building with Lua 5.2 or 5.3 is now supported
   * added support for building 64-bit Windows binaries
+  * OpenGL has been made an optional dependency at compile time
   * epimgconv and other utilities are included with the emulator package
   * snapshot and demo files can be compressed in epcompress format
   * experimental SD card emulation using code from LGB's Xep128,

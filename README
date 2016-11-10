@@ -180,8 +180,8 @@ GNU C/C++ compiler, binutils, etc.), you need the following packages:
     NOTES:
       * this library should be compiled with the --enable-threads
         'configure' option - many Linux distributions include binaries
-        of the FLTK library built without --enable-threads, so you may
-        need to compile it from sources
+        of FLTK 1.1 built without --enable-threads, so you may need to
+        compile it from sources
       * on MacOS X, FLTK 1.1.7 needs to be patched with the included
         fltk-1.1.7-MacOSX.patch file
   * PortAudio (http://www.portaudio.com/download.html), version 18 and
@@ -190,6 +190,7 @@ GNU C/C++ compiler, binutils, etc.), you need the following packages:
 
 The following packages are optional:
 
+  * OpenGL for improved video display and effects
   * SDL (http://www.libsdl.org/) 1.2 for joystick input; NOTE: on Linux,
     versions 1.2.10 and newer do not work if they are statically linked
     and were built with video support (--enable-video)
@@ -201,7 +202,55 @@ The following packages are optional:
 
 Once these are installed, you can edit the file 'SConstruct' in the top
 level source directory for setting compiler flags etc., and run the
-command 'scons -j 2' for building the emulator.
+command 'scons -j 2' for building the emulator. The following options
+can be passed to scons:
+
+  -j N
+      Maximum number of parallel jobs to be run by scons. It is
+      recommended to set N to the number of logical cores of your CPU
+  win64=1
+      Cross-compile Windows x86_64 binaries using Wine
+      (http://www.winehq.com/) and MinGW; complete pacakges of MinGW for
+      building the emulator can be downloaded from:
+        https://www.dropbox.com/s/ex0zxz7e6bmcb9r/mingw_w64-x64.7z?dl=1
+        https://www.dropbox.com/s/a336x3bs1p0gv3t/mingw_w64-x86.7z?dl=1
+  win32=1
+      Cross-compile Windows i686 binaries using Wine and MinGW
+  linux32=1
+      Build 32-bit Linux binaries on a 64-bit system without using
+      pkg-config
+  nosdl=1
+      Disable the use of SDL and joystick support. This option may be
+      needed on Linux with statically linked SDL versions 1.2.10 and
+      newer that were built with video support enabled
+  nolua=1
+      Build without support for Lua scripting
+  utils=0
+      Do not build the optional utilities (epimgconv, epcompress and
+      dtf)
+  glshaders=0
+      Disable the use of OpenGL shaders
+  debug=1
+      Compile binaries for debugging: no optimization and more warnings
+  release=0
+      Do not build a release version: binaries are not stripped and are
+      compiled with less optimization. Implied by debug=1
+  luajit=1
+      Use LuaJIT (installed as Lua 5.1) on Windows
+  z80cmos=1
+      Emulate the CMOS version of the Z80 CPU
+  sdext=0
+      Disable SD card (SDEXT) emulation
+  curl=0
+      Do not use libcurl in epmakecfg for downloading the ROM package
+  cflags="..."
+      Additional flags to be passed to the compiler or linker
+  nopkgconfig=1
+      Disable the use of pkg-config and fltk-config to automatically
+      configure libraries
+  cache=1
+      Enable the use of scons build cache in '.build_cache'
+
 An 'install' target is also supported by SConstruct, this will install
 the emulator binaries under ~/bin, and the configuration and data files
 under ~/.local/share/ep128emu. Running 'scons -c install' will remove
