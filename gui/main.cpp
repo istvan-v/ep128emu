@@ -75,9 +75,13 @@ int main(int argc, char **argv)
   int       colorScheme = 0;
   int8_t    machineType = -1;           // 0: EP (default), 1: ZX, 2: CPC
   int8_t    retval = 0;
+#ifdef DISABLE_OPENGL_DISPLAY
+  bool      glEnabled = false;
+#else
   bool      glEnabled = true;
   bool      glCanDoSingleBuf = false;
   bool      glCanDoDoubleBuf = false;
+#endif
   bool      configLoaded = false;
 
 #ifdef WIN32
@@ -123,9 +127,11 @@ int main(int argc, char **argv)
       else if (std::strcmp(argv[i], "-cpc") == 0) {
         machineType = 2;
       }
+#ifndef DISABLE_OPENGL_DISPLAY
       else if (std::strcmp(argv[i], "-opengl") == 0) {
         glEnabled = true;
       }
+#endif
       else if (std::strcmp(argv[i], "-no-opengl") == 0) {
         glEnabled = false;
       }
@@ -146,9 +152,11 @@ int main(int argc, char **argv)
         std::fprintf(stderr,
                      "    -snapshot <FNAME>   "
                      "load snapshot or demo file on startup\n");
+#ifndef DISABLE_OPENGL_DISPLAY
         std::fprintf(stderr,
                      "    -opengl             "
                      "use OpenGL video driver (this is the default)\n");
+#endif
         std::fprintf(stderr,
                      "    -no-opengl          "
                      "use software video driver\n");
@@ -171,6 +179,7 @@ int main(int argc, char **argv)
     Fl::lock();
     Ep128Emu::setGUIColorScheme(colorScheme);
     audioOutput = new Ep128Emu::AudioOutput_PortAudio();
+#ifndef DISABLE_OPENGL_DISPLAY
     if (glEnabled) {
       glCanDoSingleBuf = bool(Fl_Gl_Window::can_do(FL_RGB | FL_SINGLE));
       glCanDoDoubleBuf = bool(Fl_Gl_Window::can_do(FL_RGB | FL_DOUBLE));
@@ -179,6 +188,7 @@ int main(int argc, char **argv)
       else
         glEnabled = false;
     }
+#endif
     if (!glEnabled)
       w = new Ep128Emu::FLTKDisplay(32, 32, 384, 288, "");
     w->end();
@@ -310,7 +320,9 @@ int main(int argc, char **argv)
       if (std::strcmp(argv[i], "-ep128") == 0 ||
           std::strcmp(argv[i], "-zx") == 0 ||
           std::strcmp(argv[i], "-cpc") == 0 ||
+#ifndef DISABLE_OPENGL_DISPLAY
           std::strcmp(argv[i], "-opengl") == 0 ||
+#endif
           std::strcmp(argv[i], "-no-opengl") == 0)
         continue;
       if (std::strcmp(argv[i], "-cfg") == 0) {
@@ -346,6 +358,7 @@ int main(int argc, char **argv)
         }
       }
     }
+#ifndef DISABLE_OPENGL_DISPLAY
     if (glEnabled) {
       if (config->display.bufferingMode == 0 && !glCanDoSingleBuf) {
         config->display.bufferingMode = 1;
@@ -356,6 +369,7 @@ int main(int argc, char **argv)
         config->displaySettingsChanged = true;
       }
     }
+#endif
     config->applySettings();
     if (snapshotFile) {
       vm->registerChunkTypes(*snapshotFile);

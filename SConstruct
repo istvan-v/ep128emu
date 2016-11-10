@@ -57,7 +57,7 @@ packageConfigs = {
         'fltk-config --use-gl --use-images --cflags --cxxflags --ldflags', [''],
         '-lfltk_gl ' + fltkLibsLinux + ' -lGL',
         '-lfltk_gl ' + fltkLibsMinGW + ' -lopengl32',
-        '', 'FL/Fl_Gl_Window.H', 0 ],
+        '', 'FL/Fl_Gl_Window.H', 1 ],
     'sndfile' : [
         'pkg-config --silence-errors --cflags --libs',
         ['sndfile'],
@@ -119,7 +119,7 @@ def configurePackage(env, pkgName):
     if not pkgFound:
         if not packageConfigs[pkgName][6]:
             print ' *** error configuring ' + pkgName
-            raise SystemExit(-1)
+            Exit(-1)
         print 'WARNING: package ' + pkgName + ' not found'
         return 0
     return 1
@@ -230,10 +230,26 @@ if not disableSDL:
 configurePackage(ep128emuGUIEnvironment, 'PortAudio')
 
 ep128emuGLGUIEnvironment = copyEnvironment(ep128emuGUIEnvironment)
-configurePackage(ep128emuGLGUIEnvironment, 'FLTK-GL')
+disableOpenGL = 1
+if configurePackage(ep128emuGLGUIEnvironment, 'FLTK-GL'):
+    configure = ep128emuGLGUIEnvironment.Configure()
+    if configure.CheckCHeader('GL/gl.h'):
+        disableOpenGL = 0
+        if enableGLShaders:
+            if not configure.CheckType('PFNGLCOMPILESHADERPROC',
+                                       '#include <GL/gl.h>\n'
+                                       + '#include <GL/glext.h>'):
+                print 'WARNING: disabling GL shader support'
+                enableGLShaders = 0
+    configure.Finish()
 if sys.platform[:5] == 'linux' and not mingwCrossCompile:
     ep128emuGUIEnvironment.Append(LIBS = ['X11'])
     ep128emuGLGUIEnvironment.Append(LIBS = ['GL', 'X11'])
+if disableOpenGL:
+    print 'WARNING: OpenGL is not found, only software video will be supported'
+    enableGLShaders = 0
+    ep128emuGLGUIEnvironment = copyEnvironment(ep128emuGUIEnvironment)
+    ep128emuGLGUIEnvironment.Append(CCFLAGS = ['-DDISABLE_OPENGL_DISPLAY'])
 
 ep128emuLibEnvironment['CPPPATH'] = ep128emuGLGUIEnvironment['CPPPATH']
 
@@ -279,14 +295,6 @@ else:
     ep128emuLibEnvironment.Append(CPPPATH = ['./Fl_Native_File_Chooser'])
     ep128emuGUIEnvironment.Append(CPPPATH = ['./Fl_Native_File_Chooser'])
     ep128emuGLGUIEnvironment.Append(CPPPATH = ['./Fl_Native_File_Chooser'])
-if not configure.CheckCHeader('GL/gl.h'):
-    print ' *** error: OpenGL is not found'
-    Exit(-1)
-if enableGLShaders:
-    if not configure.CheckType('PFNGLCOMPILESHADERPROC',
-                               '#include <GL/gl.h>\n#include <GL/glext.h>'):
-        enableGLShaders = 0
-        print 'WARNING: disabling GL shader support'
 if configure.CheckCHeader('stdint.h'):
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_STDINT_H'])
 if sys.platform[:5] == 'linux' and not mingwCrossCompile:
@@ -363,6 +371,8 @@ ep128emuLibSources = Split('''
 ''')
 if not fltkVersion13:
     ep128emuLibSources += ['Fl_Native_File_Chooser/Fl_Native_File_Chooser.cxx']
+if disableOpenGL:
+    ep128emuLibSources.remove('src/gldisp.cpp')
 ep128emuLib = ep128emuLibEnvironment.StaticLibrary('ep128emu',
                                                    ep128emuLibSources)
 

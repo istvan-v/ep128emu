@@ -25,7 +25,9 @@
 #include "system.hpp"
 #include "display.hpp"
 #include "fldisp.hpp"
-#include "gldisp.hpp"
+#ifndef DISABLE_OPENGL_DISPLAY
+#  include "gldisp.hpp"
+#endif
 #include "joystick.hpp"
 #include "soundio.hpp"
 #include "vm.hpp"
