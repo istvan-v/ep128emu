@@ -141,31 +141,38 @@ namespace Ep128 {
     // update the phase of all oscillators
     clk_62500_phase--;
     clk_1000_phase--;
-    clk_50_phase--;
-    clk_1_phase--;
     chn0_phase -= chn0_run;
     chn1_phase -= chn1_run;
     chn2_phase -= chn2_run;
 
-    // trigger interrupts if enabled
-    if ((*int_snd_phase) < 0) {
-      // will reload counter later
+    // reload phase counters if necessary
+    if (EP128EMU_UNLIKELY(clk_1000_phase < 0)) {
+      clk_50_phase--;
+      // trigger interrupts if enabled
+      if (EP128EMU_UNLIKELY((*int_snd_phase) < 0)) {
+        // will reload counter later
+        int_snd_state = (int_snd_state & 1) ^ 1;        // invert state
+        if (enable_int_snd)
+          triggerIntSnd();
+      }
+      clk_1000_phase = clk_1000_frq;
+      if (EP128EMU_UNLIKELY(clk_50_phase < 0)) {
+        clk_50_phase = clk_50_frq;
+        clk_1_phase--;
+        if (EP128EMU_UNLIKELY(clk_1_phase < 0)) {
+          clk_1_phase = clk_1_frq;                      // reload counter
+          int_1hz_state = (int_1hz_state & 1) ^ 1;      // invert state
+          if (enable_int_1hz)
+            triggerInt1Hz();
+        }
+      }
+    }
+    else if (EP128EMU_UNLIKELY((*int_snd_phase) < 0)) {
+      // trigger interrupt if enabled
       int_snd_state = (int_snd_state & 1) ^ 1;          // invert state
       if (enable_int_snd)
         triggerIntSnd();
     }
-    if (EP128EMU_UNLIKELY(clk_1_phase < 0)) {
-      clk_1_phase = clk_1_frq;                          // reload counter
-      int_1hz_state = (int_1hz_state & 1) ^ 1;          // invert state
-      if (enable_int_1hz)
-        triggerInt1Hz();
-    }
-
-    // reload phase counters if necessary
-    if (EP128EMU_UNLIKELY(clk_1000_phase < 0))
-      clk_1000_phase = clk_1000_frq;
-    if (EP128EMU_UNLIKELY(clk_50_phase < 0))
-      clk_50_phase = clk_50_frq;
 
     // calculate oscillator outputs
     if (clk_62500_phase < 0) {
@@ -800,7 +807,7 @@ namespace Ep128 {
   void Dave::saveState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
-    buf.writeUInt32(0x01000002);        // version number
+    buf.writeUInt32(0x01000003);        // version number
     buf.writeByte(uint8_t(clockDiv));
     buf.writeByte(uint8_t(clockCnt));
     if (polycntVL_table == t.polycnt9_table)
@@ -956,7 +963,7 @@ namespace Ep128 {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
-    if (!(version >= 0x01000000 && version <= 0x01000002)) {
+    if (!(version >= 0x01000000 && version <= 0x01000003)) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible Dave snapshot format");
     }
@@ -997,8 +1004,16 @@ namespace Ep128 {
     polycntVL_state = (buf.readByte() == 0 ? 0 : 1);
     clk_62500_phase = int(buf.readUInt32() % uint32_t(clk_62500_frq + 1));
     clk_1000_phase = int(buf.readUInt32() % uint32_t(clk_1000_frq + 1));
-    clk_50_phase = int(buf.readUInt32() % uint32_t(clk_50_frq + 1));
-    clk_1_phase = int(buf.readUInt32() % uint32_t(clk_1_frq + 1));
+    {
+      uint32_t  clk50Phase_ = buf.readUInt32();
+      uint32_t  clk1Phase_ = buf.readUInt32();
+      if (version < 0x01000003) {
+        clk50Phase_ = clk50Phase_ / 250U;
+        clk1Phase_ = clk1Phase_ / 5000U;
+      }
+      clk_50_phase = int(clk50Phase_ % uint32_t(clk_50_frq + 1));
+      clk_1_phase = int(clk1Phase_ % uint32_t(clk_1_frq + 1));
+    }
     clk_62500_state = (buf.readByte() == 0 ? 0 : 1);
     chn0_state = (buf.readByte() == 0 ? 0 : 1);
     chn0_prv = (buf.readByte() == 0 ? 0 : 1);

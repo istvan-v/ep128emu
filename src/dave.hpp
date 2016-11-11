@@ -60,8 +60,8 @@ namespace Ep128 {
     // fixed frequency counters (f = 250000 / (n + 1))
     static const int clk_62500_frq = 3;
     static const int clk_1000_frq = 249;
-    static const int clk_50_frq = 4999;
-    static const int clk_1_frq = 249999;
+    static const int clk_50_frq = 19;   // clocked by the 1 kHz counter
+    static const int clk_1_frq = 49;    // clocked by the 50 Hz counter
     int     clk_62500_phase;
     int     clk_1000_phase;
     int     clk_50_phase;
