@@ -149,7 +149,7 @@ namespace Ep128 {
     if (EP128EMU_UNLIKELY(clk_1000_phase < 0)) {
       clk_50_phase--;
       // trigger interrupts if enabled
-      if (EP128EMU_UNLIKELY((*int_snd_phase) < 0)) {
+      if ((*int_snd_phase) < 0) {
         // will reload counter later
         int_snd_state = (int_snd_state & 1) ^ 1;        // invert state
         if (enable_int_snd)

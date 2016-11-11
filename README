@@ -635,13 +635,13 @@ segment.
 The configuration file may also include comments and empty lines.
 A comment can begin with the semicolon or '#' character, and the rest of
 the line is ignored.
-Unlike images loaded in the GUI ROM configuration, it is not necessary
-for the files to have a size that is an integer multiple of 16384 bytes:
-the last segment is padded with FFh bytes. An empty file name will
-initialize RAM segments to FFh bytes, while in the case of ROM, it means
-that the segments will be empty. If the file is longer than the size
-defined by 'nSegments', the data is truncated; if it is too short, then
-the segments are repeated.
+Similarly to images loaded in the GUI ROM configuration, it is not
+necessary for the files to have a size that is an integer multiple of
+16384 bytes: the last segment is padded with FFh bytes. An empty file
+name will initialize RAM segments to FFh bytes, while in the case of
+ROM, it means that the segments will be empty. If the file is longer
+than the size defined by 'nSegments', the data is truncated; if it is
+too short, then the segments are repeated.
 By default, segments 00h..FBh are empty, and FCh..FFh are RAM. The type
 of the last four segments (the video memory) cannot be changed to ROM.
 
