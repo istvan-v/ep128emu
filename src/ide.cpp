@@ -28,10 +28,6 @@ namespace Ep128 {
     c = 0;
     h = 0;
     s = 0;
-    if (!imageFile) {
-      throw Ep128Emu::Exception("checkVHDImage(): internal error: "
-                                "imageFile == NULL");
-    }
     bool    vhdExtension = false;
     if (fileName && fileName[0]) {
       size_t  nameLen = std::strlen(fileName);
@@ -56,24 +52,6 @@ namespace Ep128 {
                                 "- must be an integer multiple of 512");
     }
     uint32_t  nSectors = uint32_t((fileSize + 511UL) >> 9);
-    if (!(fileSize & 0x01FF) && !vhdExtension) {
-      s = 17;
-      uint32_t  ch = nSectors / s;
-      h = uint16_t((ch + 1023U) >> 10);
-      if (h < 4)
-        h = 4;
-      if (ch >= (uint32_t(h) << 10) || h > 16) {
-        h = 16;
-        s = 31;
-        ch = nSectors / s;
-      }
-      if (ch >= (uint32_t(h) << 10)) {
-        h = 16;
-        s = 63;
-        ch = nSectors / s;
-      }
-      c = uint16_t(ch / h);
-    }
     if (vhdExtension || (fileSize & 0x03FF) != 0) {
       uint8_t buf[512];
       // check if the image file is in VHD format
@@ -138,21 +116,37 @@ namespace Ep128 {
             i = 68;
           tmp = tmp + uint32_t(buf[i]);
         }
-        if (tmp == 0xFFFFFFFFU)
+        if (tmp == 0xFFFFFFFFU) {
+          s = s | 0x8000;       // b15 = 1 indicates VHD format
           return nSectors;
+        }
       } while (false);
+      c = 0;
+      h = 0;
+      s = 0;
+      if (vhdExtension)
+        throw Ep128Emu::Exception("invalid or unsupported VHD file footer");
+      if (fileSize & 0x01FF) {
+        throw Ep128Emu::Exception("invalid IDE disk image size "
+                                  "- must be an integer multiple of 512");
+      }
     }
-    c = 0;
-    h = 0;
-    s = 0;
-    if (vhdExtension)
-      throw Ep128Emu::Exception("invalid or unsupported VHD file footer");
-    if (fileSize & 0x01FF) {
-      throw Ep128Emu::Exception("invalid IDE disk image size "
-                                "- must be an integer multiple of 512");
+    s = 17;
+    uint32_t  ch = nSectors / s;
+    h = uint16_t((ch + 1023U) >> 10);
+    if (h < 4)
+      h = 4;
+    if (ch >= (uint32_t(h) << 10) || h > 16) {
+      h = 16;
+      s = 31;
+      ch = nSectors / s;
     }
-    throw Ep128Emu::Exception("invalid IDE disk image size "
-                              "- cannot calculate geometry");
+    if (ch >= (uint32_t(h) << 10)) {
+      h = 16;
+      s = 63;
+      ch = nSectors / s;
+    }
+    c = uint16_t(ch / h);
     return nSectors;
   }
 
@@ -620,7 +614,7 @@ namespace Ep128 {
 
   void IDEInterface::IDEController::IDEDrive::setImageFile(const char *fileName)
   {
-    if (fileName == (char *) 0 || fileName[0] == '\0') {
+    if (!fileName || fileName[0] == '\0') {
       if (imageFile) {
         std::fclose(imageFile);
         imageFile = (std::FILE *) 0;
@@ -648,6 +642,8 @@ namespace Ep128 {
       (void) std::setvbuf(imageFile, (char *) 0, _IONBF, 0);
       nSectors = checkVHDImage(imageFile, fileName, defaultCylinders,
                                defaultHeads, defaultSectorsPerTrack);
+      vhdFormat = bool(defaultSectorsPerTrack & 0x8000);
+      defaultSectorsPerTrack = defaultSectorsPerTrack & 0x7FFF;
       nCylinders = defaultCylinders;
       nHeads = defaultHeads;
       nSectorsPerTrack = defaultSectorsPerTrack;
