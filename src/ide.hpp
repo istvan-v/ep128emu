@@ -25,7 +25,8 @@
 namespace Ep128 {
 
   // returns the number of sectors that can be addressed in LBA mode,
-  // this may be greater than c*h*s
+  // this may be greater than c*h*s; bit 15 of 's' is set if the file
+  // is in VHD format
   extern uint32_t checkVHDImage(std::FILE *imageFile, const char *fileName,
                                 uint16_t& c, uint16_t& h, uint16_t& s);
 
