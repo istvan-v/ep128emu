@@ -42,7 +42,7 @@ General
   * GUI debugger with support for breakpoints/watchpoints, viewing the
     current state of CPU registers and memory paging, displaying memory
     dump and searching for a pattern of bytes, and disassembler with
-    support for all documented and some undocumented Z80 opcodes.
+    support for all documented and undocumented Z80 opcodes.
     A simple monitor is also included, with commands like assemble,
     disassemble (also to file), trace, memory and I/O port dump and
     modify, printing and changing CPU registers, memory compare, copy,
@@ -62,7 +62,7 @@ Enterprise emulation
 --------------------
 
   * instruction based emulation of the Z80 CPU, supports all documented
-    and some undocumented opcodes, and memory wait states (including
+    and undocumented opcodes, and memory wait states (including
     synchronization with the NICK chip when accessing video memory)
   * RAM size can be set in 16 kilobyte steps in the range 64 to 3712
   * ROM can be loaded from external image files to segments 0 to 7,
