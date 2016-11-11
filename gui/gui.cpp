@@ -25,14 +25,25 @@
 
 #include <typeinfo>
 
+#ifdef LINUX_FLTK_VERSION
+#  undef LINUX_FLTK_VERSION
+#endif
 #ifdef WIN32
 #  define WIN32_LEAN_AND_MEAN   1
 #  include <windows.h>
 #else
 #  include <unistd.h>
 #  include <pthread.h>
-#  if defined(__linux) || defined(__linux__)
-#    include <X11/Xlib.h>
+#endif
+#if defined(__linux) || defined(__linux__)
+#  include <X11/Xlib.h>
+#  if defined(FL_MAJOR_VERSION) && defined(FL_MINOR_VERSION) && \
+      defined(FL_PATCH_VERSION)
+#    define LINUX_FLTK_VERSION  ((FL_MAJOR_VERSION * 10000)     \
+                                 + (FL_MINOR_VERSION * 100) + FL_PATCH_VERSION)
+#    if (LINUX_FLTK_VERSION >= 10302)
+#      include <X11/XKBlib.h>
+#    endif
 #  endif
 #endif
 
@@ -474,6 +485,13 @@ int Ep128EmuGUI::getMenuItemIndex(int n)
 
 void Ep128EmuGUI::createMenus()
 {
+#if defined(LINUX_FLTK_VERSION) && (LINUX_FLTK_VERSION >= 10302)
+  {
+    // work around broken auto-repeat on Linux
+    Bool    supportedReturn = False;
+    (void) XkbSetDetectableAutoRepeat(fl_display, True, &supportedReturn);
+  }
+#endif
   {
     int     iconNum = (typeid(vm) == typeid(Ep128::Ep128VM) ?
                        0 : (typeid(vm) == typeid(ZX128::ZX128VM) ? 1 : 2));
@@ -1169,6 +1187,11 @@ bool Ep128EmuGUI::browseFile(std::string& fileName, std::string& dirName,
       } while (browseFileWindowShowFlag);
     }
     else {
+#if defined(LINUX_FLTK_VERSION) && (LINUX_FLTK_VERSION >= 10303)
+      // work around buggy GTK file chooser introduced in FLTK 1.3.3
+      // not sending FL_UNFOCUS event to the emulator window
+      functionKeyState = 0U;
+#endif
       browseFileStatus = browseFileWindow->show();
     }
     if (browseFileStatus < 0) {
