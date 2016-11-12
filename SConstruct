@@ -108,14 +108,15 @@ def configurePackage(env, pkgName):
                 continue
         pkgFound = 0
     else:
-        env.MergeFlags(
-            packageConfigs[pkgName][2 + int(bool(mingwCrossCompile))])
         configure = env.Configure()
         if packageConfigs[pkgName][4]:
             pkgFound = configure.CheckCHeader(packageConfigs[pkgName][4])
         else:
             pkgFound = configure.CheckCXXHeader(packageConfigs[pkgName][5])
         configure.Finish()
+        if pkgFound:
+            env.MergeFlags(
+                packageConfigs[pkgName][2 + int(bool(mingwCrossCompile))])
     if not pkgFound:
         if not packageConfigs[pkgName][6]:
             print ' *** error configuring ' + pkgName
