@@ -303,7 +303,6 @@ if sys.platform[:5] == 'linux' and not mingwCrossCompile:
         ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_LINUX_FD_H'])
 
 oldLuaVersion = 0
-luaPkgName = ''
 if haveLua:
     if not configure.CheckType('lua_Integer',
                                '#include <lua.h>\n#include <lauxlib.h>'):
