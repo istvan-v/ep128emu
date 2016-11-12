@@ -201,12 +201,10 @@ if mingwCrossCompile:
     ep128emuLibEnvironment['LINK'] = toolNamePrefix + 'g++'
     ep128emuLibEnvironment['RANLIB'] = toolNamePrefix + 'ranlib'
     ep128emuLibEnvironment['PROGSUFFIX'] = '.exe'
-    if useLuaJIT:
-        packageConfigs['Lua'][3] =      \
-            '-I' + mingwPrefix + '/include/lua5.1 -llua51'
-    else:
-        packageConfigs['Lua'][3] =      \
-            '-I' + mingwPrefix + '/include/lua5.3 -llua53'
+    packageConfigs['Lua'][3] = '-llua' + ['53', '51'][int(bool(useLuaJIT))]
+    ep128emuLibEnvironment.Append(
+        CPPPATH = [mingwPrefix
+                   + '/include/lua' + ['5.3', '5.1'][int(bool(useLuaJIT))]])
     ep128emuLibEnvironment.Append(LIBS = ['user32', 'kernel32'])
     ep128emuLibEnvironment.Prepend(CCFLAGS = ['-mthreads'])
     ep128emuLibEnvironment.Prepend(LINKFLAGS = ['-mthreads'])
