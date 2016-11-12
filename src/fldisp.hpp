@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -32,13 +32,26 @@ namespace Ep128Emu {
    protected:
     class Message {
      public:
-      Message *nxt;
+      enum {
+        MsgType_None = 0,
+        MsgType_LineData = 1,
+        MsgType_FrameDone = 2,
+        MsgType_SetParameters = 3
+      };
+      Message   *nxt;
+      intptr_t  msgType;
       // --------
       Message()
-        : nxt((Message *) 0)
+        : nxt((Message *) 0),
+          msgType(MsgType_None)
       {
       }
-      virtual ~Message();
+     protected:
+      Message(int msgType_)
+        : nxt((Message *) 0),
+          msgType(msgType_)
+      {
+      }
     };
     class Message_LineData : public Message {
      private:
@@ -53,12 +66,11 @@ namespace Ep128Emu {
       uint32_t  buf_[108];
      public:
       Message_LineData()
-        : Message()
+        : Message(MsgType_LineData)
       {
         nBytes_ = 0U;
         lineNum = 0;
       }
-      virtual ~Message_LineData();
       // copy a line (768 pixels in compressed format) to the buffer
       void copyLine(const uint8_t *buf, size_t nBytes);
       inline void getLineData(const unsigned char*& buf, size_t& nBytes)
@@ -82,20 +94,18 @@ namespace Ep128Emu {
     class Message_FrameDone : public Message {
      public:
       Message_FrameDone()
-        : Message()
+        : Message(MsgType_FrameDone)
       {
       }
-      virtual ~Message_FrameDone();
     };
     class Message_SetParameters : public Message {
      public:
       DisplayParameters dp;
       Message_SetParameters()
-        : Message(),
+        : Message(MsgType_SetParameters),
           dp()
       {
       }
-      virtual ~Message_SetParameters();
     };
     template <typename T>
     T * allocateMessage()

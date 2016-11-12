@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2015 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,8 +19,6 @@
 
 #include "ep128emu.hpp"
 #include "system.hpp"
-
-#include <typeinfo>
 
 #define GL_GLEXT_PROTOTYPES 1
 
@@ -536,7 +534,6 @@ namespace Ep128Emu {
         Message *m = frameRingBuffer[n][yc];
         if (m) {
           frameRingBuffer[n][yc] = (Message_LineData *) 0;
-          m->~Message();
           std::free(m);
         }
       }
@@ -1258,7 +1255,7 @@ namespace Ep128Emu {
       messageQueueMutex.unlock();
       if (!m)
         break;
-      if (typeid(*m) == typeid(Message_LineData)) {
+      if (EP128EMU_EXPECT(m->msgType == Message::MsgType_LineData)) {
         Message_LineData  *msg;
         msg = static_cast<Message_LineData *>(m);
         int     lineNum = msg->lineNum;
@@ -1292,7 +1289,7 @@ namespace Ep128Emu {
           continue;
         }
       }
-      else if (typeid(*m) == typeid(Message_FrameDone)) {
+      else if (m->msgType == Message::MsgType_FrameDone) {
         // need to update display
         messageQueueMutex.lock();
         framesPending = (framesPending > 0 ? (framesPending - 1) : 0);
@@ -1331,7 +1328,7 @@ namespace Ep128Emu {
         }
         break;
       }
-      else if (typeid(*m) == typeid(Message_SetParameters)) {
+      else if (m->msgType == Message::MsgType_SetParameters) {
         Message_SetParameters *msg;
         msg = static_cast<Message_SetParameters *>(m);
         if (displayParameters.displayQuality != msg->dp.displayQuality ||
@@ -1375,7 +1372,6 @@ namespace Ep128Emu {
                 Message *m_ = frameRingBuffer[n][yc];
                 if (m_) {
                   frameRingBuffer[n][yc] = (Message_LineData *) 0;
-                  m_->~Message();
                   std::free(m_);
                 }
               }
