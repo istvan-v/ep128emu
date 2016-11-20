@@ -78,7 +78,7 @@ namespace CPC464 {
     saveMachineConfiguration(f);
     saveState(f);
     demoBuffer.clear();
-    demoBuffer.writeUInt32(0x0002000A); // version 2.0.10
+    demoBuffer.writeUInt32(0x0002000B); // version 2.0.11
     demoFile = &f;
     isRecordingDemo = true;
     setCallback(&demoRecordCallback, this, true);
@@ -176,7 +176,7 @@ namespace CPC464 {
     // check version number
     unsigned int  version = buf.readUInt32();
 #if 0
-    if (version != 0x0002000A) {
+    if (version != 0x0002000B) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible cpc464 demo format");
     }

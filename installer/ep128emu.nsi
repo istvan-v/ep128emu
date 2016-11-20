@@ -17,12 +17,12 @@
   !ifndef WIN64
   ;Name and file
   Name "ep128emu"
-  OutFile "ep128emu-2.0.10-x86.exe"
+  OutFile "ep128emu-2.0.11_beta-x86.exe"
   ;Default installation folder
   InstallDir "$PROGRAMFILES\ep128emu2"
   !else
   Name "ep128emu (x64)"
-  OutFile "ep128emu-2.0.10-x64.exe"
+  OutFile "ep128emu-2.0.11_beta-x64.exe"
   InstallDir "$PROGRAMFILES64\ep128emu2"
   !endif
 
