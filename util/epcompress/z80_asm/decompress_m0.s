@@ -1,19 +1,24 @@
 
 ; border effects are disabled if this is set to any non-zero value
 NO_BORDER_FX            equ     0
+; assume that more than 255 symbols never use the same code length
+; this allows for better optimization, but it may fail in very rare cases
+FAST_HUFFMAN            equ     0
+; decrease code size at the expense of slightly slower decompression
+SIZE_OPTIMIZED          equ     0
 
-; total data size is 864 bytes; the lower byte of the start address must be 80h
+; total data size is 864 bytes; the lower 7 bits of the start address must be 0
 decompressDataBegin     equ     0fc80h
 
-huffmanDecodeTable1     equ     decompressDataBegin
-huffmanDecodeTable2     equ     huffmanDecodeTable1 + 324
-prvDistanceTable        equ     huffmanDecodeTable2 + 28
-huffmanLimitTable       equ     decompressDataBegin + 384
-huffmanLimitTableL      equ     huffmanLimitTable + 64
+huffmanSymbolTable1     equ     decompressDataBegin
+huffmanSymbolTable2     equ     huffmanSymbolTable1 + 324
+prvDistanceTable        equ     huffmanSymbolTable2 + 28
+huffmanDecodeTable      equ     decompressDataBegin + 384
+huffmanDecodeTableL     equ     huffmanDecodeTable + 64
 decompressDataEnd       equ     decompressDataBegin + 864
 
 ; NOTE: the upper byte of the address of huffmanDecode1, huffmanDecode2,
-; read9Bits, read8Bits, and read5Bits must be the same (see assert directive
+; read9Bits, read8Bits and read5Bits must be the same (see assert directive
 ; below)
 
         org   0fa98h
@@ -24,15 +29,14 @@ decompressDataEnd       equ     decompressDataBegin + 864
 
 decompressData:
         push  ix
-        push  iy
+        inc   hl                        ; ignore checksum byte
+        push  hl
+        ex    (sp), iy                  ; IY = compressed data read address
         push  de
         exx
         pop   de                        ; DE' = decompressed data write address
         exx
-        inc   hl                        ; ignore checksum byte
-        push  hl
-        pop   iy                        ; IY = compressed data read address
-        ld    e, 080h                   ; initialize shift register
+        ld    e, 80h                    ; initialize shift register
         jp    decompressAllDataBlocks   ; decompress all blocks
 
 ; reserved registers:
@@ -43,65 +47,75 @@ decompressData:
 ;  IY:  compressed data read address
 
 huffmanDecode1:
-        ld    hl, huffmanLimitTable
+        ld    hl, huffmanDecodeTable
 
 huffmanDecode2:
+    if FAST_HUFFMAN == 0
+        ld    a, (hl)
+        inc   l
+    else
         xor   a
-        ld    b, a
+    endif
         sla   e
-        call  z, readCompressedByte
-        adc   a, 2
-.l1:    cp    (hl)
-        jr    c, .l4
-        inc   l
-        sla   e
-        jr    z, .l5
-.l2:    rla
-        jp    nc, .l1
-.l3:    cp    (hl)
-        ld    c, a
-        ld    a, b
-        set   4, l
+        jr    z, .l3
+.l1:    rla
         sbc   a, (hl)
-        res   4, l
-        ld    a, c
+        jr    c, .l4
+.l2:    inc   l
+    if FAST_HUFFMAN == 0
+        or    (hl)
+        inc   l
+    endif
+        sla   e
+    if SIZE_OPTIMIZED == 0
+        jr    z, .l3
+        rla
+        sbc   a, (hl)
         jr    c, .l4
         inc   l
+      if FAST_HUFFMAN == 0
+        or    (hl)
+        inc   l
+      endif
         sla   e
-        call  z, readCompressedByte
-        rla
-        rl    b
-        jp    p, .l3
-.l4:    set   5, l
-        add   a, (hl)
-        ld    c, a
-        ld    a, b
-        set   4, l
-        adc   a, (hl)
-        ld    b, a
-        ld    a, (bc)
-        inc   b
-        inc   b
-        rrca
-        ld    a, (bc)
-        ret
-.l5:    ld    e, (iy)
+    endif
+        jp    nz, .l1
+.l3:    ld    e, (iy)
         inc   iy
         rl    e
-        jp    .l2
-
-read9Bits:
-        ld    b, 9
-        defb  021h                      ; = LD HL, nnnn
-
-read8Bits:
-        ld    b, 8
-        defb  021h                      ; = LD HL, nnnn
+        rla
+        sbc   a, (hl)
+        jp    nc, .l2
+.l4:    set   5, l
+        add   a, (hl)
+    if FAST_HUFFMAN == 0
+        dec   l
+    else
+        set   4, l
+    endif
+        ld    h, (hl)
+        ld    l, a
+        adc   a, h
+        sub   l
+        ld    h, a
+        cp    (hl)
+        inc   h
+        inc   h
+        ld    a, (hl)
+        ret
 
 read5Bits:
         ld    b, 5
+        defb  21h                       ; = LD HL, nnnn
 
-        assert  (huffmanDecode1 & 0ff00h) == (read5Bits & 0ff00h)
+read8Bits:
+        ld    b, 8
+        defb  21h                       ; = LD HL, nnnn
+
+read9Bits:
+        ld    b, 9
+
+        assert  (huffmanDecode1 & 0ff00h) == (read9Bits & 0ff00h)
 
 readBBits:
         xor   a
@@ -159,7 +173,7 @@ huffmanInit:
         call  .l1
         ld    hl, addrTable2            ; read match length Huffman table
         ld    bc, readLengthAddrLow
-.l1:    sla   e                         ; is Huffman encoding enabled ?
+.l1:    sla   e                         ; is Huffman encoding enabled?
         call  z, readCompressedByte
         ld    a, (hl)                   ; if not, use 9 or 5 bit literals,
         ld    (bc), a
@@ -167,83 +181,95 @@ huffmanInit:
         inc   hl
         ld    a, (hl)                   ; set decoder routine address
         ld    (bc), a
-        ld    d, 16                     ; number of code sizes remaining (D)
         inc   hl
         ld    c, (hl)                   ; table write address in BC
         inc   hl
         ld    b, (hl)
         inc   hl
-        ld    a, (hl)
-        ld    ixl, a                    ; limit/offset table base address in IX
-        ld    ixh, high huffmanLimitTable
-        ld    hl, 1                     ; initialize limit counter (HL)
-.l2:    add   hl, hl                    ; = (last_prv_size_value + 1) * 2
-        ld    a, d
-        xor   9                         ; special case for 8 bit codes:
-        jr    nz, .l3
-        ld    h, a                      ; clear limit counter MSB to zero
-.l3:    ld    a, c
-        sub   l
-        ld    (ix + 32), a              ; store decode table address offset
-        ld    a, b
-        sbc   a, h
-        ld    (ix + 48), a
-        push  bc
+        ld    l, (hl)                   ; symbol cnt/offset table address in HL
+        ld    h, high huffmanDecodeTable
+.l2:    push  bc
         call  gammaDecode               ; get number of symbols with this size
         ld    c, a
-        add   hl, bc                    ; update and store limit counter
-        dec   hl
-        ld    (ix), l
-        ld    (ix + 16), h
-        push  bc
-        exx
-        pop   bc                        ; BC' = number of symbols remaining + 1
-        exx
+        dec   bc
+        ld    d, c                      ; D = number of symbols remaining & FFh
+    if FAST_HUFFMAN == 0
+        ld    a, c
+        or    b
+        jr    z, .l3
+        ld    a, 80h                    ; if non-zero, store as (N - 1) | 8000h
+        dec   bc
+.l3:    ld    (hl), a
+        inc   l
+    else
+        and   b
+.l3:    jr    nz, .l3                   ; halt on unsupported symbol cnt (256)
+    endif
+        ld    (hl), c
+        set   5, l
+    if FAST_HUFFMAN == 0
+        ld    a, b
+    endif
         pop   bc
+        or    d
+        jr    z, .l5                    ; unused code length?
+        push  hl
         ld    hl, 0ffffh                ; HL = decoded value (from -1)
-        jr    .l5
 .l4:    push  bc
         call  gammaDecode               ; get difference from previous symbol
         ld    c, a
         add   hl, bc                    ; calculate decoded value,
         pop   bc
-        ld    a, l
-        inc   b
-        inc   b
-        ld    (bc), a                   ; and store it in the decode table
-        ld    a, h
-        dec   b
-        dec   b
+        xor   a                         ; and store it in the symbol table
+        cp    h
+        sbc   a, a                      ; MSB = FFh if value >= 256
         ld    (bc), a
+        inc   b
+        inc   b
+        ld    a, l
+        ld    (bc), a
+        dec   b
+        dec   b
         inc   bc
-.l5:    exx                             ; check the number of symbols remaining
-        dec   bc
-        ld    a, b
-        or    c
-        exx
-        jr    nz, .l4                   ; not done with this code size yet ?
-        ld    l, (ix)                   ; get limit value
-        ld    h, (ix + 16)
-        inc   ix
-        dec   d
+        dec   d                         ; check the number of symbols remaining
+        jr    nz, .l4                   ; not done with this code size yet?
+        pop   hl
+.l5:    ld    (hl), c                   ; store table address offset - 256
+    if FAST_HUFFMAN == 0
+        dec   l
+    else
+        set   4, l
+    endif
+        ld    (hl), b
+        dec   (hl)
+        ld    a, l
+    if FAST_HUFFMAN == 0
+        sub   20h - 2
+    else
+        sub   30h - 1
+    endif
+        ld    l, a
+    if FAST_HUFFMAN == 0
+        and   1eh
+    else
+        and   0fh
+    endif
         jr    nz, .l2                   ; continue with the next code size
         ret
 
 decompressAllDataBlocks:
 .l1:    call  read16Bits                ; read 2's complement of block length
-        ld    l, a
-        ld    h, b
+        ld    ixl, a
+        ld    ixh, b                    ; IX = -(block length)
         ld    b, 2                      ; read 'last block' and
         call  readBBits                 ; 'compression enabled' flags
         srl   a
         push  af                        ; save last block flag
-        push  hl                        ; and block length
         ld    a, low read8Bits
         ld    (readCharAddrLow), a
         call  c, huffmanInit            ; initialize Huffman decoding
-        pop   ix
-.l2:    call  huffmanDecode1            ; read next character
-        jr    c, copyLZMatch            ; match code ?
+.l2:    call  huffmanDecode1            ; * read next character
+        jr    c, copyLZMatch            ; match code?
         exx
         ld    (de), a                   ; no, store literal byte
         inc   de                        ; increment write address
@@ -252,23 +278,22 @@ decompressAllDataBlocks:
         jp    nz, .l2
     if NO_BORDER_FX == 0
         ld    a, e
-        out   (081h), a
+        out   (81h), a
     endif
         inc   ixh
         jr    nz, .l2
         pop   af                        ; check last block flag:
-        jr    z, .l1                    ; more blocks remaining ?
+        jr    z, .l1                    ; more blocks remaining?
         exx
         push  de
         exx
         pop   de                        ; DE = address of last byte written + 1
-        push  iy
+        ex    (sp), iy
         pop   hl                        ; HL = address of last byte read + 1
-        pop   iy
         pop   ix
     if NO_BORDER_FX == 0
         xor   a                         ; reset border color
-        out   (081h), a
+        out   (81h), a
     endif
         ret
 
@@ -276,9 +301,9 @@ readCharAddrLow         equ     decompressAllDataBlocks.l2 + 1
 
 copyLZMatch:
         cp    8
-        jr    c, .l2                    ; short offset ?
-        cp    03ch
-        jr    nc, .l3                   ; special match code ?
+        jr    c, .l2                    ; short offset?
+        cp    3ch
+        jr    nc, .l3                   ; special match code?
         call  readLZMatchParameterBits  ; no, read extra bits
         ld    c, a                      ; BC = match offset - 1
         ld    a, d
@@ -303,7 +328,7 @@ copyLZMatch:
         ld    c, a
         jp    .l1
 .l3:    add   a, a
-        jp    p, .l4                    ; LZ match with delta value ?
+        jp    p, .l4                    ; LZ match with delta value?
         add   a, d                      ; no, use recent offset from table
         and   6
         add   a, low prvDistanceTable
@@ -342,12 +367,12 @@ getLZMatchParameters:
         exx
     if NO_BORDER_FX == 0
         ld    a, e
-        out   (081h), a
+        out   (81h), a
     endif
-        ld    hl, huffmanLimitTableL
-.l1:    call  huffmanDecode2            ; get match length
+        ld    hl, huffmanDecodeTableL
+.l1:    call  huffmanDecode2            ; * get match length
         cp    8
-        call  nc, readLZMatchParameterBits  ; long match ?
+        call  nc, readLZMatchParameterBits  ; long match?
         exx
         ld    b, 0
         ld    c, a
@@ -361,14 +386,14 @@ readLengthAddrLow       equ     getLZMatchParameters.l1 + 1
 addrTable1:
         defb  low read9Bits
         defb  low huffmanDecode1
-        defw  huffmanDecodeTable1
-        defb  low huffmanLimitTable
+        defw  huffmanSymbolTable1
+        defb  low huffmanDecodeTable
 
 addrTable2:
         defb  low read5Bits
         defb  low huffmanDecode2
-        defw  huffmanDecodeTable2
-        defb  low huffmanLimitTableL
+        defw  huffmanSymbolTable2
+        defb  low huffmanDecodeTableL
 
     if decompressData < decompressDataBegin
         assert  $ <= decompressDataBegin
