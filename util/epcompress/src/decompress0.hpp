@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -28,11 +28,11 @@ namespace Ep128Compress {
   class Decompressor_M0 : public Decompressor {
    private:
     // main Huffman table (literal characters + match offset codes)
-    unsigned int  *huffmanLimitTable0;
+    unsigned int  *huffmanSymCntTable0;
     unsigned int  *huffmanOffsetTable0;
     unsigned int  *huffmanDecodeTable0;
     // match length Huffman table
-    unsigned int  *huffmanLimitTable1;
+    unsigned int  *huffmanSymCntTable1;
     unsigned int  *huffmanOffsetTable1;
     unsigned int  *huffmanDecodeTable1;
     bool          usingHuffTable0;
