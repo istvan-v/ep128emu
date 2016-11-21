@@ -135,8 +135,6 @@ namespace Ep128Compress {
     for (unsigned int c = 0U; c < (unsigned int) nSymbols; c++) {
       if (huffmanEncoder.getSymbolSize(c) <= 16) {
         unsigned int  tmp = huffmanEncoder.encodeSymbol(c);
-        // avoid the code 1111111b, since it currently breaks the decompressor
-        tmp = (tmp != 0x0700007FU ? tmp : 0x080000FEU);
         encodeTable[c] = tmp;
         compressedSize += size_t(symbolCnts[c] * (tmp >> 24));
       }
@@ -149,6 +147,24 @@ namespace Ep128Compress {
       size_t  sizeCnt = 0;
       for (unsigned int c = 0U; c < nSymbols; c++)
         sizeCnt += size_t((encodeTable[c] >> 24) == l);
+      if (EP128EMU_UNLIKELY(sizeCnt >= 256)) {
+        // compatibility hack for new FAST_HUFFMAN decompressor code
+        if (EP128EMU_UNLIKELY(l >= 16U || sizeCnt > 256)) {
+          std::fprintf(stderr, "WARNING: Huffman encoding disabled "
+                               "for compatibility reasons\n");
+          compressedSize = uncompressedSize;
+        }
+        else {
+          sizeCnt--;
+          for (unsigned int c = nSymbols; c-- > 0U; ) {
+            if ((encodeTable[c] >> 24) == l) {
+              encodeTable[c] =
+                  ((encodeTable[c] & 0x003FFFFFU) << 1) | ((l + 1U) << 24);
+              break;
+            }
+          }
+        }
+      }
       compressedSize += writeGammaCode(outBuf, sizeCnt + 1);
       unsigned int  prvCode = 0U - 1U;
       for (unsigned int c = 0U; c < nSymbols; c++) {
