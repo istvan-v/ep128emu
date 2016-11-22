@@ -21,8 +21,7 @@
 
 #include <vector>
 
-static const size_t       sfxLoaderSize = 110;
-static const unsigned int sfxDecompressorAddr_M0 = 0xFA60U;
+static const unsigned int sfxDecompressorAddr_M0 = 0xFA9CU;
 static const unsigned int sfxDecompressorAddr_M2 = 0xFE40U;
 
 static const size_t       extLoaderSize = 42;
@@ -61,6 +60,7 @@ namespace Ep128Compress {
     }
     const unsigned char *sfxCodePtr = (unsigned char *) 0;
     size_t  sfxCodeSize = 0;
+    size_t  sfxLoaderSize = extLoaderSize;
     if (isExtension) {
       if (compressionType == 2) {
         sfxCodePtr = &(epEXTSFXModule_M2[0]);
@@ -173,6 +173,9 @@ namespace Ep128Compress {
       }
     }
     else {
+      sfxLoaderSize = size_t(sfxCodePtr[0]) | (size_t(sfxCodePtr[1]) << 8);
+      sfxCodePtr = sfxCodePtr + 2;
+      sfxCodeSize = sfxCodeSize - 2;
       if ((sfxCodeSize + inBuf.size()) > 0xBF00)
         throw Ep128Emu::Exception("SFX program compressed size is too large");
       if (uncompressedDataEndAddr
@@ -190,7 +193,7 @@ namespace Ep128Compress {
     outBuf[2] = (unsigned char) ((sfxCodeSize + inBuf.size()) & 0xFF);
     outBuf[3] = (unsigned char) ((sfxCodeSize + inBuf.size()) >> 8);
     // write loader code
-    for (size_t i = 0; i < (isExtension ? extLoaderSize : sfxLoaderSize); i++)
+    for (size_t i = 0; i < sfxLoaderSize; i++)
       outBuf.push_back(sfxCodePtr[i]);
     if (!isExtension) {
       outBuf[outBuf.size() - 4] =
@@ -203,11 +206,8 @@ namespace Ep128Compress {
     // write compressed data
     outBuf.insert(outBuf.end(), inBuf.begin(), inBuf.end());
     // write main decompressor code
-    for (size_t i = (isExtension ? extLoaderSize : sfxLoaderSize);
-         i < sfxCodeSize;
-         i++) {
+    for (size_t i = sfxLoaderSize; i < sfxCodeSize; i++)
       outBuf.push_back(sfxCodePtr[i]);
-    }
   }
 
   int decompressSFXProgram(std::vector< unsigned char >& outBuf,
@@ -227,7 +227,18 @@ namespace Ep128Compress {
           nBytes = tmp;
       }
     }
-    if (nBytes <= (isExtension ? extLoaderSize : sfxLoaderSize)) {
+    size_t  sfxLoaderSize = extLoaderSize;
+    if (!isExtension) {
+      sfxLoaderSize = 0x7FFFFFFF;
+      for (size_t i = 80; (i + 8) <= inBuf.size(); i++) {
+        if (inBuf[i] == 0x0E && inBuf[i + 1] == 0x80 &&         // LD C, 80H
+            inBuf[i + 2] == 0x18 && inBuf[i + 3] == 0xFA) {     // JR -6
+          sfxLoaderSize = i + 8;
+          break;
+        }
+      }
+    }
+    if (nBytes <= sfxLoaderSize) {
       throw Ep128Emu::Exception("decompressSFXProgram(): input data is not "
                                 "an SFX program");
     }
