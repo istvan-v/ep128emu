@@ -9,7 +9,9 @@ NO_CLEANUP              equ     0
         defb  n
     endm
 
-        org   0100h
+        org   00feh
+
+        defw  endMain - main
 
 main:
         di
@@ -43,15 +45,12 @@ main:
         sub   b
         jr    z, .l3
 .l2:    ex    af, af'                   ; allocate segments if needed
-        exx
         exos  24
         di
         add   a, a
         jr    c, .l4                    ; .NOSEG ?
-        ld    a, c
-        exx
         inc   l
-        ld    (hl), a                   ; store segment numbers at BFFC-BFFF
+        ld    (hl), c                   ; store segment numbers at BFFC-BFFF
         ex    af, af'
         inc   a
         jr    nz, .l2
@@ -73,7 +72,7 @@ main:
         ld    de, main
         ld    bc, (endMain)
         jp    decompressData
-.l4:    ld    c, 60h                    ; insufficient memory: reset machine
+.l4:    ld    c, 40h                    ; insufficient memory: reset machine
 .l5:    exos  0
         ld    c, 80h
         jr    .l5
@@ -84,8 +83,6 @@ compressedSize:
         defw  0000h                     ; compressed data size
 
 endMain:
-
-        assert  endMain == 016eh
 
 ; -----------------------------------------------------------------------------
 

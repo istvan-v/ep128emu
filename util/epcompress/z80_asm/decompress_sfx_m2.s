@@ -6,7 +6,9 @@ NO_CLEANUP              equ     0
 ; if non-zero, code size decreases by 9 bytes at the expense of ~2% slowdown
 SIZE_OPTIMIZED          equ     0
 
-        org   0100h
+        org   00feh
+
+        defw  endMain - main
 
 main:
         di
@@ -15,68 +17,63 @@ main:
         out   (0b2h), a
         ld    bc, endMain + (decompressCodeEnd - decompressCodeBegin) - 1
         ld    hl, (compressedSize)
-        add   hl, bc
+        add   hl, bc                    ; address of last byte to be copied
         ld    a, h
         rlca
         rlca
-        ex    de, hl                    ; DE: address of last byte to be copied
-        ld    bc, 010000h - decompressCodeBegin
+        push  hl
+        ld    bc, 10000h - decompressCodeBegin
         ld    hl, (uncompressedEndAddr)
         add   hl, bc
         or    0fch
-        ld    c, a                      ; C: last 16K page / compressed
+        ld    l, a                      ; L: last 16K page / compressed
         ld    a, h
         rlca
         rlca
         or    0fch                      ; last 16K page / uncompressed
-        ld    l, c
         ld    h, 0bfh
-        sub   c                         ; number of segments to allocate
+        sub   l                         ; number of segments to allocate
         jr    z, .l3
-        ld    b, a
-.l2:    exx                             ; allocate segments if needed
+.l2:    ex    af, af'                   ; allocate segments if needed
         rst   30h
         defb  24                        ; EXOS 24
         di
         add   a, a
         jr    c, .l4                    ; .NOSEG ?
-        ld    a, c
-        exx
         inc   l
-        ld    (hl), a                   ; store segment numbers at BFFC-BFFF
-        djnz  .l2
-.l3:    ld    b, l                      ; B: last 16K page / uncompressed
-        ld    a, (hl)                   ; initialize memory paging
+        ld    (hl), c                   ; store segment numbers at BFFC-BFFF
+        ex    af, af'
+        dec   a
+        jr    nz, .l2
+.l3:    ld    a, (hl)                   ; initialize memory paging
         out   (0b3h), a                 ; page 3 is always set to last segment
+        ld    a, l                      ; A: last 16K page / uncompressed
         ld    l, 0fdh
-        ld    a, (hl)
-        out   (0b1h), a
-        inc   l
-        ld    a, (hl)
-        out   (0b2h), a
-        ld    sp, 0fffch
-        push  de
-        ld    a, b                      ; DE: address of last byte written
-        rrca                            ; by copying compressed data and
-        rrca                            ; decompressor code
+        ld    c, 0b1h
+        outi
+        inc   c
+        outi
         exx
-        ld    d, a
+        pop   de
+        ld    hl, 10000h - endMain
+        add   hl, de
+        ld    c, l                      ; BC': number of bytes to be copied
+        ld    b, h                      ; (checksum byte is not copied)
+        ex    de, hl                    ; HL': address of last byte to be copied
+        rrca                            ; DE': address of last byte written
+        rrca                            ; by copying compressed data and
+        ld    d, a                      ; decompressor code
         ld    e, low (decompressCodeEnd - 1)
-        pop   hl                        ; HL: address of last byte to be copied
-        ld    bc, 010000h - endMain
-        push  hl
-        add   hl, bc
-        ex    (sp), hl
-        pop   bc                        ; BC: number of bytes to be copied
-        lddr                            ; (checksum byte is not copied)
+        lddr
         ex    de, hl                    ; initialize read position (HL'),
         inc   hl
         ld    e, 80h                    ; and shift register (E')
         exx
+        ld    sp, 0fffch
         xor   a
         ld    e, a                      ; decompressed program start address L
         jp    decompressData
-.l4:    ld    c, 60h                    ; insufficient memory: reset machine
+.l4:    ld    c, 40h                    ; insufficient memory: reset machine
 .l5:    rst   30h
         defb  0                         ; EXOS 0
         ld    c, 80h
@@ -88,8 +85,6 @@ compressedSize:
         defw  0000h                     ; compressed data size
 
 endMain:
-
-        assert  endMain == 016eh
 
 ; -----------------------------------------------------------------------------
 
