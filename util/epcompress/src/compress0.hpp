@@ -55,19 +55,16 @@ namespace Ep128Compress {
     struct LZMatchParameters {
       unsigned int    d;
       unsigned short  len;
-      bool            seqFlag;
       unsigned char   seqDiff;
       LZMatchParameters()
         : d(0),
           len(1),
-          seqFlag(false),
           seqDiff(0x00)
       {
       }
       LZMatchParameters(const LZMatchParameters& r)
         : d(r.d),
           len(r.len),
-          seqFlag(r.seqFlag),
           seqDiff(r.seqDiff)
       {
       }
@@ -78,7 +75,6 @@ namespace Ep128Compress {
       {
         d = r.d;
         len = r.len;
-        seqFlag = r.seqFlag;
         seqDiff = r.seqDiff;
         return (*this);
       }
@@ -86,7 +82,6 @@ namespace Ep128Compress {
       {
         d = 0;
         len = 1;
-        seqFlag = false;
         seqDiff = 0x00;
       }
     };
@@ -115,21 +110,29 @@ namespace Ep128Compress {
     size_t          prvDistances[4];
     unsigned char   outputShiftReg;
     int             outputBitCnt;
+    unsigned int    lfsrState;
     // for literals and distance codes
     HuffmanEncoder  huffmanEncoder1;
     // for length codes
     HuffmanEncoder  huffmanEncoder2;
     // --------
-    void huffmanCompressBlock(std::vector< unsigned int >& ioBuf);
+    void calculateHuffmanEncoding(std::vector< unsigned int >& ioBuf);
+    void huffmanEncodeBlock(std::vector< unsigned int >& ioBuf,
+                            const unsigned char *inBuf,
+                            size_t uncompressedBytes);
     void initializeLengthCodeTables();
     void writeRepeatCode(std::vector< unsigned int >& buf, size_t d, size_t n);
     void writeSequenceCode(std::vector< unsigned int >& buf,
                            unsigned char seqDiff, size_t d, size_t n);
-    void optimizeMatches(LZMatchParameters *matchTable,
-                         BitCountTableEntry *bitCountTable,
-                         const size_t *lengthBitsTable_,
-                         const unsigned char *inBuf,
-                         size_t offs, size_t nBytes);
+    EP128EMU_INLINE long rndBit();
+    void optimizeMatches_RND(
+        LZMatchParameters *matchTable, BitCountTableEntry *bitCountTable,
+        const size_t *lengthBitsTable_, const unsigned char *inBuf,
+        size_t offs, size_t nBytes);
+    void optimizeMatches(
+        LZMatchParameters *matchTable, BitCountTableEntry *bitCountTable,
+        const size_t *lengthBitsTable_, const unsigned char *inBuf,
+        size_t offs, size_t nBytes);
     void compressData_(std::vector< unsigned int >& tmpOutBuf,
                        const std::vector< unsigned char >& inBuf,
                        unsigned int startAddr, size_t offs, size_t nBytes);

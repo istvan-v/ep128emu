@@ -24,29 +24,6 @@
 #include <list>
 #include <map>
 
-static size_t writeGammaCode(std::vector< unsigned int >& outBuf, size_t n)
-{
-  unsigned int  c = 0U;
-  unsigned char nBits = 1;
-  while (n > 1) {
-    c = c | ((2U | ((unsigned int) n & 1U)) << nBits);
-    n = n >> 1;
-    nBits = nBits + 2;
-  }
-  outBuf.push_back(((unsigned int) nBits << 24) | c);
-  return nBits;
-}
-
-static inline size_t estimateSymbolLength(size_t cnt, size_t totalCount)
-{
-  size_t  nBits = 0;
-  do {
-    cnt = cnt << 1;
-    nBits++;
-  } while (cnt < totalCount);
-  return nBits;
-}
-
 namespace Ep128Compress {
 
   Compressor_M0::DSearchTable::DSearchTable(size_t minLength, size_t maxLength,
@@ -107,96 +84,127 @@ namespace Ep128Compress {
 
   // --------------------------------------------------------------------------
 
-  static size_t calculateHuffmanEncoding(
-      std::vector< unsigned int >& outBuf,
-      const std::vector< unsigned int >& inBuf,
-      HuffmanEncoder& huffmanEncoder, std::vector< unsigned int >& encodeTable)
+  static void writeGammaCode(std::vector< unsigned int >& outBuf, size_t n)
   {
-    unsigned int  symbolCnts[324];
-    size_t  n = inBuf.size();
-    size_t  totalCnt = 0;
-    size_t  nSymbols = encodeTable.size();
-    for (size_t i = 0; i < nSymbols; i++)
-      symbolCnts[i] = 0U;
-    huffmanEncoder.clear();
-    unsigned int  symOffs = (nSymbols < 256 ? 0x180U : 0U);
-    for (size_t i = 4; i < n; i++) {
-      unsigned int  c = inBuf[i] - symOffs;
-      if (c < 324U) {
-        symbolCnts[c] = symbolCnts[c] + 1U;
-        totalCnt++;
-        huffmanEncoder.addSymbol(c);
-      }
+    unsigned int  c = 0U;
+    unsigned char nBits = 1;
+    while (n > 1) {
+      c = c | ((2U | ((unsigned int) n & 1U)) << nBits);
+      n = n >> 1;
+      nBits = nBits + 2;
     }
-    size_t  uncompressedSize = totalCnt * size_t(nSymbols < 256 ? 5 : 9) + 1;
-    size_t  compressedSize = 1;
-    // create optimal encoding table
-    huffmanEncoder.updateTables(false, 16);
-    for (unsigned int c = 0U; c < (unsigned int) nSymbols; c++) {
-      if (huffmanEncoder.getSymbolSize(c) <= 16) {
-        unsigned int  tmp = huffmanEncoder.encodeSymbol(c);
-        encodeTable[c] = tmp;
-        compressedSize += size_t(symbolCnts[c] * (tmp >> 24));
-      }
-    }
-    // create decode table to be written to the output buffer,
-    // and calculate its size
-    outBuf.push_back(0x01000001U);
-    size_t  savedBufSize = outBuf.size();
-    for (unsigned int l = 1U; l <= 16U; l++) {
-      size_t  sizeCnt = 0;
-      for (unsigned int c = 0U; c < nSymbols; c++)
-        sizeCnt += size_t((encodeTable[c] >> 24) == l);
-      if (EP128EMU_UNLIKELY(sizeCnt >= 256)) {
-        // compatibility hack for new FAST_HUFFMAN decompressor code
-        if (EP128EMU_UNLIKELY(l >= 16U || sizeCnt > 256)) {
-          std::fprintf(stderr, "WARNING: Huffman encoding disabled "
-                               "for compatibility reasons\n");
-          compressedSize = uncompressedSize;
-        }
-        else {
-          sizeCnt--;
-          for (unsigned int c = nSymbols; c-- > 0U; ) {
-            if ((encodeTable[c] >> 24) == l) {
-              encodeTable[c] =
-                  ((encodeTable[c] & 0x003FFFFFU) << 1) | ((l + 1U) << 24);
-              break;
-            }
-          }
-        }
-      }
-      compressedSize += writeGammaCode(outBuf, sizeCnt + 1);
-      unsigned int  prvCode = 0U - 1U;
-      for (unsigned int c = 0U; c < nSymbols; c++) {
-        if ((encodeTable[c] >> 24) == l) {
-          size_t  d = size_t(c - prvCode);
-          prvCode = c;
-          compressedSize += writeGammaCode(outBuf, d);
-        }
-      }
-    }
-    // if the size cannot be reduced, store the data without compression
-    if (compressedSize >= uncompressedSize) {
-      outBuf.resize(savedBufSize);
-      outBuf[savedBufSize - 1] = 0x01000000U;
-      for (unsigned int i = 0U; i < (unsigned int) nSymbols; i++)
-        encodeTable[i] = (nSymbols < 256 ? 0x05000000U : 0x09000000U) | i;
-    }
-    return totalCnt;
+    outBuf.push_back(((unsigned int) nBits << 24) | c);
   }
 
-  void Compressor_M0::huffmanCompressBlock(std::vector< unsigned int >& ioBuf)
+  static void calculateSymbolLengths(
+      size_t *charBitsTable, const std::vector< unsigned int >& encodeTable,
+      size_t charCnt)
+  {
+    size_t  unencodedLength = 0;
+    do {
+      unencodedLength++;
+    } while ((size_t(1) << unencodedLength) < (charCnt + 1));
+    for (size_t i = 0; i < encodeTable.size(); i++) {
+      size_t  nBits = size_t(encodeTable[i] >> 24);
+      charBitsTable[i] = (nBits > 0 ? nBits : unencodedLength);
+    }
+  }
+
+  void Compressor_M0::calculateHuffmanEncoding(
+      std::vector< unsigned int >& ioBuf)
   {
     size_t  n = ioBuf.size();
     if (n <= 4)
       return;
+    unsigned int  symbolCnts[324];
     std::vector< unsigned int > encodeTable1(324, 0U);
     std::vector< unsigned int > encodeTable2(28, 0U);
     std::vector< unsigned int > tmpBuf;
-    size_t  charCnt1 =
-        calculateHuffmanEncoding(tmpBuf, ioBuf, huffmanEncoder1, encodeTable1);
-    size_t  charCnt2 =
-        calculateHuffmanEncoding(tmpBuf, ioBuf, huffmanEncoder2, encodeTable2);
+    size_t  maxLen = 16;
+    for (int h = 0; h < 2; h++) {
+      HuffmanEncoder& huffmanEncoder =
+          (h == 0 ? huffmanEncoder1 : huffmanEncoder2);
+      std::vector< unsigned int >&  encodeTable =
+          (h == 0 ? encodeTable1 : encodeTable2);
+      size_t  nSymbols = encodeTable.size();
+      size_t  charCnt = 0;
+      for (size_t i = 0; i < nSymbols; i++)
+        symbolCnts[i] = 0U;
+      huffmanEncoder.clear();
+      unsigned int  symOffs = (nSymbols < 256 ? 0x180U : 0U);
+      for (size_t i = 4; i < n; i++) {
+        unsigned int  c = ioBuf[i] - symOffs;
+        if (c < 324U) {
+          symbolCnts[c] = symbolCnts[c] + 1U;
+          charCnt++;
+          huffmanEncoder.addSymbol(c);
+        }
+      }
+      // create optimal encoding table
+      huffmanEncoder.updateTables(false, maxLen);
+      for (unsigned int c = 0U; c < (unsigned int) nSymbols; c++) {
+        encodeTable[c] = 0U;
+        if (huffmanEncoder.getSymbolSize(c) <= maxLen)
+          encodeTable[c] = huffmanEncoder.encodeSymbol(c);
+      }
+      // b31..b29:
+      //   000: not Huffman encoded symbol
+      //   100: Huffman decode table 1
+      //   101: Huffman decode table 2
+      //   110: Huffman encoded symbol 0x000..0x0FF
+      //   111: Huffman encoded symbol 0x100..0x1FF
+      // b23..b16:
+      //   lower 8 bits of unencoded symbol value
+      unsigned int  hdrFlagBits = (h == 0 ? 0x80000000U : 0xA0000000U);
+      // create decode table to be written to the output buffer
+      tmpBuf.push_back(0x01000001U);
+      for (unsigned int l = 1U; l <= 16U; l++) {
+        size_t  sizeCnt = 0;
+        for (unsigned int c = 0U; c < (unsigned int) nSymbols; c++)
+          sizeCnt += size_t((encodeTable[c] >> 24) == l);
+        if (EP128EMU_UNLIKELY(sizeCnt >= 256)) {
+          // compatibility hack for new FAST_HUFFMAN decompressor code
+          if (EP128EMU_UNLIKELY(l >= 16U || sizeCnt > 256)) {
+            tmpBuf.clear();
+            maxLen--;
+            h--;
+            break;
+          }
+          sizeCnt--;
+          for (unsigned int c = nSymbols; c-- > 0U; ) {
+            if ((encodeTable[c] >> 24) == l) {
+              encodeTable[c] =
+                  ((encodeTable[c] & 0x007FFFFFU) << 1) | ((l + 1U) << 24);
+              break;
+            }
+          }
+        }
+        writeGammaCode(tmpBuf, sizeCnt + 1);
+        tmpBuf[tmpBuf.size() - 1] = tmpBuf[tmpBuf.size() - 1] | hdrFlagBits;
+        unsigned int  prvCode = 0U - 1U;
+        for (unsigned int c = 0U; c < (unsigned int) nSymbols; c++) {
+          if ((encodeTable[c] >> 24) == l) {
+            size_t  d = size_t(c - prvCode);
+            prvCode = c;
+            writeGammaCode(tmpBuf, d);
+            tmpBuf[tmpBuf.size() - 1] = tmpBuf[tmpBuf.size() - 1] | hdrFlagBits;
+          }
+        }
+      }
+      if (EP128EMU_UNLIKELY(h < 0))
+        continue;                       // try again with shorter maximum length
+      maxLen = 16;
+      // update estimated symbol sizes
+      calculateSymbolLengths(tmpCharBitsTable + (h == 0 ? 0 : 0x0180),
+                             encodeTable, charCnt);
+      for (size_t i = 0; i < nSymbols; i++) {
+        if (encodeTable[i] != 0U) {
+          unsigned int  c = (unsigned int) (h == 0 ? i : (i + 0x0180));
+          c = 0xC0000000U | ((c & 0xFFU) << 16) | ((c & 0x0100U) << 21);
+          encodeTable[i] = encodeTable[i] | c;
+        }
+      }
+    }
     ioBuf.resize(n + tmpBuf.size());    // reserve space for the decode table
     for (size_t i = n; i-- > 4; ) {
       if (ioBuf[i] <= 0x17FU)
@@ -209,20 +217,84 @@ namespace Ep128Compress {
     // insert decode table after the block header
     for (size_t i = 0; i < tmpBuf.size(); i++)
       ioBuf[i + 4] = tmpBuf[i];
-    // update estimated symbol sizes
-    for (size_t i = 0x0000; i < 0x0144; i++) {
-      size_t  nBits = size_t(encodeTable1[i] >> 24);
-      if (nBits == 0)
-        nBits = estimateSymbolLength(1, charCnt1 + 1);
-      tmpCharBitsTable[i] = nBits;
+  }
+
+  void Compressor_M0::huffmanEncodeBlock(std::vector< unsigned int >& ioBuf,
+                                         const unsigned char *inBuf,
+                                         size_t uncompressedBytes)
+  {
+    if (ioBuf.size() < 4 || uncompressedBytes < 1)
+      return;
+    size_t  uncompressedSize = uncompressedBytes << 3;
+    size_t  compressedSize = 0;
+    for (int h = 0; h < 2; h++) {
+      size_t  huffTableOffs = 0;
+      size_t  huffTableLen = 0;
+      size_t  huffSizeCompressed = 0;
+      size_t  huffSizeUncompressed = 0;
+      // calculate compressed size with and without Huffman encoding
+      for (size_t i = 4; i < ioBuf.size(); i++) {
+        unsigned int  c = ioBuf[i];
+        if (!(c & 0x80000000U)) {
+          if (!h)
+            compressedSize += size_t(c >> 24);
+        }
+        else if (!(c & 0x40000000U)) {
+          if (int((c >> 29) & 1U) == h) {
+            huffSizeCompressed += size_t((c >> 24) & 0x1FU);
+            if (!huffTableOffs) {
+              huffTableOffs = i;
+              huffTableLen = 0;
+            }
+            huffTableLen++;
+          }
+        }
+        else {
+          unsigned int  c_ = ((c >> 16) & 0xFFU) | ((c >> 21) & 0x0100U);
+          c_ = (h == 0 ? c_ : (c_ - 0x0180U));
+          if (c_ < 324U) {
+            huffSizeCompressed += size_t((c >> 24) & 0x1FU);
+            huffSizeUncompressed += size_t(h == 0 ? 9 : 5);
+          }
+        }
+      }
+      // if Huffman coding does not reduce the data size, use fixed length codes
+      if (huffSizeCompressed >= huffSizeUncompressed) {
+        compressedSize += huffSizeUncompressed;
+        ioBuf[huffTableOffs - 1] = 0x01000000U;
+        ioBuf.erase(ioBuf.begin() + huffTableOffs,
+                    ioBuf.begin() + (huffTableOffs + huffTableLen));
+        for (size_t i = 4; i < ioBuf.size(); i++) {
+          unsigned int  c = ioBuf[i];
+          if (c >= 0xC0000000U) {
+            unsigned int  c_ = ((c >> 16) & 0xFFU) | ((c >> 21) & 0x0100U);
+            c_ = (h == 0 ? c_ : (c_ - 0x0180U));
+            if (c_ < 324U)
+              ioBuf[i] = (h == 0 ? 0x09000000U : 0x05000000U) | c_;
+          }
+        }
+      }
+      else {
+        compressedSize += huffSizeCompressed;
+      }
     }
-    for (size_t i = 0x0180; i < 0x019C; i++) {
-      size_t  nBits = size_t(encodeTable2[i - 0x0180] >> 24);
-      if (nBits == 0)
-        nBits = estimateSymbolLength(1, charCnt2 + 1);
-      tmpCharBitsTable[i] = nBits;
+    // if the size cannot be reduced, store the data without compression
+    if (compressedSize >= uncompressedSize) {
+      ioBuf.resize(uncompressedBytes + 4);
+      ioBuf[3] = 0x01000000U;
+      for (size_t i = 0; i < uncompressedBytes; i++)
+        ioBuf[i + 4] = 0x08000000U | (unsigned int) inBuf[i];
+    }
+    else {
+      // clear temporary flag bits from Huffman codes and table data
+      for (size_t i = 4; i < ioBuf.size(); i++) {
+        ioBuf[i] =
+            ioBuf[i] & ((ioBuf[i] & 0x40000000U) ? 0x1F00FFFFU : 0x1FFFFFFFU);
+      }
     }
   }
+
+  // --------------------------------------------------------------------------
 
   void Compressor_M0::initializeLengthCodeTables()
   {
@@ -302,17 +374,25 @@ namespace Ep128Compress {
       buf.push_back(lengthValueTable[n]);
   }
 
-  void Compressor_M0::optimizeMatches(LZMatchParameters *matchTable,
-                                      BitCountTableEntry *bitCountTable,
-                                      const size_t *lengthBitsTable_,
-                                      const unsigned char *inBuf,
-                                      size_t offs, size_t nBytes)
+  EP128EMU_INLINE long Compressor_M0::rndBit()
+  {
+    unsigned int  b = ((lfsrState >> 30) ^ (lfsrState >> 27)) & 1U;
+    lfsrState = (lfsrState << 1) | b;
+    return long(b);
+  }
+
+  void Compressor_M0::optimizeMatches_RND(
+      LZMatchParameters *matchTable, BitCountTableEntry *bitCountTable,
+      const size_t *lengthBitsTable_, const unsigned char *inBuf,
+      size_t offs, size_t nBytes)
   {
     for (size_t i = nBytes; i-- > 0; ) {
-      long    bestSize = 0x7FFFFFFFL;
+      // check literal byte
+      long    bestSize = long(tmpCharBitsTable[inBuf[offs + i]])
+                         + bitCountTable[i + 1].totalBits;
       size_t  bestLen = 1;
       size_t  bestOffs = 0;
-      bool    bestSeqFlag = false;
+      bool    bestPrvDistFlag = false;
       unsigned char bestSeqDiff = 0x00;
       size_t  minLen =
           (config.minLength > minRepeatLen ? config.minLength : minRepeatLen);
@@ -330,34 +410,39 @@ namespace Ep128Compress {
           for ( ; len >= minLen; len--) {
             const BitCountTableEntry& nxtMatch = bitCountTable[i + len];
             long    nBits = long(lengthBitsTable_[len]) + nxtMatch.totalBits;
+            size_t  offsBits_ = offsBits;
+            bool    prvDistFlag = false;
             if (size_t(nxtMatch.prvDistances[0]) == d) {
-              nBits += long(tmpCharBitsTable[0x0140] < offsBits ?
-                            tmpCharBitsTable[0x0140] : offsBits);
+              if (tmpCharBitsTable[0x0140] < offsBits_) {
+                offsBits_ = tmpCharBitsTable[0x0140];
+                prvDistFlag = true;
+              }
             }
             else if (size_t(nxtMatch.prvDistances[1]) == d) {
-              nBits += long(tmpCharBitsTable[0x0141] < offsBits ?
-                            tmpCharBitsTable[0x0141] : offsBits);
+              if (tmpCharBitsTable[0x0141] < offsBits_) {
+                offsBits_ = tmpCharBitsTable[0x0141];
+                prvDistFlag = true;
+              }
             }
             else if (size_t(nxtMatch.prvDistances[2]) == d) {
-              nBits += long(tmpCharBitsTable[0x0142] < offsBits ?
-                            tmpCharBitsTable[0x0142] : offsBits);
+              if (tmpCharBitsTable[0x0142] < offsBits_) {
+                offsBits_ = tmpCharBitsTable[0x0142];
+                prvDistFlag = true;
+              }
             }
             else if (size_t(nxtMatch.prvDistances[3]) == d) {
-              nBits += long(tmpCharBitsTable[0x0143] < offsBits ?
-                            tmpCharBitsTable[0x0143] : offsBits);
+              if (tmpCharBitsTable[0x0143] < offsBits_) {
+                offsBits_ = tmpCharBitsTable[0x0143];
+                prvDistFlag = true;
+              }
             }
-            else {
-              nBits += long(offsBits);
+            nBits += long(offsBits_);
+            if ((nBits + rndBit()) <= bestSize) {
+              bestSize = nBits;
+              bestLen = len;
+              bestOffs = d;
+              bestPrvDistFlag = prvDistFlag;
             }
-            if (nBits > bestSize)
-              continue;
-            if (nBits == bestSize) {
-              if (d >= bestOffs)
-                continue;
-            }
-            bestSize = nBits;
-            bestLen = len;
-            bestOffs = d;
           }
         }
         else {
@@ -366,15 +451,11 @@ namespace Ep128Compress {
             const BitCountTableEntry& nxtMatch = bitCountTable[i + len];
             long    nBits = long(lengthBitsTable_[len] + offsBits)
                             + nxtMatch.totalBits;
-            if (nBits > bestSize)
-              continue;
-            if (nBits == bestSize) {
-              if (d >= bestOffs)
-                continue;
+            if ((nBits + rndBit()) <= bestSize) {
+              bestSize = nBits;
+              bestLen = len;
+              bestOffs = d;
             }
-            bestSize = nBits;
-            bestLen = len;
-            bestOffs = d;
           }
         }
       }
@@ -392,50 +473,140 @@ namespace Ep128Compress {
           const BitCountTableEntry& nxtMatch = bitCountTable[i + len];
           long    nBits = long(lengthBitsTable_[len] + offsBits)
                           + nxtMatch.totalBits;
-          if (nBits > bestSize)
-            continue;
-          if (nBits == bestSize) {
-            if (d >= bestOffs)
-              continue;
+          if ((nBits + rndBit()) <= bestSize) {
+            bestSize = nBits;
+            bestLen = len;
+            bestOffs = d;
+            bestSeqDiff = seqDiff;
           }
-          bestSize = nBits;
-          bestLen = len;
-          bestOffs = d;
-          bestSeqFlag = true;
-          bestSeqDiff = seqDiff;
-        }
-      }
-      // check literal byte
-      {
-        long    nBits = long(tmpCharBitsTable[inBuf[offs + i]])
-                        + bitCountTable[i + 1].totalBits;
-        if (nBits <= bestSize) {
-          bestSize = nBits;
-          bestLen = 1;
-          bestOffs = 0;
-          bestSeqFlag = false;
-          bestSeqDiff = 0x00;
         }
       }
       matchTable[i].d = (unsigned int) bestOffs;
       matchTable[i].len = (unsigned short) bestLen;
-      matchTable[i].seqFlag = bestSeqFlag;
       matchTable[i].seqDiff = bestSeqDiff;
       bitCountTable[i] = bitCountTable[i + bestLen];
       bitCountTable[i].totalBits = bestSize;
-      if (bestOffs > 8) {
-        for (int nn = 0; true; nn++) {
-          if (size_t(bitCountTable[i].prvDistances[nn]) == bestOffs)
-            break;
-          if (nn >= 3) {
-            while (--nn >= 0) {
-              bitCountTable[i].prvDistances[nn + 1] =
-                  bitCountTable[i].prvDistances[nn];
+      if (bestOffs > 8 && !bestPrvDistFlag) {
+        for (int nn = 3; nn > 0; nn--) {
+          bitCountTable[i].prvDistances[nn] =
+              bitCountTable[i].prvDistances[nn - 1];
+        }
+        bitCountTable[i].prvDistances[0] = (unsigned int) bestOffs;
+      }
+    }
+  }
+
+  void Compressor_M0::optimizeMatches(
+      LZMatchParameters *matchTable, BitCountTableEntry *bitCountTable,
+      const size_t *lengthBitsTable_, const unsigned char *inBuf,
+      size_t offs, size_t nBytes)
+  {
+    for (size_t i = nBytes; i-- > 0; ) {
+      // check literal byte
+      long    bestSize = long(tmpCharBitsTable[inBuf[offs + i]])
+                         + bitCountTable[i + 1].totalBits;
+      size_t  bestLen = 1;
+      size_t  bestOffs = 0;
+      bool    bestPrvDistFlag = false;
+      unsigned char bestSeqDiff = 0x00;
+      size_t  minLen =
+          (config.minLength > minRepeatLen ? config.minLength : minRepeatLen);
+      size_t  maxLen = nBytes - i;
+      // check LZ77 matches
+      const unsigned int  *matchPtr = searchTable->getMatches(offs + i);
+      while (size_t(*matchPtr & 0x03FFU) >= minLen) {
+        size_t  len = *matchPtr & 0x03FFU;
+        size_t  d = *(matchPtr++) >> 10;
+        len = (len < maxLen ? len : maxLen);
+        size_t  offsBits = tmpCharBitsTable[distanceCodeTable[d]];
+        if (d > 8) {
+          // long offset: need to search the previous offsets table
+          offsBits += size_t(distanceBitsTable[d]);
+          for ( ; len >= minLen; len--) {
+            const BitCountTableEntry& nxtMatch = bitCountTable[i + len];
+            long    nBits = long(lengthBitsTable_[len]) + nxtMatch.totalBits;
+            size_t  offsBits_ = offsBits;
+            bool    prvDistFlag = false;
+            if (size_t(nxtMatch.prvDistances[0]) == d) {
+              if (tmpCharBitsTable[0x0140] < offsBits_) {
+                offsBits_ = tmpCharBitsTable[0x0140];
+                prvDistFlag = true;
+              }
             }
-            bitCountTable[i].prvDistances[0] = (unsigned int) bestOffs;
-            break;
+            else if (size_t(nxtMatch.prvDistances[1]) == d) {
+              if (tmpCharBitsTable[0x0141] < offsBits_) {
+                offsBits_ = tmpCharBitsTable[0x0141];
+                prvDistFlag = true;
+              }
+            }
+            else if (size_t(nxtMatch.prvDistances[2]) == d) {
+              if (tmpCharBitsTable[0x0142] < offsBits_) {
+                offsBits_ = tmpCharBitsTable[0x0142];
+                prvDistFlag = true;
+              }
+            }
+            else if (size_t(nxtMatch.prvDistances[3]) == d) {
+              if (tmpCharBitsTable[0x0143] < offsBits_) {
+                offsBits_ = tmpCharBitsTable[0x0143];
+                prvDistFlag = true;
+              }
+            }
+            nBits += long(offsBits_);
+            if ((nBits + long(d >= bestOffs)) <= bestSize) {
+              bestSize = nBits;
+              bestLen = len;
+              bestOffs = d;
+              bestPrvDistFlag = prvDistFlag;
+            }
           }
         }
+        else {
+          // short offset
+          for ( ; len >= minLen; len--) {
+            const BitCountTableEntry& nxtMatch = bitCountTable[i + len];
+            long    nBits = long(lengthBitsTable_[len] + offsBits)
+                            + nxtMatch.totalBits;
+            if ((nBits + long(d >= bestOffs)) <= bestSize) {
+              bestSize = nBits;
+              bestLen = len;
+              bestOffs = d;
+            }
+          }
+        }
+      }
+      // check matches with delta value
+      for (size_t d = 1; d <= 4; d++) {
+        size_t  len = searchTable->getSequenceLength(offs + i, d);
+        if (len < minLen)
+          continue;
+        if (d > config.maxOffset)
+          break;
+        unsigned char seqDiff = searchTable->getSequenceDeltaValue(offs + i, d);
+        size_t  offsBits = tmpCharBitsTable[0x013B + d] + 7;
+        len = (len < maxLen ? len : maxLen);
+        for ( ; len >= minLen; len--) {
+          const BitCountTableEntry& nxtMatch = bitCountTable[i + len];
+          long    nBits = long(lengthBitsTable_[len] + offsBits)
+                          + nxtMatch.totalBits;
+          if ((nBits + long(d >= bestOffs)) <= bestSize) {
+            bestSize = nBits;
+            bestLen = len;
+            bestOffs = d;
+            bestSeqDiff = seqDiff;
+          }
+        }
+      }
+      matchTable[i].d = (unsigned int) bestOffs;
+      matchTable[i].len = (unsigned short) bestLen;
+      matchTable[i].seqDiff = bestSeqDiff;
+      bitCountTable[i] = bitCountTable[i + bestLen];
+      bitCountTable[i].totalBits = bestSize;
+      if (bestOffs > 8 && !bestPrvDistFlag) {
+        for (int nn = 3; nn > 0; nn--) {
+          bitCountTable[i].prvDistances[nn] =
+              bitCountTable[i].prvDistances[nn - 1];
+        }
+        bitCountTable[i].prvDistances[0] = (unsigned int) bestOffs;
       }
     }
   }
@@ -476,14 +647,21 @@ namespace Ep128Compress {
       bitCountTable[nBytes].totalBits = 0L;
       for (size_t i = 0; i < 4; i++)
         bitCountTable[nBytes].prvDistances[i] = 0;
-      optimizeMatches(&(matchTable.front()), &(bitCountTable.front()),
-                      &(lengthBitsTable_.front()), &(inBuf.front()),
-                      offs, nBytes);
+      if (config.splitOptimizationDepth >= 9) {
+        optimizeMatches_RND(&(matchTable.front()), &(bitCountTable.front()),
+                            &(lengthBitsTable_.front()), &(inBuf.front()),
+                            offs, nBytes);
+      }
+      else {
+        optimizeMatches(&(matchTable.front()), &(bitCountTable.front()),
+                        &(lengthBitsTable_.front()), &(inBuf.front()),
+                        offs, nBytes);
+      }
     }
     for (size_t i = offs; i < endPos; ) {
       LZMatchParameters&  tmp = matchTable[i - offs];
       if (tmp.len >= minRepeatLen) {
-        if (tmp.seqFlag)
+        if (tmp.seqDiff)
           writeSequenceCode(tmpOutBuf, tmp.seqDiff, tmp.d, tmp.len);
         else
           writeRepeatCode(tmpOutBuf, tmp.d, tmp.len);
@@ -508,7 +686,6 @@ namespace Ep128Compress {
       return true;
     if (nBytes > (inBuf.size() - offs))
       nBytes = inBuf.size() - offs;
-    size_t  endPos = offs + nBytes;
     for (size_t i = 0; i < 512; i++)
       tmpCharBitsTable[i] = (i < 0x0180 ? 9 : 5);
     std::vector< uint64_t >     hashTable;
@@ -529,12 +706,12 @@ namespace Ep128Compress {
       tmpBuf.clear();
       compressData_(tmpBuf, inBuf, startAddr, offs, nBytes);
       // apply statistical compression
-      huffmanCompressBlock(tmpBuf);
+      calculateHuffmanEncoding(tmpBuf);
       // calculate compressed size and hash value
       size_t    compressedSize = 0;
       uint64_t  h = 1UL;
       for (size_t j = 0; j < tmpBuf.size(); j++) {
-        compressedSize += size_t(tmpBuf[j] >> 24);
+        compressedSize += size_t((tmpBuf[j] >> 24) & 0x1FU);
         h = h ^ uint64_t(tmpBuf[j]);
         h = uint32_t(h) * uint64_t(0xC2B0C3CCUL);
         h = (h ^ (h >> 32)) & 0xFFFFFFFFUL;
@@ -558,21 +735,10 @@ namespace Ep128Compress {
       if (!doneFlag)
         hashTable.push_back(h);         // save hash value
     }
-    size_t  uncompressedSize = nBytes * 8 + (startAddr < 0x80000000U ? 34 : 18);
     size_t  outBufOffset = tmpOutBuf.size();
-    if (bestSize >= uncompressedSize) {
-      // if cannot reduce the data size, store without compression
-      for (size_t i = 0; i < 3; i++)
-        tmpOutBuf.push_back(bestBuf[i]);
-      tmpOutBuf.push_back(0x01000000U);
-      for (size_t i = offs; i < endPos; i++)
-        tmpOutBuf.push_back(0x08000000U | (unsigned int) inBuf[i]);
-    }
-    else {
-      // append compressed data to output buffer
-      for (size_t i = 0; i < bestBuf.size(); i++)
-        tmpOutBuf.push_back(bestBuf[i]);
-    }
+    // append compressed data to output buffer
+    for (size_t i = 0; i < bestBuf.size(); i++)
+      tmpOutBuf.push_back(bestBuf[i]);
     // store last block flag
     tmpOutBuf[outBufOffset + 2] = (isLastBlock ? 0x01000001U : 0x01000000U);
     return true;
@@ -592,6 +758,7 @@ namespace Ep128Compress {
       searchTable((DSearchTable *) 0),
       outputShiftReg(0x00),
       outputBitCnt(0),
+      lfsrState(0x12345678U),
       huffmanEncoder1(324, 0),
       huffmanEncoder2(28, 0)
   {
@@ -723,7 +890,7 @@ namespace Ep128Compress {
           }
           // calculate compressed size
           for (size_t j = 0; j < tmpBlock.buf.size(); j++)
-            tmpBlock.compressedSize += size_t(tmpBlock.buf[j] >> 24);
+            tmpBlock.compressedSize += size_t((tmpBlock.buf[j] >> 24) & 0x1FU);
           splitPositions.push_back(tmpBlock);
         }
       }
@@ -772,7 +939,7 @@ namespace Ep128Compress {
           }
           // calculate compressed size after merging blocks
           for (size_t j = 0; j < tmpBlock.buf.size(); j++)
-            tmpBlock.compressedSize += size_t(tmpBlock.buf[j] >> 24);
+            tmpBlock.compressedSize += size_t((tmpBlock.buf[j] >> 24) & 0x1FU);
           if (tmpBlock.compressedSize
               <= ((*i_0).compressedSize + (*i_1).compressedSize)) {
             // splitting does not reduce size, so use merged block
@@ -795,6 +962,8 @@ namespace Ep128Compress {
       std::vector< unsigned int >   outBufTmp;
       std::list< SplitOptimizationBlock >::iterator i_ = splitPositions.begin();
       while (i_ != splitPositions.end()) {
+        huffmanEncodeBlock((*i_).buf,
+                           &(inBuf.front()) + (*i_).startPos, (*i_).nBytes);
         for (size_t i = 0; i < (*i_).buf.size(); i++)
           outBufTmp.push_back((*i_).buf[i]);
         i_ = splitPositions.erase(i_);
