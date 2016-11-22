@@ -1,6 +1,8 @@
 Changes in version 2.0.11
 -------------------------
 
+  * fixed bug in re-opening files selected with a file chooser dialog
+
 Changes in version 2.0.10
 -------------------------
 
