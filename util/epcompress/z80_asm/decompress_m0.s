@@ -3,7 +3,7 @@
 NO_BORDER_FX            equ     0
 ; assume that more than 255 symbols never use the same code length
 ; this allows for better optimization, but it may fail in very rare cases
-FAST_HUFFMAN            equ     0
+FAST_HUFFMAN            equ     1
 ; decrease code size at the expense of slightly slower decompression
 SIZE_OPTIMIZED          equ     0
 
@@ -21,7 +21,7 @@ decompressDataEnd       equ     decompressDataBegin + 864
 ; read9Bits, read8Bits and read5Bits must be the same (see assert directive
 ; below)
 
-        org   0fa98h
+        org   0fac0h
 
 ; input/output registers:
 ;  DE:  decompressed data write address
