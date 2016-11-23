@@ -84,9 +84,10 @@ namespace Ep128Compress {
 
   // --------------------------------------------------------------------------
 
-  static void writeGammaCode(std::vector< unsigned int >& outBuf, size_t n)
+  static void writeGammaCode(std::vector< unsigned int >& outBuf, size_t n,
+                             unsigned int flagBits = 0U)
   {
-    unsigned int  c = 0U;
+    unsigned int  c = flagBits;
     unsigned char nBits = 1;
     while (n > 1) {
       c = c | ((2U | ((unsigned int) n & 1U)) << nBits);
@@ -96,49 +97,20 @@ namespace Ep128Compress {
     outBuf.push_back(((unsigned int) nBits << 24) | c);
   }
 
-  static void calculateSymbolLengths(
-      size_t *charBitsTable, const std::vector< unsigned int >& encodeTable,
-      size_t charCnt)
-  {
-    size_t  unencodedLength = 0;
-    do {
-      unencodedLength++;
-    } while ((size_t(1) << unencodedLength) < (charCnt + 1));
-    for (size_t i = 0; i < encodeTable.size(); i++) {
-      size_t  nBits = size_t(encodeTable[i] >> 24);
-      charBitsTable[i] = (nBits > 0 ? nBits : unencodedLength);
-    }
-  }
-
   void Compressor_M0::calculateHuffmanEncoding(
       std::vector< unsigned int >& ioBuf)
   {
-    size_t  n = ioBuf.size();
-    if (n <= 4)
-      return;
-    unsigned int  symbolCnts[324];
-    std::vector< unsigned int > encodeTable1(324, 0U);
-    std::vector< unsigned int > encodeTable2(28, 0U);
-    std::vector< unsigned int > tmpBuf;
     size_t  maxLen = 16;
     for (int h = 0; h < 2; h++) {
       HuffmanEncoder& huffmanEncoder =
           (h == 0 ? huffmanEncoder1 : huffmanEncoder2);
-      std::vector< unsigned int >&  encodeTable =
-          (h == 0 ? encodeTable1 : encodeTable2);
-      size_t  nSymbols = encodeTable.size();
-      size_t  charCnt = 0;
-      for (size_t i = 0; i < nSymbols; i++)
-        symbolCnts[i] = 0U;
+      unsigned int  *symbolCnts = (h == 0 ? symbolCntTable1 : symbolCntTable2);
+      unsigned int  *encodeTable = (h == 0 ? encodeTable1 : encodeTable2);
+      size_t  nSymbols = (h == 0 ? 324 : 28);
       huffmanEncoder.clear();
-      unsigned int  symOffs = (nSymbols < 256 ? 0x180U : 0U);
-      for (size_t i = 4; i < n; i++) {
-        unsigned int  c = ioBuf[i] - symOffs;
-        if (c < 324U) {
-          symbolCnts[c] = symbolCnts[c] + 1U;
-          charCnt++;
-          huffmanEncoder.addSymbol(c);
-        }
+      for (size_t i = 0; i < nSymbols; i++) {
+        for (unsigned int j = symbolCnts[i]; j-- > 0U; )
+          huffmanEncoder.addSymbol((unsigned int) i);
       }
       // create optimal encoding table
       huffmanEncoder.updateTables(false, maxLen);
@@ -157,7 +129,8 @@ namespace Ep128Compress {
       //   lower 8 bits of unencoded symbol value
       unsigned int  hdrFlagBits = (h == 0 ? 0x80000000U : 0xA0000000U);
       // create decode table to be written to the output buffer
-      tmpBuf.push_back(0x01000001U);
+      size_t  savedBufSize = ioBuf.size();
+      ioBuf.push_back(0x01000001U);
       for (unsigned int l = 1U; l <= 16U; l++) {
         size_t  sizeCnt = 0;
         for (unsigned int c = 0U; c < (unsigned int) nSymbols; c++)
@@ -165,7 +138,7 @@ namespace Ep128Compress {
         if (EP128EMU_UNLIKELY(sizeCnt >= 256)) {
           // compatibility hack for new FAST_HUFFMAN decompressor code
           if (EP128EMU_UNLIKELY(l >= 16U || sizeCnt > 256)) {
-            tmpBuf.clear();
+            ioBuf.resize(savedBufSize);
             maxLen--;
             h--;
             break;
@@ -179,44 +152,31 @@ namespace Ep128Compress {
             }
           }
         }
-        writeGammaCode(tmpBuf, sizeCnt + 1);
-        tmpBuf[tmpBuf.size() - 1] = tmpBuf[tmpBuf.size() - 1] | hdrFlagBits;
+        writeGammaCode(ioBuf, sizeCnt + 1, hdrFlagBits);
         unsigned int  prvCode = 0U - 1U;
         for (unsigned int c = 0U; c < (unsigned int) nSymbols; c++) {
           if ((encodeTable[c] >> 24) == l) {
             size_t  d = size_t(c - prvCode);
             prvCode = c;
-            writeGammaCode(tmpBuf, d);
-            tmpBuf[tmpBuf.size() - 1] = tmpBuf[tmpBuf.size() - 1] | hdrFlagBits;
+            writeGammaCode(ioBuf, d, hdrFlagBits);
           }
         }
       }
       if (EP128EMU_UNLIKELY(h < 0))
         continue;                       // try again with shorter maximum length
       maxLen = 16;
-      // update estimated symbol sizes
-      calculateSymbolLengths(tmpCharBitsTable + (h == 0 ? 0 : 0x0180),
-                             encodeTable, charCnt);
+      // update symbol lengths and add flag bits to encode table
       for (size_t i = 0; i < nSymbols; i++) {
-        if (encodeTable[i] != 0U) {
-          unsigned int  c = (unsigned int) (h == 0 ? i : (i + 0x0180));
+        symbolCnts[i] = 0U;
+        unsigned int  c = (unsigned int) (h == 0 ? i : (i + 0x0180));
+        tmpCharBitsTable[c] = 16383;
+        if (encodeTable[i]) {
+          tmpCharBitsTable[c] = size_t(encodeTable[i] >> 24);
           c = 0xC0000000U | ((c & 0xFFU) << 16) | ((c & 0x0100U) << 21);
           encodeTable[i] = encodeTable[i] | c;
         }
       }
     }
-    ioBuf.resize(n + tmpBuf.size());    // reserve space for the decode table
-    for (size_t i = n; i-- > 4; ) {
-      if (ioBuf[i] <= 0x17FU)
-        ioBuf[i + tmpBuf.size()] = encodeTable1[ioBuf[i]];
-      else if (ioBuf[i] <= 0x1FFU)
-        ioBuf[i + tmpBuf.size()] = encodeTable2[ioBuf[i] & 0x7FU];
-      else
-        ioBuf[i + tmpBuf.size()] = ioBuf[i];
-    }
-    // insert decode table after the block header
-    for (size_t i = 0; i < tmpBuf.size(); i++)
-      ioBuf[i + 4] = tmpBuf[i];
   }
 
   void Compressor_M0::huffmanEncodeBlock(std::vector< unsigned int >& ioBuf,
@@ -229,9 +189,8 @@ namespace Ep128Compress {
     size_t  compressedSize = 0;
     for (int h = 0; h < 2; h++) {
       size_t  huffTableOffs = 0;
-      size_t  huffTableLen = 0;
-      size_t  huffSizeCompressed = 0;
-      size_t  huffSizeUncompressed = 0;
+      size_t  huffTableEnd = 0;
+      long    huffSizeDiff = 0;
       // calculate compressed size with and without Huffman encoding
       for (size_t i = 4; i < ioBuf.size(); i++) {
         unsigned int  c = ioBuf[i];
@@ -241,29 +200,23 @@ namespace Ep128Compress {
         }
         else if (!(c & 0x40000000U)) {
           if (int((c >> 29) & 1U) == h) {
-            huffSizeCompressed += size_t((c >> 24) & 0x1FU);
-            if (!huffTableOffs) {
+            huffSizeDiff += long((c >> 24) & 0x1FU);
+            if (!huffTableOffs)
               huffTableOffs = i;
-              huffTableLen = 0;
-            }
-            huffTableLen++;
+            huffTableEnd = i + 1;
           }
         }
-        else {
-          unsigned int  c_ = ((c >> 16) & 0xFFU) | ((c >> 21) & 0x0100U);
-          c_ = (h == 0 ? c_ : (c_ - 0x0180U));
-          if (c_ < 324U) {
-            huffSizeCompressed += size_t((c >> 24) & 0x1FU);
-            huffSizeUncompressed += size_t(h == 0 ? 9 : 5);
-          }
+        else if (int(!(~c & 0x20800000U)) == h) {
+          size_t  n = (h == 0 ? 9 : 5);
+          huffSizeDiff += (long((c >> 24) & 0x1FU) - long(n));
+          compressedSize += n;
         }
       }
       // if Huffman coding does not reduce the data size, use fixed length codes
-      if (huffSizeCompressed >= huffSizeUncompressed) {
-        compressedSize += huffSizeUncompressed;
+      if (huffSizeDiff >= 0L && huffTableOffs) {
         ioBuf[huffTableOffs - 1] = 0x01000000U;
         ioBuf.erase(ioBuf.begin() + huffTableOffs,
-                    ioBuf.begin() + (huffTableOffs + huffTableLen));
+                    ioBuf.begin() + huffTableEnd);
         for (size_t i = 4; i < ioBuf.size(); i++) {
           unsigned int  c = ioBuf[i];
           if (c >= 0xC0000000U) {
@@ -275,7 +228,7 @@ namespace Ep128Compress {
         }
       }
       else {
-        compressedSize += huffSizeCompressed;
+        compressedSize = size_t(compressedSize + huffSizeDiff);
       }
     }
     // if the size cannot be reduced, store the data without compression
@@ -325,6 +278,20 @@ namespace Ep128Compress {
     }
   }
 
+  EP128EMU_INLINE void Compressor_M0::encodeSymbol(
+      std::vector< unsigned int >& buf, unsigned int c)
+  {
+    if (c < 0x0180U) {
+      symbolCntTable1[c] = symbolCntTable1[c] + 1U;
+      buf.push_back(encodeTable1[c]);
+    }
+    else {
+      c = c & 0x7FU;
+      symbolCntTable2[c] = symbolCntTable2[c] + 1U;
+      buf.push_back(encodeTable2[c]);
+    }
+  }
+
   void Compressor_M0::writeRepeatCode(std::vector< unsigned int >& buf,
                                       size_t d, size_t n)
   {
@@ -336,9 +303,9 @@ namespace Ep128Compress {
                                       + size_t(distanceBitsTable[d]))) {
             break;
           }
-          buf.push_back(c);
+          encodeSymbol(buf, c);
           c = (unsigned int) lengthCodeTable[n];
-          buf.push_back(c);
+          encodeSymbol(buf, c);
           if (lengthBitsTable[n] > 0)
             buf.push_back(lengthValueTable[n]);
           return;
@@ -349,11 +316,11 @@ namespace Ep128Compress {
       prvDistances[0] = d;
     }
     unsigned int  c = (unsigned int) distanceCodeTable[d];
-    buf.push_back(c);
+    encodeSymbol(buf, c);
     if (distanceBitsTable[d] > 0)
       buf.push_back(distanceValueTable[d]);
     c = (unsigned int) lengthCodeTable[n];
-    buf.push_back(c);
+    encodeSymbol(buf, c);
     if (lengthBitsTable[n] > 0)
       buf.push_back(lengthValueTable[n]);
   }
@@ -363,13 +330,13 @@ namespace Ep128Compress {
                                         size_t d, size_t n)
   {
     unsigned int  c = (unsigned int) distanceCodeTable[d] | 0x003CU;
-    buf.push_back(c);
+    encodeSymbol(buf, c);
     seqDiff = (seqDiff + 0x40) & 0xFF;
     if (seqDiff > 0x40)
       seqDiff--;
     buf.push_back(0x07000000U | (unsigned int) seqDiff);
     c = (unsigned int) lengthCodeTable[n];
-    buf.push_back(c);
+    encodeSymbol(buf, c);
     if (lengthBitsTable[n] > 0)
       buf.push_back(lengthValueTable[n]);
   }
@@ -613,25 +580,9 @@ namespace Ep128Compress {
 
   void Compressor_M0::compressData_(std::vector< unsigned int >& tmpOutBuf,
                                     const std::vector< unsigned char >& inBuf,
-                                    unsigned int startAddr, size_t offs,
-                                    size_t nBytes)
+                                    size_t offs, size_t nBytes)
   {
     size_t  endPos = offs + nBytes;
-    // write data header (start address, 2's complement of the number of bytes,
-    // last block flag, and compression enabled flag)
-    tmpOutBuf.clear();
-    if (startAddr < 0x80000000U) {
-      tmpOutBuf.push_back(0x10000000U | (unsigned int) (startAddr + offs));
-      tmpOutBuf.push_back(0x10000000U | (unsigned int) (65536 - nBytes));
-    }
-    else {
-      // hack to keep the header size constant
-      tmpOutBuf.push_back(0x08000000U | (unsigned int) ((65536 - nBytes) >> 8));
-      tmpOutBuf.push_back(0x08000000U
-                          | (unsigned int) ((65536 - nBytes) & 0xFF));
-    }
-    tmpOutBuf.push_back(0x01000000U);   // reserved for last block flag
-    tmpOutBuf.push_back(0x01000001U);
     // compress data by searching for repeated byte sequences,
     // and replacing them with length/distance codes
     for (size_t i = 0; i < 4; i++)
@@ -668,9 +619,8 @@ namespace Ep128Compress {
         i = i + tmp.len;
       }
       else {
-        unsigned int  c = (unsigned int) inBuf[i];
+        encodeSymbol(tmpOutBuf, (unsigned int) inBuf[i]);
         i++;
-        tmpOutBuf.push_back(c);
       }
     }
   }
@@ -686,8 +636,16 @@ namespace Ep128Compress {
       return true;
     if (nBytes > (inBuf.size() - offs))
       nBytes = inBuf.size() - offs;
-    for (size_t i = 0; i < 512; i++)
-      tmpCharBitsTable[i] = (i < 0x0180 ? 9 : 5);
+    for (unsigned int i = 0U; i < 324U; i++) {
+      tmpCharBitsTable[i] = 9;
+      symbolCntTable1[i] = 0U;
+      encodeTable1[i] = 0x09000000U | i;
+    }
+    for (unsigned int i = 0U; i < 28U; i++) {
+      tmpCharBitsTable[i + 0x0180] = 5;
+      symbolCntTable2[i] = 0U;
+      encodeTable2[i] = 0x05000000U | i;
+    }
     std::vector< uint64_t >     hashTable;
     std::vector< unsigned int > bestBuf;
     std::vector< unsigned int > tmpBuf;
@@ -703,10 +661,31 @@ namespace Ep128Compress {
       }
       if (doneFlag)     // if the compression cannot be optimized further,
         continue;       // quit the loop earlier
+      // write data header (start address, 2's complement of the number
+      // of bytes, last block flag and compression enabled flag)
       tmpBuf.clear();
-      compressData_(tmpBuf, inBuf, startAddr, offs, nBytes);
-      // apply statistical compression
-      calculateHuffmanEncoding(tmpBuf);
+      if (startAddr < 0x80000000U) {
+        tmpBuf.push_back(0x10000000U | (unsigned int) (startAddr + offs));
+        tmpBuf.push_back(0x10000000U | (unsigned int) (65536 - nBytes));
+      }
+      else {
+        // hack to keep the header size constant
+        tmpBuf.push_back(0x08000000U | (unsigned int) ((65536 - nBytes) >> 8));
+        tmpBuf.push_back(0x08000000U
+                            | (unsigned int) ((65536 - nBytes) & 0xFF));
+      }
+      tmpBuf.push_back(isLastBlock ? 0x01000001U : 0x01000000U);
+      tmpBuf.push_back(0x01000001U);
+      if (!i) {
+        // Huffman coding is disabled on first pass
+        tmpBuf.push_back(0x01000000U);
+        tmpBuf.push_back(0x01000000U);
+      }
+      else {
+        // apply statistical compression
+        calculateHuffmanEncoding(tmpBuf);
+      }
+      compressData_(tmpBuf, inBuf, offs, nBytes);
       // calculate compressed size and hash value
       size_t    compressedSize = 0;
       uint64_t  h = 1UL;
@@ -735,12 +714,9 @@ namespace Ep128Compress {
       if (!doneFlag)
         hashTable.push_back(h);         // save hash value
     }
-    size_t  outBufOffset = tmpOutBuf.size();
     // append compressed data to output buffer
     for (size_t i = 0; i < bestBuf.size(); i++)
       tmpOutBuf.push_back(bestBuf[i]);
-    // store last block flag
-    tmpOutBuf[outBufOffset + 2] = (isLastBlock ? 0x01000001U : 0x01000000U);
     return true;
   }
 
@@ -760,19 +736,27 @@ namespace Ep128Compress {
       outputBitCnt(0),
       lfsrState(0x12345678U),
       huffmanEncoder1(324, 0),
-      huffmanEncoder2(28, 0)
+      huffmanEncoder2(28, 0),
+      symbolCntTable1((unsigned int *) 0),
+      symbolCntTable2((unsigned int *) 0),
+      encodeTable1((unsigned int *) 0),
+      encodeTable2((unsigned int *) 0)
   {
     try {
-      lengthCodeTable = new unsigned short[maxRepeatLen + 1];
-      lengthBitsTable = new unsigned char[maxRepeatLen + 1];
-      lengthValueTable = new unsigned int[maxRepeatLen + 1];
-      distanceCodeTable = new unsigned short[maxRepeatDist + 1];
-      distanceBitsTable = new unsigned char[maxRepeatDist + 1];
-      distanceValueTable = new unsigned int[maxRepeatDist + 1];
-      tmpCharBitsTable = new size_t[512];
+      lengthCodeTable = new unsigned short[maxRepeatLen + maxRepeatDist + 2];
+      lengthBitsTable = new unsigned char[maxRepeatLen + maxRepeatDist + 2];
+      lengthValueTable = new unsigned int[maxRepeatLen + maxRepeatDist + 706];
+      distanceCodeTable = lengthCodeTable + (maxRepeatLen + 1);
+      distanceBitsTable = lengthBitsTable + (maxRepeatLen + 1);
+      distanceValueTable = lengthValueTable + (maxRepeatLen + 1);
+      symbolCntTable1 = distanceValueTable + (maxRepeatDist + 1);
+      symbolCntTable2 = symbolCntTable1 + 324;
+      encodeTable1 = symbolCntTable2 + 28;
+      encodeTable2 = encodeTable1 + 324;
+      tmpCharBitsTable = new size_t[384 + 28];
       initializeLengthCodeTables();
-      for (size_t i = 0; i < 512; i++)
-        tmpCharBitsTable[i] = (i < 0x0180 ? 9 : 5);
+      for (size_t i = 0; i < (384 + 28); i++)
+        tmpCharBitsTable[i] = 16383;
       for (size_t i = 0; i < 4; i++)
         prvDistances[i] = 0;
     }
@@ -783,12 +767,6 @@ namespace Ep128Compress {
         delete[] lengthBitsTable;
       if (lengthValueTable)
         delete[] lengthValueTable;
-      if (distanceCodeTable)
-        delete[] distanceCodeTable;
-      if (distanceBitsTable)
-        delete[] distanceBitsTable;
-      if (distanceValueTable)
-        delete[] distanceValueTable;
       if (tmpCharBitsTable)
         delete[] tmpCharBitsTable;
       throw;
@@ -800,9 +778,6 @@ namespace Ep128Compress {
     delete[] lengthCodeTable;
     delete[] lengthBitsTable;
     delete[] lengthValueTable;
-    delete[] distanceCodeTable;
-    delete[] distanceBitsTable;
-    delete[] distanceValueTable;
     delete[] tmpCharBitsTable;
     if (searchTable)
       delete searchTable;

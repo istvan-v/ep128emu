@@ -115,12 +115,18 @@ namespace Ep128Compress {
     HuffmanEncoder  huffmanEncoder1;
     // for length codes
     HuffmanEncoder  huffmanEncoder2;
+    unsigned int    *symbolCntTable1;
+    unsigned int    *symbolCntTable2;
+    unsigned int    *encodeTable1;
+    unsigned int    *encodeTable2;
     // --------
     void calculateHuffmanEncoding(std::vector< unsigned int >& ioBuf);
     void huffmanEncodeBlock(std::vector< unsigned int >& ioBuf,
                             const unsigned char *inBuf,
                             size_t uncompressedBytes);
     void initializeLengthCodeTables();
+    EP128EMU_INLINE void encodeSymbol(std::vector< unsigned int >& buf,
+                                      unsigned int c);
     void writeRepeatCode(std::vector< unsigned int >& buf, size_t d, size_t n);
     void writeSequenceCode(std::vector< unsigned int >& buf,
                            unsigned char seqDiff, size_t d, size_t n);
@@ -135,7 +141,7 @@ namespace Ep128Compress {
         size_t offs, size_t nBytes);
     void compressData_(std::vector< unsigned int >& tmpOutBuf,
                        const std::vector< unsigned char >& inBuf,
-                       unsigned int startAddr, size_t offs, size_t nBytes);
+                       size_t offs, size_t nBytes);
     bool compressData(std::vector< unsigned int >& tmpOutBuf,
                       const std::vector< unsigned char >& inBuf,
                       unsigned int startAddr, bool isLastBlock,
