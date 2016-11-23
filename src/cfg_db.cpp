@@ -792,7 +792,7 @@ namespace Ep128Emu {
       options.push_back(tmp);
     }
     {
-      configoption_t  tmp = LAST_OPTION;
+      configoption_t  tmp = LAST_CONTEXT_OPTION;
       options.push_back(tmp);
     }
     configfile_t  *cfgFile = dotconf_create(

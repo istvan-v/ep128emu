@@ -263,35 +263,31 @@ void dotconf_callback(configfile_t * configfile, callback_types type,
 int dotconf_continue_line(char *buffer, size_t length)
 {
         /* ------ match [^\\]\\[\r]\n ------------------------------ */
-        char *cp1 = buffer + length - 1;
+        char *cp1 = buffer + length;
 
-        if (length < 2)
+        if (length < 2 || *(--cp1) != '\n')
                 return 0;
 
-        if (*cp1-- != '\n')
-                return 0;
-
-        if (*cp1 == '\r')
+        if (*(--cp1) == '\r' && length >= 3)
                 cp1--;
 
-        if (*cp1-- != '\\')
+        if (*cp1 != '\\')
                 return 0;
 
-        cp1[1] = 0;             /* strip escape character and/or newline */
-        return (*cp1 != '\\');
+        *cp1 = '\0';            /* strip escape character and/or newline */
+        return (cp1 <= buffer || *(cp1 - 1) != '\\');
 }
 
 int dotconf_get_next_line(char *buffer, size_t bufsize,
                           configfile_t * configfile)
 {
         char *cp1, *cp2;
-        char buf2[CFG_BUFSIZE];
-        int length;
+        size_t length;
 
         if (configfile->eof)
                 return 1;
 
-        cp1 = fgets(buffer, CFG_BUFSIZE, configfile->stream);
+        cp1 = fgets(buffer, bufsize, configfile->stream);
 
         if (!cp1) {
                 configfile->eof = 1;
@@ -301,7 +297,8 @@ int dotconf_get_next_line(char *buffer, size_t bufsize,
         configfile->line++;
         length = strlen(cp1);
         while (dotconf_continue_line(cp1, length)) {
-                cp2 = fgets(buf2, CFG_BUFSIZE, configfile->stream);
+                length = strlen(cp1);
+                cp2 = fgets(cp1 + length, bufsize - length, configfile->stream);
                 if (!cp2) {
                         fprintf(stderr,
                                 "[dotconf] Parse error. Unexpected end of file at "
@@ -311,7 +308,6 @@ int dotconf_get_next_line(char *buffer, size_t bufsize,
                         return 1;
                 }
                 configfile->line++;
-                strcpy(cp1 + length - 2, cp2);
                 length = strlen(cp1);
         }
 
@@ -464,6 +460,7 @@ char *dotconf_read_arg(configfile_t * configfile, char **line)
  * internally unused since dot.conf 1.0.9 because it cannot handle the
  * DUPLICATE_OPTION_NAMES flag
  */
+#if 0
 configoption_t *dotconf_find_command(configfile_t * configfile,
                                      const char *command)
 {
@@ -495,6 +492,7 @@ configoption_t *dotconf_find_command(configfile_t * configfile,
 
         return option;
 }
+#endif
 
 void dotconf_set_command(configfile_t * configfile,
                          const configoption_t * option, char *args,
@@ -1427,26 +1425,26 @@ char *get_cwd(void)
         return buf;
 }
 
-char *get_path(char *name)
+char *get_path(char *s)
 {
         char *tmp;
         char *buf = NULL;
         int len = 0;
 
-        tmp = strrchr(name, '/');
+        tmp = strrchr(s, '/');
         if (tmp == NULL)
                 return NULL;
         buf = calloc(1, CFG_MAX_FILENAME);
         if (buf == NULL)
                 return NULL;
-        if (tmp == name) {
+        if (tmp == s) {
                 sprintf(buf, "/");
         } else {
-                len = tmp - name + 1;
+                len = tmp - s + 1;
                 if (len > CFG_MAX_FILENAME)
                         len = CFG_MAX_FILENAME;
         }
-                snprintf(buf, len, "%s", name);
+        snprintf(buf, len, "%s", s);
         return buf;
 }
 
@@ -1460,6 +1458,8 @@ DOTCONF_CB(dotconf_cb_include)
         char *path = 0;
         char *pre = 0;
         char *ext = 0;
+
+        (void) ctx;
 
         if (cmd->configfile->includepath
             && cmd->data.str[0] != '/'
@@ -1539,6 +1539,7 @@ DOTCONF_CB(dotconf_cb_include)
 DOTCONF_CB(dotconf_cb_includepath)
 {
         char *env = getenv(CFG_INCLUDEPATH_ENV);
+        (void) ctx;
         /* environment overrides configuration file setting */
         if (!env)
                 snprintf(cmd->configfile->includepath, CFG_MAX_FILENAME, "%s",

@@ -204,8 +204,10 @@ extern "C" {
 					   command_t * cmd);
 
 /* ------ dotconf_find_command() - iterate through all registered options trying to match ------- */
+#if 0
 	configoption_t *dotconf_find_command(configfile_t * configfile,
 					     const char *command);
+#endif
 
 /* ------ dotconf_read_arg() - read one argument from the line handling quoting and escaping ---- */
 /*

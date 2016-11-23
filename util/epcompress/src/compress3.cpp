@@ -99,14 +99,13 @@ namespace Ep128Compress {
       const unsigned int  *matchPtr = searchTable->getMatches(i);
       size_t  len = *matchPtr;          // match length
       if (len >= minLen) {
-        size_t  d = *(++matchPtr) >> 10;
         bestLen = len;
-        bestOffs = d;
-        bestSize = getRepeatCodeLength(d, len) + size_t((i + len) < nBytes)
-                   + bitCountTable[i + len];
+        bestOffs = *(++matchPtr) >> 10;
+        bestSize = getRepeatCodeLength(bestOffs, len)
+                   + size_t((i + len) < nBytes) + bitCountTable[i + len];
         if (len > maxLen) {
           // long LZ77 match
-          if (d == 1) {
+          if (bestOffs == 1) {
             // if a long RLE match is possible, use that
             matchTable[i].d = 1;
             matchTable[i].len = (unsigned short) len;
