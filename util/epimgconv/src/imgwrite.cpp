@@ -1,6 +1,6 @@
 
 // epimgconv: Enterprise 128 image converter utility
-// Copyright (C) 2008-2011 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2008-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -260,7 +260,7 @@ namespace Ep128ImgConv {
       Ep128Compress::Compressor *compressor =
           Ep128Compress::createCompressor(0, tmpBuf);
       try {
-        compressor->setCompressionLevel(9);
+        compressor->setCompressionLevel(8);
         if (!(compressor->compressData(buf, 0x0100U, true, true))) {
           delete compressor;
           return false;
