@@ -106,6 +106,7 @@ namespace Ep128Compress {
 
   void Decompressor_M0::huffmanInit(int huffTable)
   {
+    bool    symbolsUsed[324];
     unsigned int  *symCntTable =
         (huffTable == 0 ? huffmanSymCntTable0 : huffmanSymCntTable1);
     unsigned int  *offsetTable =
@@ -118,8 +119,10 @@ namespace Ep128Compress {
       symCntTable[i] = 0U;
       offsetTable[i] = (unsigned int) nSymbols;
     }
-    for (size_t i = 0; i < nSymbols; i++)
+    for (size_t i = 0; i < nSymbols; i++) {
       decodeTable[i] = 0xFFFFFFFFU;
+      symbolsUsed[i] = false;
+    }
     size_t  tablePos = 0;
     bool    huffmanEnabled = bool(readBits(1));
     if (huffTable == 0)
@@ -136,11 +139,12 @@ namespace Ep128Compress {
       for (size_t j = 0; j < cnt; j++) {
         decodedValue = decodedValue + gammaDecode();
         if (decodedValue >= (unsigned int) nSymbols || tablePos >= nSymbols ||
-            decodeTable[tablePos] != 0xFFFFFFFFU) {
+            symbolsUsed[decodedValue]) {
           throw Ep128Emu::Exception("error in compressed data");
         }
         decodeTable[tablePos] = decodedValue;
         tablePos++;
+        symbolsUsed[decodedValue] = true;
       }
       symCntTable[i] = (unsigned int) cnt;
       offsetTable[i] = (unsigned int) tablePos;
@@ -177,6 +181,8 @@ namespace Ep128Compress {
       prvMatchOffsets[i] = 0xFFFFFFFFU;
     for (unsigned int i = 0U; i < nBytes; ) {
       unsigned int  tmp = huffmanDecode(0);
+      if (tmp >= 0x0144U)
+        throw Ep128Emu::Exception("error in compressed data");
       if (tmp <= 0xFFU) {
         // literal character
         if (startAddr > 0xFFFFU || (bytesUsed[startAddr] && !allowWrap))
