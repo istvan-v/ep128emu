@@ -45,7 +45,7 @@ namespace Ep128Compress {
     static const unsigned int offs3MaxValue = (unsigned int) maxRepeatDist;
     static const size_t offs3SlotCntTable[4];
     static const size_t literalSequenceMinLength = lengthNumSlots + 9;
-   private:
+    // --------
     struct LZMatchParameters {
       unsigned int  d;
       unsigned int  len;
