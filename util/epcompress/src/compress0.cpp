@@ -49,12 +49,8 @@ namespace Ep128Compress {
     seqDiffTable.resize(4);
     maxSeqLenTable.resize(4);
     for (size_t i = 0; i < 4; i++) {
-      seqDiffTable[i].resize(bufSize);
-      maxSeqLenTable[i].resize(bufSize);
-      for (size_t j = 0; j < bufSize; j++) {
-        seqDiffTable[i][j] = 0x00;
-        maxSeqLenTable[i][j] = 0;
-      }
+      seqDiffTable[i].resize(bufSize, 0x00);
+      maxSeqLenTable[i].resize(bufSize, 0);
     }
     for (size_t i = Compressor_M0::minRepeatDist;
          (i + Compressor_M0::minRepeatLen) <= bufSize;
