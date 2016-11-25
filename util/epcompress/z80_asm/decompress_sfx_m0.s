@@ -267,8 +267,7 @@ huffmanInit:
         add   hl, bc                    ; calculate decoded value,
         pop   bc
         xor   a                         ; and store it in the symbol table
-        cp    h
-        sbc   a, a                      ; MSB = FFh if value >= 256
+        sub   h                         ; MSB = FFh if value >= 256
         ld    (bc), a
         inc   b
         inc   b
