@@ -674,7 +674,7 @@ namespace Ep128Emu {
               outBuf.push_back(shiftReg);
               shiftReg = 0x80;
             }
-            outBuf.push_back((unsigned char) ((c >> 24) & 0xFFU));
+            outBuf.push_back((unsigned char) (c & 0xFFU));
           }
           else {
             unsigned int  nBits = c >> 24;
