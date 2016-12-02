@@ -131,8 +131,9 @@ namespace Ep128Emu {
                                         &(offs2DecodeTable[0]));
           }
           else {
-            offs = readLZMatchParameter((unsigned char) readBits(offs3PrefixSize),
-                                        &(offs3DecodeTable[0]));
+            offs = readLZMatchParameter(
+                       (unsigned char) readBits(offs3PrefixSize),
+                       &(offs3DecodeTable[0]));
           }
           if (offs > buf.size())
             throw Exception("error in compressed data");
@@ -144,7 +145,7 @@ namespace Ep128Emu {
         }
       } while (--nSymbols);
     }
-    if (buf.size() > 0x02000000)
+    if (buf.size() > 0x04000000)
       throw Exception("error in compressed data");
     return isLastBlock;
   }
