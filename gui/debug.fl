@@ -83,7 +83,7 @@ class Ep128EmuGUI_DebugWindow {open
   gui.vm.setSingleStepMode(0);
   this->hide();
 }} open
-      xywh {146 98 960 720} type Double color 48 visible
+      xywh {146 98 960 720} type Double color 48 resizable size_range {920 700 1080 810} visible
     } {
       Fl_Tabs debugTabs {
         callback {{
