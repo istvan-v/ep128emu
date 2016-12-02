@@ -357,6 +357,7 @@ ep128emuLibSources = Split('''
     src/gldisp.cpp
     src/guicolor.cpp
     src/joystick.cpp
+    src/pngwrite.cpp
     src/script.cpp
     src/snd_conv.cpp
     src/soundio.cpp
@@ -438,8 +439,7 @@ ep128emuSources += fluidCompile(['gui/gui.fl', 'gui/disk_cfg.fl',
                                  'gui/disp_cfg.fl', 'gui/kbd_cfg.fl',
                                  'gui/snd_cfg.fl', 'gui/vm_cfg.fl',
                                  'gui/debug.fl', 'gui/about.fl'])
-ep128emuSources += ['gui/debugger.cpp', 'gui/monitor.cpp', 'gui/main.cpp',
-                    'src/pngwrite.cpp']
+ep128emuSources += ['gui/debugger.cpp', 'gui/monitor.cpp', 'gui/main.cpp']
 if mingwCrossCompile:
     ep128emuResourceObject = ep128emuEnvironment.Command(
         'resource/resource.o',
@@ -492,16 +492,20 @@ if buildUtilities:
                           util/epcompress/src/compress0.cpp
                           util/epcompress/src/compress2.cpp
                           util/epcompress/src/compress3.cpp
+                          util/epcompress/src/compress5.cpp
                           util/epcompress/src/compress.cpp
                           util/epcompress/src/decompress0.cpp
                           util/epcompress/src/decompress2.cpp
                           util/epcompress/src/decompress3.cpp
+                          util/epcompress/src/decompress5.cpp
                           util/epcompress/src/sfxcode.cpp
                           util/epcompress/src/sfxdecomp.cpp
                       '''))
     Depends(compressLib, ep128emuLib)
     epcompressEnvironment = copyEnvironment(compressLibEnvironment)
     epcompressEnvironment.Prepend(LIBS = [compressLib])
+    if not mingwCrossCompile:
+        epcompressEnvironment.Append(LIBS = ['pthread'])
     epcompress = epcompressEnvironment.Program(
                      'epcompress', ['util/epcompress/src/main.cpp'])
     Depends(epcompress, compressLib)
