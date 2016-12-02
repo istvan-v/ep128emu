@@ -29,20 +29,19 @@ namespace TVC64 {
    private:
     uint8_t   **segmentTable;
     bool      *segmentROMTable;
-    uint8_t   pageTableR[4];
-    uint8_t   pageTableW[4];
+    uint8_t   pageTable[4];
     uint16_t  currentPaging;            // configuration set with setPaging()
-    uint8_t   expansionRAMBlocks;       // 0, 1, 2, 4, or 8
+    uint8_t   totalRAMSegments;         // 3 (TVC32), 5 (TVC64) or 8 (TVC64+)
     uint8_t   *breakPointTable;
     size_t    breakPointCnt;
     uint8_t   **segmentBreakPointTable;
     size_t    *segmentBreakPointCntTable;
     bool      haveBreakPoints;
     uint8_t   breakPointPriorityThreshold;
-    uint8_t   *videoMemory; // 64K for segments 0 to 3; always RAM
+    uint8_t   *videoMemory; // 64K for segments FC to FF; always RAM
     uint8_t   *dummyMemory; // 2*16K dummy memory for invalid reads and writes
-    uint8_t   *pageAddressTableR[4];
-    uint8_t   *pageAddressTableW[4];
+    uint8_t   *pageAddressTableR[8];
+    uint8_t   *pageAddressTableW[8];
     void allocateSegment(uint8_t n, bool isROM);
     void checkExecuteBreakPoint(uint16_t addr, uint8_t page, uint8_t value);
     void checkReadBreakPoint(uint16_t addr, uint8_t page, uint8_t value);
@@ -59,7 +58,7 @@ namespace TVC64 {
     void clearAllBreakPoints();
     void setBreakPointPriorityThreshold(int n);
     int getBreakPointPriorityThreshold();
-    void setRAMSize(size_t n);  // in kilobytes; 64, 128, 192, 320, or 576
+    void setRAMSize(size_t n);          // in kilobytes; 48, 80 or 128
     void loadROMSegment(uint8_t segment, const uint8_t *data, size_t dataSize);
     void deleteSegment(uint8_t segment);
     void deleteAllSegments();
@@ -71,13 +70,33 @@ namespace TVC64 {
     inline void writeRaw(uint32_t addr, uint8_t value);
     inline void writeROM(uint32_t addr, uint8_t value);
     // set memory paging:
-    //   bits 0 to 5:  RAM expansion configuration
-    //   bit 6:        internal ROM (0000h-3FFFh) enable
-    //   bit 7:        expansion ROM (C000h-FFFFh) enable
-    //   bits 8 to 15: expansion ROM bank number
+    //   bits 0 to 7:   port 02h:
+    //          b0, b1:   unused
+    //          b2 (64+): 0 = page 1 is U1, 1 = page 1 is video RAM
+    //          b3, b4:   00: page 0 = SYS ROM (segment 00h)
+    //                    01: page 0 = CART ROM (segment 01h)
+    //                    10: page 0 = U0 RAM (segment F8h)
+    //                    11: page 0 = U3 RAM (segment FBh), TVC64+
+    //          b5:       0 = page 2 is video RAM, 1 = page 2 is U2
+    //          b6, b7:   00: page 3 = CART ROM (segment 01h)
+    //                    01: page 3 = SYS ROM (segment 00h)
+    //                    10: page 3 = U3 RAM (segment FBh)
+    //                    11: page 3 = IOMEM/EXT ROM (segment 02h)
+    //                          C000h-DFFFh: IOMEM
+    //                          E000h-FFFFh: EXT ROM
+    //   bits 8 to 13:  port 0Fh (b0 to b5, TVC64+ only):
+    //          b8, b9:   video RAM segment seen by Z80 on page 1
+    //          b10, b11: video RAM segment seen by Z80 on page 2
+    //          b12, b13: video RAM segment used by display
+    //   bits 14 to 15: port 03h (b6 to b7):
+    //          00:       IOMEM page 0
+    //          01:       IOMEM page 1
+    //          02:       IOMEM page 2
+    //          03:       IOMEM page 3
     void setPaging(uint16_t n);
     inline uint16_t getPaging() const;
     inline uint8_t getPage(uint8_t page) const;
+    // get current video RAM page for display
     inline const uint8_t * getVideoMemory() const;
     inline bool isSegmentROM(uint8_t segment) const;
     inline bool isSegmentRAM(uint8_t segment) const;
@@ -95,7 +114,11 @@ namespace TVC64 {
 
   inline uint8_t Memory::read(uint16_t addr)
   {
-    uint8_t page = uint8_t(addr >> 14);
+    uint8_t page = uint8_t(addr >> 13);
+    if (EP128EMU_UNLIKELY(!pageAddressTableR[page])) {
+      // TODO: implement IOMEM
+      return 0xFF;
+    }
     uint8_t value = pageAddressTableR[page][addr];
     if (haveBreakPoints)
       checkReadBreakPoint(addr, page, value);
@@ -104,7 +127,11 @@ namespace TVC64 {
 
   inline uint8_t Memory::readOpcode(uint16_t addr)
   {
-    uint8_t page = uint8_t(addr >> 14);
+    uint8_t page = uint8_t(addr >> 13);
+    if (EP128EMU_UNLIKELY(!pageAddressTableR[page])) {
+      // TODO: implement IOMEM
+      return 0xFF;
+    }
     uint8_t value = pageAddressTableR[page][addr];
     if (haveBreakPoints)
       checkExecuteBreakPoint(addr, page, value);
@@ -113,7 +140,12 @@ namespace TVC64 {
 
   inline uint8_t Memory::readNoDebug(uint16_t addr) const
   {
-    return pageAddressTableR[uint8_t(addr >> 14)][addr];
+    uint8_t page = uint8_t(addr >> 13);
+    if (EP128EMU_UNLIKELY(!pageAddressTableR[page])) {
+      // TODO: implement IOMEM
+      return 0xFF;
+    }
+    return pageAddressTableR[page][addr];
   }
 
   inline uint8_t Memory::readRaw(uint32_t addr) const
@@ -130,7 +162,11 @@ namespace TVC64 {
 
   inline void Memory::write(uint16_t addr, uint8_t value)
   {
-    uint8_t page = uint8_t(addr >> 14);
+    uint8_t page = uint8_t(addr >> 13);
+    if (EP128EMU_UNLIKELY(!pageAddressTableW[page])) {
+      // TODO: implement IOMEM
+      return;
+    }
     if (haveBreakPoints)
       checkWriteBreakPoint(addr, page, value);
     pageAddressTableW[page][addr] = value;
@@ -157,12 +193,12 @@ namespace TVC64 {
 
   inline uint8_t Memory::getPage(uint8_t page) const
   {
-    return pageTableR[page & 3];
+    return pageTable[page & 3];
   }
 
   inline const uint8_t * Memory::getVideoMemory() const
   {
-    return videoMemory;
+    return &(videoMemory[(currentPaging & 0x3000) << 2]);
   }
 
   inline bool Memory::isSegmentROM(uint8_t segment) const

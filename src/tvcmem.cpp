@@ -24,8 +24,10 @@ namespace TVC64 {
 
   void Memory::allocateSegment(uint8_t n, bool isROM)
   {
-    if (n < 0x04 && isROM)
+    if (n >= 0xFC && isROM)
       throw Ep128Emu::Exception("video memory cannot be ROM");
+    if (n > 0x02 && n < 0xF8)
+      throw Ep128Emu::Exception("invalid segment number");
     if (segmentTable[n] == (uint8_t *) 0)
       segmentTable[n] = new uint8_t[16384];
     segmentROMTable[n] = isROM;
@@ -42,7 +44,7 @@ namespace TVC64 {
     }
     else {
       uint16_t  offs = addr & 0x3FFF;
-      tbl = segmentBreakPointTable[pageTableR[page]];
+      tbl = segmentBreakPointTable[pageTable[page >> 1]];
       if (tbl != (uint8_t *) 0 &&
           tbl[offs] >= breakPointPriorityThreshold && (tbl[offs] & 36) == 4) {
         breakPointCallback(false, addr, value);
@@ -59,7 +61,7 @@ namespace TVC64 {
     }
     else {
       uint16_t  offs = addr & 0x3FFF;
-      tbl = segmentBreakPointTable[pageTableR[page]];
+      tbl = segmentBreakPointTable[pageTable[page >> 1]];
       if (tbl != (uint8_t *) 0 &&
           tbl[offs] >= breakPointPriorityThreshold && (tbl[offs] & 1) != 0) {
         breakPointCallback(false, addr, value);
@@ -76,7 +78,7 @@ namespace TVC64 {
     }
     else {
       uint16_t  offs = addr & 0x3FFF;
-      tbl = segmentBreakPointTable[pageTableW[page]];
+      tbl = segmentBreakPointTable[pageTable[page >> 1]];
       if (tbl != (uint8_t *) 0 &&
           tbl[offs] >= breakPointPriorityThreshold && (tbl[offs] & 2) != 0) {
         breakPointCallback(true, addr, value);
@@ -87,8 +89,8 @@ namespace TVC64 {
   Memory::Memory()
     : segmentTable((uint8_t **) 0),
       segmentROMTable((bool *) 0),
-      currentPaging(0x00C0),
-      expansionRAMBlocks(0),
+      currentPaging(0x3000),
+      totalRAMSegments(5),
       breakPointTable((uint8_t *) 0),
       breakPointCnt(0),
       segmentBreakPointTable((uint8_t **) 0),
@@ -98,9 +100,9 @@ namespace TVC64 {
       videoMemory((uint8_t *) 0),
       dummyMemory((uint8_t *) 0)
   {
-    for (int i = 0; i < 4; i++) {
-      pageTableR[i] = 0x00;
-      pageTableW[i] = 0x00;
+    for (int i = 0; i < 4; i++)
+      pageTable[i] = 0x00;
+    for (int i = 0; i < 8; i++) {
       pageAddressTableR[i] = (uint8_t *) 0;
       pageAddressTableW[i] = (uint8_t *) 0;
     }
@@ -120,14 +122,14 @@ namespace TVC64 {
       videoMemory = new uint8_t[65536];
       for (int i = 0; i < 65536; i++)
         videoMemory[i] = 0xFF;
-      for (int i = 0x00; i < 0x04; i++) {
-        segmentTable[i] = &(videoMemory[i << 14]);
+      for (int i = 0xFC; i <= 0xFF; i++) {
+        segmentTable[i] = &(videoMemory[(i & 3) << 14]);
         segmentROMTable[i] = false;
       }
       dummyMemory = new uint8_t[32768];
       for (int i = 0; i < 32768; i++)
         dummyMemory[i] = 0xFF;
-      setPaging(0x00C0);
+      setPaging(0x3000);
     }
     catch (...) {
       if (segmentTable) {
@@ -160,7 +162,7 @@ namespace TVC64 {
 
   Memory::~Memory()
   {
-    for (int i = 0x04; i <= 0xFF; i++) {
+    for (int i = 0x00; i < 0xFC; i++) {
       if (segmentTable[i])
         delete[] segmentTable[i];
     }
@@ -285,27 +287,24 @@ namespace TVC64 {
 
   void Memory::setRAMSize(size_t n)
   {
-    expansionRAMBlocks = 0;
-    if (n >= 96) {
-      if (n < 160)
-        expansionRAMBlocks = 1;
-      else if (n < 256)
-        expansionRAMBlocks = 2;
-      else if (n < 448)
-        expansionRAMBlocks = 4;
-      else
-        expansionRAMBlocks = 8;
-    }
-    for (uint8_t i = ((expansionRAMBlocks << 2) + 0x04); i <= 0x7F; i++)
+    if (n == (size_t(totalRAMSegments) << 4))
+      return;
+    totalRAMSegments = 5;
+    if (n < 64)
+      totalRAMSegments = 3;
+    else if (n >= 104)
+      totalRAMSegments = 8;
+    for (uint8_t i = 0xF8 + (totalRAMSegments - 1); i < 0xFC; i++)
       deleteSegment(i);
-    for (uint8_t i = 0x04; i < ((expansionRAMBlocks << 2) + 0x04); i++)
+    for (uint8_t i = 0xF8; i < (0xF8 + (totalRAMSegments - 1)) && i < 0xFC; i++)
       allocateSegment(i, false);
+    setPaging(totalRAMSegments < 8 ? 0x3000 : 0x0000);
   }
 
   void Memory::loadROMSegment(uint8_t segment,
                               const uint8_t *data, size_t dataSize)
   {
-    if (segment < 0xC0 && segment != 0x80)
+    if (segment > 0x02)
       throw Ep128Emu::Exception("internal error: invalid ROM segment number");
     if (!data)
       dataSize = 0;
@@ -331,11 +330,15 @@ namespace TVC64 {
     }
     for ( ; i < 0x4000 || (i & 0x3FFF) != 0; i++)
       segmentTable[segment][i & 0x3FFF] = 0xFF;
+    if (segment == 0x02 && dataSize > 0 && dataSize <= 8192) {
+      std::memcpy(&(segmentTable[segment][0x2000]),
+                  &(segmentTable[segment][0]), dataSize);
+    }
   }
 
   void Memory::deleteSegment(uint8_t segment)
   {
-    if (segment < 0x04)
+    if (segment >= 0xFC)
       throw Ep128Emu::Exception("cannot delete video memory segments");
     if (segmentTable[segment])
       delete[] segmentTable[segment];
@@ -346,80 +349,69 @@ namespace TVC64 {
 
   void Memory::deleteAllSegments()
   {
-    for (unsigned int segment = 0x04U; segment <= 0xFFU; segment++)
+    for (unsigned int segment = 0x00U; segment < 0xFCU; segment++)
       deleteSegment(uint8_t(segment));
   }
 
   void Memory::setPaging(uint16_t n)
   {
+    if (totalRAMSegments < 8)
+      n = (n & 0xC0F8) | 0x3000;
     currentPaging = n;
-    switch (expansionRAMBlocks) {
-    case 1:                             // 128K
-      n = n & 0xFFC7;
+    switch (n & 0x0018) {
+    case 0x00:
+      pageTable[0] = 0x00;              // SYS
       break;
-    case 2:                             // 192K
-      n = n & 0xFFCF;
+    case 0x08:
+      pageTable[0] = 0x01;              // CART
       break;
-    case 4:                             // 320K
-      n = n & 0xFFDF;
+    case 0x10:
+      pageTable[0] = 0xF8;              // U0
       break;
-    case 8:                             // 576K
-      n = n & 0xFFFF;
-      break;
-    default:                            // 64K
-      n = n & 0xFFC0;
+    case 0x18:
+      pageTable[0] = 0xFB;              // U3
       break;
     }
-    // if an invalid expansion ROM is selected, default to BASIC
-    if (n >= 0x4000 || segmentTable[(n >> 8) | 0xC0] == (uint8_t *) 0)
-      n = n & 0x00FF;
-    // set RAM paging
-    pageTableR[0] = 0x00;
-    pageTableR[1] = 0x01;
-    pageTableR[2] = 0x02;
-    pageTableR[3] = 0x03;
-    switch (n & 0x0007) {
-    case 1:
-      pageTableR[3] = (uint8_t(n & 0x0038) >> 1) + 0x07;
+    if (!(n & 0x0004))
+      pageTable[1] = 0xF9;              // U1
+    else
+      pageTable[1] = uint8_t(0xFC | ((n & 0x0300) >> 8));
+    if (!(n & 0x0020))
+      pageTable[2] = uint8_t(0xFC | ((n & 0x0C00) >> 10));
+    else
+      pageTable[2] = 0xFA;              // U2
+    switch (n & 0x00C0) {
+    case 0x00:
+      pageTable[3] = 0x01;              // CART
       break;
-    case 2:
-      pageTableR[0] = (uint8_t(n & 0x0038) >> 1) + 0x04;
-      pageTableR[1] = (uint8_t(n & 0x0038) >> 1) + 0x05;
-      pageTableR[2] = (uint8_t(n & 0x0038) >> 1) + 0x06;
-      pageTableR[3] = (uint8_t(n & 0x0038) >> 1) + 0x07;
+    case 0x40:
+      pageTable[3] = 0x00;              // SYS
       break;
-    case 3:
-      pageTableR[1] = 0x03;
-      pageTableR[3] = (uint8_t(n & 0x0038) >> 1) + 0x07;
+    case 0x80:
+      pageTable[3] = 0xFB;              // U3
       break;
-    case 4:
-    case 5:
-    case 6:
-    case 7:
-      pageTableR[1] = (uint8_t(n & 0x0038) >> 1) + (uint8_t(n & 0x0003) | 0x04);
+    case 0xC0:
+      pageTable[3] = 0x02;              // EXT
       break;
     }
-    pageTableW[0] = pageTableR[0];
-    pageTableW[1] = pageTableR[1];
-    pageTableW[2] = pageTableR[2];
-    pageTableW[3] = pageTableR[3];
-    // set ROM paging (if ROM is enabled)
-    if ((n & 0x0040) != 0)
-      pageTableR[0] = 0x80;
-    if ((n & 0x0080) != 0)
-      pageTableR[3] = uint8_t(n >> 8) | 0xC0;
-    for (uint8_t i = 0; i < 4; i++) {
-      long    offs = -(long(i) << 14);
-      uint8_t segment = pageTableR[i];
+    for (int i = 0; i < 8; i = i + 2) {
+      long    offs = -(long(i) << 13);
+      uint8_t segment = pageTable[i >> 1];
       if (segmentTable[segment] != (uint8_t *) 0)
         pageAddressTableR[i] = segmentTable[segment] + offs;
       else
         pageAddressTableR[i] = dummyMemory + offs;
-      segment = pageTableW[i];
       if (segmentTable[segment] != (uint8_t *) 0)
         pageAddressTableW[i] = segmentTable[segment] + offs;
       else
         pageAddressTableW[i] = dummyMemory + (0x4000L + offs);
+      pageAddressTableR[i + 1] = pageAddressTableR[i];
+      pageAddressTableW[i + 1] = pageAddressTableW[i];
+    }
+    if (pageTable[3] == 0x02) {
+      // IOMEM is special case
+      pageAddressTableR[6] = (uint8_t *) 0;
+      pageAddressTableW[6] = (uint8_t *) 0;
     }
   }
 
@@ -431,7 +423,7 @@ namespace TVC64 {
     }
     else {
       uint16_t  offs = addr & 0x3FFF;
-      tbl = segmentBreakPointTable[pageTableR[addr >> 14]];
+      tbl = segmentBreakPointTable[pageTable[addr >> 14]];
       if (tbl != (uint8_t *) 0 && (tbl[offs] & 32) != 0) {
         return true;
       }
@@ -494,8 +486,12 @@ namespace TVC64 {
     buf.setPosition(0);
     buf.writeUInt32(0x01000000);        // version number
     buf.writeUInt16(currentPaging);
-    buf.writeByte(expansionRAMBlocks);
-    for (uint8_t i = 0; i < ((expansionRAMBlocks << 2) + 0x04); i++) {
+    buf.writeByte(totalRAMSegments);
+    for (int i = 0xF8; i <= 0xFF; i++) {
+      if (i == 0xFA && totalRAMSegments < 5)
+        i = 0xFC;
+      if (i == 0xFC && totalRAMSegments < 8)
+        i = 0xFF;
       if (segmentTable[i] != (uint8_t *) 0) {
         for (size_t j = 0; j < 16384; j++)
           buf.writeByte(segmentTable[i][j]);
@@ -505,12 +501,10 @@ namespace TVC64 {
           buf.writeByte(0xFF);
       }
     }
-    for (size_t i = 0x80; i <= 0xFF; i++) {
-      if (i == 0x81)
-        i = 0xC0;
+    for (int i = 0x00; i <= 0x02; i++) {
       if (segmentTable[i] != (uint8_t *) 0) {
         buf.writeByte(uint8_t(i));
-        for (size_t j = 0; j < 16384; j++)
+        for (size_t j = (i != 2 ? 0 : 8192); j < 16384; j++)
           buf.writeByte(segmentTable[i][j]);
       }
     }
@@ -537,37 +531,35 @@ namespace TVC64 {
     try {
       currentPaging = buf.readUInt16();
       // load RAM segments
-      expansionRAMBlocks = buf.readByte();
-      setRAMSize((size_t(expansionRAMBlocks) << 6) + 64);
-      for (uint8_t i = 0; i < ((expansionRAMBlocks << 2) + 0x04); i++) {
-        if (segmentTable[i] != (uint8_t *) 0) {
-          for (size_t j = 0; j < 16384; j++)
-            segmentTable[i][j] = buf.readByte();
-        }
-        else {
-          for (size_t j = 0; j < 16384; j++)
-            (void) buf.readByte();
-        }
+      totalRAMSegments = buf.readByte();
+      if (totalRAMSegments != 3 && totalRAMSegments != 5 &&
+          totalRAMSegments != 8) {
+        throw Ep128Emu::Exception("invalid RAM configuration in TVC snapshot");
+      }
+      // load RAM segments
+      setRAMSize(size_t(totalRAMSegments) << 4);
+      for (int i = 0xF8; i <= 0xFF; i++) {
+        if (i == 0xFA && totalRAMSegments < 5)
+          i = 0xFC;
+        if (i == 0xFC && totalRAMSegments < 8)
+          i = 0xFF;
+        for (size_t j = 0; j < 16384; j++)
+          segmentTable[i][j] = buf.readByte();
       }
       // load ROM segments
       while (buf.getPosition() < buf.getDataSize()) {
         uint8_t segment = buf.readByte();
-        if (segment >= 0xC0 || segment == 0x80)
-          allocateSegment(segment, true);
-        if (segmentTable[segment] != (uint8_t *) 0) {
-          for (size_t i = 0; i < 16384; i++)
-            segmentTable[segment][i] = buf.readByte();
-        }
-        else {
-          for (size_t i = 0; i < 16384; i++)
-            (void) buf.readByte();
-        }
+        if (segment > 0x02)
+          throw Ep128Emu::Exception("invalid ROM segment in TVC snapshot");
+        allocateSegment(segment, true);
+        for (size_t i = (segment != 0x02 ? 0 : 8192); i < 16384; i++)
+          segmentTable[segment][i] = buf.readByte();
       }
       setPaging(currentPaging);
     }
     catch (...) {
-      setRAMSize(64);
-      setPaging(0x00C0);
+      setRAMSize(48);
+      setPaging(0x3000);
       throw;
     }
   }
