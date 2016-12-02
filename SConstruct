@@ -428,11 +428,24 @@ cpc464Lib = cpc464LibEnvironment.StaticLibrary('cpc464', Split('''
 
 # -----------------------------------------------------------------------------
 
+tvc64LibEnvironment = copyEnvironment(ep128emuLibEnvironment)
+tvc64LibEnvironment.Append(CPPPATH = ['./z80'])
+
+tvc64Lib = tvc64LibEnvironment.StaticLibrary('tvc64', Split('''
+    src/tvc64vm.cpp
+    src/tvcmem.cpp
+    src/tvcvideo.cpp
+    src/tvc_snap.cpp
+'''))
+
+# -----------------------------------------------------------------------------
+
 ep128emuEnvironment = copyEnvironment(ep128emuGLGUIEnvironment)
 ep128emuEnvironment.Append(CPPPATH = ['./z80', './gui'])
 if haveLua and oldLuaVersion:
     ep128emuEnvironment.Append(LIBS = ['lualib'])
-ep128emuEnvironment.Prepend(LIBS = ['ep128', 'zx128', 'cpc464', 'ep128emu'])
+ep128emuEnvironment.Prepend(LIBS = ['ep128', 'zx128', 'cpc464', 'tvc64',
+                                    'ep128emu'])
 
 ep128emuSources = ['gui/gui.cpp']
 ep128emuSources += fluidCompile(['gui/gui.fl', 'gui/disk_cfg.fl',
@@ -453,6 +466,7 @@ ep128emu = ep128emuEnvironment.Program('ep128emu', ep128emuSources)
 Depends(ep128emu, ep128Lib)
 Depends(ep128emu, zx128Lib)
 Depends(ep128emu, cpc464Lib)
+Depends(ep128emu, tvc64Lib)
 Depends(ep128emu, ep128emuLib)
 
 if sys.platform[:6] == 'darwin':
@@ -560,7 +574,8 @@ if sys.platform[:6] == 'darwin':
 if not mingwCrossCompile:
     makecfgEnvironment.Install(instBinDir,
                                [ep128emu, tapeedit, makecfg])
-    for prgName in [instBinDir + "/zx128emu", instBinDir + "/cpc464emu"]:
+    for prgName in [instBinDir + "/zx128emu", instBinDir + "/cpc464emu",
+                    instBinDir + "/tvc64emu"]:
         makecfgEnvironment.Command(prgName, ep128emu,
                                    ['ln -s -f ep128emu "' + prgName + '"'])
     if buildUtilities:

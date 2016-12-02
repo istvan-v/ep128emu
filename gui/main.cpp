@@ -21,6 +21,7 @@
 #include "ep128vm.hpp"
 #include "zx128vm.hpp"
 #include "cpc464vm.hpp"
+#include "tvc64vm.hpp"
 #include "system.hpp"
 #include "guicolor.hpp"
 
@@ -51,10 +52,8 @@ int8_t getSnapshotType(const Ep128Emu::File& f)
   if (buf[0] != 0x45 || buf[1] != 0x50 || buf[2] != 0x80)
     throw Ep128Emu::Exception("invalid snapshot file");
   // check LSB of chunk type (0x455080xx, see src/fileio.hpp)
-  if ((buf[3] & 0xF0) == 0x20)          // Spectrum
-    return 1;
-  if ((buf[3] & 0xF0) == 0x30)          // CPC
-    return 2;
+  if ((buf[3] & 0xF0) >= 0x20 && (buf[3] & 0xF0) <= 0x40)
+    return int8_t(((buf[3] & 0xF0) >> 4) - 1);  // Spectrum, CPC, TVC
   if (buf[3] >= 0x0B)                   // Plus/4
     throw Ep128Emu::Exception("unsupported machine type in snapshot file");
   return 0;                             // Enterprise
@@ -73,7 +72,7 @@ int main(int argc, char **argv)
   Ep128Emu::File  *snapshotFile = (Ep128Emu::File *) 0;
   int       snapshotNameIndex = 0;
   int       colorScheme = 0;
-  int8_t    machineType = -1;           // 0: EP (default), 1: ZX, 2: CPC
+  int8_t    machineType = -1;   // 0: EP (default), 1: ZX, 2: CPC, 3: TVC
   int8_t    retval = 0;
 #ifdef DISABLE_OPENGL_DISPLAY
   bool      glEnabled = false;
@@ -87,7 +86,8 @@ int main(int argc, char **argv)
 #ifdef WIN32
   timeBeginPeriod(1U);
 #else
-  // set machine type if the program name in argv[0] begins with "zx" or "cpc"
+  // set machine type if the program name in argv[0] begins with
+  // "zx", "cpc" or "tvc"
   for (size_t i = 0; argv[0][i] != '\0'; i++) {
     if (i == 0 || argv[0][i] == '/') {
       if (argv[0][i] == '/')
@@ -96,6 +96,8 @@ int main(int argc, char **argv)
         machineType = 1;
       else if (std::strncmp(argv[0] + i, "cpc", 3) == 0)
         machineType = 2;
+      else if (std::strncmp(argv[0] + i, "tvc", 3) == 0)
+        machineType = 3;
       else
         machineType = -1;
     }
@@ -127,6 +129,9 @@ int main(int argc, char **argv)
       else if (std::strcmp(argv[i], "-cpc") == 0) {
         machineType = 2;
       }
+      else if (std::strcmp(argv[i], "-tvc") == 0) {
+        machineType = 3;
+      }
 #ifndef DISABLE_OPENGL_DISPLAY
       else if (std::strcmp(argv[i], "-opengl") == 0) {
         glEnabled = true;
@@ -144,7 +149,7 @@ int main(int argc, char **argv)
                      "    -h | -help | --help "
                      "print this message\n");
         std::fprintf(stderr,
-                     "    -ep128 | -zx | -cpc "
+                     "    -ep128 | -zx | -cpc | -tvc\n                        "
                      "select the type of machine to be emulated\n");
         std::fprintf(stderr,
                      "    -cfg <FILENAME>     "
@@ -206,6 +211,11 @@ int main(int argc, char **argv)
       cfgFileName = "cpc_cfg.dat";
       vm = new CPC464::CPC464VM(*(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
                                 *audioOutput);
+    }
+    else if (machineType == 3) {
+      cfgFileName = "tvc_cfg.dat";
+      vm = new TVC64::TVC64VM(*(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
+                              *audioOutput);
     }
     else {
       vm = new Ep128::Ep128VM(*(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
@@ -320,6 +330,7 @@ int main(int argc, char **argv)
       if (std::strcmp(argv[i], "-ep128") == 0 ||
           std::strcmp(argv[i], "-zx") == 0 ||
           std::strcmp(argv[i], "-cpc") == 0 ||
+          std::strcmp(argv[i], "-tvc") == 0 ||
 #ifndef DISABLE_OPENGL_DISPLAY
           std::strcmp(argv[i], "-opengl") == 0 ||
 #endif
