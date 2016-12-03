@@ -131,23 +131,25 @@ namespace TVC64 {
       toneGenCnt1 = toneGenFreq;
       toneGenCnt2 = (toneGenCnt2 + 1) & 0x0F;
       if (EP128EMU_UNLIKELY(toneGenCnt2 == 8))
-        irqState = irqState | 0x10;
+        irqState = irqState | (irqEnableMask & 0x10);
     }
     if (++toneGenCnt1 >= 4096U) {
       toneGenCnt1 = toneGenFreq;
+      toneGenCnt2 = (toneGenCnt2 + 1) & 0x0F;
       if (EP128EMU_UNLIKELY(toneGenCnt2 == 8))
-        irqState = irqState | 0x10;
+        irqState = irqState | (irqEnableMask & 0x10);
     }
     if (--audioCycleCnt == 0) {
       audioCycleCnt = 4;
       soundOutputSignal = uint32_t(tapeInputSignal) << 12;
       if ((toneGenCnt2 & 0x08) | uint8_t(!toneGenEnabled))
         soundOutputSignal += uint32_t(audioOutputLevelTable[audioOutputLevel]);
-      sendAudioOutput(soundOutputSignal);
+      sendAudioOutput(soundOutputSignal | (soundOutputSignal << 16));
     }
     videoRenderer.runOneCycle();
     crtc.runOneCycle();
-    cursorIRQState = cursorIRQState | crtc.getCursorEnabled();
+    if (EP128EMU_UNLIKELY(crtc.getCursorEnabled()))
+      irqState = irqState | 0x10;
     crtcCyclesRemainingH--;
     z80OpcodeHalfCycles = z80OpcodeHalfCycles - 4;
   }
@@ -166,10 +168,8 @@ namespace TVC64 {
 
   EP128EMU_REGPARM1 void TVC64VM::Z80_::executeInterrupt()
   {
-    if (EP128EMU_UNLIKELY(bool(vm.irqState & vm.irqEnableMask)
-                          | vm.cursorIRQState)) {
+    if (EP128EMU_UNLIKELY(bool(vm.irqState)))
       Ep128::Z80::executeInterrupt();
-    }
   }
 
   EP128EMU_REGPARM2 uint8_t TVC64VM::Z80_::readMemory(uint16_t addr)
@@ -451,8 +451,7 @@ namespace TVC64 {
     case 0x5D:
       // bit 7: printer ready (unimplemented)
       // bit 6: color output enabled (1 = yes)
-      retval = (~(vm.irqState | (uint8_t(vm.cursorIRQState) << 4)) & 0x1F)
-               | ((vm.tapeInputSignal & 0x01) << 5) | 0xC0;
+      retval = (~vm.irqState & 0x1F) | ((vm.tapeInputSignal & 1) << 5) | 0xC0;
       break;
     case 0x5A:                          // extension card data (unimplemented)
     case 0x5E:
@@ -521,10 +520,7 @@ namespace TVC64 {
       vm.audioOutputLevel = (value & 0x3C) >> 2;
       break;
     case 0x07:                          // clear tone generator / cursor IRQ
-      {
-        vm.irqState = vm.irqState & 0x0F;
-        vm.cursorIRQState = false;
-      }
+      vm.irqState = vm.irqState & 0x0F;
       break;
     case 0x0C:                          // video RAM paging register (TVC64+)
       vm.memory.setPaging((vm.memory.getPaging() & 0xC0FF)
@@ -637,8 +633,7 @@ namespace TVC64 {
     case 0x59:                          // IRQ state (repeated twice)
       // bit 7: printer ready (unimplemented)
       // bit 6: color output enabled (1 = yes)
-      retval = (~(vm.irqState | (uint8_t(vm.cursorIRQState) << 4)) & 0x1F)
-               | ((vm.tapeInputSignal & 0x01) << 5) | 0xC0;
+      retval = (~vm.irqState & 0x1F) | ((vm.tapeInputSignal & 1) << 5) | 0xC0;
       break;
     case 0x5A:                          // extension card data (unimplemented)
       break;
@@ -903,7 +898,6 @@ namespace TVC64 {
       tapeInputSignal(0),
       tapeOutputSignal(0),
       crtcRegisterSelected(0x00),
-      cursorIRQState(false),
       irqState(0x00),
       irqEnableMask(0x00),
       singleStepMode(0),
@@ -1026,7 +1020,6 @@ namespace TVC64 {
     }
     tapeOutputSignal = 0;
     crtcRegisterSelected = 0x00;
-    cursorIRQState = false;
     irqState = 0x00;
     irqEnableMask = 0x00;
     setTapeMotorState(false);
