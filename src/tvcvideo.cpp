@@ -103,7 +103,7 @@ namespace TVC64 {
     r = float(int(bool(pixelValue & 0x0C)));
     g = float(int(bool(pixelValue & 0x30)));
     b = float(int(bool(pixelValue & 0x03)));
-    if (!pixelValue & 0xC0) {
+    if (!(pixelValue & 0xC0)) {
       r = r * 0.75f;
       g = g * 0.75f;
       b = b * 0.75f;
@@ -162,7 +162,7 @@ namespace TVC64 {
       }
       else {
         pixelBuf[0] = 1;                // border
-        pixelBuf[1] = pixelConvTable_16[borderColor];
+        pixelBuf[1] = borderColor;
       }
       if (hSyncCnt & 1U) {
         if (EP128EMU_UNLIKELY(pixelBuf0[0] != pixelBuf1[0])) {
