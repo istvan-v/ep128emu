@@ -217,7 +217,7 @@ namespace CPC464 {
           else if (vSyncCnt == 15)      // VSync end
             vsyncStateChange(false, 6U);
         }
-        crtcHSyncCnt = 0xFF;            // will overflow to 0
+        crtcHSyncCnt = uint8_t(-1);     // will overflow to 0
       }
       crtcHSyncCnt++;
     }
