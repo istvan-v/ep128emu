@@ -76,7 +76,7 @@ namespace Ep128 {
     if (!f)
       throw Ep128Emu::Exception("cannot open ROM file");
     std::fseek(f, 0L, SEEK_END);
-    if (ftell(f) < long(offs + 11)) {
+    if (std::ftell(f) < long(offs + 11)) {
       std::fclose(f);
       throw Ep128Emu::Exception("ROM file is shorter than expected");
     }

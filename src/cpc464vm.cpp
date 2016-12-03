@@ -451,7 +451,7 @@ namespace CPC464 {
 
   uint8_t CPC464VM::ioPortReadCallback(void *userData, uint16_t addr)
   {
-    CPC464VM&  vm = *(reinterpret_cast<CPC464VM *>(userData));
+    CPC464VM& vm = *(reinterpret_cast<CPC464VM *>(userData));
     uint8_t   retval = 0xFF;
     if ((addr & 0x4000) == 0) {         // CRTC (register number is in A8-A9)
       if ((addr & 0x0300) == 0x0300)    // read CRTC register
@@ -489,7 +489,7 @@ namespace CPC464 {
   void CPC464VM::ioPortWriteCallback(void *userData,
                                      uint16_t addr, uint8_t value)
   {
-    CPC464VM&  vm = *(reinterpret_cast<CPC464VM *>(userData));
+    CPC464VM& vm = *(reinterpret_cast<CPC464VM *>(userData));
     if ((addr & 0xC000) == 0x4000) {    // gate array
       switch (value & 0xC0) {
       case 0x00:                // select pen
@@ -578,7 +578,7 @@ namespace CPC464 {
 
   uint8_t CPC464VM::ioPortDebugReadCallback(void *userData, uint16_t addr)
   {
-    CPC464VM&  vm = *(reinterpret_cast<CPC464VM *>(userData));
+    CPC464VM& vm = *(reinterpret_cast<CPC464VM *>(userData));
     if (addr < 0x00A0) {
       switch (addr & 0x00F0) {
       case 0x0000:                      // CRTC registers
@@ -731,7 +731,7 @@ namespace CPC464 {
   EP128EMU_REGPARM2 void CPC464VM::hSyncStateChangeCallback(void *userData,
                                                             bool newState)
   {
-    CPC464VM&  vm = *(reinterpret_cast<CPC464VM *>(userData));
+    CPC464VM& vm = *(reinterpret_cast<CPC464VM *>(userData));
     if (!newState) {
       vm.gateArrayIRQCounter++;
       if (vm.gateArrayVSyncDelay > 0) {
@@ -752,7 +752,7 @@ namespace CPC464 {
   EP128EMU_REGPARM2 void CPC464VM::vSyncStateChangeCallback(void *userData,
                                                             bool newState)
   {
-    CPC464VM&  vm = *(reinterpret_cast<CPC464VM *>(userData));
+    CPC464VM& vm = *(reinterpret_cast<CPC464VM *>(userData));
     if (newState)
       vm.gateArrayVSyncDelay = 2;
     vm.videoRenderer.crtcVSyncStateChange(newState);
@@ -760,7 +760,7 @@ namespace CPC464 {
 
   void CPC464VM::tapeCallback(void *userData)
   {
-    CPC464VM&  vm = *(reinterpret_cast<CPC464VM *>(userData));
+    CPC464VM& vm = *(reinterpret_cast<CPC464VM *>(userData));
     vm.tapeSamplesRemaining += vm.tapeSamplesPerCRTCCycle;
     if (vm.tapeSamplesRemaining >= 0) {
       // assume tape sample rate < crtcFrequency
@@ -775,7 +775,7 @@ namespace CPC464 {
 
   void CPC464VM::demoPlayCallback(void *userData)
   {
-    CPC464VM&  vm = *(reinterpret_cast<CPC464VM *>(userData));
+    CPC464VM& vm = *(reinterpret_cast<CPC464VM *>(userData));
     while (!vm.demoTimeCnt) {
       if (vm.haveTape() &&
           vm.getIsTapeMotorOn() && vm.getTapeButtonState() != 0) {
@@ -821,13 +821,13 @@ namespace CPC464 {
 
   void CPC464VM::demoRecordCallback(void *userData)
   {
-    CPC464VM&  vm = *(reinterpret_cast<CPC464VM *>(userData));
+    CPC464VM& vm = *(reinterpret_cast<CPC464VM *>(userData));
     vm.demoTimeCnt++;
   }
 
   void CPC464VM::videoCaptureCallback(void *userData)
   {
-    CPC464VM&  vm = *(reinterpret_cast<CPC464VM *>(userData));
+    CPC464VM& vm = *(reinterpret_cast<CPC464VM *>(userData));
     vm.videoCapture->runOneCycle(vm.soundOutputSignal);
   }
 
@@ -1172,7 +1172,7 @@ namespace CPC464 {
     if (!f)
       throw Ep128Emu::Exception("cannot open ROM file");
     std::fseek(f, 0L, SEEK_END);
-    if (ftell(f) < long(offs + 0x4000)) {
+    if (std::ftell(f) < long(offs + 0x4000)) {
       std::fclose(f);
       throw Ep128Emu::Exception("ROM file is shorter than expected");
     }
