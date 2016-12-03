@@ -33,17 +33,19 @@ namespace TVC64 {
     uint8_t   crtcHSyncCnt;
     uint8_t   crtcHSyncState;
     uint8_t   vSyncCnt;
-    uint8_t   videoModeLatched;
-    // sync (delay=1), displayEnabled (d=2), videoByte0 (d=2), videoByte1 (d=2)
-    // NOTE: for sync delay, only ((uint8_t *) videoDelayBuf)[0] is used
+    // sync (delay=1), displayEnabled (d=2), videoMode (d=1), videoByte (d=2)
+    // NOTE: for mode and sync delay, only ((uint8_t *) videoDelayBuf)[0]
+    // is used
     uint32_t  videoDelayBuf[2];
     const uint8_t *videoMemory;
     uint8_t   *lineBuf;         // 448 bytes (112 uint32_t's) for 49 characters
-    uint8_t   palette[16];
+    uint8_t   palette[4];
     uint8_t   borderColor;
     uint8_t   videoMode;
     uint8_t   hSyncMax;
     uint8_t   hSyncLen;
+    uint8_t   pixelBuf0[8];
+    uint8_t   pixelBuf1[8];
     // --------
     /*!
      * drawLine() is called after rendering each line.
@@ -88,31 +90,21 @@ namespace TVC64 {
     void setColor(uint8_t penNum, uint8_t c);   // penNum >= 4 is border
     uint8_t getColor(uint8_t penNum) const;
     EP128EMU_REGPARM1 void runOneCycle();
-   private:
-    EP128EMU_REGPARM1 void shiftLineBuffer();
    public:
     EP128EMU_INLINE void crtcHSyncStateChange(bool newState)
     {
-      if (!newState) {
-        if (EP128EMU_UNLIKELY(crtcHSyncCnt)) {
-          if (crtcHSyncCnt >= 4)
-            hSyncLen = crtcHSyncCnt - 3;
-          videoModeLatched = videoMode;
-          if (vSyncCnt) {
-            if (--vSyncCnt == 21)       // VSync start (delayed by 5 lines)
-              vsyncStateChange(true, (crtc.getVSyncInterlace() ? 34U : 6U));
-            else if (vSyncCnt == 15)    // VSync end
-              vsyncStateChange(false, 6U);
-          }
-        }
-      }
-      crtcHSyncCnt = uint8_t(newState);
+      if (newState)
+        crtcHSyncCnt = 1;
       crtcHSyncState = uint8_t(newState);
     }
     EP128EMU_INLINE void crtcVSyncStateChange(bool newState)
     {
       if (newState && !vSyncCnt)
-        vSyncCnt = 26;
+        vSyncCnt = 24;
+    }
+    EP128EMU_INLINE void setVideoMemory(const uint8_t *videoMemory_)
+    {
+      videoMemory = videoMemory_;
     }
     void reset();
   };

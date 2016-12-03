@@ -83,22 +83,28 @@ namespace TVC64 {
 
   EP128EMU_INLINE void TVC64VM::memoryWait(uint16_t addr)
   {
-    updateCPUHalfCycles(4);
-    if (memory.getPage(addr >> 14) >= 0xFC)
+    if (memory.getPage(addr >> 14) >= 0xFC) {
+      updateCPUHalfCycles(4);
       updateCPUHalfCycles(4 - int(z80OpcodeHalfCycles & 3));
-    updateCPUHalfCycles(1);
-    while (z80OpcodeHalfCycles >= 4)
-      runOneCycle();
+      updateCPUHalfCycles(1);
+      while (z80OpcodeHalfCycles >= 4)
+        runOneCycle();
+      return;
+    }
+    updateCPUHalfCycles(5);
   }
 
   EP128EMU_INLINE void TVC64VM::memoryWaitM1(uint16_t addr)
   {
-    updateCPUHalfCycles(3);
-    if (memory.getPage(addr >> 14) >= 0xFC)
+    if (memory.getPage(addr >> 14) >= 0xFC) {
+      updateCPUHalfCycles(3);
       updateCPUHalfCycles(4 - int(z80OpcodeHalfCycles & 3));
-    updateCPUHalfCycles(1);
-    while (z80OpcodeHalfCycles >= 4)
-      runOneCycle();
+      updateCPUHalfCycles(1);
+      while (z80OpcodeHalfCycles >= 4)
+        runOneCycle();
+      return;
+    }
+    updateCPUHalfCycles(4);
   }
 
   EP128EMU_INLINE void TVC64VM::ioPortWait(uint16_t addr)
@@ -137,10 +143,11 @@ namespace TVC64 {
       soundOutputSignal = uint32_t(tapeInputSignal) << 12;
       if ((toneGenCnt2 & 0x08) | uint8_t(!toneGenEnabled))
         soundOutputSignal += uint32_t(audioOutputLevelTable[audioOutputLevel]);
+      sendAudioOutput(soundOutputSignal);
     }
     videoRenderer.runOneCycle();
     crtc.runOneCycle();
-    irqState = irqState | (uint8_t(crtc.getCursorEnabled()) << 4);
+    cursorIRQState = cursorIRQState | crtc.getCursorEnabled();
     crtcCyclesRemainingH--;
     z80OpcodeHalfCycles = z80OpcodeHalfCycles - 4;
   }
@@ -159,8 +166,10 @@ namespace TVC64 {
 
   EP128EMU_REGPARM1 void TVC64VM::Z80_::executeInterrupt()
   {
-    if (EP128EMU_UNLIKELY(bool(vm.irqState & vm.irqEnableMask)))
+    if (EP128EMU_UNLIKELY(bool(vm.irqState & vm.irqEnableMask)
+                          | vm.cursorIRQState)) {
       Ep128::Z80::executeInterrupt();
+    }
   }
 
   EP128EMU_REGPARM2 uint8_t TVC64VM::Z80_::readMemory(uint16_t addr)
@@ -442,7 +451,8 @@ namespace TVC64 {
     case 0x5D:
       // bit 7: printer ready (unimplemented)
       // bit 6: color output enabled (1 = yes)
-      retval = (vm.irqState & 0x1F) | ((vm.tapeInputSignal & 0x01) << 5) | 0xC0;
+      retval = (~(vm.irqState | (uint8_t(vm.cursorIRQState) << 4)) & 0x1F)
+               | ((vm.tapeInputSignal & 0x01) << 5) | 0xC0;
       break;
     case 0x5A:                          // extension card data (unimplemented)
     case 0x5E:
@@ -502,15 +512,7 @@ namespace TVC64 {
     case 0x05:                          // tone generator frequency b8..b11
       vm.toneGenFreq = (vm.toneGenFreq & 0xFFU) | (uint32_t(value & 0x0F) << 8);
       vm.toneGenEnabled = bool(value & 0x10);
-      {
-        bool    prvIRQ = bool(vm.irqState & vm.irqEnableMask);
-        vm.irqEnableMask = (vm.irqEnableMask & 0x0F) | ((value & 0x20) >> 1);
-        bool    newIRQ = bool(vm.irqState & vm.irqEnableMask);
-        if (prvIRQ && !newIRQ)
-          vm.z80.clearInterrupt();
-        else if (newIRQ && !prvIRQ)
-          vm.z80.triggerInterrupt();
-      }
+      vm.irqEnableMask = (vm.irqEnableMask & 0x0F) | ((value & 0x20) >> 1);
       vm.setTapeMotorState(bool(value & 0xC0));
       break;
     case 0x06:                          // video mode, audio output level
@@ -520,20 +522,19 @@ namespace TVC64 {
       break;
     case 0x07:                          // clear tone generator / cursor IRQ
       {
-        bool    prvIRQ = bool(vm.irqState & vm.irqEnableMask);
         vm.irqState = vm.irqState & 0x0F;
-        if (!(vm.irqState & vm.irqEnableMask) && prvIRQ)
-          vm.z80.clearInterrupt();
+        vm.cursorIRQState = false;
       }
       break;
     case 0x0C:                          // video RAM paging register (TVC64+)
       vm.memory.setPaging((vm.memory.getPaging() & 0xC0FF)
                           | (uint16_t(value & 0x3F) << 8));
+      vm.videoRenderer.setVideoMemory(vm.memory.getVideoMemory());
       break;
     case 0x0D:
     case 0x0E:
     case 0x0F:
-      vm.ioPorts.write(addr & 0x7C, value);
+      vm.ioPorts.writeDebug(addr & 0x7C, value);
       break;
     // 0x10-0x1F: extension 0 (unimplemented)
     // 0x20-0x2F: extension 1 (unimplemented)
@@ -549,31 +550,25 @@ namespace TVC64 {
     case 0x55:
     case 0x56:
     case 0x57:
-      vm.ioPorts.write(addr & 0x78, value);
+      vm.ioPorts.writeDebug(addr & 0x78, value);
       break;
     case 0x58:                          // extension 0 IRQ (repeated twice)
     case 0x59:                          // extension 1 IRQ
     case 0x5A:                          // extension 2 IRQ
     case 0x5B:                          // extension 3 IRQ
       {
-        bool    prvIRQ = bool(vm.irqState & vm.irqEnableMask);
         uint8_t n = uint8_t(addr & 3);
         uint8_t m = ~(uint8_t(1 << n));
         uint8_t b = (value & 0x80) >> (7 - n);
         vm.irqState = vm.irqState & (m | b);
         vm.irqEnableMask = (vm.irqEnableMask & m) | b;
-        bool    newIRQ = bool(vm.irqState & vm.irqEnableMask);
-        if (prvIRQ && !newIRQ)
-          vm.z80.clearInterrupt();
-        else if (newIRQ && !prvIRQ)
-          vm.z80.triggerInterrupt();
       }
       break;
     case 0x5C:
     case 0x5D:
     case 0x5E:
     case 0x5F:
-      vm.ioPorts.write(addr & 0x7B, value);
+      vm.ioPorts.writeDebug(addr & 0x7B, value);
       break;
     case 0x60:                          // palette registers (repeated 4 times)
     case 0x61:
@@ -593,7 +588,7 @@ namespace TVC64 {
     case 0x6D:
     case 0x6E:
     case 0x6F:
-      vm.ioPorts.write(addr & 0x73, value);
+      vm.ioPorts.writeDebug(addr & 0x73, value);
       break;
     case 0x70:                          // CRTC registers (repeated 8 times)
       vm.crtcRegisterSelected = value & 0x1F;
@@ -615,7 +610,7 @@ namespace TVC64 {
     case 0x7D:
     case 0x7E:
     case 0x7F:
-      vm.ioPorts.write(addr & 0x71, value);
+      vm.ioPorts.writeDebug(addr & 0x71, value);
       break;
     }
   }
@@ -642,7 +637,8 @@ namespace TVC64 {
     case 0x59:                          // IRQ state (repeated twice)
       // bit 7: printer ready (unimplemented)
       // bit 6: color output enabled (1 = yes)
-      retval = (vm.irqState & 0x1F) | ((vm.tapeInputSignal & 0x01) << 5) | 0xC0;
+      retval = (~(vm.irqState | (uint8_t(vm.cursorIRQState) << 4)) & 0x1F)
+               | ((vm.tapeInputSignal & 0x01) << 5) | 0xC0;
       break;
     case 0x5A:                          // extension card data (unimplemented)
       break;
@@ -907,9 +903,9 @@ namespace TVC64 {
       tapeInputSignal(0),
       tapeOutputSignal(0),
       crtcRegisterSelected(0x00),
+      cursorIRQState(false),
       irqState(0x00),
       irqEnableMask(0x00),
-      gateArrayPenSelected(0x00),
       singleStepMode(0),
       singleStepModeNextAddr(int32_t(-1)),
       tapeCallbackFlag(false),
@@ -994,7 +990,6 @@ namespace TVC64 {
       if (newTapeCallbackFlag == prvTapeCallbackFlag) {
         tapeCallbackFlag = newTapeCallbackFlag;
         tapeInputSignal = 0;
-        setTapeMotorState(newTapeCallbackFlag);
         setCallback(&tapeCallback, this, newTapeCallbackFlag);
       }
       prvTapeCallbackFlag = newTapeCallbackFlag;
@@ -1009,7 +1004,7 @@ namespace TVC64 {
     crtcCyclesRemainingH = int32_t(crtcCyclesRemaining >> 32);
     while (EP128EMU_EXPECT(crtcCyclesRemainingH > 0)) {
       z80.executeInstruction();
-      while (EP128EMU_UNLIKELY(z80OpcodeHalfCycles >= 8))
+      while (EP128EMU_UNLIKELY(z80OpcodeHalfCycles >= 4))
         runOneCycle();
     }
   }
@@ -1019,13 +1014,24 @@ namespace TVC64 {
     stopDemoPlayback();         // TODO: should be recorded as an event ?
     stopDemoRecording(false);
     z80.reset();
+    z80.triggerInterrupt();
     memory.setPaging(0x0000);
+    videoRenderer.setVideoMemory(memory.getVideoMemory());
     crtc.reset();
     videoRenderer.reset();
-    if (isColdReset)
+    if (isColdReset) {
       resetKeyboard();
+      for (uint32_t i = 0x3E0000U; i <= 0x3FFFFFU; i++)
+        memory.writeRaw(i, 0xFF);
+    }
+    tapeOutputSignal = 0;
     crtcRegisterSelected = 0x00;
-    gateArrayPenSelected = 0x00;
+    cursorIRQState = false;
+    irqState = 0x00;
+    irqEnableMask = 0x00;
+    setTapeMotorState(false);
+    toneGenEnabled = false;
+    audioOutputLevel = 0;
   }
 
   void TVC64VM::resetMemoryConfiguration(size_t memSize)
@@ -1038,6 +1044,7 @@ namespace TVC64 {
     }
     // resize RAM
     memory.setRAMSize(memSize);
+    videoRenderer.setVideoMemory(memory.getVideoMemory());
     // cold reset
     this->reset(true);
   }

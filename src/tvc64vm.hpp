@@ -107,9 +107,9 @@ namespace TVC64 {
     uint8_t   tapeInputSignal;
     uint8_t   tapeOutputSignal;
     uint8_t   crtcRegisterSelected;
+    bool      cursorIRQState;
     uint8_t   irqState;
     uint8_t   irqEnableMask;
-    uint8_t   gateArrayPenSelected;
     // 0: normal mode, 1: single step, 2: step over, 3: trace
     uint8_t   singleStepMode;
     int32_t   singleStepModeNextAddr;

@@ -37,7 +37,6 @@ namespace TVC64 {
       buf.writeByte(videoRenderer.getVideoMode());
       buf.writeByte(z80OpcodeHalfCycles);
       buf.writeByte(crtcRegisterSelected);
-      buf.writeByte(gateArrayPenSelected);
       buf.writeUInt32(uint32_t(crtcFrequency));
       for (int i = 0; i < 16; i++)
         buf.writeByte(keyboardState[i]);
@@ -109,7 +108,6 @@ namespace TVC64 {
       videoRenderer.setVideoMode(buf.readByte());
       z80OpcodeHalfCycles = buf.readByte();
       crtcRegisterSelected = buf.readByte();
-      gateArrayPenSelected = buf.readByte() & 0x3F;
       (void) buf.readUInt32();          // crtcFrequency (ignored)
       for (int i = 0; i < 16; i++)
         keyboardState[i] = buf.readByte();
