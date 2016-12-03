@@ -109,17 +109,17 @@ namespace TVC64 {
 
   void TVCVideo::setColor(uint8_t penNum, uint8_t c)
   {
-    if (penNum & 0x10)
-      borderColor = c & 0x3F;
+    if (penNum & 0x04)
+      borderColor = c & 0xAA;
     else
-      palette[penNum & 0x0F] = c & 0x3F;
+      palette[penNum & 0x03] = c & 0x55;
   }
 
   uint8_t TVCVideo::getColor(uint8_t penNum) const
   {
-    if (penNum & 0x10)
+    if (penNum & 0x04)
       return borderColor;
-    return palette[penNum & 0x0F];
+    return palette[penNum & 0x03];
   }
 
   EP128EMU_REGPARM1 void TVCVideo::runOneCycle()

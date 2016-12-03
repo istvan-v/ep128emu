@@ -32,13 +32,11 @@ namespace TVC64 {
       Ep128Emu::File::Buffer  buf;
       buf.setPosition(0);
       buf.writeUInt32(0x01000000);      // version number
-      for (uint8_t i = 0; i <= 16; i++)
+      for (uint8_t i = 0; i <= 4; i++)
         buf.writeByte(videoRenderer.getColor(i));
       buf.writeByte(videoRenderer.getVideoMode());
       buf.writeByte(z80OpcodeHalfCycles);
       buf.writeByte(crtcRegisterSelected);
-      buf.writeByte(gateArrayIRQCounter);
-      buf.writeByte(gateArrayVSyncDelay);
       buf.writeByte(gateArrayPenSelected);
       buf.writeUInt32(uint32_t(crtcFrequency));
       for (int i = 0; i < 16; i++)
@@ -106,13 +104,11 @@ namespace TVC64 {
     stopDemo();
     snapshotLoadFlag = true;
     try {
-      for (uint8_t i = 0; i <= 16; i++)
+      for (uint8_t i = 0; i <= 4; i++)
         videoRenderer.setColor(i, buf.readByte());
       videoRenderer.setVideoMode(buf.readByte());
       z80OpcodeHalfCycles = buf.readByte();
       crtcRegisterSelected = buf.readByte();
-      gateArrayIRQCounter = buf.readByte() & 0x3F;
-      gateArrayVSyncDelay = buf.readByte() & 0x03;
       gateArrayPenSelected = buf.readByte() & 0x3F;
       (void) buf.readUInt32();          // crtcFrequency (ignored)
       for (int i = 0; i < 16; i++)

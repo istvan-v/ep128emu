@@ -81,29 +81,36 @@ namespace TVC64 {
     z80OpcodeHalfCycles = z80OpcodeHalfCycles + uint8_t(halfCycles);
   }
 
-  EP128EMU_INLINE void TVC64VM::memoryWait()
+  EP128EMU_INLINE void TVC64VM::memoryWait(uint16_t addr)
   {
-    updateCPUHalfCycles(((~(int(z80OpcodeHalfCycles) + 3)) & 6) + 5);
-    do {
+    updateCPUHalfCycles(4);
+    if (memory.getPage(addr >> 14) >= 0xFC)
+      updateCPUHalfCycles(4 - int(z80OpcodeHalfCycles & 3));
+    updateCPUHalfCycles(1);
+    while (z80OpcodeHalfCycles >= 4)
       runOneCycle();
-    } while (EP128EMU_UNLIKELY(z80OpcodeHalfCycles >= 8));
   }
 
-  EP128EMU_INLINE void TVC64VM::memoryWaitM1()
+  EP128EMU_INLINE void TVC64VM::memoryWaitM1(uint16_t addr)
   {
-    updateCPUHalfCycles(((~(int(z80OpcodeHalfCycles) + 3)) & 6) + 4);
-    // assume z80OpcodeHalfCycles is always even here, so it should be >= 8
-    do {
+    updateCPUHalfCycles(3);
+    if (memory.getPage(addr >> 14) >= 0xFC)
+      updateCPUHalfCycles(4 - int(z80OpcodeHalfCycles & 3));
+    updateCPUHalfCycles(1);
+    while (z80OpcodeHalfCycles >= 4)
       runOneCycle();
-    } while (EP128EMU_UNLIKELY(z80OpcodeHalfCycles >= 8));
   }
 
-  EP128EMU_INLINE void TVC64VM::ioPortWait()
+  EP128EMU_INLINE void TVC64VM::ioPortWait(uint16_t addr)
   {
-    updateCPUHalfCycles(((~(int(z80OpcodeHalfCycles) + 5)) & 6) + 7);
-    do {
+    updateCPUHalfCycles(6);
+    // FIXME: is clock stretching needed when accessing video related I/O ports?
+    (void) addr;
+    if (memory.getPage(addr >> 14) >= 0xFC)
+      updateCPUHalfCycles(4 - int(z80OpcodeHalfCycles & 3));
+    updateCPUHalfCycles(1);
+    while (z80OpcodeHalfCycles >= 4)
       runOneCycle();
-    } while (z80OpcodeHalfCycles >= 8);
   }
 
   EP128EMU_REGPARM1 void TVC64VM::runOneCycle()
@@ -116,21 +123,24 @@ namespace TVC64 {
     }
     if (++toneGenCnt1 >= 4096U) {
       toneGenCnt1 = toneGenFreq;
-      toneGenCnt2++;
+      toneGenCnt2 = (toneGenCnt2 + 1) & 0x0F;
+      if (EP128EMU_UNLIKELY(toneGenCnt2 == 8))
+        irqState = irqState | 0x10;
     }
     if (++toneGenCnt1 >= 4096U) {
       toneGenCnt1 = toneGenFreq;
-      toneGenCnt2++;
+      if (EP128EMU_UNLIKELY(toneGenCnt2 == 8))
+        irqState = irqState | 0x10;
     }
     if (--audioCycleCnt == 0) {
       audioCycleCnt = 4;
       soundOutputSignal = uint32_t(tapeInputSignal) << 12;
-      toneGenCnt2 = toneGenCnt2 & 0x0F;
-      if (toneGenCnt2 & 0x08)
+      if ((toneGenCnt2 & 0x08) | uint8_t(!toneGenEnabled))
         soundOutputSignal += uint32_t(audioOutputLevelTable[audioOutputLevel]);
     }
     videoRenderer.runOneCycle();
     crtc.runOneCycle();
+    irqState = irqState | (uint8_t(crtc.getCursorEnabled()) << 4);
     crtcCyclesRemainingH--;
     z80OpcodeHalfCycles = z80OpcodeHalfCycles - 4;
   }
@@ -149,15 +159,13 @@ namespace TVC64 {
 
   EP128EMU_REGPARM1 void TVC64VM::Z80_::executeInterrupt()
   {
-    vm.updateCPUHalfCycles((~(int(vm.z80OpcodeHalfCycles) + 7)) & 6);
-    vm.gateArrayIRQCounter = vm.gateArrayIRQCounter & 0x1F;
-    clearInterrupt();
-    Ep128::Z80::executeInterrupt();
+    if (EP128EMU_UNLIKELY(bool(vm.irqState & vm.irqEnableMask)))
+      Ep128::Z80::executeInterrupt();
   }
 
   EP128EMU_REGPARM2 uint8_t TVC64VM::Z80_::readMemory(uint16_t addr)
   {
-    vm.memoryWait();
+    vm.memoryWait(addr);
     uint8_t   retval = vm.memory.read(addr);
     vm.updateCPUHalfCycles(1);
     return retval;
@@ -165,11 +173,11 @@ namespace TVC64 {
 
   EP128EMU_REGPARM2 uint16_t TVC64VM::Z80_::readMemoryWord(uint16_t addr)
   {
-    vm.memoryWait();
+    vm.memoryWait(addr);
     uint16_t  retval = vm.memory.read(addr);
     vm.updateCPUHalfCycles(1);
     addr = (addr + 1) & 0xFFFF;
-    vm.memoryWait();
+    vm.memoryWait(addr);
     retval |= (uint16_t(vm.memory.read(addr) << 8));
     vm.updateCPUHalfCycles(1);
     return retval;
@@ -178,7 +186,7 @@ namespace TVC64 {
   EP128EMU_REGPARM1 uint8_t TVC64VM::Z80_::readOpcodeFirstByte()
   {
     uint16_t  addr = uint16_t(R.PC.W.l);
-    vm.memoryWaitM1();
+    vm.memoryWaitM1(addr);
     if (!vm.singleStepMode) {
       uint8_t   retval = vm.memory.readOpcode(addr);
       vm.updateCPUHalfCycles(4);
@@ -199,7 +207,7 @@ namespace TVC64 {
       if (EP128EMU_UNLIKELY(invalidOpcodeTable[b]))
         return b;
     }
-    vm.memoryWaitM1();
+    vm.memoryWaitM1(addr);
     uint8_t   retval = vm.memory.readOpcode(addr);
     vm.updateCPUHalfCycles(4);
     return retval;
@@ -208,7 +216,7 @@ namespace TVC64 {
   EP128EMU_REGPARM2 uint8_t TVC64VM::Z80_::readOpcodeByte(int offset)
   {
     uint16_t  addr = uint16_t((int(R.PC.W.l) + offset) & 0xFFFF);
-    vm.memoryWait();
+    vm.memoryWait(addr);
     uint8_t   retval = vm.memory.readOpcode(addr);
     vm.updateCPUHalfCycles(1);
     return retval;
@@ -217,11 +225,11 @@ namespace TVC64 {
   EP128EMU_REGPARM2 uint16_t TVC64VM::Z80_::readOpcodeWord(int offset)
   {
     uint16_t  addr = uint16_t((int(R.PC.W.l) + offset) & 0xFFFF);
-    vm.memoryWait();
+    vm.memoryWait(addr);
     uint16_t  retval = vm.memory.readOpcode(addr);
     vm.updateCPUHalfCycles(1);
     addr = (addr + 1) & 0xFFFF;
-    vm.memoryWait();
+    vm.memoryWait(addr);
     retval |= (uint16_t(vm.memory.readOpcode(addr) << 8));
     vm.updateCPUHalfCycles(1);
     return retval;
@@ -230,7 +238,7 @@ namespace TVC64 {
   EP128EMU_REGPARM3 void TVC64VM::Z80_::writeMemory(uint16_t addr,
                                                     uint8_t value)
   {
-    vm.memoryWait();
+    vm.memoryWait(addr);
     vm.memory.write(addr, value);
     vm.updateCPUHalfCycles(1);
   }
@@ -238,11 +246,11 @@ namespace TVC64 {
   EP128EMU_REGPARM3 void TVC64VM::Z80_::writeMemoryWord(uint16_t addr,
                                                         uint16_t value)
   {
-    vm.memoryWait();
+    vm.memoryWait(addr);
     vm.memory.write(addr, uint8_t(value) & 0xFF);
     vm.updateCPUHalfCycles(1);
     addr = (addr + 1) & 0xFFFF;
-    vm.memoryWait();
+    vm.memoryWait(addr);
     vm.memory.write(addr, uint8_t(value >> 8));
     vm.updateCPUHalfCycles(1);
   }
@@ -251,25 +259,26 @@ namespace TVC64 {
   {
     vm.updateCPUHalfCycles(2);
     R.SP.W -= 2;
-    uint16_t  addr = R.SP.W;
-    vm.memoryWait();
-    vm.memory.write((addr + 1) & 0xFFFF, uint8_t(value >> 8));
+    uint16_t  addr = (R.SP.W + 1) & 0xFFFF;
+    vm.memoryWait(addr);
+    vm.memory.write(addr, uint8_t(value >> 8));
     vm.updateCPUHalfCycles(1);
-    vm.memoryWait();
+    addr = (addr - 1) & 0xFFFF;
+    vm.memoryWait(addr);
     vm.memory.write(addr, uint8_t(value) & 0xFF);
     vm.updateCPUHalfCycles(1);
   }
 
   EP128EMU_REGPARM3 void TVC64VM::Z80_::doOut(uint16_t addr, uint8_t value)
   {
-    vm.ioPortWait();
+    vm.ioPortWait(addr);
     vm.ioPorts.write(addr, value);
     vm.updateCPUHalfCycles(1);
   }
 
   EP128EMU_REGPARM2 uint8_t TVC64VM::Z80_::doIn(uint16_t addr)
   {
-    vm.ioPortWait();
+    vm.ioPortWait(addr);
     uint8_t   retval = vm.ioPorts.read(addr);
     vm.updateCPUHalfCycles(1);
     return retval;
@@ -278,14 +287,14 @@ namespace TVC64 {
   EP128EMU_REGPARM1 void TVC64VM::Z80_::updateCycle()
   {
     vm.updateCPUHalfCycles(2);
-    while (vm.z80OpcodeHalfCycles >= 8)
+    while (vm.z80OpcodeHalfCycles >= 4)
       vm.runOneCycle();
   }
 
   EP128EMU_REGPARM2 void TVC64VM::Z80_::updateCycles(int cycles)
   {
     vm.updateCPUCycles(cycles);
-    while (vm.z80OpcodeHalfCycles >= 8)
+    while (vm.z80OpcodeHalfCycles >= 4)
       vm.runOneCycle();
   }
 
@@ -409,38 +418,61 @@ namespace TVC64 {
     TVC64VM&  vm = *(reinterpret_cast<TVC64VM *>(userData));
     uint8_t   retval = 0xFF;
     addr = addr & 0x7F;
-#if 0
-    if ((addr & 0x4000) == 0) {         // CRTC (register number is in A8-A9)
-      if ((addr & 0x0300) == 0x0300)    // read CRTC register
-        retval &= vm.crtc.readRegister(vm.crtcRegisterSelected & 0x1F);
+    switch (addr) {
+    // 0x00-0x0F: unused (write only)
+    // 0x10-0x1F: extension 0 (unimplemented)
+    // 0x20-0x2F: extension 1 (unimplemented)
+    // 0x30-0x3F: extension 2 (unimplemented)
+    // 0x40-0x4F: extension 3 (unimplemented)
+    case 0x50:                          // toggle tape output (repeated 8 times)
+    case 0x51:
+    case 0x52:
+    case 0x53:
+    case 0x54:
+    case 0x55:
+    case 0x56:
+    case 0x57:
+      vm.tapeOutputSignal = ~(vm.tapeOutputSignal) & 0x01;
+      break;
+    case 0x58:                          // keyboard matrix (repeated twice)
+    case 0x5C:
+      retval = vm.tvcKeyboardState[vm.keyboardRow];
+      break;
+    case 0x59:                          // IRQ state (repeated twice)
+    case 0x5D:
+      // bit 7: printer ready (unimplemented)
+      // bit 6: color output enabled (1 = yes)
+      retval = (vm.irqState & 0x1F) | ((vm.tapeInputSignal & 0x01) << 5) | 0xC0;
+      break;
+    case 0x5A:                          // extension card data (unimplemented)
+    case 0x5E:
+      break;
+    case 0x5B:                          // reset tone generator (repeated twice)
+    case 0x5F:
+      vm.toneGenCnt1 = vm.toneGenFreq;
+      vm.toneGenCnt2 = 0;
+      break;
+    case 0x70:                          // CRTC registers (repeated 8 times)
+    case 0x72:
+    case 0x74:
+    case 0x76:
+    case 0x78:
+    case 0x7A:
+    case 0x7C:
+    case 0x7E:
+      retval = vm.ioPorts.getLastValueWritten(0x70);
+      break;
+    case 0x71:
+    case 0x73:
+    case 0x75:
+    case 0x77:
+    case 0x79:
+    case 0x7B:
+    case 0x7D:
+    case 0x7F:
+      retval = vm.crtc.readRegister(vm.crtcRegisterSelected);
+      break;
     }
-    if ((addr & 0x0800) == 0) {         // PPI (register number is in A8-A9)
-      vm.updatePPIState();
-      switch (addr & 0x0300) {
-      case 0x0000:              // port A data
-        retval &= vm.ppiPortAState;
-        break;
-      case 0x0100:              // port B data
-        retval &= vm.ppiPortBState;
-        break;
-      case 0x0200:              // port C data
-        retval &= vm.ppiPortCState;
-        break;
-      }
-    }
-    if ((addr & 0x0480) == 0) {         // expansion peripherals (floppy etc.)
-      if (!(vm.isRecordingDemo | vm.isPlayingDemo)) {
-        switch (addr & 0x0101) {
-        case 0x0100:            // main status register
-          retval &= vm.floppyDrive->readMainStatusRegister();
-          break;
-        case 0x0101:            // data register
-          retval &= vm.floppyDrive->readDataRegister();
-          break;
-        }
-      }
-    }
-#endif
     return retval;
   }
 
@@ -449,239 +481,189 @@ namespace TVC64 {
   {
     TVC64VM&  vm = *(reinterpret_cast<TVC64VM *>(userData));
     addr = addr & 0x7F;
-#if 0
-    if ((addr & 0xC000) == 0x4000) {    // gate array
-      switch (value & 0xC0) {
-      case 0x00:                // select pen
-        vm.gateArrayPenSelected = value & 0x3F;
-        break;
-      case 0x40:                // select color
-        vm.videoRenderer.setColor(vm.gateArrayPenSelected & 0x1F, value & 0x3F);
-        break;
-      case 0x80:                // video mode, ROM disable, interrupt delay
-        vm.videoRenderer.setVideoMode(value & 0x03);
-        vm.memory.setPaging((vm.memory.getPaging() & 0xFF3F)
-                            | uint16_t(((~value) & 0x0C) << 4));
-        if (value & 0x10) {
-          vm.gateArrayIRQCounter = 0;
+    switch (addr) {
+    case 0x00:                          // border color
+      vm.videoRenderer.setColor(4, value);
+      break;
+    case 0x01:                          // printer data output (unimplemented)
+      break;
+    case 0x02:                          // main memory paging register
+      vm.memory.setPaging((vm.memory.getPaging() & 0xFF00)
+                          | uint16_t(value & 0xFC));
+      break;
+    case 0x03:                          // extension (IOMEM) paging register
+      vm.memory.setPaging((vm.memory.getPaging() & 0x3FFF)
+                          | (uint16_t(value & 0xC0) << 8));
+      vm.keyboardRow = value & 0x0F;
+      break;
+    case 0x04:                          // tone generator frequency LSB
+      vm.toneGenFreq = (vm.toneGenFreq & 0x0F00U) | uint32_t(value);
+      break;
+    case 0x05:                          // tone generator frequency b8..b11
+      vm.toneGenFreq = (vm.toneGenFreq & 0xFFU) | (uint32_t(value & 0x0F) << 8);
+      vm.toneGenEnabled = bool(value & 0x10);
+      {
+        bool    prvIRQ = bool(vm.irqState & vm.irqEnableMask);
+        vm.irqEnableMask = (vm.irqEnableMask & 0x0F) | ((value & 0x20) >> 1);
+        bool    newIRQ = bool(vm.irqState & vm.irqEnableMask);
+        if (prvIRQ && !newIRQ)
           vm.z80.clearInterrupt();
-        }
-        break;
+        else if (newIRQ && !prvIRQ)
+          vm.z80.triggerInterrupt();
       }
-    }
-    if ((addr & 0x8000) == 0) {         // RAM configuration
-      if ((value & 0xC0) == 0xC0) {
-        vm.memory.setPaging((vm.memory.getPaging() & 0xFFC0)
-                            | uint16_t(value & 0x3F));
+      vm.setTapeMotorState(bool(value & 0xC0));
+      break;
+    case 0x06:                          // video mode, audio output level
+      // bit 7 (0 = printer output is valid) is ignored
+      vm.videoRenderer.setVideoMode(value & 0x03);
+      vm.audioOutputLevel = (value & 0x3C) >> 2;
+      break;
+    case 0x07:                          // clear tone generator / cursor IRQ
+      {
+        bool    prvIRQ = bool(vm.irqState & vm.irqEnableMask);
+        vm.irqState = vm.irqState & 0x0F;
+        if (!(vm.irqState & vm.irqEnableMask) && prvIRQ)
+          vm.z80.clearInterrupt();
       }
-    }
-    if ((addr & 0x4000) == 0) {         // CRTC (register number is in A8-A9)
-      switch (addr & 0x0300) {
-      case 0x0000:              // select CRTC register
-        vm.crtcRegisterSelected = value;
-        break;
-      case 0x0100:              // write CRTC register
-        vm.crtc.writeRegister(vm.crtcRegisterSelected & 0x1F, value);
-        break;
+      break;
+    case 0x0C:                          // video RAM paging register (TVC64+)
+      vm.memory.setPaging((vm.memory.getPaging() & 0xC0FF)
+                          | (uint16_t(value & 0x3F) << 8));
+      break;
+    case 0x0D:
+    case 0x0E:
+    case 0x0F:
+      vm.ioPorts.write(addr & 0x7C, value);
+      break;
+    // 0x10-0x1F: extension 0 (unimplemented)
+    // 0x20-0x2F: extension 1 (unimplemented)
+    // 0x30-0x3F: extension 2 (unimplemented)
+    // 0x40-0x4F: extension 3 (unimplemented)
+    case 0x50:                          // toggle tape output (repeated 8 times)
+      vm.tapeOutputSignal = ~(vm.tapeOutputSignal) & 0x01;
+      break;
+    case 0x51:
+    case 0x52:
+    case 0x53:
+    case 0x54:
+    case 0x55:
+    case 0x56:
+    case 0x57:
+      vm.ioPorts.write(addr & 0x78, value);
+      break;
+    case 0x58:                          // extension 0 IRQ (repeated twice)
+    case 0x59:                          // extension 1 IRQ
+    case 0x5A:                          // extension 2 IRQ
+    case 0x5B:                          // extension 3 IRQ
+      {
+        bool    prvIRQ = bool(vm.irqState & vm.irqEnableMask);
+        uint8_t n = uint8_t(addr & 3);
+        uint8_t m = ~(uint8_t(1 << n));
+        uint8_t b = (value & 0x80) >> (7 - n);
+        vm.irqState = vm.irqState & (m | b);
+        vm.irqEnableMask = (vm.irqEnableMask & m) | b;
+        bool    newIRQ = bool(vm.irqState & vm.irqEnableMask);
+        if (prvIRQ && !newIRQ)
+          vm.z80.clearInterrupt();
+        else if (newIRQ && !prvIRQ)
+          vm.z80.triggerInterrupt();
       }
+      break;
+    case 0x5C:
+    case 0x5D:
+    case 0x5E:
+    case 0x5F:
+      vm.ioPorts.write(addr & 0x7B, value);
+      break;
+    case 0x60:                          // palette registers (repeated 4 times)
+    case 0x61:
+    case 0x62:
+    case 0x63:
+      vm.videoRenderer.setColor(addr & 3, value);
+      break;
+    case 0x64:
+    case 0x65:
+    case 0x66:
+    case 0x67:
+    case 0x68:
+    case 0x69:
+    case 0x6A:
+    case 0x6B:
+    case 0x6C:
+    case 0x6D:
+    case 0x6E:
+    case 0x6F:
+      vm.ioPorts.write(addr & 0x73, value);
+      break;
+    case 0x70:                          // CRTC registers (repeated 8 times)
+      vm.crtcRegisterSelected = value & 0x1F;
+      break;
+    case 0x71:
+      vm.crtc.writeRegister(vm.crtcRegisterSelected, value);
+      break;
+    case 0x72:
+    case 0x73:
+    case 0x74:
+    case 0x75:
+    case 0x76:
+    case 0x77:
+    case 0x78:
+    case 0x79:
+    case 0x7A:
+    case 0x7B:
+    case 0x7C:
+    case 0x7D:
+    case 0x7E:
+    case 0x7F:
+      vm.ioPorts.write(addr & 0x71, value);
+      break;
     }
-    if ((addr & 0x2000) == 0) {         // ROM configuration
-      vm.memory.setPaging((vm.memory.getPaging() & 0x00FF)
-                          | (uint16_t(value) << 8));
-    }
-    if ((addr & 0x1000) == 0) {         // printer port
-    }
-    if ((addr & 0x0800) == 0) {         // PPI (register number is in A8-A9)
-      switch (addr & 0x0300) {
-      case 0x0000:              // port A data
-        vm.ppiPortARegister = value;
-        break;
-      case 0x0100:              // port B data
-        vm.ppiPortBRegister = value;
-        break;
-      case 0x0200:              // port C data
-        vm.ppiPortCRegister = value;
-        break;
-      case 0x0300:              // control register
-        if (!(value & 0x80)) {
-          if (!(value & 0x01))
-            vm.ppiPortCRegister &= uint8_t(0xFF ^ (1 << ((value & 0x0E) >> 1)));
-          else
-            vm.ppiPortCRegister |= uint8_t(1 << ((value & 0x0E) >> 1));
-        }
-        else {
-          vm.ppiPortARegister = 0x00;
-          vm.ppiPortBRegister = 0x00;
-          vm.ppiPortCRegister = 0x00;
-          vm.ppiControlRegister = value;
-        }
-        break;
-      }
-      vm.updatePPIState();
-    }
-    if ((addr & 0x0480) == 0) {         // expansion peripherals (floppy etc.)
-      if (!(vm.isRecordingDemo | vm.isPlayingDemo)) {
-        switch (addr & 0x0101) {
-        case 0x0000:            // floppy drive motor control
-        case 0x0001:
-          vm.floppyDrive->setMotorState(bool(value & 0x01));
-          break;
-        case 0x0101:            // data register
-          vm.floppyDrive->writeDataRegister(value);
-          break;
-        }
-      }
-    }
-#endif
   }
 
   uint8_t TVC64VM::ioPortDebugReadCallback(void *userData, uint16_t addr)
   {
     TVC64VM&  vm = *(reinterpret_cast<TVC64VM *>(userData));
     addr = addr & 0x7F;
+    if (addr >= 0x70)
+      addr = addr & 0x71;
+    else if (addr >= 0x60)
+      addr = addr & 0x73;
+    else if (addr >= 0x58)
+      addr = addr & 0x7B;
+    else if (addr >= 0x50)
+      addr = addr & 0x78;
+    else if (addr >= 0x0C && addr < 0x10)
+      addr = addr & 0x7C;
     uint8_t   retval = vm.ioPorts.getLastValueWritten(addr);
-#if 0
-    if (addr < 0x00A0) {
-      switch (addr & 0x00F0) {
-      case 0x0000:                      // CRTC registers
-      case 0x0010:
-        return vm.crtc.readRegisterDebug(addr & 0x001F);
-      case 0x0020:                      // gate array palette
-      case 0x0030:
-        return vm.videoRenderer.getColor(addr & 0x001F);
-      case 0x0040:                      // AY registers
-        if ((addr & 0x000F) == 0x000E)
-          vm.updatePPIState();
-        return vm.ay3.readRegister(addr & 0x000F);
-      case 0x0050:                      // PPI registers
-        vm.updatePPIState();
-        switch (addr & 0x000F) {
-        case 0x0000:            // port A state
-        case 0x0008:
-          return vm.ppiPortAState;
-        case 0x0001:            // port B state
-        case 0x0009:
-          return vm.ppiPortBState;
-        case 0x0002:            // port C state
-        case 0x000A:
-          return vm.ppiPortCState;
-        case 0x0003:            // control register
-        case 0x0007:
-        case 0x000B:
-        case 0x000F:
-          return vm.ppiControlRegister;
-        case 0x0004:            // port A register
-        case 0x000C:
-          return vm.ppiPortARegister;
-        case 0x0005:            // port B register
-        case 0x000D:
-          return vm.ppiPortBRegister;
-        case 0x0006:            // port C register
-        case 0x000E:
-          return vm.ppiPortCRegister;
-        }
-      case 0x0060:                      // keyboard matrix
-        return vm.tvcKeyboardState[addr & 0x000F];
-      case 0x0070:                      // misc. I/O registers
-        switch (addr & 0x000F) {
-        case 0x0000:            // CRTC register selected
-          return vm.crtcRegisterSelected;
-        case 0x0001:            // CRTC flags
-          return (uint8_t(vm.crtc.getDisplayEnabled())
-                  | (uint8_t(vm.crtc.getHSyncState()) << 1)
-                  | (uint8_t(vm.crtc.getVSyncState()) << 2)
-                  | (uint8_t(vm.crtc.getVSyncInterlace()) << 3)
-                  | (uint8_t(vm.crtc.getCursorEnabled()) << 4));
-        case 0x0002:            // CRTC address low
-          return uint8_t((vm.crtc.getMemoryAddress() & 0x007F) << 1);
-        case 0x0003:            // CRTC address high
-          return (uint8_t((vm.crtc.getMemoryAddress() & 0x0380) >> 7)
-                  | uint8_t((vm.crtc.getRowAddress() & 0x07) << 3)
-                  | uint8_t((vm.crtc.getMemoryAddress() & 0x3000) >> 6));
-        case 0x0004:            // video mode
-          return vm.videoRenderer.getVideoMode();
-        case 0x0005:            // gate array pen selected
-          return vm.gateArrayPenSelected;
-        case 0x0006:            // gate array IRQ counter
-          return vm.gateArrayIRQCounter;
-        case 0x0007:            // AY register selected
-          return vm.ayRegisterSelected;
-        case 0x0008:            // RAM configuration
-          return uint8_t((vm.memory.getPaging() & 0x00FF) ^ 0x00C0);
-        case 0x0009:            // ROM bank selected
-          return uint8_t(vm.memory.getPaging() >> 8);
-        default:
-          return 0xFF;
-        }
-      }
+    switch (addr) {
+    case 0x58:                          // keyboard matrix
+      retval = vm.tvcKeyboardState[vm.keyboardRow];
+      break;
+    case 0x59:                          // IRQ state (repeated twice)
+      // bit 7: printer ready (unimplemented)
+      // bit 6: color output enabled (1 = yes)
+      retval = (vm.irqState & 0x1F) | ((vm.tapeInputSignal & 0x01) << 5) | 0xC0;
+      break;
+    case 0x5A:                          // extension card data (unimplemented)
+      break;
+    case 0x71:                          // CRTC registers
+      retval = vm.crtc.readRegister(vm.crtcRegisterSelected);
+      break;
     }
-    uint8_t   retval = 0xFF;
-    if ((addr & 0xC000) == 0x4000) {    // gate array
-      switch (addr & 0x00C0) {
-      case 0x00:                // pen selected
-        retval &= vm.gateArrayPenSelected;
-        break;
-      case 0x40:                // color selected for current pen
-        retval &= uint8_t(vm.videoRenderer.getColor(vm.gateArrayPenSelected
-                                                    & 0x1F) | 0x40);
-        break;
-      case 0x80:                // video mode, ROM disable
-        retval &= uint8_t(vm.videoRenderer.getVideoMode()
-                          | (((~(vm.memory.getPaging())) & 0x00C0) >> 4));
-        break;
-      }
-    }
-    if ((addr & 0x8000) == 0) {         // RAM configuration
-      if ((addr & 0x00C0) == 0x00C0)
-        retval &= uint8_t((vm.memory.getPaging() & 0x003F) | 0x00C0);
-    }
-    if ((addr & 0x4000) == 0) {         // CRTC (register number is in A8-A9)
-      switch (addr & 0x0300) {
-      case 0x0000:
-        retval &= vm.crtcRegisterSelected;
-        break;
-      case 0x0100:
-      case 0x0300:
-        retval &= vm.crtc.readRegisterDebug(vm.crtcRegisterSelected & 0x1F);
-        break;
-      }
-    }
-    if ((addr & 0x2000) == 0) {         // ROM configuration
-      retval &= uint8_t(vm.memory.getPaging() >> 8);
-    }
-    if ((addr & 0x1000) == 0) {         // printer port
-    }
-#endif
     return retval;
   }
 
   EP128EMU_REGPARM2 void TVC64VM::hSyncStateChangeCallback(void *userData,
-                                                            bool newState)
+                                                           bool newState)
   {
     TVC64VM&  vm = *(reinterpret_cast<TVC64VM *>(userData));
-    if (!newState) {
-      vm.gateArrayIRQCounter++;
-      if (vm.gateArrayVSyncDelay > 0) {
-        if (--vm.gateArrayVSyncDelay == 0) {
-          if (vm.gateArrayIRQCounter >= 32)
-            vm.z80.triggerInterrupt();
-          vm.gateArrayIRQCounter = 0;
-        }
-      }
-      if (vm.gateArrayIRQCounter >= 52) {
-        vm.gateArrayIRQCounter = 0;
-        vm.z80.triggerInterrupt();
-      }
-    }
     vm.videoRenderer.crtcHSyncStateChange(newState);
   }
 
   EP128EMU_REGPARM2 void TVC64VM::vSyncStateChangeCallback(void *userData,
-                                                            bool newState)
+                                                           bool newState)
   {
     TVC64VM&  vm = *(reinterpret_cast<TVC64VM *>(userData));
-    if (newState)
-      vm.gateArrayVSyncDelay = 2;
     vm.videoRenderer.crtcVSyncStateChange(newState);
   }
 
@@ -925,13 +907,14 @@ namespace TVC64 {
       tapeInputSignal(0),
       tapeOutputSignal(0),
       crtcRegisterSelected(0x00),
-      gateArrayIRQCounter(0),
-      gateArrayVSyncDelay(0),
+      irqState(0x00),
+      irqEnableMask(0x00),
       gateArrayPenSelected(0x00),
       singleStepMode(0),
       singleStepModeNextAddr(int32_t(-1)),
       tapeCallbackFlag(false),
       prvTapeCallbackFlag(false),
+      keyboardRow(0),
       toneGenCnt1(0U),
       toneGenFreq(0U),
       toneGenCnt2(0),
@@ -1036,14 +1019,12 @@ namespace TVC64 {
     stopDemoPlayback();         // TODO: should be recorded as an event ?
     stopDemoRecording(false);
     z80.reset();
-    memory.setPaging(0x00C0);
+    memory.setPaging(0x0000);
     crtc.reset();
     videoRenderer.reset();
     if (isColdReset)
       resetKeyboard();
     crtcRegisterSelected = 0x00;
-    gateArrayIRQCounter = 0;
-    gateArrayVSyncDelay = 0;
     gateArrayPenSelected = 0x00;
   }
 
@@ -1051,7 +1032,7 @@ namespace TVC64 {
   {
     stopDemo();
     // delete all ROM segments
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 252; i++) {
       if (memory.isSegmentROM(uint8_t(i)))
         memory.deleteSegment(uint8_t(i));
     }
@@ -1064,7 +1045,7 @@ namespace TVC64 {
   void TVC64VM::loadROMSegment(uint8_t n, const char *fileName, size_t offs)
   {
     stopDemo();
-    if (n < 0xC0 && n != 0x80)
+    if (n > 0x02)
       throw Ep128Emu::Exception("internal error: invalid ROM segment number");
     if (fileName == (char *) 0 || fileName[0] == '\0') {
       // empty file name: delete segment
@@ -1073,20 +1054,25 @@ namespace TVC64 {
     }
     // load file into memory
     std::vector<uint8_t>  buf;
-    buf.resize(0x4000);
-    std::FILE   *f = std::fopen(fileName, "rb");
+    buf.resize(0x4000, 0xFF);
+    std::FILE *f = std::fopen(fileName, "rb");
     if (!f)
       throw Ep128Emu::Exception("cannot open ROM file");
     std::fseek(f, 0L, SEEK_END);
-    if (ftell(f) < long(offs + 0x4000)) {
+    long    dataSize = std::ftell(f) - long(offs);
+    if (dataSize < 0x0400L) {
       std::fclose(f);
       throw Ep128Emu::Exception("ROM file is shorter than expected");
     }
+    if (n == 0x02)
+      dataSize = (dataSize < 0x2000L ? dataSize : 0x2000L);
+    else
+      dataSize = (dataSize < 0x4000L ? dataSize : 0x4000L);
     std::fseek(f, long(offs), SEEK_SET);
-    std::fread(&(buf.front()), 1, 0x4000, f);
+    std::fread(&(buf.front()), sizeof(uint8_t), size_t(dataSize), f);
     std::fclose(f);
     // load new segment, or replace existing ROM
-    memory.loadROMSegment(n, &(buf.front()), 0x4000);
+    memory.loadROMSegment(n, &(buf.front()), size_t(dataSize));
   }
 
   void TVC64VM::setVideoFrequency(size_t freq_)

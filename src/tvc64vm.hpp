@@ -107,14 +107,15 @@ namespace TVC64 {
     uint8_t   tapeInputSignal;
     uint8_t   tapeOutputSignal;
     uint8_t   crtcRegisterSelected;
-    uint8_t   gateArrayIRQCounter;
-    uint8_t   gateArrayVSyncDelay;
+    uint8_t   irqState;
+    uint8_t   irqEnableMask;
     uint8_t   gateArrayPenSelected;
     // 0: normal mode, 1: single step, 2: step over, 3: trace
     uint8_t   singleStepMode;
     int32_t   singleStepModeNextAddr;
     bool      tapeCallbackFlag;
     bool      prvTapeCallbackFlag;
+    uint8_t   keyboardRow;
     uint32_t  toneGenCnt1;
     uint32_t  toneGenFreq;
     uint8_t   toneGenCnt2;
@@ -157,15 +158,15 @@ namespace TVC64 {
     Ep128Emu::VideoCapture  *videoCapture;
     int64_t   tapeSamplesPerCRTCCycle;
     int64_t   tapeSamplesRemaining;
-    size_t    crtcFrequency;            // defaults to 1000000 Hz
+    size_t    crtcFrequency;            // defaults to 1562500 Hz
     uint8_t   keyboardState[16];
     uint8_t   tvcKeyboardState[16];
     // ----------------
     EP128EMU_INLINE void updateCPUCycles(int cycles);
     EP128EMU_INLINE void updateCPUHalfCycles(int halfCycles);
-    EP128EMU_INLINE void memoryWait();
-    EP128EMU_INLINE void memoryWaitM1();
-    EP128EMU_INLINE void ioPortWait();
+    EP128EMU_INLINE void memoryWait(uint16_t addr);
+    EP128EMU_INLINE void memoryWaitM1(uint16_t addr);
+    EP128EMU_INLINE void ioPortWait(uint16_t addr);
     EP128EMU_REGPARM1 void runOneCycle();
     static uint8_t ioPortReadCallback(void *userData, uint16_t addr);
     static void ioPortWriteCallback(void *userData,

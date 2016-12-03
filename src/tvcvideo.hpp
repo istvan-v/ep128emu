@@ -85,7 +85,7 @@ namespace TVC64 {
     {
       return videoMode;
     }
-    void setColor(uint8_t penNum, uint8_t c);   // penNum >= 16 is border
+    void setColor(uint8_t penNum, uint8_t c);   // penNum >= 4 is border
     uint8_t getColor(uint8_t penNum) const;
     EP128EMU_REGPARM1 void runOneCycle();
    private:
