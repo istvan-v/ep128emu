@@ -540,8 +540,10 @@ namespace Ep128Emu {
             }
             segNum = segNum + uint8_t(i < 8 ? 0xC0 : 0x70);
           }
-          else {
-            // TODO: TVC memory configuration
+          else if (i > 2) {                     // TVC
+            memory.rom[i].file.clear();
+            memory.rom[i].offset = 0;
+            continue;
           }
           try {
             vm_.loadROMSegment(segNum, memory.rom[i].file.c_str(),
