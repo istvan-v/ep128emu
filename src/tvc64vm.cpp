@@ -127,21 +127,24 @@ namespace TVC64 {
       p->func(p->userData);
       p = nxt;
     }
-    if (++toneGenCnt1 >= 4096U) {
-      toneGenCnt1 = toneGenFreq;
-      toneGenCnt2 = (toneGenCnt2 + 1) & 0x0F;
-      if (EP128EMU_UNLIKELY(toneGenCnt2 == 8))
-        irqState = irqState | (irqEnableMask & 0x10);
-    }
-    if (++toneGenCnt1 >= 4096U) {
-      toneGenCnt1 = toneGenFreq;
-      toneGenCnt2 = (toneGenCnt2 + 1) & 0x0F;
-      if (EP128EMU_UNLIKELY(toneGenCnt2 == 8))
-        irqState = irqState | (irqEnableMask & 0x10);
+    toneGenCnt1 += 2U;
+    if (EP128EMU_UNLIKELY(toneGenCnt1 >= 4096U)) {
+      if (EP128EMU_UNLIKELY(toneGenFreq == 0x0FFFU)) {
+        toneGenCnt1 = toneGenFreq;
+        toneGenCnt2 = (toneGenCnt2 + 2) & 0x0F;
+        if (EP128EMU_UNLIKELY(!(toneGenCnt2 & 14)))
+          irqState = irqState | (irqEnableMask & 0x10);
+      }
+      else {
+        toneGenCnt1 = toneGenFreq + (toneGenCnt1 & 1U);
+        toneGenCnt2 = (toneGenCnt2 + 1) & 0x0F;
+        if (EP128EMU_UNLIKELY(!(toneGenCnt2 & 15)))
+          irqState = irqState | (irqEnableMask & 0x10);
+      }
     }
     if (--audioCycleCnt == 0) {
       audioCycleCnt = 4;
-      soundOutputSignal = uint32_t(tapeInputSignal) << 12;
+      soundOutputSignal = uint32_t(tapeInputSignal + tapeOutputSignal) << 12;
       if ((toneGenCnt2 & 0x08) | uint8_t(!toneGenEnabled))
         soundOutputSignal += uint32_t(audioOutputLevelTable[audioOutputLevel]);
       sendAudioOutput(soundOutputSignal | (soundOutputSignal << 16));
@@ -328,6 +331,25 @@ namespace TVC64 {
         bpType = 0;
       vm.breakPointCallback(vm.breakPointCallbackUserData, bpType, addr, value);
     }
+  }
+
+  uint8_t TVC64VM::Memory_::extensionRead(uint16_t addr)
+  {
+    // TODO: implement extensions like SDEXT
+    (void) addr;
+    return 0xFF;
+  }
+
+  uint8_t TVC64VM::Memory_::extensionReadNoDebug(uint16_t addr) const
+  {
+    (void) addr;
+    return 0xFF;
+  }
+
+  void TVC64VM::Memory_::extensionWrite(uint16_t addr, uint8_t value)
+  {
+    (void) addr;
+    (void) value;
   }
 
   // --------------------------------------------------------------------------
@@ -1013,11 +1035,6 @@ namespace TVC64 {
     videoRenderer.setVideoMemory(memory.getVideoMemory());
     crtc.reset();
     videoRenderer.reset();
-    if (isColdReset) {
-      resetKeyboard();
-      for (uint32_t i = 0x3E0000U; i <= 0x3FFFFFU; i++)
-        memory.writeRaw(i, 0xFF);
-    }
     tapeOutputSignal = 0;
     crtcRegisterSelected = 0x00;
     irqState = 0x00;
@@ -1025,15 +1042,23 @@ namespace TVC64 {
     setTapeMotorState(false);
     toneGenEnabled = false;
     audioOutputLevel = 0;
+    if (isColdReset) {
+      toneGenCnt1 = 0U;
+      toneGenFreq = 0U;
+      toneGenCnt2 = 0;
+      resetKeyboard();
+      for (uint32_t i = 0x3E0000U; i <= 0x3FFFFFU; i++)
+        memory.writeRaw(i, 0xFF);
+    }
   }
 
   void TVC64VM::resetMemoryConfiguration(size_t memSize)
   {
     stopDemo();
     // delete all ROM segments
-    for (int i = 0; i < 252; i++) {
-      if (memory.isSegmentROM(uint8_t(i)))
-        memory.deleteSegment(uint8_t(i));
+    for (uint8_t i = 0x00; i < 0xF8; i++) {
+      if (memory.isSegmentROM(i))
+        memory.deleteSegment(i);
     }
     // resize RAM
     memory.setRAMSize(memSize);
@@ -1338,11 +1363,8 @@ namespace TVC64 {
   uint8_t TVC64VM::readMemory(uint32_t addr, bool isCPUAddress) const
   {
     if (isCPUAddress)
-      addr = ((uint32_t(memory.getPage(uint8_t(addr >> 14) & uint8_t(3))) << 14)
-              | (addr & uint32_t(0x3FFF)));
-    else
-      addr &= uint32_t(0x003FFFFF);
-    return memory.readRaw(addr);
+      return memory.readNoDebug(uint16_t(addr & 0xFFFFU));
+    return memory.readRaw(addr & 0x003FFFFFU);
   }
 
   void TVC64VM::writeMemory(uint32_t addr, uint8_t value, bool isCPUAddress)
@@ -1434,10 +1456,33 @@ namespace TVC64 {
       int     yPos = 0;
       getVideoPosition(xPos, yPos);
       n = std::sprintf(bufp,
-                       "Mem: %04X  VidXY:%3d,%3d  CRTC MA: %04X\n",
-                       (unsigned int) (memory.getPaging() ^ 0x00C0),
-                       xPos, yPos, (unsigned int) crtc.getMemoryAddress());
+                       "VidXY:%3d,%3d  CRTC MA: %04X  RA: %02X\n"
+                       "Mode:%2d  Palette: %02X %02X %02X %02X  %02X\n",
+                       xPos, yPos, (unsigned int) crtc.getMemoryAddress(),
+                       (unsigned int) crtc.getRowAddress(),
+                       int(videoRenderer.getVideoMode()),
+                       (unsigned int) videoRenderer.getColor(0),
+                       (unsigned int) videoRenderer.getColor(1),
+                       (unsigned int) videoRenderer.getColor(2),
+                       (unsigned int) videoRenderer.getColor(3),
+                       (unsigned int) videoRenderer.getColor(4));
     }
+    bufp = bufp + n;
+    n = std::sprintf(bufp,
+                     "Mem: %02X %X  VRAM: %02X  IRQ: %02X  Mask: %02X\n",
+                     (unsigned int) (memory.getPaging() & 0xFF),
+                     (unsigned int) ((memory.getPaging() >> 14) & 3),
+                     (unsigned int) ((memory.getPaging() >> 8) & 0x3F),
+                     (unsigned int) (~irqState & 0x1F),
+                     (unsigned int) irqEnableMask);
+    bufp = bufp + n;
+    n = std::sprintf(bufp,
+                     "Snd Freq: %04X  Cnt1: %04X  Cnt2: %02X\n"
+                     "Volume: %02X  E/D: %X\n",
+                     (unsigned int) toneGenFreq,
+                     (unsigned int) toneGenCnt1, (unsigned int) toneGenCnt2,
+                     (unsigned int) audioOutputLevel,
+                     (unsigned int) toneGenEnabled);
     bufp = bufp + n;
     buf = &(tmpBuf2[0]);
   }
