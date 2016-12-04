@@ -73,6 +73,9 @@ namespace TVC64 {
      protected:
       virtual void breakPointCallback(bool isWrite,
                                       uint16_t addr, uint8_t value);
+      virtual uint8_t extensionRead(uint16_t addr);
+      virtual uint8_t extensionReadNoDebug(uint16_t addr) const;
+      virtual void extensionWrite(uint16_t addr, uint8_t value);
     };
     class IOPorts_ : public Ep128::IOPorts {
      private:
