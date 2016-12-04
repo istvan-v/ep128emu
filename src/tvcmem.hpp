@@ -32,6 +32,10 @@ namespace TVC64 {
     uint8_t   pageTable[4];
     uint16_t  currentPaging;            // configuration set with setPaging()
     uint8_t   totalRAMSegments;         // 3 (TVC32), 5 (TVC64) or 8 (TVC64+)
+   protected:
+    // if true, use external implementation of segment 01 (CART)
+    bool      segment1IsExtension;
+   private:
     uint8_t   *breakPointTable;
     size_t    breakPointCnt;
     uint8_t   **segmentBreakPointTable;
@@ -108,6 +112,10 @@ namespace TVC64 {
     void registerChunkType(Ep128Emu::File&);
    protected:
     virtual void breakPointCallback(bool isWrite, uint16_t addr, uint8_t value);
+    // these functions are used when accessing special memory areas like IOMEM
+    virtual uint8_t extensionRead(uint16_t addr);
+    virtual uint8_t extensionReadNoDebug(uint16_t addr) const;
+    virtual void extensionWrite(uint16_t addr, uint8_t value);
   };
 
   // --------------------------------------------------------------------------
@@ -115,11 +123,11 @@ namespace TVC64 {
   inline uint8_t Memory::read(uint16_t addr)
   {
     uint8_t page = uint8_t(addr >> 13);
-    if (EP128EMU_UNLIKELY(!pageAddressTableR[page])) {
-      // TODO: implement IOMEM
-      return 0xFF;
-    }
-    uint8_t value = pageAddressTableR[page][addr];
+    uint8_t value;
+    if (EP128EMU_UNLIKELY(!pageAddressTableR[page]))
+      value = extensionRead(addr);
+    else
+      value = pageAddressTableR[page][addr];
     if (haveBreakPoints)
       checkReadBreakPoint(addr, page, value);
     return value;
@@ -128,11 +136,11 @@ namespace TVC64 {
   inline uint8_t Memory::readOpcode(uint16_t addr)
   {
     uint8_t page = uint8_t(addr >> 13);
-    if (EP128EMU_UNLIKELY(!pageAddressTableR[page])) {
-      // TODO: implement IOMEM
-      return 0xFF;
-    }
-    uint8_t value = pageAddressTableR[page][addr];
+    uint8_t value;
+    if (EP128EMU_UNLIKELY(!pageAddressTableR[page]))
+      value = extensionRead(addr);
+    else
+      value = pageAddressTableR[page][addr];
     if (haveBreakPoints)
       checkExecuteBreakPoint(addr, page, value);
     return value;
@@ -141,10 +149,8 @@ namespace TVC64 {
   inline uint8_t Memory::readNoDebug(uint16_t addr) const
   {
     uint8_t page = uint8_t(addr >> 13);
-    if (EP128EMU_UNLIKELY(!pageAddressTableR[page])) {
-      // TODO: implement IOMEM
-      return 0xFF;
-    }
+    if (EP128EMU_UNLIKELY(!pageAddressTableR[page]))
+      return extensionReadNoDebug(addr);
     return pageAddressTableR[page][addr];
   }
 
@@ -164,7 +170,7 @@ namespace TVC64 {
   {
     uint8_t page = uint8_t(addr >> 13);
     if (EP128EMU_UNLIKELY(!pageAddressTableW[page])) {
-      // TODO: implement IOMEM
+      extensionWrite(addr, value);
       return;
     }
     if (haveBreakPoints)
