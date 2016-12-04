@@ -33,20 +33,6 @@ static const uint8_t  pixelConvTable_4[137] = {
    1,  0,  0,  0,   0,  0,  0,  0,   3
 };
 
-static const uint8_t  pixelConvTable_16[171] = {
-   0,  1,  1,  0,   2,  3,  0,  0,   2,  0,  3,  0,   0,  0,  0,  0,
-   4,  5,  0,  0,   6,  7,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,
-   4,  0,  5,  0,   0,  0,  0,  0,   6,  0,  7,  0,   0,  0,  0,  0,
-   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,
-   8,  9,  0,  0,  10, 11,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,
-  12, 13,  0,  0,  14, 15,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,
-   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,
-   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,
-   8,  0,  9,  0,   0,  0,  0,  0,  10,  0, 11,  0,   0,  0,  0,  0,
-   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,
-  12,  0, 13,  0,   0,  0,  0,  0,  14,  0, 15
-};
-
 namespace TVC64 {
 
   void TVCVideo::drawLine(const uint8_t *buf, size_t nBytes)
@@ -155,8 +141,8 @@ namespace TVC64 {
         case 2:                         // 16 color mode
         case 3:
           pixelBuf[0] = 2;
-          pixelBuf[1] = pixelConvTable_16[videoByte & 0xAA];
-          pixelBuf[2] = pixelConvTable_16[videoByte & 0x55];
+          pixelBuf[1] = videoByte & 0xAA;
+          pixelBuf[2] = videoByte & 0x55;
           break;
         }
       }
