@@ -36,7 +36,16 @@ namespace TVC64 {
         buf.writeByte(videoRenderer.getColor(i));
       buf.writeByte(videoRenderer.getVideoMode());
       buf.writeByte(z80OpcodeHalfCycles);
+      buf.writeByte(tapeOutputSignal);
       buf.writeByte(crtcRegisterSelected);
+      buf.writeByte(irqState);
+      buf.writeByte(irqEnableMask);
+      buf.writeByte(keyboardRow);
+      buf.writeUInt32(toneGenCnt1);
+      buf.writeUInt32(toneGenFreq);
+      buf.writeByte(toneGenCnt2);
+      buf.writeBoolean(toneGenEnabled);
+      buf.writeByte(audioOutputLevel);
       buf.writeUInt32(uint32_t(crtcFrequency));
       for (int i = 0; i < 16; i++)
         buf.writeByte(keyboardState[i]);
@@ -103,11 +112,23 @@ namespace TVC64 {
     stopDemo();
     snapshotLoadFlag = true;
     try {
+      z80.triggerInterrupt();
+      videoRenderer.setVideoMemory(memory.getVideoMemory());
       for (uint8_t i = 0; i <= 4; i++)
         videoRenderer.setColor(i, buf.readByte());
       videoRenderer.setVideoMode(buf.readByte());
       z80OpcodeHalfCycles = buf.readByte();
-      crtcRegisterSelected = buf.readByte();
+      tapeOutputSignal = buf.readByte() & 0x01;
+      crtcRegisterSelected = buf.readByte() & 0x1F;
+      irqState = buf.readByte() & 0x1F;
+      irqEnableMask = buf.readByte() & 0x1F;
+      keyboardRow = buf.readByte() & 0x0F;
+      toneGenCnt1 = buf.readUInt32() & 0x0FFFU;
+      toneGenFreq = buf.readUInt32() & 0x0FFFU;
+      toneGenCnt2 = buf.readByte() & 0x0F;
+      toneGenEnabled = buf.readBoolean();
+      audioOutputLevel = buf.readByte() & 0x0F;
+      setTapeMotorState(bool(ioPorts.getLastValueWritten(0x05) & 0xC0));
       (void) buf.readUInt32();          // crtcFrequency (ignored)
       for (int i = 0; i < 16; i++)
         keyboardState[i] = buf.readByte();
