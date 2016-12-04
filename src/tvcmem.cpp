@@ -89,8 +89,9 @@ namespace TVC64 {
   Memory::Memory()
     : segmentTable((uint8_t **) 0),
       segmentROMTable((bool *) 0),
-      currentPaging(0x3000),
+      currentPaging(0x3F00),
       totalRAMSegments(5),
+      segment1IsExtension(false),
       breakPointTable((uint8_t *) 0),
       breakPointCnt(0),
       segmentBreakPointTable((uint8_t **) 0),
@@ -129,7 +130,7 @@ namespace TVC64 {
       dummyMemory = new uint8_t[32768];
       for (int i = 0; i < 32768; i++)
         dummyMemory[i] = 0xFF;
-      setPaging(0x3000);
+      setPaging(0x3F00);
     }
     catch (...) {
       if (segmentTable) {
@@ -275,6 +276,24 @@ namespace TVC64 {
     (void) value;
   }
 
+  uint8_t Memory::extensionRead(uint16_t addr)
+  {
+    (void) addr;
+    return 0xFF;
+  }
+
+  uint8_t Memory::extensionReadNoDebug(uint16_t addr) const
+  {
+    (void) addr;
+    return 0xFF;
+  }
+
+  void Memory::extensionWrite(uint16_t addr, uint8_t value)
+  {
+    (void) addr;
+    (void) value;
+  }
+
   void Memory::setBreakPointPriorityThreshold(int n)
   {
     breakPointPriorityThreshold = uint8_t((n > 0 ? (n < 4 ? n : 4) : 0) << 3);
@@ -287,8 +306,6 @@ namespace TVC64 {
 
   void Memory::setRAMSize(size_t n)
   {
-    if (n == (size_t(totalRAMSegments) << 4))
-      return;
     totalRAMSegments = 5;
     if (n < 64)
       totalRAMSegments = 3;
@@ -298,7 +315,8 @@ namespace TVC64 {
       deleteSegment(i);
     for (uint8_t i = 0xF8; i < (0xF8 + (totalRAMSegments - 1)) && i < 0xFC; i++)
       allocateSegment(i, false);
-    setPaging(totalRAMSegments < 8 ? 0x3000 : 0x0000);
+    if (totalRAMSegments < 8)
+      setPaging(currentPaging | 0x3F00);
   }
 
   void Memory::loadROMSegment(uint8_t segment,
@@ -356,7 +374,7 @@ namespace TVC64 {
   void Memory::setPaging(uint16_t n)
   {
     if (totalRAMSegments < 8)
-      n = (n & 0xC0F8) | 0x3000;
+      n = (n & 0xC0F8) | 0x3F00;
     currentPaging = n;
     switch (n & 0x0018) {
     case 0x00:
@@ -408,10 +426,14 @@ namespace TVC64 {
       pageAddressTableR[i + 1] = pageAddressTableR[i];
       pageAddressTableW[i + 1] = pageAddressTableW[i];
     }
-    if (pageTable[3] == 0x02) {
+    if (pageTable[3] == 0x02 || (pageTable[3] == 0x01 && segment1IsExtension)) {
       // IOMEM is special case
       pageAddressTableR[6] = (uint8_t *) 0;
       pageAddressTableW[6] = (uint8_t *) 0;
+      if (pageTable[3] == 0x01) {
+        pageAddressTableR[7] = (uint8_t *) 0;
+        pageAddressTableW[7] = (uint8_t *) 0;
+      }
     }
   }
 
@@ -486,6 +508,7 @@ namespace TVC64 {
     buf.setPosition(0);
     buf.writeUInt32(0x01000000);        // version number
     buf.writeUInt16(currentPaging);
+    buf.writeBoolean(segment1IsExtension);
     buf.writeByte(totalRAMSegments);
     for (int i = 0xF8; i <= 0xFF; i++) {
       if (i == 0xFA && totalRAMSegments < 5)
@@ -502,7 +525,8 @@ namespace TVC64 {
       }
     }
     for (int i = 0x00; i <= 0x02; i++) {
-      if (segmentTable[i] != (uint8_t *) 0) {
+      if (segmentTable[i] != (uint8_t *) 0 &&
+          !(i == 0x01 && segment1IsExtension)) {
         buf.writeByte(uint8_t(i));
         for (size_t j = (i != 2 ? 0 : 8192); j < 16384; j++)
           buf.writeByte(segmentTable[i][j]);
@@ -530,6 +554,7 @@ namespace TVC64 {
     deleteAllSegments();
     try {
       currentPaging = buf.readUInt16();
+      segment1IsExtension = buf.readBoolean();
       // load RAM segments
       totalRAMSegments = buf.readByte();
       if (totalRAMSegments != 3 && totalRAMSegments != 5 &&
@@ -558,8 +583,9 @@ namespace TVC64 {
       setPaging(currentPaging);
     }
     catch (...) {
+      segment1IsExtension = false;
       setRAMSize(48);
-      setPaging(0x3000);
+      setPaging(0x3F00);
       throw;
     }
   }
