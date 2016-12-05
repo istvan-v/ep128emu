@@ -19,6 +19,9 @@
 
 #include "ep128emu.hpp"
 #include "tvc64vm.hpp"
+#ifdef ENABLE_SDEXT
+#  include "sdext.hpp"
+#endif
 
 namespace TVC64 {
 
@@ -28,10 +31,17 @@ namespace TVC64 {
     ioPorts.saveState(f);
     crtc.saveState(f);
     z80.saveState(f);
+#ifdef ENABLE_SDEXT
+    sdext.saveState(f);
+#endif
     {
       Ep128Emu::File::Buffer  buf;
       buf.setPosition(0);
-      buf.writeUInt32(0x01000000);      // version number
+#ifndef ENABLE_SDEXT
+      buf.writeUInt32(0x01000001);      // version number
+#else
+      buf.writeUInt32(0x01010001);      // bit 16 is set if SDExt is included
+#endif
       for (uint8_t i = 0; i <= 4; i++)
         buf.writeByte(videoRenderer.getColor(i));
       buf.writeByte(videoRenderer.getVideoMode());
@@ -46,6 +56,7 @@ namespace TVC64 {
       buf.writeByte(toneGenCnt2);
       buf.writeBoolean(toneGenEnabled);
       buf.writeByte(audioOutputLevel);
+      buf.writeByte(vtdosROMPage);
       buf.writeUInt32(uint32_t(crtcFrequency));
       for (int i = 0; i < 16; i++)
         buf.writeByte(keyboardState[i]);
@@ -69,6 +80,12 @@ namespace TVC64 {
     tapeInputSignal = 0;
     stopDemo();
     resetKeyboard();
+    // floppy and SD emulation are disabled while recording or playing demo
+    resetFloppyDrives(false);
+#ifdef ENABLE_SDEXT
+    // FIXME: implement a better way of disabling SDExt during demo recording
+    sdext.openImage((char *) 0);
+#endif
     // save full snapshot, including timing and clock frequency settings
     saveMachineConfiguration(f);
     saveState(f);
@@ -82,6 +99,9 @@ namespace TVC64 {
 
   void TVC64VM::stopDemo()
   {
+#ifdef ENABLE_SDEXT
+    // TODO: re-enable SDExt after stopping demo recording or playback
+#endif
     stopDemoPlayback();
     stopDemoRecording(true);
   }
@@ -105,15 +125,27 @@ namespace TVC64 {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
-    if (version != 0x01000000U) {
+    if (!(version >= 0x01000000U && (version & 0xFFFEFFFFU) <= 0x01000001U)) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible TVC snapshot version");
     }
     stopDemo();
     snapshotLoadFlag = true;
+    // reset floppy and SD card emulation, as the state of these is not saved
+    resetFloppyDrives(true);
     try {
       z80.triggerInterrupt();
       videoRenderer.setVideoMemory(memory.getVideoMemory());
+#ifdef ENABLE_SDEXT
+      if (!(version & 0x00010000)) {
+        // reset and disable SDExt if the snapshot is from an old version
+        sdext.reset(2);
+        sdext.setEnabled(false);
+        sdext.openROMFile((char *) 0);
+      }
+#endif
+      memory.setEnableSDExt();
+      version = version & 0xFFFEFFFFU;
       for (uint8_t i = 0; i <= 4; i++)
         videoRenderer.setColor(i, buf.readByte());
       videoRenderer.setVideoMode(buf.readByte());
@@ -128,6 +160,7 @@ namespace TVC64 {
       toneGenCnt2 = buf.readByte() & 0x0F;
       toneGenEnabled = buf.readBoolean();
       audioOutputLevel = buf.readByte() & 0x0F;
+      vtdosROMPage = buf.readByte() & 0x03;
       setTapeMotorState(bool(ioPorts.getLastValueWritten(0x05) & 0xC0));
       (void) buf.readUInt32();          // crtcFrequency (ignored)
       for (int i = 0; i < 16; i++)
@@ -182,6 +215,12 @@ namespace TVC64 {
     tapeInputSignal = 0;
     stopDemo();
     resetKeyboard();
+    // floppy and SD emulation are disabled while recording or playing demo
+    resetFloppyDrives(false);
+#ifdef ENABLE_SDEXT
+    // FIXME: implement a better way of disabling SDExt during demo playback
+    sdext.openImage((char *) 0);
+#endif
     // initialize time counter with first delta time
     demoTimeCnt = buf.readUIntVLen();
     isPlayingDemo = true;

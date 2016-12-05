@@ -162,8 +162,7 @@ void Ep128EmuGUI::updateDisplay_windowMode()
     statusDisplayGroup->show();
     mainMenuBar->resize(0, 2, 300, 26);
     mainMenuBar->show();
-    if (typeid(vm) == typeid(Ep128::Ep128VM) ||
-        typeid(vm) == typeid(CPC464::CPC464VM)) {
+    if (typeid(vm) != typeid(ZX128::ZX128VM)) {
       diskStatusDisplayGroup->resize(345, 0, 30, 30);
       diskStatusDisplayGroup->show();
     }
@@ -508,7 +507,8 @@ void Ep128EmuGUI::createMenus()
   // hide configuration widgets that are not useful on the given machine
   // or emulator build
 #ifdef ENABLE_SDEXT
-  if (typeid(vm) != typeid(Ep128::Ep128VM))
+  if (typeid(vm) == typeid(ZX128::ZX128VM) ||
+      typeid(vm) == typeid(CPC464::CPC464VM))
 #endif
   {
     machineConfigWindow->vmEnableSDExtValuator->hide();
@@ -518,9 +518,9 @@ void Ep128EmuGUI::createMenus()
 #ifndef ENABLE_SDEXT
     diskConfigWindow->ideConfigGroup->label("IDE");
     diskConfigWindow->sdCardImageGroup->hide();
+#endif
   }
   if (typeid(vm) != typeid(Ep128::Ep128VM)) {
-#endif
     machineConfigWindow->vmCPUFrequencyValuator->deactivate();
     machineConfigWindow->vmSoundClockFrequencyValuator->deactivate();
     machineConfigWindow->enableMemoryTimingValuator->hide();
@@ -643,8 +643,7 @@ void Ep128EmuGUI::createMenus()
                    (char *) 0, &menuCallback_Options_SndDecVol, (void *) this);
   mainMenuBar->add("Options/Sound/Configure... (Alt+U)",
                    (char *) 0, &menuCallback_Options_SndConfig, (void *) this);
-  if (typeid(vm) == typeid(Ep128::Ep128VM) ||
-      typeid(vm) == typeid(CPC464::CPC464VM)) {
+  if (typeid(vm) != typeid(ZX128::ZX128VM)) {
     mainMenuBar->add("Options/Disk/Remove floppy/Drive A", (char *) 0,
                      &menuCallback_Options_FloppyRmA, (void *) this);
     mainMenuBar->add("Options/Disk/Remove floppy/Drive B", (char *) 0,
@@ -2703,10 +2702,8 @@ void Ep128EmuGUI::menuCallback_Options_FloppyCfg(Fl_Widget *o, void *v)
 {
   (void) o;
   Ep128EmuGUI&  gui_ = *(reinterpret_cast<Ep128EmuGUI *>(v));
-  if (typeid(gui_.vm) == typeid(Ep128::Ep128VM) ||
-      typeid(gui_.vm) == typeid(CPC464::CPC464VM)) {
+  if (typeid(gui_.vm) != typeid(ZX128::ZX128VM))
     gui_.diskConfigWindow->show();
-  }
 }
 
 void Ep128EmuGUI::menuCallback_Options_PPriority(Fl_Widget *o, void *v)

@@ -404,6 +404,10 @@ static const EP_ROM_File epROMFiles[61] = {
 #define TVC_ROM_SYS22           (uint64_t(1) << 41)
 #define TVC_ROM_EXT12           (uint64_t(1) << 42)
 #define TVC_ROM_EXT22           (uint64_t(1) << 43)
+#define TVC_ROM_DOS11C          (uint64_t(1) << 44)
+#define TVC_ROM_DOS12C          (uint64_t(1) << 45)
+#define TVC_ROM_DOS11D          (uint64_t(1) << 46)
+#define TVC_ROM_DOS12D          (uint64_t(1) << 47)
 
 #define IS_EP_CONFIG(x)         bool((x) & 0x0000FFFFUL)
 #define EP_RAM_SIZE(x)          epRAMSizeTable[(x) & 7UL]
@@ -741,20 +745,20 @@ static const EPMachineConfig machineConfigs[] = {
   { "tvc/TVC_48k_V12.cfg",
     TVC_RAM_48K | TVC_ROM_SYS12 | TVC_ROM_EXT12
   },
-  { "tvc/TVC_48k_V22.cfg",
-    TVC_RAM_48K | TVC_ROM_SYS22 | TVC_ROM_EXT22
+  { "tvc/TVC_48k_V22_VTDOS.cfg",
+    TVC_RAM_48K | TVC_ROM_SYS22 | TVC_ROM_EXT22 | TVC_ROM_DOS12D
   },
   { "tvc/TVC_80k_V12.cfg",
     TVC_RAM_80K | TVC_ROM_SYS12 | TVC_ROM_EXT12
   },
-  { "tvc/TVC_80k_V22.cfg",
-    TVC_RAM_80K | TVC_ROM_SYS22 | TVC_ROM_EXT22
+  { "tvc/TVC_80k_V22_VTDOS.cfg",
+    TVC_RAM_80K | TVC_ROM_SYS22 | TVC_ROM_EXT22 | TVC_ROM_DOS12D
   },
   { "tvc/TVC_128k_V12.cfg",
     TVC_RAM_128K | TVC_ROM_SYS12 | TVC_ROM_EXT12
   },
-  { "tvc/TVC_128k_V22.cfg",
-    TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22
+  { "tvc/TVC_128k_V22_VTDOS.cfg",
+    TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22 | TVC_ROM_DOS12D
   },
   { (char *) 0,
     0UL
@@ -836,6 +840,14 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
         memory.rom[2].file = romDirectory + "tvc12_ext.rom";
       else if (machineConfig & TVC_ROM_EXT22)
         memory.rom[2].file = romDirectory + "tvc22_ext.rom";
+      if (machineConfig & TVC_ROM_DOS11C)
+        memory.rom[1].file = romDirectory + "tvc_dos11c.rom";
+      else if (machineConfig & TVC_ROM_DOS12C)
+        memory.rom[1].file = romDirectory + "tvc_dos12c.rom";
+      if (machineConfig & TVC_ROM_DOS11D)
+        memory.rom[3].file = romDirectory + "tvc_dos11d.rom";
+      else if (machineConfig & TVC_ROM_DOS12D)
+        memory.rom[3].file = romDirectory + "tvc_dos12d.rom";
       vm.cpuClockFrequency = vm.videoClockFrequency << 1;
       vm.soundClockFrequency = vm.videoClockFrequency >> 2;
       vm.enableMemoryTimingEmulation = true;
@@ -882,10 +894,10 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
   if (!IS_ZX_CONFIG(machineConfig)) {
     config.createKey("memory.rom.02.file", memory.rom[0x02].file);
     config.createKey("memory.rom.02.offset", memory.rom[0x02].offset);
-  }
-  if (!(IS_ZX_CONFIG(machineConfig) || IS_TVC_CONFIG(machineConfig))) {
     config.createKey("memory.rom.03.file", memory.rom[0x03].file);
     config.createKey("memory.rom.03.offset", memory.rom[0x03].offset);
+  }
+  if (!(IS_ZX_CONFIG(machineConfig) || IS_TVC_CONFIG(machineConfig))) {
     config.createKey("memory.rom.04.file", memory.rom[0x04].file);
     config.createKey("memory.rom.04.offset", memory.rom[0x04].offset);
     config.createKey("memory.rom.05.file", memory.rom[0x05].file);
@@ -1562,8 +1574,9 @@ int main(int argc, char **argv)
         }
         else if (i == 3) {
           fName = "tvc_cfg.dat";
-          // TVC_128k_V22.cfg
-          machineConfig = TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22;
+          // TVC_128k_V22_VTDOS.cfg
+          machineConfig = TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22
+                          | TVC_ROM_DOS12D;
         }
         config = new Ep128Emu::ConfigurationDB();
         dsCfg = new Ep128EmuDisplaySndConfiguration(*config);

@@ -29,6 +29,9 @@
 #include "tvc64vm.hpp"
 #include "debuglib.hpp"
 #include "videorec.hpp"
+#ifdef ENABLE_SDEXT
+#  include "sdext.hpp"
+#endif
 
 #include <vector>
 
@@ -316,10 +319,17 @@ namespace TVC64 {
     : Memory(),
       vm(vm_)
   {
+    extensionRAM.resize(0x1000, 0xFF);  // VT-DOS RAM
   }
 
   TVC64VM::Memory_::~Memory_()
   {
+  }
+
+  void TVC64VM::Memory_::setEnableSDExt()
+  {
+    segment1IsExtension = vm.sdext.isSDExtSegment(0x07);
+    setPaging(getPaging());
   }
 
   void TVC64VM::Memory_::breakPointCallback(bool isWrite,
@@ -333,23 +343,49 @@ namespace TVC64 {
     }
   }
 
-  uint8_t TVC64VM::Memory_::extensionRead(uint16_t addr)
+  EP128EMU_REGPARM2 uint8_t TVC64VM::Memory_::extensionRead(uint16_t addr)
   {
-    // TODO: implement extensions like SDEXT
-    (void) addr;
+    if (getPage(3) == 0x02) {           // EXT
+      if (getPaging() & 0xC000)
+        return 0xFF;                    // IOMEM 0 is not paged in
+      if (addr & 0x1000)
+        return extensionRAM[addr & 0x0FFF];
+      return readRaw(0x0000C000U | (uint32_t(vm.vtdosROMPage) << 12)
+                     | uint32_t(addr & 0x0FFF));
+    }
+    else if (segment1IsExtension) {
+      return vm.sdext.readCartP3(addr);
+    }
     return 0xFF;
   }
 
-  uint8_t TVC64VM::Memory_::extensionReadNoDebug(uint16_t addr) const
+  EP128EMU_REGPARM2 uint8_t TVC64VM::Memory_::extensionReadNoDebug(uint16_t addr) const
   {
-    (void) addr;
+    if (getPage(3) == 0x02) {           // EXT
+      if (getPaging() & 0xC000)
+        return 0xFF;                    // IOMEM 0 is not paged in
+      if (addr & 0x1000)
+        return extensionRAM[addr & 0x0FFF];
+      return readRaw(0x0000C000U | (uint32_t(vm.vtdosROMPage) << 12)
+                     | uint32_t(addr & 0x0FFF));
+    }
+    else if (segment1IsExtension) {
+      return vm.sdext.readCartP3Debug(addr);
+    }
     return 0xFF;
   }
 
-  void TVC64VM::Memory_::extensionWrite(uint16_t addr, uint8_t value)
+  EP128EMU_REGPARM3 void TVC64VM::Memory_::extensionWrite(uint16_t addr, uint8_t value)
   {
-    (void) addr;
-    (void) value;
+    if (getPage(3) == 0x02) {           // EXT
+      if (getPaging() & 0xC000)
+        return;                         // IOMEM 0 is not paged in
+      if (addr & 0x1000)
+        extensionRAM[addr & 0x0FFF] = value;
+    }
+    else if (segment1IsExtension) {
+      vm.sdext.writeCartP3(addr, value);
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -451,7 +487,46 @@ namespace TVC64 {
     addr = addr & 0x7F;
     switch (addr) {
     // 0x00-0x0F: unused (write only)
-    // 0x10-0x1F: extension 0 (unimplemented)
+    case 0x10:                          // extension 0: floppy drive controller
+    case 0x11:
+    case 0x12:
+    case 0x13:
+      // floppy emulation is disabled while recording or playing demo
+      if (EP128EMU_UNLIKELY(vm.isRecordingDemo | vm.isPlayingDemo)) {
+        retval = 0x00;
+      }
+      else {
+        switch (addr & 3) {
+        case 0:
+          retval = vm.wd177x.readStatusRegister();
+          break;
+        case 1:
+          retval = vm.wd177x.readTrackRegister();
+          break;
+        case 2:
+          retval = vm.wd177x.readSectorRegister();
+          break;
+        case 3:
+          retval = vm.wd177x.readDataRegister();
+          break;
+        }
+      }
+      break;
+    case 0x14:
+    case 0x15:
+    case 0x16:
+    case 0x17:
+      // floppy emulation is disabled while recording or playing demo
+      if (vm.isRecordingDemo | vm.isPlayingDemo) {
+        retval = 0x7D;
+      }
+      else {
+        retval = uint8_t(vm.wd177x.getInterruptRequestFlag())
+                 | (vm.wd177x.getFloppyDrive().getDiskChangeFlag() ?
+                    0x00 : 0x40)
+                 | (vm.wd177x.getDataRequestFlag() ? 0x80 : 0x00);
+      }
+      break;
     // 0x20-0x2F: extension 1 (unimplemented)
     // 0x30-0x3F: extension 2 (unimplemented)
     // 0x40-0x4F: extension 3 (unimplemented)
@@ -554,7 +629,65 @@ namespace TVC64 {
     case 0x0F:
       vm.ioPorts.writeDebug(addr & 0x7C, value);
       break;
-    // 0x10-0x1F: extension 0 (unimplemented)
+    case 0x10:                          // extension 0: floppy drive controller
+    case 0x11:
+    case 0x12:
+    case 0x13:
+      // floppy emulation is disabled while recording or playing demo
+      if (!(vm.isRecordingDemo | vm.isPlayingDemo)) {
+        switch (addr & 3) {
+        case 0:
+          if (!(value & 0x80))
+            vm.wd177x.getFloppyDrive().setDiskChangeFlag(false);
+          vm.wd177x.writeCommandRegister(value);
+          break;
+        case 1:
+          vm.wd177x.writeTrackRegister(value);
+          break;
+        case 2:
+          vm.wd177x.writeSectorRegister(value);
+          break;
+        case 3:
+          vm.wd177x.writeDataRegister(value);
+          break;
+        }
+      }
+      break;
+    case 0x14:
+      // floppy emulation is disabled while recording or playing demo
+      if (!(vm.isRecordingDemo | vm.isPlayingDemo)) {
+        if (!(value & 0x0F)) {
+          vm.wd177x.setFloppyDrive((Ep128Emu::FloppyDrive *) 0);
+          return;
+        }
+        if (value & 0x01)
+          vm.wd177x.setFloppyDrive(&(vm.floppyDrives[0]));
+        else if (value & 0x02)
+          vm.wd177x.setFloppyDrive(&(vm.floppyDrives[1]));
+        else if (value & 0x04)
+          vm.wd177x.setFloppyDrive(&(vm.floppyDrives[2]));
+        else
+          vm.wd177x.setFloppyDrive(&(vm.floppyDrives[3]));
+        if (value & 0x40)
+          vm.wd177x.getFloppyDrive().motorOn();
+        else
+          vm.wd177x.getFloppyDrive().motorOff();
+        vm.wd177x.getFloppyDrive().setSide((value >> 7) & 1);
+      }
+      break;
+    case 0x15:
+    case 0x16:
+    case 0x17:
+      vm.ioPorts.writeDebug(addr & 0x7C, value);
+      break;
+    case 0x18:
+      vm.vtdosROMPage = (value >> 4) & 0x03;
+      break;
+    case 0x19:
+    case 0x1A:
+    case 0x1B:
+      vm.ioPorts.writeDebug(addr & 0x7C, value);
+      break;
     // 0x20-0x2F: extension 1 (unimplemented)
     // 0x30-0x3F: extension 2 (unimplemented)
     // 0x40-0x4F: extension 3 (unimplemented)
@@ -645,10 +778,34 @@ namespace TVC64 {
       addr = addr & 0x7B;
     else if (addr >= 0x50)
       addr = addr & 0x78;
-    else if (addr >= 0x0C && addr < 0x10)
+    else if ((addr >= 0x0C && addr < 0x10) || (addr >= 0x14 && addr < 0x1C))
       addr = addr & 0x7C;
     uint8_t   retval = vm.ioPorts.getLastValueWritten(addr);
     switch (addr) {
+    case 0x10:                          // extension 0: floppy drive controller
+    case 0x11:
+    case 0x12:
+    case 0x13:
+      switch (addr & 3) {
+      case 0:
+        retval = vm.wd177x.readStatusRegisterDebug();
+        break;
+      case 1:
+        retval = vm.wd177x.readTrackRegister();
+        break;
+      case 2:
+        retval = vm.wd177x.readSectorRegister();
+        break;
+      case 3:
+        retval = vm.wd177x.readDataRegisterDebug();
+        break;
+      }
+      break;
+    case 0x14:
+      retval = uint8_t(vm.wd177x.getInterruptRequestFlag())
+               | (vm.wd177x.getFloppyDrive().getDiskChangeFlag() ? 0x00 : 0x40)
+               | (vm.wd177x.getDataRequestFlag() ? 0x80 : 0x00);
+      break;
     case 0x58:                          // keyboard matrix
       retval = vm.tvcKeyboardState[vm.keyboardRow];
       break;
@@ -841,6 +998,17 @@ namespace TVC64 {
     }
   }
 
+  void TVC64VM::resetFloppyDrives(bool isColdReset)
+  {
+    wd177x.setFloppyDrive((Ep128Emu::FloppyDrive *) 0);
+    wd177x.reset(isColdReset);
+    for (int i = 0; i < 4; i++) {
+      floppyDrives[i].reset();
+      if (isColdReset)
+        floppyDrives[i].setDiskChangeFlag(true);
+    }
+  }
+
   void TVC64VM::setCallback(void (*func)(void *userData), void *userData_,
                             bool isEnabled)
   {
@@ -940,12 +1108,13 @@ namespace TVC64 {
       isPlayingDemo(false),
       snapshotLoadFlag(false),
       demoTimeCnt(0UL),
+      vtdosROMPage(0),
       breakPointPriorityThreshold(0),
       firstCallback((TVC64VMCallback *) 0),
       videoCapture((Ep128Emu::VideoCapture *) 0),
       tapeSamplesPerCRTCCycle(0L),
       tapeSamplesRemaining(-1L),
-      crtcFrequency(1000000)
+      crtcFrequency(1562500)
   {
     for (size_t i = 0;
          i < (sizeof(callbacks) / sizeof(TVC64VMCallback));
@@ -1032,6 +1201,7 @@ namespace TVC64 {
     z80.reset();
     z80.triggerInterrupt();
     memory.setPaging(0x0000);
+    memory.setEnableSDExt();
     videoRenderer.setVideoMemory(memory.getVideoMemory());
     crtc.reset();
     videoRenderer.reset();
@@ -1042,14 +1212,18 @@ namespace TVC64 {
     setTapeMotorState(false);
     toneGenEnabled = false;
     audioOutputLevel = 0;
+    vtdosROMPage = 0;
+    resetFloppyDrives(isColdReset);
     if (isColdReset) {
       toneGenCnt1 = 0U;
       toneGenFreq = 0U;
       toneGenCnt2 = 0;
       resetKeyboard();
-      for (uint32_t i = 0x3E0000U; i <= 0x3FFFFFU; i++)
-        memory.writeRaw(i, 0xFF);
+      memory.clearRAM();
     }
+#ifdef ENABLE_SDEXT
+    sdext.reset(int(isColdReset));
+#endif
   }
 
   void TVC64VM::resetMemoryConfiguration(size_t memSize)
@@ -1070,7 +1244,7 @@ namespace TVC64 {
   void TVC64VM::loadROMSegment(uint8_t n, const char *fileName, size_t offs)
   {
     stopDemo();
-    if (n > 0x02)
+    if (n > 0x03)
       throw Ep128Emu::Exception("internal error: invalid ROM segment number");
     if (fileName == (char *) 0 || fileName[0] == '\0') {
       // empty file name: delete segment
@@ -1099,6 +1273,17 @@ namespace TVC64 {
     // load new segment, or replace existing ROM
     memory.loadROMSegment(n, &(buf.front()), size_t(dataSize));
   }
+
+#ifdef ENABLE_SDEXT
+  void TVC64VM::configureSDCard(bool isEnabled, const std::string& romFileName)
+  {
+    stopDemo();
+    sdext.reset(2);
+    sdext.setEnabled(isEnabled);
+    memory.setEnableSDExt();
+    sdext.openROMFile(romFileName.c_str());
+  }
+#endif
 
   void TVC64VM::setVideoFrequency(size_t freq_)
   {
@@ -1152,7 +1337,15 @@ namespace TVC64 {
     vmStatus_.tapeLength = getTapeLength();
     vmStatus_.tapeSampleRate = getTapeSampleRate();
     vmStatus_.tapeSampleSize = getTapeSampleSize();
-    vmStatus_.floppyDriveLEDState = 0U;
+    uint32_t  n = 0U;
+    for (int i = 3; i >= 0; i--) {
+      n = n << 8;
+      n |= uint32_t(floppyDrives[i].getLEDState());
+    }
+#ifdef ENABLE_SDEXT
+    n = n | sdext.getLEDState();
+#endif
+    vmStatus_.floppyDriveLEDState = n;
     vmStatus_.isPlayingDemo = isPlayingDemo;
     if (demoFile != (Ep128Emu::File *) 0 && !isRecordingDemo)
       stopDemoRecording(true);
@@ -1198,6 +1391,46 @@ namespace TVC64 {
       delete videoCapture;
       videoCapture = (Ep128Emu::VideoCapture *) 0;
     }
+  }
+
+  void TVC64VM::setDiskImageFile(int n, const std::string& fileName_,
+                                 int nTracks_, int nSides_,
+                                 int nSectorsPerTrack_)
+  {
+#ifndef ENABLE_SDEXT
+    if (n < 0 || n > 7)
+#else
+    if (n < 0 || n > 8)
+#endif
+      throw Ep128Emu::Exception("invalid disk drive number");
+    if (n < 4) {
+      if (&(wd177x.getFloppyDrive()) == &(floppyDrives[n])) {
+        wd177x.setFloppyDrive((Ep128Emu::FloppyDrive *) 0);
+        wd177x.setFloppyDrive(&(floppyDrives[n]));
+      }
+      floppyDrives[n].setDiskImageFile(fileName_,
+                                       nTracks_, nSides_, nSectorsPerTrack_);
+    }
+#ifdef ENABLE_SDEXT
+    else if (n >= 8) {
+      stopDemo();
+      sdext.openImage(fileName_.c_str());
+      return;
+    }
+#endif
+  }
+
+  uint32_t TVC64VM::getFloppyDriveLEDState()
+  {
+    uint32_t  n = 0U;
+    for (int i = 3; i >= 0; i--) {
+      n = n << 8;
+      n |= uint32_t(floppyDrives[i].getLEDState());
+    }
+#ifdef ENABLE_SDEXT
+    n = n | sdext.getLEDState();
+#endif
+    return n;
   }
 
   void TVC64VM::setTapeFileName(const std::string& fileName)

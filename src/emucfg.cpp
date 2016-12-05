@@ -540,7 +540,7 @@ namespace Ep128Emu {
             }
             segNum = segNum + uint8_t(i < 8 ? 0xC0 : 0x70);
           }
-          else if (i > 2) {                     // TVC
+          else if (i > 3) {                     // TVC
             memory.rom[i].file.clear();
             memory.rom[i].offset = 0;
             continue;

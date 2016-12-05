@@ -35,6 +35,7 @@ namespace TVC64 {
    protected:
     // if true, use external implementation of segment 01 (CART)
     bool      segment1IsExtension;
+    std::vector< uint8_t >  extensionRAM;
    private:
     uint8_t   *breakPointTable;
     size_t    breakPointCnt;
@@ -105,6 +106,7 @@ namespace TVC64 {
     inline bool isSegmentROM(uint8_t segment) const;
     inline bool isSegmentRAM(uint8_t segment) const;
     bool checkIgnoreBreakPoint(uint16_t addr) const;
+    void clearRAM();
     Ep128Emu::BreakPointList getBreakPointList();
     void saveState(Ep128Emu::File::Buffer&);
     void saveState(Ep128Emu::File&);
@@ -113,9 +115,9 @@ namespace TVC64 {
    protected:
     virtual void breakPointCallback(bool isWrite, uint16_t addr, uint8_t value);
     // these functions are used when accessing special memory areas like IOMEM
-    virtual uint8_t extensionRead(uint16_t addr);
-    virtual uint8_t extensionReadNoDebug(uint16_t addr) const;
-    virtual void extensionWrite(uint16_t addr, uint8_t value);
+    virtual EP128EMU_REGPARM2 uint8_t extensionRead(uint16_t addr);
+    virtual EP128EMU_REGPARM2 uint8_t extensionReadNoDebug(uint16_t addr) const;
+    virtual EP128EMU_REGPARM3 void extensionWrite(uint16_t addr, uint8_t value);
   };
 
   // --------------------------------------------------------------------------

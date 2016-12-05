@@ -9,6 +9,9 @@ decl {\#include "gui.hpp"} {selected private local
 decl {\#include "ep128vm.hpp"} {private local
 } 
 
+decl {\#include "tvc64vm.hpp"} {private local
+} 
+
 decl {\#include <typeinfo>} {private local
 } 
 
@@ -651,7 +654,8 @@ class Ep128EmuGUI_DiskConfigWindow {open
   floppyBImageFileValuator->value(gui.config.floppy.b.imageFile.c_str());
   floppyCImageFileValuator->value(gui.config.floppy.c.imageFile.c_str());
   floppyDImageFileValuator->value(gui.config.floppy.d.imageFile.c_str());
-  if (typeid(gui.vm) != typeid(Ep128::Ep128VM)) {
+  if (typeid(gui.vm) != typeid(Ep128::Ep128VM) &&
+      typeid(gui.vm) != typeid(TVC64::TVC64VM)) {
     ideConfigGroup->deactivate();
     ideConfigGroup->hide();
     diskConfigTabs->remove(*ideConfigGroup);
@@ -681,10 +685,18 @@ class Ep128EmuGUI_DiskConfigWindow {open
     floppyDTracksValuator->value(double(gui.config.floppy.d.tracks));
     floppyDSidesValuator->value(double(gui.config.floppy.d.sides));
     floppyDSectorsPerTrackValuator->value(double(gui.config.floppy.d.sectorsPerTrack));
-    ide0ImageFileValuator->value(gui.config.ide.imageFile0.c_str());
-    ide1ImageFileValuator->value(gui.config.ide.imageFile1.c_str());
-    ide2ImageFileValuator->value(gui.config.ide.imageFile2.c_str());
-    ide3ImageFileValuator->value(gui.config.ide.imageFile3.c_str());
+    if (typeid(gui.vm) == typeid(TVC64::TVC64VM)) {
+      ide0ImageFileValuator->deactivate();
+      ide1ImageFileValuator->deactivate();
+      ide2ImageFileValuator->deactivate();
+      ide3ImageFileValuator->deactivate();
+    }
+    else {
+      ide0ImageFileValuator->value(gui.config.ide.imageFile0.c_str());
+      ide1ImageFileValuator->value(gui.config.ide.imageFile1.c_str());
+      ide2ImageFileValuator->value(gui.config.ide.imageFile2.c_str());
+      ide3ImageFileValuator->value(gui.config.ide.imageFile3.c_str());
+    }
     sdExtImageFileValuator->value(gui.config.sdext.imageFile.c_str());
   }
 }} {}

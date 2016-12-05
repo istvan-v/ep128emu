@@ -26,7 +26,7 @@ namespace TVC64 {
   {
     if (n >= 0xFC && isROM)
       throw Ep128Emu::Exception("video memory cannot be ROM");
-    if (n > 0x02 && n < 0xF8)
+    if (n > 0x03 && n < 0xF8)
       throw Ep128Emu::Exception("invalid segment number");
     if (segmentTable[n] == (uint8_t *) 0)
       segmentTable[n] = new uint8_t[16384];
@@ -276,19 +276,19 @@ namespace TVC64 {
     (void) value;
   }
 
-  uint8_t Memory::extensionRead(uint16_t addr)
+  EP128EMU_REGPARM2 uint8_t Memory::extensionRead(uint16_t addr)
   {
     (void) addr;
     return 0xFF;
   }
 
-  uint8_t Memory::extensionReadNoDebug(uint16_t addr) const
+  EP128EMU_REGPARM2 uint8_t Memory::extensionReadNoDebug(uint16_t addr) const
   {
     (void) addr;
     return 0xFF;
   }
 
-  void Memory::extensionWrite(uint16_t addr, uint8_t value)
+  EP128EMU_REGPARM3 void Memory::extensionWrite(uint16_t addr, uint8_t value)
   {
     (void) addr;
     (void) value;
@@ -322,7 +322,7 @@ namespace TVC64 {
   void Memory::loadROMSegment(uint8_t segment,
                               const uint8_t *data, size_t dataSize)
   {
-    if (segment > 0x02)
+    if (segment > 0x03)
       throw Ep128Emu::Exception("internal error: invalid ROM segment number");
     if (!data)
       dataSize = 0;
@@ -453,6 +453,19 @@ namespace TVC64 {
     return false;
   }
 
+  void Memory::clearRAM()
+  {
+    for (int i = 0xF8; i <= 0xFF; i++) {
+      if (i == (0xF7 + totalRAMSegments))
+        i = 0xFF;
+      if (!segmentTable[i])
+        continue;
+      std::memset(segmentTable[i], 0xFF, 0x4000);
+    }
+    if (extensionRAM.size() > 0)
+      std::memset(&(extensionRAM.front()), 0xFF, extensionRAM.size());
+  }
+
   Ep128Emu::BreakPointList Memory::getBreakPointList()
   {
     Ep128Emu::BreakPointList  bplst;
@@ -506,7 +519,7 @@ namespace TVC64 {
   void Memory::saveState(Ep128Emu::File::Buffer& buf)
   {
     buf.setPosition(0);
-    buf.writeUInt32(0x01000000);        // version number
+    buf.writeUInt32(0x01000001);        // version number
     buf.writeUInt16(currentPaging);
     buf.writeBoolean(segment1IsExtension);
     buf.writeByte(totalRAMSegments);
@@ -524,7 +537,10 @@ namespace TVC64 {
           buf.writeByte(0xFF);
       }
     }
-    for (int i = 0x00; i <= 0x02; i++) {
+    buf.writeUInt32(uint32_t(extensionRAM.size()));
+    for (size_t i = 0; i < extensionRAM.size(); i++)
+      buf.writeByte(extensionRAM[i]);
+    for (int i = 0x00; i <= 0x03; i++) {
       if (segmentTable[i] != (uint8_t *) 0 &&
           !(i == 0x01 && segment1IsExtension)) {
         buf.writeByte(uint8_t(i));
@@ -546,7 +562,7 @@ namespace TVC64 {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
-    if (version != 0x01000000) {
+    if (!(version >= 0x01000000 && version <= 0x01000001)) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible TVC memory snapshot format");
     }
@@ -571,10 +587,21 @@ namespace TVC64 {
         for (size_t j = 0; j < 16384; j++)
           segmentTable[i][j] = buf.readByte();
       }
+      if (version < 0x01000001) {
+        if (extensionRAM.size() > 0)
+          std::memset(&(extensionRAM.front()), 0xFF, extensionRAM.size());
+      }
+      else if (size_t(buf.readUInt32()) != extensionRAM.size()) {
+        throw Ep128Emu::Exception("invalid extension RAM size in TVC snapshot");
+      }
+      else {
+        for (size_t i = 0; i < extensionRAM.size(); i++)
+          extensionRAM[i] = buf.readByte();
+      }
       // load ROM segments
       while (buf.getPosition() < buf.getDataSize()) {
         uint8_t segment = buf.readByte();
-        if (segment > 0x02)
+        if (segment > 0x03)
           throw Ep128Emu::Exception("invalid ROM segment in TVC snapshot");
         allocateSegment(segment, true);
         for (size_t i = (segment != 0x02 ? 0 : 8192); i < 16384; i++)
@@ -586,6 +613,7 @@ namespace TVC64 {
       segment1IsExtension = false;
       setRAMSize(48);
       setPaging(0x3F00);
+      clearRAM();
       throw;
     }
   }

@@ -30,6 +30,11 @@
 #include "snd_conv.hpp"
 #include "soundio.hpp"
 #include "vm.hpp"
+#include "ep_fdd.hpp"
+#include "wd177x.hpp"
+#ifdef ENABLE_SDEXT
+#  include "sdext.hpp"
+#endif
 
 namespace Ep128Emu {
   class VideoCapture;
@@ -70,12 +75,13 @@ namespace TVC64 {
      public:
       Memory_(TVC64VM& vm_);
       virtual ~Memory_();
+      void setEnableSDExt();
      protected:
       virtual void breakPointCallback(bool isWrite,
                                       uint16_t addr, uint8_t value);
-      virtual uint8_t extensionRead(uint16_t addr);
-      virtual uint8_t extensionReadNoDebug(uint16_t addr) const;
-      virtual void extensionWrite(uint16_t addr, uint8_t value);
+      virtual EP128EMU_REGPARM2 uint8_t extensionRead(uint16_t addr);
+      virtual EP128EMU_REGPARM2 uint8_t extensionReadNoDebug(uint16_t addr) const;
+      virtual EP128EMU_REGPARM3 void extensionWrite(uint16_t addr, uint8_t value);
     };
     class IOPorts_ : public Ep128::IOPorts {
      private:
@@ -149,6 +155,10 @@ namespace TVC64 {
     bool      snapshotLoadFlag;
     // used for counting time between demo events (in CRTC cycles)
     uint64_t  demoTimeCnt;
+    // floppy drives
+    Ep128Emu::WD177x      wd177x;
+    Ep128Emu::FloppyDrive floppyDrives[4];
+    uint8_t   vtdosROMPage;             // 0 to 3
     uint8_t   breakPointPriorityThreshold;
     struct TVC64VMCallback {
       void      (*func)(void *);
@@ -163,6 +173,9 @@ namespace TVC64 {
     size_t    crtcFrequency;            // defaults to 1562500 Hz
     uint8_t   keyboardState[16];
     uint8_t   tvcKeyboardState[16];
+#ifdef ENABLE_SDEXT
+    Ep128::SDExt  sdext;
+#endif
     // ----------------
     EP128EMU_INLINE void updateCPUCycles(int cycles);
     EP128EMU_INLINE void updateCPUHalfCycles(int halfCycles);
@@ -184,10 +197,10 @@ namespace TVC64 {
     static void videoCaptureCallback(void *userData);
     void stopDemoPlayback();
     void stopDemoRecording(bool writeFile_);
-    EP128EMU_REGPARM1 void updatePPIState();
     uint8_t checkSingleStepModeBreak();
     void convertKeyboardState();
     void resetKeyboard();
+    void resetFloppyDrives(bool isColdReset);
     // Set function to be called at every CRTC cycle. The functions are called
     // in the order of being registered; up to 16 callbacks can be set.
     void setCallback(void (*func)(void *userData), void *userData_,
@@ -212,6 +225,14 @@ namespace TVC64 {
      * Load ROM segment 'n' from the specified file, skipping 'offs' bytes.
      */
     virtual void loadROMSegment(uint8_t n, const char *fileName, size_t offs);
+#ifdef ENABLE_SDEXT
+    /*!
+     * Set if SD card emulation should be enabled on segment 0x01,
+     * and the file name of the 64 KB flash ROM image.
+     */
+    virtual void configureSDCard(bool isEnabled,
+                                 const std::string& romFileName);
+#endif
     /*!
      * Set the number of video 'slots' per second (defaults to 1000000 Hz).
      */
@@ -250,6 +271,42 @@ namespace TVC64 {
      * the output file.
      */
     virtual void closeVideoCapture();
+    // -------------------------- DISK AND FILE I/O ---------------------------
+    /*!
+     * Load disk image for drive 'n' (counting from zero; 0 to 3 are floppy
+     * drives, 4 to 7 are IDE drives, and 8 is SD card); an empty file name
+     * means no disk.
+     */
+    virtual void setDiskImageFile(int n, const std::string& fileName_,
+                                  int nTracks_ = -1, int nSides_ = 2,
+                                  int nSectorsPerTrack_ = 9);
+    /*!
+     * Returns the current state of the disk drive LEDs, which is the sum
+     * of any of the following values:
+     *   0x00000001: floppy drive 0 red LED is on
+     *   0x00000002: floppy drive 0 green LED is on
+     *   0x00000004: IDE drive 0 red LED is on (low priority)
+     *   0x0000000C: IDE drive 0 red LED is on (high priority)
+     *   0x00000100: floppy drive 1 red LED is on
+     *   0x00000200: floppy drive 1 green LED is on
+     *   0x00000400: IDE drive 1 red LED is on (low priority)
+     *   0x00000C00: IDE drive 1 red LED is on (high priority)
+     *   0x00010000: floppy drive 2 red LED is on
+     *   0x00020000: floppy drive 2 green LED is on
+     *   0x00040000: IDE drive 2 red LED is on (low priority)
+     *   0x000C0000: IDE drive 2 red LED is on (high priority)
+     *   0x00100000: SD card 1 blue LED is on (low priority)
+     *   0x00200000: SD card 1 blue LED is on (high priority)
+     *   0x00300000: SD card 1 cyan LED is on (high priority)
+     *   0x01000000: floppy drive 3 red LED is on
+     *   0x02000000: floppy drive 3 green LED is on
+     *   0x04000000: IDE drive 3 red LED is on (low priority)
+     *   0x0C000000: IDE drive 3 red LED is on (high priority)
+     *   0x10000000: SD card 2 blue LED is on (low priority)
+     *   0x20000000: SD card 2 blue LED is on (high priority)
+     *   0x30000000: SD card 2 cyan LED is on (high priority)
+     */
+    virtual uint32_t getFloppyDriveLEDState();
     // ---------------------------- TAPE EMULATION ----------------------------
     /*!
      * Set tape image file name (if the file name is NULL or empty, tape
