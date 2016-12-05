@@ -90,9 +90,9 @@ namespace TVC64 {
     g = float(int(bool(pixelValue & 0x30)));
     b = float(int(bool(pixelValue & 0x03)));
     if (!(pixelValue & 0xC0)) {
-      r = r * 0.75f;
-      g = g * 0.75f;
-      b = b * 0.75f;
+      r = r * (4.0f / 7.0f);
+      g = g * (4.0f / 7.0f);
+      b = b * (4.0f / 7.0f);
     }
   }
 
