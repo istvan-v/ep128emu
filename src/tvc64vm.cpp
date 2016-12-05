@@ -1132,6 +1132,7 @@ namespace TVC64 {
         0x0000, 0x007F, &ioPortWriteCallback, (void *) this, 0x0000);
     crtc.setHSyncStateChangeCallback(&hSyncStateChangeCallback, (void *) this);
     crtc.setVSyncStateChangeCallback(&vSyncStateChangeCallback, (void *) this);
+    wd177x.setIsWD1773(true);
     // hack to get some programs using interrupt mode 2 working
     z80.setVectorBase(0xFF);
     // use TVC gate array colormap
@@ -1142,7 +1143,7 @@ namespace TVC64 {
     setAudioConverterSampleRate(float(long(crtcFrequency >> 2)));
     // reset
     resetKeyboard();
-    resetMemoryConfiguration(64);
+    resetMemoryConfiguration(80);
   }
 
   TVC64VM::~TVC64VM()
