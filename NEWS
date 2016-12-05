@@ -1,7 +1,11 @@
 Changes in version 2.0.11
 -------------------------
 
+  * implemented Videoton TVC emulation
+  * various improvements and new features in the epcompress utility
+  * the debugger window has been made resizeable within a limited range
   * fixed bug in re-opening files selected with a file chooser dialog
+  * some other bug fixes
 
 Changes in version 2.0.10
 -------------------------
