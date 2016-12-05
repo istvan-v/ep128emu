@@ -132,7 +132,7 @@ namespace Ep128Emu {
     }
     inline bool checkCurrentTrack(uint8_t trackNum) const
     {
-      return (imageFile && currentTrack < nTracks && currentSide < nSides &&
+      return (isMotorOn && currentTrack < nTracks && currentSide < nSides &&
               currentTrack == trackNum);
     }
     // n > 0: step in, n < 0: step out

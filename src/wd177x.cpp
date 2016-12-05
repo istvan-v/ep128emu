@@ -117,7 +117,7 @@ namespace Ep128Emu {
       // reset CRC, seek error, data request, and IRQ
       dataRequestFlag = false;
       statusRegister = 0xA1;
-      if (floppyDrive != &dummyFloppyDrive)
+      if (floppyDrive != &dummyFloppyDrive && !isWD1773)
         floppyDrive->motorOn();
       if (interruptRequestFlag) {
         interruptRequestFlag = false;
@@ -163,19 +163,21 @@ namespace Ep128Emu {
       // reset data request, lost data, record not found, and interrupt request
       dataRequestFlag = false;
       statusRegister = 0x81;
-      if (floppyDrive != &dummyFloppyDrive)
+      if (floppyDrive != &dummyFloppyDrive && !isWD1773)
         floppyDrive->motorOn();
       if (interruptRequestFlag) {
         interruptRequestFlag = false;
         clearInterruptRequest();
       }
-      // select side (if enabled)
-      if (isWD1773) {
-        if (pc)
-          floppyDrive->setSide(uint8_t(hs ? 1 : 0));
-      }
       floppyDrive->endDataTransfer();
-      if ((n & 0x20) == 0) {            // READ SECTOR
+      // check side (if enabled)
+      if (isWD1773 && pc && floppyDrive->getCurrentSide() != uint8_t(hs)) {
+        if ((n & 0x20) != 0 && floppyDrive->getIsWriteProtected())
+          statusRegister = statusRegister | 0x40;   // disk is write protected
+        else
+          statusRegister = statusRegister | 0x10;   // record not found
+      }
+      else if ((n & 0x20) == 0) {       // READ SECTOR
         if (!floppyDrive->startDataTransfer(trackRegister, sectorRegister)) {
           statusRegister = statusRegister | 0x10;   // record not found
         }
@@ -198,7 +200,7 @@ namespace Ep128Emu {
         }
       }
       if (!floppyDrive->isDataTransfer()) {
-        if (floppyDrive->haveDisk())
+        if (floppyDrive->haveDisk() && floppyDrive->getIsMotorOn())
           setError();
       }
     }
@@ -213,7 +215,7 @@ namespace Ep128Emu {
       // reset data request, lost data, record not found, and interrupt request
       dataRequestFlag = false;
       statusRegister = 0x81;
-      if (floppyDrive != &dummyFloppyDrive)
+      if (floppyDrive != &dummyFloppyDrive && !isWD1773)
         floppyDrive->motorOn();
       if (interruptRequestFlag) {
         interruptRequestFlag = false;
@@ -248,7 +250,7 @@ namespace Ep128Emu {
         }
       }
       if (!floppyDrive->isDataTransfer()) {
-        if (floppyDrive->haveDisk())
+        if (floppyDrive->haveDisk() && floppyDrive->getIsMotorOn())
           setError();
       }
     }

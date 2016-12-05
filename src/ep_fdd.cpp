@@ -225,7 +225,7 @@ namespace Ep128Emu {
 
   bool FloppyDrive::startDataTransfer(uint8_t trackNum, uint8_t sectorNum)
   {
-    if (!(currentTrack < nTracks && currentSide < nSides &&
+    if (!(isMotorOn && currentTrack < nTracks && currentSide < nSides &&
           currentTrack == trackNum &&
           sectorNum >= 1 && sectorNum <= nSectorsPerTrack)) {
       return false;
