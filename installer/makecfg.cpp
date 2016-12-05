@@ -39,7 +39,7 @@
 #include <vector>
 
 #ifndef MAKECFG_ROM_PKG_NAME
-#  define MAKECFG_ROM_PKG_NAME  "ep128emu_roms-2.0.10.bin"
+#  define MAKECFG_ROM_PKG_NAME  "ep128emu_roms-2.0.11.bin"
 #endif
 
 #ifdef MAKECFG_USE_CURL
@@ -386,23 +386,31 @@ static const EP_ROM_File epROMFiles[61] = {
 #define ZX_RAM_16K              (16UL << 12)
 #define ZX_RAM_48K              (48UL << 12)
 #define ZX_RAM_128K             (128UL << 12)
-#define ZX_ROM_ZX48             (uint64_t(1) << 22)
-#define ZX_ROM_ZX128            (uint64_t(1) << 23)
-#define ZX_ROM_ZX48GW03         (uint64_t(1) << 24)
-#define ZX_ENABLE_FILEIO        (uint64_t(1) << 25)
+#define ZX_ROM_ZX48             (uint64_t(1) << 24)
+#define ZX_ROM_ZX128            (uint64_t(1) << 25)
+#define ZX_ROM_ZX48GW03         (uint64_t(1) << 26)
+#define ZX_ENABLE_FILEIO        (uint64_t(1) << 27)
 #define CPC_RAM_64K             (64UL << 12)
 #define CPC_RAM_128K            (128UL << 12)
 #define CPC_RAM_576K            (576UL << 12)
-#define CPC_ROM_464             (uint64_t(1) << 26)
-#define CPC_ROM_664             (uint64_t(1) << 27)
-#define CPC_ROM_6128            (uint64_t(1) << 28)
-#define CPC_ROM_AMSDOS          (uint64_t(1) << 29)
+#define CPC_ROM_464             (uint64_t(1) << 32)
+#define CPC_ROM_664             (uint64_t(1) << 33)
+#define CPC_ROM_6128            (uint64_t(1) << 34)
+#define CPC_ROM_AMSDOS          (uint64_t(1) << 35)
+#define TVC_RAM_48K             (48UL << 12)
+#define TVC_RAM_80K             (80UL << 12)
+#define TVC_RAM_128K            (128UL << 12)
+#define TVC_ROM_SYS12           (uint64_t(1) << 40)
+#define TVC_ROM_SYS22           (uint64_t(1) << 41)
+#define TVC_ROM_EXT12           (uint64_t(1) << 42)
+#define TVC_ROM_EXT22           (uint64_t(1) << 43)
 
 #define IS_EP_CONFIG(x)         bool((x) & 0x0000FFFFUL)
 #define EP_RAM_SIZE(x)          epRAMSizeTable[(x) & 7UL]
 #define ZX_CPC_RAM_SIZE(x)      int(((x) & 0x003F0000UL) >> 12)
-#define IS_ZX_CONFIG(x)         (((x) & 0x03C00000UL) && !IS_EP_CONFIG(x))
-#define IS_CPC_CONFIG(x)        (((x) & 0x3C000000UL) && !IS_EP_CONFIG(x))
+#define IS_ZX_CONFIG(x)         ((((x) >> 24) & 0xFFUL) && !IS_EP_CONFIG(x))
+#define IS_CPC_CONFIG(x)        ((((x) >> 32) & 0xFFUL) && !IS_EP_CONFIG(x))
+#define IS_TVC_CONFIG(x)        ((((x) >> 40) & 0xFFUL) && !IS_EP_CONFIG(x))
 
 // ----------------------------------------------------------------------------
 
@@ -730,6 +738,24 @@ static const EPMachineConfig machineConfigs[] = {
   { "cpc/CPC_576k_AMSDOS.cfg",
     CPC_RAM_576K | CPC_ROM_6128 | CPC_ROM_AMSDOS
   },
+  { "tvc/TVC_48k_V12.cfg",
+    TVC_RAM_48K | TVC_ROM_SYS12 | TVC_ROM_EXT12
+  },
+  { "tvc/TVC_48k_V22.cfg",
+    TVC_RAM_48K | TVC_ROM_SYS22 | TVC_ROM_EXT22
+  },
+  { "tvc/TVC_80k_V12.cfg",
+    TVC_RAM_80K | TVC_ROM_SYS12 | TVC_ROM_EXT12
+  },
+  { "tvc/TVC_80k_V22.cfg",
+    TVC_RAM_80K | TVC_ROM_SYS22 | TVC_ROM_EXT22
+  },
+  { "tvc/TVC_128k_V12.cfg",
+    TVC_RAM_128K | TVC_ROM_SYS12 | TVC_ROM_EXT12
+  },
+  { "tvc/TVC_128k_V22.cfg",
+    TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22
+  },
   { (char *) 0,
     0UL
   }
@@ -763,11 +789,12 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
         memory.rom[1].file = romDirectory + "zx128.rom";
         memory.rom[1].offset = 16384;
       }
+      vm.cpuClockFrequency = vm.videoClockFrequency << 2;
       vm.soundClockFrequency = vm.videoClockFrequency >> 2;
       vm.enableMemoryTimingEmulation = true;
       vm.enableFileIO = bool(machineConfig & ZX_ENABLE_FILEIO);
     }
-    else {
+    else if (IS_CPC_CONFIG(machineConfig)) {
       try {
         config["display.quality"] = 3;
         config["display.lineShade"] = 0.5;
@@ -786,11 +813,34 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
         memory.rom[7].file = romDirectory + "cpc_amsdos.rom";
       memory.rom[0].offset = 16384;
       memory.rom[16].file = memory.rom[0].file;
+      vm.cpuClockFrequency = vm.videoClockFrequency << 2;
       vm.soundClockFrequency = vm.videoClockFrequency >> 3;
       vm.enableMemoryTimingEmulation = true;
       vm.enableFileIO = false;
     }
-    vm.cpuClockFrequency = vm.videoClockFrequency << 2;
+    else {                              // TVC
+      try {
+        config["display.quality"] = 3;
+        config["display.lineShade"] = 0.75;
+        config["display.pixelAspectRatio"] = 0.878;
+        config["sound.volume"] = 0.5;
+      }
+      catch (Ep128Emu::Exception) {
+      }
+      vm.videoClockFrequency = 1562500U;
+      if (machineConfig & TVC_ROM_SYS12)
+        memory.rom[0].file = romDirectory + "tvc12_sys.rom";
+      else if (machineConfig & TVC_ROM_SYS22)
+        memory.rom[0].file = romDirectory + "tvc22_sys.rom";
+      if (machineConfig & TVC_ROM_EXT12)
+        memory.rom[2].file = romDirectory + "tvc12_ext.rom";
+      else if (machineConfig & TVC_ROM_EXT22)
+        memory.rom[2].file = romDirectory + "tvc22_ext.rom";
+      vm.cpuClockFrequency = vm.videoClockFrequency << 1;
+      vm.soundClockFrequency = vm.videoClockFrequency >> 2;
+      vm.enableMemoryTimingEmulation = true;
+      vm.enableFileIO = false;
+    }
   }
   else {                                // Enterprise
     vm.cpuClockFrequency = 4000000U;
@@ -832,6 +882,8 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
   if (!IS_ZX_CONFIG(machineConfig)) {
     config.createKey("memory.rom.02.file", memory.rom[0x02].file);
     config.createKey("memory.rom.02.offset", memory.rom[0x02].offset);
+  }
+  if (!(IS_ZX_CONFIG(machineConfig) || IS_TVC_CONFIG(machineConfig))) {
     config.createKey("memory.rom.03.file", memory.rom[0x03].file);
     config.createKey("memory.rom.03.offset", memory.rom[0x03].offset);
     config.createKey("memory.rom.04.file", memory.rom[0x04].file);
@@ -887,6 +939,7 @@ class Ep128EmuDisplaySndConfiguration {
     struct {
       int         quality;
       double      lineShade;
+      double      pixelAspectRatio;
     } display;
     struct {
       bool        highQuality;
@@ -899,6 +952,7 @@ class Ep128EmuDisplaySndConfiguration {
   {
     display.quality = 2;
     display.lineShade = 0.75;
+    display.pixelAspectRatio = 1.0;
     sound.highQuality = true;
     sound.latency = 0.07;
     sound.hwPeriods = 16;
@@ -1377,6 +1431,8 @@ int main(int argc, char **argv)
     mkdir(tmp2.c_str(), 0755);
     tmp2 = tmp + "config/ep64";
     mkdir(tmp2.c_str(), 0755);
+    tmp2 = tmp + "config/tvc";
+    mkdir(tmp2.c_str(), 0755);
     tmp2 = tmp + "config/zx";
     mkdir(tmp2.c_str(), 0755);
     tmp2 = tmp + "demo";
@@ -1417,6 +1473,8 @@ int main(int argc, char **argv)
     tmp2 = tmp + "config\\ep128uk";
     _mkdir(tmp2.c_str());
     tmp2 = tmp + "config\\ep64";
+    _mkdir(tmp2.c_str());
+    tmp2 = tmp + "config\\tvc";
     _mkdir(tmp2.c_str());
     tmp2 = tmp + "config\\zx";
     _mkdir(tmp2.c_str());
@@ -1487,7 +1545,7 @@ int main(int argc, char **argv)
         delete gCfg;
       }
       delete config;
-      for (int i = 0; i < 3; i++) {
+      for (int i = 0; i < 4; i++) {
         const char  *fName = "ep128cfg.dat";
         // EP_128k_EXDOS
         uint64_t    machineConfig = EP_RAM_128K | EP_ROM_EXOS21
@@ -1501,6 +1559,11 @@ int main(int argc, char **argv)
           fName = "cpc_cfg.dat";
           // CPC_128k_AMSDOS.cfg
           machineConfig = CPC_RAM_128K | CPC_ROM_6128 | CPC_ROM_AMSDOS;
+        }
+        else if (i == 3) {
+          fName = "tvc_cfg.dat";
+          // TVC_128k_V22.cfg
+          machineConfig = TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22;
         }
         config = new Ep128Emu::ConfigurationDB();
         dsCfg = new Ep128EmuDisplaySndConfiguration(*config);

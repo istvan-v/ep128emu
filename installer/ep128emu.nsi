@@ -138,6 +138,7 @@ Section "ep128emu binaries" SecMain
     CreateDirectory "$SMPROGRAMS\$STARTMENU_FOLDER\GUI themes"
     CreateDirectory "$SMPROGRAMS\$STARTMENU_FOLDER\Spectrum emulator"
     CreateDirectory "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator"
+    CreateDirectory "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator"
     SetOutPath "$INSTDIR"
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\ep128emu - OpenGL mode.lnk" "$INSTDIR\ep128emu.exe" '-opengl'
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\ep128emu - software mode.lnk" "$INSTDIR\ep128emu.exe" '-no-opengl'
@@ -163,6 +164,14 @@ Section "ep128emu binaries" SecMain
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc6128emu - Software - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 1' "$INSTDIR\ep128emu.exe" 2
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc6128emu - Software - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 2' "$INSTDIR\ep128emu.exe" 2
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc6128emu - Software - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 3' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - GL - default theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -opengl' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - GL - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -opengl -colorscheme 1' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - GL - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -opengl -colorscheme 2' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - GL - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -opengl -colorscheme 3' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - Software - default theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -no-opengl' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - Software - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -no-opengl -colorscheme 1' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - Software - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -no-opengl -colorscheme 2' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - Software - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -no-opengl -colorscheme 3' "$INSTDIR\ep128emu.exe" 2
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\README.lnk" "$INSTDIR\readme.txt"
     SetOutPath "$INSTDIR\tape"
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Tape editor.lnk" "$INSTDIR\tapeedit.exe"
@@ -387,14 +396,14 @@ Section "Download and install ROM images" SecDLRoms
 
   SetOutPath "$INSTDIR\roms"
 
-  INetC::get "http://ep128.hu/Emu/ep128emu_roms-2.0.10.bin" "$INSTDIR\roms\ep128emu_roms-2.0.10.bin"
+  INetC::get "http://ep128.hu/Emu/ep128emu_roms-2.0.11.bin" "$INSTDIR\roms\ep128emu_roms-2.0.11.bin"
   Pop $R0
   StrCmp $R0 "OK" downloadDone 0
   StrCmp $R0 "Cancelled" downloadDone 0
 
   MessageBox MB_OK "WARNING: download from ep128.hu failed ($R0), trying enterpriseforever.com instead"
 
-  INetC::get "https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/?action=dlattach;attach=16518" "$INSTDIR\roms\ep128emu_roms-2.0.10.bin"
+  INetC::get "https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/?action=dlattach;attach=16518" "$INSTDIR\roms\ep128emu_roms-2.0.11.bin"
   Pop $R0
   StrCmp $R0 "OK" downloadDone 0
   StrCmp $R0 "Cancelled" downloadDone 0
@@ -610,6 +619,12 @@ Section "Uninstall"
   Delete "$INSTDIR\config\ep64\EP_64k_Tape_FileIO.cfg"
   Delete "$INSTDIR\config\ep64\EP_64k_Tape_NoCartridge.cfg"
   Delete "$INSTDIR\config\ep64\EP_64k_Tape_TASMON.cfg"
+  Delete "$INSTDIR\config\tvc\TVC_48k_V12.cfg"
+  Delete "$INSTDIR\config\tvc\TVC_48k_V22.cfg"
+  Delete "$INSTDIR\config\tvc\TVC_80k_V12.cfg"
+  Delete "$INSTDIR\config\tvc\TVC_80k_V22.cfg"
+  Delete "$INSTDIR\config\tvc\TVC_128k_V12.cfg"
+  Delete "$INSTDIR\config\tvc\TVC_128k_V22.cfg"
   Delete "$INSTDIR\config\zx\ZX_128k.cfg"
   Delete "$INSTDIR\config\zx\ZX_128k_FileIO.cfg"
   Delete "$INSTDIR\config\zx\ZX_16k.cfg"
@@ -623,6 +638,7 @@ Section "Uninstall"
   RMDir "$INSTDIR\config\ep128hun"
   RMDir "$INSTDIR\config\ep128uk"
   RMDir "$INSTDIR\config\ep64"
+  RMDir "$INSTDIR\config\tvc"
   RMDir "$INSTDIR\config\zx"
   RMDir "$INSTDIR\config"
   RMDir "$INSTDIR\demo"
@@ -704,6 +720,10 @@ Section "Uninstall"
   Delete "$INSTDIR\roms\tasmon1.rom"
   Delete "$INSTDIR\roms\tasmon15.rom"
   Delete "$INSTDIR\roms\tpt.rom"
+  Delete "$INSTDIR\roms\tvc12_ext.rom"
+  Delete "$INSTDIR\roms\tvc12_sys.rom"
+  Delete "$INSTDIR\roms\tvc22_ext.rom"
+  Delete "$INSTDIR\roms\tvc22_sys.rom"
   Delete "$INSTDIR\roms\zt18.rom"
   Delete "$INSTDIR\roms\zt18ekn.rom"
   Delete "$INSTDIR\roms\zt18hfnt.rom"
@@ -757,6 +777,14 @@ Section "Uninstall"
   Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc6128emu - Software - Win2000 theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc6128emu - Software - plastic theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\CPC emulator\cpc6128emu - Software - Gtk+ theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\TVC emulator\tvc64emu - GL - default theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\TVC emulator\tvc64emu - GL - Win2000 theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\TVC emulator\tvc64emu - GL - plastic theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\TVC emulator\tvc64emu - GL - Gtk+ theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\TVC emulator\tvc64emu - Software - default theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\TVC emulator\tvc64emu - Software - Win2000 theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\TVC emulator\tvc64emu - Software - plastic theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\TVC emulator\tvc64emu - Software - Gtk+ theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\ep128emu - GL - Win2000 theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\ep128emu - GL - plastic theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\README.lnk"
@@ -766,6 +794,7 @@ Section "Uninstall"
 
   RMDir "$SMPROGRAMS\$MUI_TEMP\Spectrum emulator"
   RMDir "$SMPROGRAMS\$MUI_TEMP\CPC emulator"
+  RMDir "$SMPROGRAMS\$MUI_TEMP\TVC emulator"
 
   ;Delete empty start menu parent diretories
   StrCpy $MUI_TEMP "$SMPROGRAMS\$MUI_TEMP\GUI themes"
