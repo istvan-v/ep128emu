@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -161,7 +161,8 @@ namespace CPC464 {
     }
     EP128EMU_INLINE bool getCursorEnabled() const
     {
-      return bool(skewShiftRegister & cursorEnableMask);
+      return bool((skewShiftRegister & (skewShiftRegister >> 1))
+                  & cursorEnableMask);
     }
     EP128EMU_INLINE void getVideoPosition(int& xPos, int& yPos) const
     {
