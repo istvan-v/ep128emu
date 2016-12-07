@@ -976,6 +976,7 @@ class Ep128EmuDisplaySndConfiguration {
     sound.volume = 0.7071;
     config.createKey("display.quality", display.quality);
     config.createKey("display.lineShade", display.lineShade);
+    config.createKey("display.pixelAspectRatio", display.pixelAspectRatio);
     config.createKey("sound.highQuality", sound.highQuality);
     config.createKey("sound.latency", sound.latency);
     config.createKey("sound.hwPeriods", sound.hwPeriods);
