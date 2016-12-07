@@ -42,10 +42,8 @@ namespace TVC64 {
     uint8_t   palette[4];
     uint8_t   borderColor;
     uint8_t   videoMode;
-    uint8_t   hSyncMax;
     uint8_t   hSyncLen;
-    uint8_t   pixelBuf0[8];
-    uint8_t   pixelBuf1[8];
+    uint8_t   hSyncPos;
     // --------
     /*!
      * drawLine() is called after rendering each line.
@@ -90,7 +88,6 @@ namespace TVC64 {
     void setColor(uint8_t penNum, uint8_t c);   // penNum >= 4 is border
     uint8_t getColor(uint8_t penNum) const;
     EP128EMU_REGPARM1 void runOneCycle();
-   public:
     EP128EMU_INLINE void crtcHSyncStateChange(bool newState)
     {
       if (newState)

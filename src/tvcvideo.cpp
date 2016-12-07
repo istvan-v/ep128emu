@@ -53,7 +53,7 @@ namespace TVC64 {
                      const uint8_t *videoMemory_)
     : crtc(crtc_),
       lineBufPtr((uint8_t *) 0),
-      hSyncCnt(0),
+      hSyncCnt(-1),
       crtcHSyncCnt(0),
       crtcHSyncState(0),
       vSyncCnt(0),
@@ -61,8 +61,8 @@ namespace TVC64 {
       lineBuf((uint8_t *) 0),
       borderColor(0x00),
       videoMode(0),
-      hSyncMax(120),
-      hSyncLen(8)
+      hSyncLen(8),
+      hSyncPos(10)
   {
     videoDelayBuf[0] = 0U;
     videoDelayBuf[1] = 0U;
@@ -72,10 +72,6 @@ namespace TVC64 {
     for (size_t i = 0; i < 448; i++)
       lineBuf[i] = uint8_t((~i) & 0x01);
     lineBufPtr = lineBuf;
-    pixelBuf0[0] = 1;
-    pixelBuf0[1] = 0x00;
-    pixelBuf1[0] = 1;
-    pixelBuf1[1] = 0x00;
   }
 
   TVCVideo::~TVCVideo()
@@ -113,139 +109,18 @@ namespace TVC64 {
 
   EP128EMU_REGPARM1 void TVCVideo::runOneCycle()
   {
-    if (EP128EMU_EXPECT((unsigned int) hSyncCnt < 96U)) {
-      const unsigned char *delayPtr =
-          reinterpret_cast< unsigned char * >(&(videoDelayBuf[0]));
-      uint8_t *pixelBuf =
-          (!(hSyncCnt & 1U) ? &(pixelBuf0[0]) : &(pixelBuf1[0]));
-      if (EP128EMU_UNLIKELY(delayPtr[0] != 0)) {
-        pixelBuf[0] = 1;                // sync
-        pixelBuf[1] = 0x00;
-      }
-      else if (delayPtr[1]) {
-        uint8_t videoByte = delayPtr[3];
-        switch (delayPtr[2]) {
-        case 0:                         // 2 color mode
-          pixelBuf[0] = 3;
-          pixelBuf[1] = palette[0];
-          pixelBuf[2] = palette[1];
-          pixelBuf[3] = videoByte;
-          break;
-        case 1:                         // 4 color mode
-          pixelBuf[0] = 4;
-          pixelBuf[1] = palette[pixelConvTable_4[videoByte & 0x88]];
-          pixelBuf[2] = palette[pixelConvTable_4[videoByte & 0x44]];
-          pixelBuf[3] = palette[pixelConvTable_4[videoByte & 0x22]];
-          pixelBuf[4] = palette[pixelConvTable_4[videoByte & 0x11]];
-          break;
-        case 2:                         // 16 color mode
-        case 3:
-          pixelBuf[0] = 2;
-          pixelBuf[1] = videoByte & 0xAA;
-          pixelBuf[2] = videoByte & 0x55;
-          break;
-        }
-      }
-      else {
-        pixelBuf[0] = 1;                // border
-        pixelBuf[1] = borderColor;
-      }
-      if (hSyncCnt & 1U) {
-        if (EP128EMU_UNLIKELY(pixelBuf0[0] != pixelBuf1[0])) {
-          uint8_t *p0 = &(pixelBuf0[0]);
-          uint8_t *p1 = &(pixelBuf1[0]);
-          if (*p0 > *p1) {
-            uint8_t *tmp = p0;
-            p0 = p1;
-            p1 = tmp;
-          }
-          if (EP128EMU_UNLIKELY(*p0 == 3)) {
-            // 2 colors and 4 colors in the same character
-            // FIXME: this is a lossy conversion
-            uint8_t tmp[2];
-            uint8_t b = p0[3];
-            tmp[0] = p0[1];
-            tmp[1] = p0[2];
-            p0[1] = tmp[(b >> 7) & 1];
-            p0[2] = tmp[(b >> 5) & 1];
-            p0[3] = tmp[(b >> 3) & 1];
-            p0[4] = tmp[(b >> 1) & 1];
-          }
-          else if (*p1 == 3) {
-            // 2 colors and 16 or border/blank
-            if (*p0 == 1)
-              p0[2] = p0[1];
-            p0[3] = 0x0F;
-          }
-          else {
-            // expand the lower resolution half of the character
-            uint8_t i = *p0;
-            uint8_t j = *p1;
-            uint8_t k = 0;
-            do {
-              p0[j] = p0[i];
-              j--;
-              k = k + *p0;
-              if (k >= *p1) {
-                k = k - *p1;
-                i--;
-              }
-            } while (j);
-          }
-          *p0 = *p1;
-        }
-        switch (pixelBuf0[0]) {
-        case 1:
-          lineBufPtr[0] = 2;
-          lineBufPtr[1] = pixelBuf0[1];
-          lineBufPtr[2] = pixelBuf1[1];
-          lineBufPtr = lineBufPtr + 3;
-          break;
-        case 2:
-          lineBufPtr[0] = 4;
-          lineBufPtr[1] = pixelBuf0[1];
-          lineBufPtr[2] = pixelBuf0[2];
-          lineBufPtr[3] = pixelBuf1[1];
-          lineBufPtr[4] = pixelBuf1[2];
-          lineBufPtr = lineBufPtr + 5;
-          break;
-        case 3:
-          lineBufPtr[0] = 6;
-          lineBufPtr[1] = pixelBuf0[1];
-          lineBufPtr[2] = pixelBuf0[2];
-          lineBufPtr[3] = pixelBuf0[3];
-          lineBufPtr[4] = pixelBuf1[1];
-          lineBufPtr[5] = pixelBuf1[2];
-          lineBufPtr[6] = pixelBuf1[3];
-          lineBufPtr = lineBufPtr + 7;
-          break;
-        case 4:
-          lineBufPtr[0] = 8;
-          lineBufPtr[1] = pixelBuf0[1];
-          lineBufPtr[2] = pixelBuf0[2];
-          lineBufPtr[3] = pixelBuf0[3];
-          lineBufPtr[4] = pixelBuf0[4];
-          lineBufPtr[5] = pixelBuf1[1];
-          lineBufPtr[6] = pixelBuf1[2];
-          lineBufPtr[7] = pixelBuf1[3];
-          lineBufPtr[8] = pixelBuf1[4];
-          lineBufPtr = lineBufPtr + 9;
-          break;
-        }
-      }
-    }
     hSyncCnt++;
     if (EP128EMU_UNLIKELY(crtcHSyncCnt)) {      // horizontal sync
-      if (crtcHSyncCnt == (2 + (hSyncLen >> 1))) {
-        if (hSyncCnt >= (int(hSyncMax) - 20)) {
+      if (crtcHSyncCnt == hSyncPos) {
+        if (hSyncCnt >= 96) {
           drawLine(lineBuf, size_t(lineBufPtr - lineBuf));
           lineBufPtr = lineBuf;
-          hSyncCnt = -1 - int(hSyncLen >> 1);
-          hSyncMax = uint8_t(hSyncCnt + 110);
+          hSyncCnt = -2;
         }
       }
       else if (crtcHSyncCnt == 17) {
         hSyncLen = 8;
+        hSyncPos = (hSyncLen >> 1) + 6;
         if (vSyncCnt) {
           if (--vSyncCnt == 19)         // VSync start (delayed by 5 lines)
             vsyncStateChange(true, (crtc.getVSyncInterlace() ? 34U : 6U));
@@ -256,13 +131,159 @@ namespace TVC64 {
       }
       crtcHSyncCnt++;
     }
-    if ((unsigned int) (hSyncCnt + 2) >= 99U) {
-      if (EP128EMU_UNLIKELY(hSyncCnt >= int(hSyncMax))) {
-        drawLine(lineBuf, size_t(lineBufPtr - lineBuf));
-        lineBufPtr = lineBuf;
-        hSyncCnt -= int(hSyncMax);
+    if (EP128EMU_EXPECT((unsigned int) hSyncCnt < 96U)) {
+      const unsigned char *delayPtr =
+          reinterpret_cast< unsigned char * >(&(videoDelayBuf[0]));
+      if (!(hSyncCnt & 1U)) {
+        if (delayPtr[1] > delayPtr[0]) {
+          uint8_t videoByte = delayPtr[3];
+          switch (delayPtr[2]) {
+          case 0:                       // 2 color mode
+            lineBufPtr[0] = 6;
+            lineBufPtr[1] = palette[0];
+            lineBufPtr[2] = palette[1];
+            lineBufPtr[3] = videoByte;
+            break;
+          case 1:                       // 4 color mode
+            lineBufPtr[0] = 8;
+            lineBufPtr[1] = palette[pixelConvTable_4[videoByte & 0x88]];
+            lineBufPtr[2] = palette[pixelConvTable_4[videoByte & 0x44]];
+            lineBufPtr[3] = palette[pixelConvTable_4[videoByte & 0x22]];
+            lineBufPtr[4] = palette[pixelConvTable_4[videoByte & 0x11]];
+            break;
+          case 2:                       // 16 color mode
+          case 3:
+            lineBufPtr[0] = 4;
+            lineBufPtr[1] = videoByte & 0xAA;
+            lineBufPtr[2] = videoByte & 0x55;
+            break;
+          }
+        }
+        else {
+          lineBufPtr[0] = 1;            // border or sync
+          lineBufPtr[1] = (!(delayPtr[0]) ? borderColor : 0x00);
+        }
       }
-      return;
+      else {
+        if (delayPtr[1] > delayPtr[0]) {
+          uint8_t videoByte = delayPtr[3];
+          switch (delayPtr[2]) {
+          case 0:                       // 2 color mode
+            if (EP128EMU_UNLIKELY(lineBufPtr[0] != 6)) {
+              if (EP128EMU_EXPECT(lineBufPtr[0] == 1)) {
+                lineBufPtr[0] = 6;
+                lineBufPtr[2] = lineBufPtr[1];
+                lineBufPtr[3] = 0x00;
+              }
+              else if (lineBufPtr[0] == 4) {
+                lineBufPtr[0] = 6;
+                lineBufPtr[3] = 0x0F;
+              }
+              else {
+                // FIXME: this is a lossy conversion
+                lineBufPtr[5] = palette[(videoByte >> 7) & 1];
+                lineBufPtr[6] = palette[(videoByte >> 5) & 1];
+                lineBufPtr[7] = palette[(videoByte >> 3) & 1];
+                lineBufPtr[8] = palette[(videoByte >> 1) & 1];
+                break;
+              }
+            }
+            lineBufPtr[4] = palette[0];
+            lineBufPtr[5] = palette[1];
+            lineBufPtr[6] = videoByte;
+            break;
+          case 1:                       // 4 color mode
+            if (EP128EMU_UNLIKELY(lineBufPtr[0] != 8)) {
+              switch (lineBufPtr[0]) {
+              case 1:
+                lineBufPtr[2] = lineBufPtr[1];
+                lineBufPtr[3] = lineBufPtr[1];
+                lineBufPtr[4] = lineBufPtr[1];
+                break;
+              case 2:
+                lineBufPtr[4] = lineBufPtr[2];
+                lineBufPtr[3] = lineBufPtr[2];
+                lineBufPtr[2] = lineBufPtr[1];
+                break;
+              case 3:
+                // FIXME: this is a lossy conversion
+                {
+                  uint8_t c0 = lineBufPtr[((lineBufPtr[3] >> 7) & 1) + 1];
+                  uint8_t c1 = lineBufPtr[((lineBufPtr[3] >> 5) & 1) + 1];
+                  uint8_t c2 = lineBufPtr[((lineBufPtr[3] >> 3) & 1) + 1];
+                  uint8_t c3 = lineBufPtr[((lineBufPtr[3] >> 1) & 1) + 1];
+                  lineBufPtr[1] = c0;
+                  lineBufPtr[2] = c1;
+                  lineBufPtr[3] = c2;
+                  lineBufPtr[4] = c3;
+                }
+                break;
+              }
+              lineBufPtr[0] = 8;
+            }
+            lineBufPtr[5] = palette[pixelConvTable_4[videoByte & 0x88]];
+            lineBufPtr[6] = palette[pixelConvTable_4[videoByte & 0x44]];
+            lineBufPtr[7] = palette[pixelConvTable_4[videoByte & 0x22]];
+            lineBufPtr[8] = palette[pixelConvTable_4[videoByte & 0x11]];
+            break;
+          case 2:                       // 16 color mode
+          case 3:
+            if (EP128EMU_UNLIKELY(lineBufPtr[0] != 4)) {
+              if (EP128EMU_EXPECT(lineBufPtr[0] == 1)) {
+                lineBufPtr[0] = 4;
+                lineBufPtr[2] = lineBufPtr[1];
+              }
+              else {
+                if (lineBufPtr[0] == 6) {
+                  lineBufPtr[4] = videoByte & 0xAA;
+                  lineBufPtr[5] = videoByte & 0x55;
+                  lineBufPtr[6] = 0x0F;
+                }
+                else {
+                  lineBufPtr[5] = videoByte & 0xAA;
+                  lineBufPtr[6] = videoByte & 0xAA;
+                  lineBufPtr[7] = videoByte & 0x55;
+                  lineBufPtr[8] = videoByte & 0x55;
+                }
+                break;
+              }
+            }
+            lineBufPtr[3] = videoByte & 0xAA;
+            lineBufPtr[4] = videoByte & 0x55;
+            break;
+          }
+        }
+        else {                          // border or sync
+          uint8_t c = (!(delayPtr[0]) ? borderColor : 0x00);
+          if (EP128EMU_EXPECT(lineBufPtr[0] == 1)) {
+            if (EP128EMU_UNLIKELY(c != lineBufPtr[1])) {
+              lineBufPtr[0] = 2;
+              lineBufPtr[2] = c;
+            }
+          }
+          else if (lineBufPtr[0] == 4) {
+            lineBufPtr[3] = c;
+            lineBufPtr[4] = c;
+          }
+          else if (lineBufPtr[0] == 6) {
+            lineBufPtr[4] = c;
+            lineBufPtr[5] = c;
+            lineBufPtr[6] = 0x00;
+          }
+          else {
+            lineBufPtr[5] = c;
+            lineBufPtr[6] = c;
+            lineBufPtr[7] = c;
+            lineBufPtr[8] = c;
+          }
+        }
+        lineBufPtr = lineBufPtr + (lineBufPtr[0] + 1);
+      }
+    }
+    else if (EP128EMU_UNLIKELY(hSyncCnt >= 101)) {
+      drawLine(lineBuf, size_t(lineBufPtr - lineBuf));
+      lineBufPtr = lineBuf;
+      hSyncCnt = -2;
     }
     videoDelayBuf[0] = videoDelayBuf[1];
     (reinterpret_cast<unsigned char *>(&(videoDelayBuf[0])))[0] =
@@ -290,10 +311,6 @@ namespace TVC64 {
       palette[i] = 0x00;
     borderColor = 0x00;
     videoMode = 0;
-    pixelBuf0[0] = 1;
-    pixelBuf0[1] = 0x00;
-    pixelBuf1[0] = 1;
-    pixelBuf1[1] = 0x00;
   }
 
 }       // namespace TVC64
