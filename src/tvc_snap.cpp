@@ -38,19 +38,21 @@ namespace TVC64 {
       Ep128Emu::File::Buffer  buf;
       buf.setPosition(0);
 #ifndef ENABLE_SDEXT
-      buf.writeUInt32(0x01000001);      // version number
+      buf.writeUInt32(0x01000002);      // version number
 #else
-      buf.writeUInt32(0x01010001);      // bit 16 is set if SDExt is included
+      buf.writeUInt32(0x01010002);      // bit 16 is set if SDExt is included
 #endif
       for (uint8_t i = 0; i <= 4; i++)
         buf.writeByte(videoRenderer.getColor(i));
       buf.writeByte(videoRenderer.getVideoMode());
-      buf.writeByte(z80OpcodeHalfCycles);
+      buf.writeByte(z80HalfCycleCnt);
+      buf.writeByte(machineHalfCycleCnt);
       buf.writeByte(tapeOutputSignal);
       buf.writeByte(crtcRegisterSelected);
       buf.writeByte(irqState);
       buf.writeByte(irqEnableMask);
       buf.writeByte(keyboardRow);
+      buf.writeBoolean(prvSndIntState);
       buf.writeUInt32(toneGenCnt1);
       buf.writeUInt32(toneGenFreq);
       buf.writeByte(toneGenCnt2);
@@ -125,7 +127,7 @@ namespace TVC64 {
     buf.setPosition(0);
     // check version number
     unsigned int  version = buf.readUInt32();
-    if (!(version >= 0x01000000U && (version & 0xFFFEFFFFU) <= 0x01000001U)) {
+    if (!(version >= 0x01000000U && (version & 0xFFFEFFFFU) <= 0x01000002U)) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible TVC snapshot version");
     }
@@ -149,15 +151,25 @@ namespace TVC64 {
       for (uint8_t i = 0; i <= 4; i++)
         videoRenderer.setColor(i, buf.readByte());
       videoRenderer.setVideoMode(buf.readByte());
-      z80OpcodeHalfCycles = buf.readByte();
+      z80HalfCycleCnt = buf.readByte();
+      if (version < 0x01000002)
+        machineHalfCycleCnt = 0;
+      else
+        machineHalfCycleCnt = buf.readByte() & 0xFE;
       tapeOutputSignal = buf.readByte() & 0x01;
       crtcRegisterSelected = buf.readByte() & 0x1F;
       irqState = buf.readByte() & 0x1F;
       irqEnableMask = buf.readByte() & 0x1F;
       keyboardRow = buf.readByte() & 0x0F;
+      if (version >= 0x01000002)
+        prvSndIntState = buf.readBoolean();
       toneGenCnt1 = buf.readUInt32() & 0x0FFFU;
       toneGenFreq = buf.readUInt32() & 0x0FFFU;
       toneGenCnt2 = buf.readByte() & 0x0F;
+      if (version < 0x01000002) {
+        prvSndIntState = bool((toneGenCnt2 << 1) & (irqEnableMask & 0x10))
+                         | crtc.getCursorEnabled();
+      }
       toneGenEnabled = buf.readBoolean();
       audioOutputLevel = buf.readByte() & 0x0F;
       vtdosROMPage = buf.readByte() & 0x03;

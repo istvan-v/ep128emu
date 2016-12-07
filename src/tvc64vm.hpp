@@ -80,8 +80,10 @@ namespace TVC64 {
       virtual void breakPointCallback(bool isWrite,
                                       uint16_t addr, uint8_t value);
       virtual EP128EMU_REGPARM2 uint8_t extensionRead(uint16_t addr);
-      virtual EP128EMU_REGPARM2 uint8_t extensionReadNoDebug(uint16_t addr) const;
-      virtual EP128EMU_REGPARM3 void extensionWrite(uint16_t addr, uint8_t value);
+      virtual EP128EMU_REGPARM2 uint8_t extensionReadNoDebug(
+                                            uint16_t addr) const;
+      virtual EP128EMU_REGPARM3 void extensionWrite(uint16_t addr,
+                                                    uint8_t value);
     };
     class IOPorts_ : public Ep128::IOPorts {
      private:
@@ -112,7 +114,8 @@ namespace TVC64 {
     TVCVideo_ videoRenderer;
     uint32_t  crtcCyclesRemainingL;     // in 2^-32 CRTC cycle units
     int32_t   crtcCyclesRemainingH;     // in CRTC cycle units
-    uint8_t   z80OpcodeHalfCycles;      // time since the last CRTC cycle
+    uint8_t   z80HalfCycleCnt;          // time since the last CRTC cycle
+    uint8_t   machineHalfCycleCnt;
     uint8_t   tapeInputSignal;
     uint8_t   tapeOutputSignal;
     uint8_t   crtcRegisterSelected;
@@ -124,11 +127,11 @@ namespace TVC64 {
     bool      tapeCallbackFlag;
     bool      prvTapeCallbackFlag;
     uint8_t   keyboardRow;
+    bool      prvSndIntState;
     uint32_t  toneGenCnt1;
     uint32_t  toneGenFreq;
     uint8_t   toneGenCnt2;
     bool      toneGenEnabled;
-    uint8_t   audioCycleCnt;
     uint8_t   audioOutputLevel;
     uint32_t  soundOutputSignal;
     Ep128Emu::File  *demoFile;
@@ -182,7 +185,8 @@ namespace TVC64 {
     EP128EMU_INLINE void memoryWait(uint16_t addr);
     EP128EMU_INLINE void memoryWaitM1(uint16_t addr);
     EP128EMU_INLINE void ioPortWait(uint16_t addr);
-    EP128EMU_REGPARM1 void runOneCycle();
+    EP128EMU_INLINE void updateSndIntState(bool cursorState);
+    EP128EMU_REGPARM1 void runDevices();
     static uint8_t ioPortReadCallback(void *userData, uint16_t addr);
     static void ioPortWriteCallback(void *userData,
                                     uint16_t addr, uint8_t value);

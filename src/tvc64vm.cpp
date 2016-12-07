@@ -66,32 +66,30 @@ static const uint8_t  keyboardConvTable[128] = {
       77,      78,      74,      73,      75,      76,      99,      99
 };
 
-// TODO: accurate emulation of output levels
 static const uint16_t audioOutputLevelTable[16] = {
-      0,  2000,  4000,  6000,  8000, 10000, 12000, 14000,
-  16000, 18000, 20000, 22000, 24000, 26000, 28000, 30000
+      0,  1948,  4095,  6043,  7986,  9933, 12081, 14029,
+  15971, 17919, 20067, 22014, 23957, 25905, 28052, 30000
 };
 
 namespace TVC64 {
 
   EP128EMU_INLINE void TVC64VM::updateCPUCycles(int cycles)
   {
-    z80OpcodeHalfCycles = z80OpcodeHalfCycles + uint8_t(cycles << 1);
+    z80HalfCycleCnt = uint8_t((z80HalfCycleCnt + (cycles << 1)) & 0xFF);
   }
 
   EP128EMU_INLINE void TVC64VM::updateCPUHalfCycles(int halfCycles)
   {
-    z80OpcodeHalfCycles = z80OpcodeHalfCycles + uint8_t(halfCycles);
+    z80HalfCycleCnt = uint8_t((z80HalfCycleCnt + halfCycles) & 0xFF);
   }
 
   EP128EMU_INLINE void TVC64VM::memoryWait(uint16_t addr)
   {
     if (memory.getPage(addr >> 14) >= 0xFC) {
       updateCPUHalfCycles(4);
-      updateCPUHalfCycles(4 - int(z80OpcodeHalfCycles & 3));
+      updateCPUHalfCycles(4 - int(z80HalfCycleCnt & 3));
       updateCPUHalfCycles(1);
-      while (z80OpcodeHalfCycles >= 4)
-        runOneCycle();
+      runDevices();
       return;
     }
     updateCPUHalfCycles(5);
@@ -101,10 +99,9 @@ namespace TVC64 {
   {
     if (memory.getPage(addr >> 14) >= 0xFC) {
       updateCPUHalfCycles(3);
-      updateCPUHalfCycles(4 - int(z80OpcodeHalfCycles & 3));
+      updateCPUHalfCycles(4 - int(z80HalfCycleCnt & 3));
       updateCPUHalfCycles(1);
-      while (z80OpcodeHalfCycles >= 4)
-        runOneCycle();
+      runDevices();
       return;
     }
     updateCPUHalfCycles(4);
@@ -115,49 +112,66 @@ namespace TVC64 {
     updateCPUHalfCycles(6);
     // FIXME: is clock stretching needed when accessing video related I/O ports?
     (void) addr;
-    if (memory.getPage(addr >> 14) >= 0xFC)
-      updateCPUHalfCycles(4 - int(z80OpcodeHalfCycles & 3));
     updateCPUHalfCycles(1);
-    while (z80OpcodeHalfCycles >= 4)
-      runOneCycle();
+    runDevices();
   }
 
-  EP128EMU_REGPARM1 void TVC64VM::runOneCycle()
+  EP128EMU_INLINE void TVC64VM::updateSndIntState(bool cursorState)
   {
-    TVC64VMCallback *p = firstCallback;
-    while (p) {
-      TVC64VMCallback *nxt = p->nxt;
-      p->func(p->userData);
-      p = nxt;
+    uint8_t sndIntState = ((toneGenCnt2 << 1) & (irqEnableMask & 0x10))
+                          | uint8_t(cursorState);
+    if (EP128EMU_UNLIKELY(bool(sndIntState) != prvSndIntState)) {
+      irqState = irqState | (uint8_t(prvSndIntState) << 4);
+      prvSndIntState = bool(sndIntState);
     }
-    toneGenCnt1 += 2U;
-    if (EP128EMU_UNLIKELY(toneGenCnt1 >= 4096U)) {
-      if (EP128EMU_UNLIKELY(toneGenFreq == 0x0FFFU)) {
+  }
+
+  EP128EMU_REGPARM1 void TVC64VM::runDevices()
+  {
+    uint8_t m = machineHalfCycleCnt;
+    uint8_t n = (z80HalfCycleCnt - m) & 0xFE;
+    if (EP128EMU_UNLIKELY(!n))
+      return;
+    machineHalfCycleCnt += n;
+    n = n >> 1;
+    crtcCyclesRemainingH -=
+        int32_t(((machineHalfCycleCnt - (m & 0xFC)) & 0xFC) >> 2);
+    m = m >> 1;
+    bool    cursorState = crtc.getCursorEnabled();
+    updateSndIntState(cursorState);
+    do {
+      toneGenCnt1++;
+      if (EP128EMU_UNLIKELY(toneGenCnt1 >= 4096U)) {
         toneGenCnt1 = toneGenFreq;
-        toneGenCnt2 = (toneGenCnt2 + 2) & 0x0F;
-        if (EP128EMU_UNLIKELY(!(toneGenCnt2 & 14)))
-          irqState = irqState | (irqEnableMask & 0x10);
-      }
-      else {
-        toneGenCnt1 = toneGenFreq + (toneGenCnt1 & 1U);
         toneGenCnt2 = (toneGenCnt2 + 1) & 0x0F;
-        if (EP128EMU_UNLIKELY(!(toneGenCnt2 & 15)))
-          irqState = irqState | (irqEnableMask & 0x10);
+        if (EP128EMU_UNLIKELY(!(toneGenCnt2 & 7))) {
+          if ((irqEnableMask & 0x10) != 0 && n > 1)
+            updateSndIntState(cursorState);
+        }
       }
-    }
-    if (--audioCycleCnt == 0) {
-      audioCycleCnt = 4;
-      soundOutputSignal = uint32_t(tapeInputSignal + tapeOutputSignal) << 12;
-      if ((toneGenCnt2 & 0x08) | uint8_t(!toneGenEnabled))
-        soundOutputSignal += uint32_t(audioOutputLevelTable[audioOutputLevel]);
-      sendAudioOutput(soundOutputSignal | (soundOutputSignal << 16));
-    }
-    videoRenderer.runOneCycle();
-    crtc.runOneCycle();
-    if (EP128EMU_UNLIKELY(crtc.getCursorEnabled()))
-      irqState = irqState | 0x10;
-    crtcCyclesRemainingH--;
-    z80OpcodeHalfCycles = z80OpcodeHalfCycles - 4;
+      m++;
+      if (!(m & 1)) {
+        TVC64VMCallback *p = firstCallback;
+        while (EP128EMU_UNLIKELY(bool(p))) {
+          TVC64VMCallback *nxt = p->nxt;
+          p->func(p->userData);
+          p = nxt;
+        }
+        if (EP128EMU_UNLIKELY(!(m & 7))) {
+          uint32_t  tmp = uint32_t(tapeInputSignal + tapeOutputSignal) << 12;
+          if (((toneGenCnt2 | 0xF7) + uint8_t(toneGenEnabled)) & 0xFF)
+            tmp += uint32_t(audioOutputLevelTable[audioOutputLevel]);
+          soundOutputSignal = tmp | (tmp << 16);
+          sendAudioOutput(soundOutputSignal);
+        }
+        videoRenderer.runOneCycle();
+        crtc.runOneCycle();
+        if (EP128EMU_UNLIKELY(crtc.getCursorEnabled() != cursorState)) {
+          if (n > 1)
+            updateSndIntState(!cursorState);
+        }
+      }
+    } while (--n);
   }
 
   // --------------------------------------------------------------------------
@@ -174,6 +188,7 @@ namespace TVC64 {
 
   EP128EMU_REGPARM1 void TVC64VM::Z80_::executeInterrupt()
   {
+    vm.runDevices();
     if (EP128EMU_UNLIKELY(bool(vm.irqState)))
       Ep128::Z80::executeInterrupt();
   }
@@ -302,15 +317,11 @@ namespace TVC64 {
   EP128EMU_REGPARM1 void TVC64VM::Z80_::updateCycle()
   {
     vm.updateCPUHalfCycles(2);
-    while (vm.z80OpcodeHalfCycles >= 4)
-      vm.runOneCycle();
   }
 
   EP128EMU_REGPARM2 void TVC64VM::Z80_::updateCycles(int cycles)
   {
     vm.updateCPUCycles(cycles);
-    while (vm.z80OpcodeHalfCycles >= 4)
-      vm.runOneCycle();
   }
 
   // --------------------------------------------------------------------------
@@ -333,8 +344,9 @@ namespace TVC64 {
   }
 
   void TVC64VM::Memory_::breakPointCallback(bool isWrite,
-                                             uint16_t addr, uint8_t value)
+                                            uint16_t addr, uint8_t value)
   {
+    vm.runDevices();
     if (!vm.memory.checkIgnoreBreakPoint(vm.z80.getReg().PC.W.l)) {
       int     bpType = int(isWrite) + 1;
       if (!isWrite && uint16_t(vm.z80.getReg().PC.W.l) == addr)
@@ -354,12 +366,14 @@ namespace TVC64 {
                      | uint32_t(addr & 0x0FFF));
     }
     else if (segment1IsExtension) {
+      vm.runDevices();
       return vm.sdext.readCartP3(addr);
     }
     return 0xFF;
   }
 
-  EP128EMU_REGPARM2 uint8_t TVC64VM::Memory_::extensionReadNoDebug(uint16_t addr) const
+  EP128EMU_REGPARM2 uint8_t TVC64VM::Memory_::extensionReadNoDebug(
+                                                  uint16_t addr) const
   {
     if (getPage(3) == 0x02) {           // EXT
       if (getPaging() & 0xC000)
@@ -375,7 +389,8 @@ namespace TVC64 {
     return 0xFF;
   }
 
-  EP128EMU_REGPARM3 void TVC64VM::Memory_::extensionWrite(uint16_t addr, uint8_t value)
+  EP128EMU_REGPARM3 void TVC64VM::Memory_::extensionWrite(uint16_t addr,
+                                                          uint8_t value)
   {
     if (getPage(3) == 0x02) {           // EXT
       if (getPaging() & 0xC000)
@@ -384,6 +399,7 @@ namespace TVC64 {
         extensionRAM[addr & 0x0FFF] = value;
     }
     else if (segment1IsExtension) {
+      vm.runDevices();
       vm.sdext.writeCartP3(addr, value);
     }
   }
@@ -550,8 +566,10 @@ namespace TVC64 {
       // bit 6: color output enabled (1 = yes)
       retval = (~vm.irqState & 0x1F) | ((vm.tapeInputSignal & 1) << 5) | 0xC0;
       break;
-    case 0x5A:                          // extension card data (unimplemented)
+    case 0x5A:                          // extension card ID byte
     case 0x5E:
+      // extension 0 is a floppy drive, the others are unused
+      retval = 0xFE | uint8_t(vm.memory.readRaw(0xC000U) == 0xFF);
       break;
     case 0x5B:                          // reset tone generator (repeated twice)
     case 0x5F:
@@ -583,7 +601,7 @@ namespace TVC64 {
   }
 
   void TVC64VM::ioPortWriteCallback(void *userData,
-                                     uint16_t addr, uint8_t value)
+                                    uint16_t addr, uint8_t value)
   {
     TVC64VM&  vm = *(reinterpret_cast<TVC64VM *>(userData));
     addr = addr & 0x7F;
@@ -814,7 +832,9 @@ namespace TVC64 {
       // bit 6: color output enabled (1 = yes)
       retval = (~vm.irqState & 0x1F) | ((vm.tapeInputSignal & 1) << 5) | 0xC0;
       break;
-    case 0x5A:                          // extension card data (unimplemented)
+    case 0x5A:                          // extension card ID byte
+      // extension 0 is a floppy drive, the others are unused
+      retval = 0xFE | uint8_t(vm.memory.readRaw(0xC000U) == 0xFF);
       break;
     case 0x71:                          // CRTC registers
       retval = vm.crtc.readRegister(vm.crtcRegisterSelected);
@@ -908,6 +928,7 @@ namespace TVC64 {
 
   uint8_t TVC64VM::checkSingleStepModeBreak()
   {
+    runDevices();
     uint16_t  addr = z80.getReg().PC.W.l;
     uint8_t   b0 = 0x00;
     if (singleStepMode == 3) {
@@ -1084,7 +1105,8 @@ namespace TVC64 {
       videoRenderer(*this, crtc, memory.getVideoMemory()),
       crtcCyclesRemainingL(0U),
       crtcCyclesRemainingH(0),
-      z80OpcodeHalfCycles(0),
+      z80HalfCycleCnt(0),
+      machineHalfCycleCnt(0),
       tapeInputSignal(0),
       tapeOutputSignal(0),
       crtcRegisterSelected(0x00),
@@ -1095,11 +1117,11 @@ namespace TVC64 {
       tapeCallbackFlag(false),
       prvTapeCallbackFlag(false),
       keyboardRow(0),
+      prvSndIntState(false),
       toneGenCnt1(0U),
       toneGenFreq(0U),
       toneGenCnt2(0),
       toneGenEnabled(false),
-      audioCycleCnt(2),
       audioOutputLevel(0),
       soundOutputSignal(0U),
       demoFile((Ep128Emu::File *) 0),
@@ -1180,7 +1202,7 @@ namespace TVC64 {
       }
       prvTapeCallbackFlag = newTapeCallbackFlag;
     }
-    z80OpcodeHalfCycles = z80OpcodeHalfCycles & 0xFE;
+    machineHalfCycleCnt = machineHalfCycleCnt & 0xFE;
     int64_t crtcCyclesRemaining =
         int64_t(crtcCyclesRemainingL) + (int64_t(crtcCyclesRemainingH) << 32)
         + ((int64_t(microseconds) << 26) * int64_t(crtcFrequency)
@@ -1188,10 +1210,11 @@ namespace TVC64 {
     crtcCyclesRemainingL =
         uint32_t(uint64_t(crtcCyclesRemaining) & 0xFFFFFFFFUL);
     crtcCyclesRemainingH = int32_t(crtcCyclesRemaining >> 32);
+    z80.triggerInterrupt();
     while (EP128EMU_EXPECT(crtcCyclesRemainingH > 0)) {
       z80.executeInstruction();
-      while (EP128EMU_UNLIKELY(z80OpcodeHalfCycles >= 4))
-        runOneCycle();
+      if ((z80HalfCycleCnt - machineHalfCycleCnt) & 0xFE)
+        runDevices();
     }
   }
 
@@ -1200,24 +1223,25 @@ namespace TVC64 {
     stopDemoPlayback();         // TODO: should be recorded as an event ?
     stopDemoRecording(false);
     z80.reset();
-    z80.triggerInterrupt();
-    memory.setPaging(0x0000);
     memory.setEnableSDExt();
     videoRenderer.setVideoMemory(memory.getVideoMemory());
     crtc.reset();
     videoRenderer.reset();
     tapeOutputSignal = 0;
-    crtcRegisterSelected = 0x00;
+    ioPorts.writeDebug(0x02, 0x00);
+    ioPorts.writeDebug(0x03, 0x00);
+    ioPorts.writeDebug(0x05, 0x00);
+    ioPorts.writeDebug(0x06, 0x00);
+    ioPorts.writeDebug(0x0C, 0x00);
+    ioPorts.writeDebug(0x70, 0x00);
+    prvSndIntState = false;
     irqState = 0x00;
     irqEnableMask = 0x00;
-    setTapeMotorState(false);
-    toneGenEnabled = false;
-    audioOutputLevel = 0;
     vtdosROMPage = 0;
     resetFloppyDrives(isColdReset);
     if (isColdReset) {
+      ioPorts.writeDebug(0x04, 0x00);
       toneGenCnt1 = 0U;
-      toneGenFreq = 0U;
       toneGenCnt2 = 0;
       resetKeyboard();
       memory.clearRAM();
@@ -1722,8 +1746,8 @@ namespace TVC64 {
   }
 
   uint32_t TVC64VM::disassembleInstruction(std::string& buf,
-                                            uint32_t addr, bool isCPUAddress,
-                                            int32_t offs) const
+                                           uint32_t addr, bool isCPUAddress,
+                                           int32_t offs) const
   {
     return Ep128::Z80Disassembler::disassembleInstruction(
                buf, (*this), addr, isCPUAddress, offs);
