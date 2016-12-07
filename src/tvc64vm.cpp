@@ -357,51 +357,43 @@ namespace TVC64 {
 
   EP128EMU_REGPARM2 uint8_t TVC64VM::Memory_::extensionRead(uint16_t addr)
   {
-    if (getPage(3) == 0x02) {           // EXT
-      if (getPaging() & 0xC000)
+    if (getPage(uint8_t(addr >> 14)) == 0x02) { // EXT
+      if (EP128EMU_UNLIKELY(getPaging() & 0xC000))
         return 0xFF;                    // IOMEM 0 is not paged in
       if (addr & 0x1000)
         return extensionRAM[addr & 0x0FFF];
       return readRaw(0x0000C000U | (uint32_t(vm.vtdosROMPage) << 12)
                      | uint32_t(addr & 0x0FFF));
     }
-    else if (segment1IsExtension) {
-      vm.runDevices();
-      return vm.sdext.readCartP3(addr);
-    }
-    return 0xFF;
+    vm.runDevices();
+    return vm.sdext.readCartP3(addr);
   }
 
   EP128EMU_REGPARM2 uint8_t TVC64VM::Memory_::extensionReadNoDebug(
                                                   uint16_t addr) const
   {
-    if (getPage(3) == 0x02) {           // EXT
-      if (getPaging() & 0xC000)
+    if (getPage(uint8_t(addr >> 14)) == 0x02) { // EXT
+      if (EP128EMU_UNLIKELY(getPaging() & 0xC000))
         return 0xFF;                    // IOMEM 0 is not paged in
       if (addr & 0x1000)
         return extensionRAM[addr & 0x0FFF];
       return readRaw(0x0000C000U | (uint32_t(vm.vtdosROMPage) << 12)
                      | uint32_t(addr & 0x0FFF));
     }
-    else if (segment1IsExtension) {
-      return vm.sdext.readCartP3Debug(addr);
-    }
-    return 0xFF;
+    return vm.sdext.readCartP3Debug(addr);
   }
 
   EP128EMU_REGPARM3 void TVC64VM::Memory_::extensionWrite(uint16_t addr,
                                                           uint8_t value)
   {
-    if (getPage(3) == 0x02) {           // EXT
-      if (getPaging() & 0xC000)
+    if (getPage(uint8_t(addr >> 14)) == 0x02) { // EXT
+      if (EP128EMU_UNLIKELY(getPaging() & 0xC000))
         return;                         // IOMEM 0 is not paged in
       if (addr & 0x1000)
         extensionRAM[addr & 0x0FFF] = value;
     }
-    else if (segment1IsExtension) {
-      vm.runDevices();
-      vm.sdext.writeCartP3(addr, value);
-    }
+    vm.runDevices();
+    vm.sdext.writeCartP3(addr, value);
   }
 
   // --------------------------------------------------------------------------

@@ -381,7 +381,7 @@ namespace TVC64 {
       pageTable[0] = 0x00;              // SYS
       break;
     case 0x08:
-      pageTable[0] = 0x01;              // CART
+      pageTable[0] = (segment1IsExtension ? 0x07 : 0x01);       // CART / SDEXT
       break;
     case 0x10:
       pageTable[0] = 0xF8;              // U0
@@ -400,7 +400,7 @@ namespace TVC64 {
       pageTable[2] = 0xFA;              // U2
     switch (n & 0x00C0) {
     case 0x00:
-      pageTable[3] = 0x01;              // CART
+      pageTable[3] = (segment1IsExtension ? 0x07 : 0x01);       // CART / SDEXT
       break;
     case 0x40:
       pageTable[3] = 0x00;              // SYS
@@ -415,25 +415,30 @@ namespace TVC64 {
     for (int i = 0; i < 8; i = i + 2) {
       long    offs = -(long(i) << 13);
       uint8_t segment = pageTable[i >> 1];
-      if (segmentTable[segment] != (uint8_t *) 0)
+      if (EP128EMU_UNLIKELY(segmentTable[segment] == (uint8_t *) 0)) {
+        if (segment == 0x07) {
+          pageAddressTableR[i] = (uint8_t *) 0;
+          pageAddressTableW[i] = (uint8_t *) 0;
+        }
+        else {
+          pageAddressTableR[i] = dummyMemory + offs;
+          pageAddressTableW[i] = dummyMemory + (0x4000L + offs);
+        }
+      }
+      else {
         pageAddressTableR[i] = segmentTable[segment] + offs;
-      else
-        pageAddressTableR[i] = dummyMemory + offs;
-      if (segmentTable[segment] != (uint8_t *) 0)
-        pageAddressTableW[i] = segmentTable[segment] + offs;
-      else
-        pageAddressTableW[i] = dummyMemory + (0x4000L + offs);
+        if (segmentROMTable[segment])
+          pageAddressTableW[i] = dummyMemory + (0x4000L + offs);
+        else
+          pageAddressTableW[i] = segmentTable[segment] + offs;
+      }
       pageAddressTableR[i + 1] = pageAddressTableR[i];
       pageAddressTableW[i + 1] = pageAddressTableW[i];
     }
-    if (pageTable[3] == 0x02 || (pageTable[3] == 0x01 && segment1IsExtension)) {
+    if (pageTable[3] == 0x02) {
       // IOMEM is special case
       pageAddressTableR[6] = (uint8_t *) 0;
       pageAddressTableW[6] = (uint8_t *) 0;
-      if (pageTable[3] == 0x01) {
-        pageAddressTableR[7] = (uint8_t *) 0;
-        pageAddressTableW[7] = (uint8_t *) 0;
-      }
     }
   }
 
