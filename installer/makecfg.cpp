@@ -49,7 +49,7 @@
 #  ifndef MAKECFG_ROM_URL_2
 #    define MAKECFG_ROM_URL_2   "https://enterpriseforever.com/"        \
                                 "letoltesek-downloads/egyeb-misc/"      \
-                                "?action=dlattach;attach=16518"
+                                "?action=dlattach;attach=16793"
 #  endif
 #  include <curl/curl.h>
 #endif
@@ -404,10 +404,9 @@ static const EP_ROM_File epROMFiles[61] = {
 #define TVC_ROM_SYS22           (uint64_t(1) << 41)
 #define TVC_ROM_EXT12           (uint64_t(1) << 42)
 #define TVC_ROM_EXT22           (uint64_t(1) << 43)
-#define TVC_ROM_DOS11C          (uint64_t(1) << 44)
-#define TVC_ROM_DOS12C          (uint64_t(1) << 45)
-#define TVC_ROM_DOS11D          (uint64_t(1) << 46)
-#define TVC_ROM_DOS12D          (uint64_t(1) << 47)
+#define TVC_ROM_DOS12C          (uint64_t(1) << 44)
+#define TVC_ROM_DOS12D          (uint64_t(1) << 45)
+#define TVC_ROM_SDEXT           (uint64_t(1) << 46)
 
 #define IS_EP_CONFIG(x)         bool((x) & 0x0000FFFFUL)
 #define EP_RAM_SIZE(x)          epRAMSizeTable[(x) & 7UL]
@@ -745,20 +744,24 @@ static const EPMachineConfig machineConfigs[] = {
   { "tvc/TVC_48k_V12.cfg",
     TVC_RAM_48K | TVC_ROM_SYS12 | TVC_ROM_EXT12
   },
-  { "tvc/TVC_48k_V22_VTDOS.cfg",
-    TVC_RAM_48K | TVC_ROM_SYS22 | TVC_ROM_EXT22 | TVC_ROM_DOS12D
+  { "tvc/TVC_48k_V22.cfg",
+    TVC_RAM_48K | TVC_ROM_SYS22 | TVC_ROM_EXT22
   },
   { "tvc/TVC_80k_V12.cfg",
     TVC_RAM_80K | TVC_ROM_SYS12 | TVC_ROM_EXT12
   },
-  { "tvc/TVC_80k_V22_VTDOS.cfg",
-    TVC_RAM_80K | TVC_ROM_SYS22 | TVC_ROM_EXT22 | TVC_ROM_DOS12D
+  { "tvc/TVC_80k_V22.cfg",
+    TVC_RAM_80K | TVC_ROM_SYS22 | TVC_ROM_EXT22
   },
   { "tvc/TVC_128k_V12.cfg",
     TVC_RAM_128K | TVC_ROM_SYS12 | TVC_ROM_EXT12
   },
+  { "tvc/TVC_128k_V22_SDEXT.cfg",
+    TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22 | TVC_ROM_SDEXT
+  },
   { "tvc/TVC_128k_V22_VTDOS.cfg",
-    TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22 | TVC_ROM_DOS12D
+    TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22 | TVC_ROM_DOS12C
+    | TVC_ROM_DOS12D
   },
   { (char *) 0,
     0UL
@@ -827,7 +830,7 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
         config["display.quality"] = 3;
         config["display.lineShade"] = 0.75;
         config["display.pixelAspectRatio"] = 0.878;
-        config["sound.volume"] = 0.5;
+        config["sound.volume"] = 0.625;
       }
       catch (Ep128Emu::Exception) {
       }
@@ -840,14 +843,14 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
         memory.rom[2].file = romDirectory + "tvc12_ext.rom";
       else if (machineConfig & TVC_ROM_EXT22)
         memory.rom[2].file = romDirectory + "tvc22_ext.rom";
-      if (machineConfig & TVC_ROM_DOS11C)
-        memory.rom[1].file = romDirectory + "tvc_dos11c.rom";
-      else if (machineConfig & TVC_ROM_DOS12C)
+      if (machineConfig & TVC_ROM_DOS12C)
         memory.rom[1].file = romDirectory + "tvc_dos12c.rom";
-      if (machineConfig & TVC_ROM_DOS11D)
-        memory.rom[3].file = romDirectory + "tvc_dos11d.rom";
-      else if (machineConfig & TVC_ROM_DOS12D)
+      if (machineConfig & TVC_ROM_DOS12D)
         memory.rom[3].file = romDirectory + "tvc_dos12d.rom";
+      if (machineConfig & TVC_ROM_SDEXT) {
+        sdext.romFile = romDirectory + "tvc_sdext.rom";
+        sdext.enabled = true;
+      }
       vm.cpuClockFrequency = vm.videoClockFrequency << 1;
       vm.soundClockFrequency = vm.videoClockFrequency >> 2;
       vm.enableMemoryTimingEmulation = true;
@@ -941,6 +944,8 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
     config.createKey("memory.rom.43.file", memory.rom[0x43].file);
     config.createKey("memory.rom.43.offset", memory.rom[0x43].offset);
     config.createKey("memory.configFile", memory.configFile);
+  }
+  if (IS_EP_CONFIG(machineConfig) || IS_TVC_CONFIG(machineConfig)) {
     config.createKey("sdext.romFile", sdext.romFile);
     config.createKey("sdext.enabled", sdext.enabled);
   }
@@ -1208,7 +1213,7 @@ bool Ep128EmuConfigInstallerGUI::unpackROMFiles(const std::string& romDir,
           (size_t(buf[i * 32 + 4]) << 24) | (size_t(buf[i * 32 + 5]) << 16)
           | (size_t(buf[i * 32 + 6]) << 8) | size_t(buf[i * 32 + 7]);
       // must be an integer multiple of 16384 in the range 16384 to 65536
-      if (fileSize < 16384 || fileSize > 65536 || (fileSize & 0x3FFF) != 0)
+      if (fileSize < 8192 || fileSize > 65536 || (fileSize & 0x1FFF) != 0)
         throw Ep128Emu::Exception("invalid ROM file size");
       // get file name
       fName = romDir;
@@ -1530,7 +1535,7 @@ int main(int argc, char **argv)
         }
       }
       // enable snapshot compression by default on fast machines
-      compressFiles = (decompressTime < 0.023);
+      compressFiles = (decompressTime < 0.026);
     }
     catch (std::exception& e) {
       gui->errorMessage(e.what());
@@ -1576,7 +1581,7 @@ int main(int argc, char **argv)
           fName = "tvc_cfg.dat";
           // TVC_128k_V22_VTDOS.cfg
           machineConfig = TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22
-                          | TVC_ROM_DOS12D;
+                          | TVC_ROM_DOS12C | TVC_ROM_DOS12D;
         }
         config = new Ep128Emu::ConfigurationDB();
         dsCfg = new Ep128EmuDisplaySndConfiguration(*config);

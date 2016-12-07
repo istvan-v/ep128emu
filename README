@@ -37,6 +37,14 @@ General
   * saving and loading snapshots of the state of the emulated machine
   * demo recording (snapshot combined with stream of keyboard and mouse
     events which can be played back with accurate timing)
+  * tape emulation with playback, recording, and setting tape position;
+    markers can be created for quick positioning to specific tape
+    locations (useful for tapes with multiple files); uses custom file
+    format which is PCM audio data with 1 to 8 bits of sample resolution
+    and variable sample rate, and header including the table of markers;
+    there is also limited (read only) support for EPTE format tape
+    files, as well as read-write (although without markers) support for
+    sound files like WAV, AIFF, etc.
   * GUI tape editor utility for copying Enterprise files from/to
     ep128emu tape images
   * GUI debugger with support for breakpoints/watchpoints, viewing the
@@ -75,14 +83,7 @@ Enterprise emulation
     tape and keyboard/joystick, memory paging, and sound output (all
     effects are supported, and the polynomial counters generate the same
     pseudo-random "noise" pattern as on the real machine)
-  * tape emulation with playback, recording, and setting tape position;
-    markers can be created for quick positioning to specific tape
-    locations (useful for tapes with multiple files); uses custom file
-    format which is PCM audio data with 1 to 8 bits of sample resolution
-    and variable sample rate, and header including the table of markers;
-    there is also limited (read only) support for EPTE format tape
-    files, as well as read-write (although without markers) support for
-    sound files like WAV, AIFF, etc.
+  * tape emulation (see general features for details)
   * WD177x (floppy drive controller) emulation for EXDOS
   * IDE hard disk emulation; supports up to 4 2 GB disks, image files
     can be in raw or VHD format
@@ -106,13 +107,7 @@ Spectrum emulation
   * RAM size can be 16, 48, or 128 kilobytes
   * ROM can be loaded from external image files
   * ULA, AY-3-8912, keyboard, and Kempston joystick emulation
-  * tape emulation with playback, recording, and setting tape position;
-    markers can be created for quick positioning to specific tape
-    locations (useful for tapes with multiple files); uses custom file
-    format which is PCM audio data with 1 to 8 bits of sample resolution
-    and variable sample rate, and header including the table of markers;
-    there is also read-write (although without markers) support for
-    sound files like WAV, AIFF, etc.
+  * tape emulation (see general features for details)
   * Spectrum tape files in .tap format can be used as tape images for
     read-only hardware level tape emulation, or loaded directly to
     memory if the "Enable virtual file I/O" option is checked in the
@@ -135,13 +130,7 @@ Amstrad CPC emulation
   * 6845 CRTC (currently type 0 only), gate array, AY-3-8912, 8255 PPI
     (modes 1 and 2 are not supported yet), keyboard, and joystick
     emulation
-  * tape emulation with playback, recording, and setting tape position;
-    markers can be created for quick positioning to specific tape
-    locations (useful for tapes with multiple files); uses custom file
-    format which is PCM audio data with 1 to 8 bits of sample resolution
-    and variable sample rate, and header including the table of markers;
-    there is also read-write (although without markers) support for
-    sound files like WAV, AIFF, etc.
+  * tape emulation (see general features for details)
   * CPC tape files in .cdt (same as Spectrum .tzx) format can be used as
     tape images for read-only hardware level tape emulation, although
     the support for this format is not complete yet
@@ -157,6 +146,21 @@ Amstrad CPC emulation
     ignored) created by other emulators is supported; however, snapshot
     saving and demo recording are only possible in the native ep128emu
     format
+
+Videoton TVC emulation
+----------------------
+
+  * instruction based emulation of the Z80 CPU, supports all documented
+    and undocumented opcodes, and cycle level synchronization with the
+    CRTC and other devices when accessing video memory and I/O ports
+  * RAM size can be 48, 80 or 128 kilobytes (TVC 32, 64 or 64+)
+  * ROM can be loaded from external image files to SYS, CART and EXT
+  * 6845 CRTC (currently type 0 only), audio, keyboard and joystick
+    emulation
+  * tape emulation (see general features for details)
+  * WD1773/1793 (floppy drive controller) emulation for VT-DOS
+  * SD card (SDEXT) emulation, this is an experimental feature based on
+    code from LGB's Xep128 emulator
 
 Installation
 ============
@@ -264,8 +268,8 @@ files and ROM images. If epmakecfg was built with libcurl support, the
 following steps can be skipped, the configuration utility is run
 automatically by ep128emu when needed, and it can download and install
 the ROM images.
-Before installation, download ep128emu_roms-2.0.10.bin from
-  https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/msg59499
+Before installation, download ep128emu_roms-2.0.11.bin from
+  https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/msg60414
 and copy it to:
   ~/.local/share/ep128emu/roms                (for 'scons install')
   ~/.ep128emu/roms                            (for manual installation)
@@ -276,9 +280,9 @@ data files, and if configuration files should be installed.
 
 It is possible to reinstall configuration files later by running the
 'epmakecfg' utility. ROM images can be installed manually by downloading
-ep128emu_roms-2.0.10.7z from the above location and extracting it in the
+ep128emu_roms-2.0.11.7z from the above location and extracting it in the
 correct directory. The .bin format ROM package can be unpacked with the
-command 'epcompress -x -a ep128emu_roms-2.0.10.bin' in the current
+command 'epcompress -x -a ep128emu_roms-2.0.11.bin' in the current
 directory, 'epmakecfg' does this automatically if it finds the package
 where the ROM images need to be installed.
 
@@ -293,8 +297,8 @@ Older (pre-2.0.10) versions can be downloaded from SourceForge:
 To install, just run the executable, and follow the instructions. The
 installer can automatically download the ROM images needed for running
 the emulator, but these can also be installed manually by downloading
-ep128emu_roms-2.0.10.7z from
-  https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/msg59499
+ep128emu_roms-2.0.11.7z from
+  https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/msg60414
 and extracting it to roms\ under the selected installation folder.
 When asked if configuration files should be reinstalled, click 'OK'
 when installing the first time, but this step can be skipped in later
