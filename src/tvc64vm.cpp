@@ -167,8 +167,10 @@ namespace TVC64 {
         videoRenderer.runOneCycle();
         crtc.runOneCycle();
         if (EP128EMU_UNLIKELY(crtc.getCursorEnabled() != cursorState)) {
-          if (n > 1)
-            updateSndIntState(!cursorState);
+          if (n > 1) {
+            cursorState = !cursorState;
+            updateSndIntState(cursorState);
+          }
         }
       }
     } while (--n);
