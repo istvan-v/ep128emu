@@ -741,25 +741,40 @@ static const EPMachineConfig machineConfigs[] = {
   { "cpc/CPC_576k_AMSDOS.cfg",
     CPC_RAM_576K | CPC_ROM_6128 | CPC_ROM_AMSDOS
   },
-  { "tvc/TVC_48k_V12.cfg",
+  { "tvc/TVC_32k_V12.cfg",
     TVC_RAM_48K | TVC_ROM_SYS12 | TVC_ROM_EXT12
   },
-  { "tvc/TVC_48k_V22.cfg",
+  { "tvc/TVC_32k_V22.cfg",
     TVC_RAM_48K | TVC_ROM_SYS22 | TVC_ROM_EXT22
   },
-  { "tvc/TVC_80k_V12.cfg",
+  { "tvc/TVC_64k_V12.cfg",
     TVC_RAM_80K | TVC_ROM_SYS12 | TVC_ROM_EXT12
   },
-  { "tvc/TVC_80k_V22.cfg",
+  { "tvc/TVC_64k_V22.cfg",
     TVC_RAM_80K | TVC_ROM_SYS22 | TVC_ROM_EXT22
   },
-  { "tvc/TVC_128k_V12.cfg",
+  { "tvc/TVC_64k_V22_SDEXT.cfg",
+    TVC_RAM_80K | TVC_ROM_SYS22 | TVC_ROM_EXT22 | TVC_ROM_SDEXT
+  },
+  { "tvc/TVC_64k+_V12.cfg",
     TVC_RAM_128K | TVC_ROM_SYS12 | TVC_ROM_EXT12
   },
-  { "tvc/TVC_128k_V22_SDEXT.cfg",
+  { "tvc/TVC_64k+_V12_SDEXT.cfg",
+    TVC_RAM_128K | TVC_ROM_SYS12 | TVC_ROM_EXT12 | TVC_ROM_SDEXT
+  },
+  { "tvc/TVC_64k+_V12_VTDOS.cfg",
+    TVC_RAM_128K | TVC_ROM_SYS12 | TVC_ROM_EXT12 | TVC_ROM_DOS12D
+  },
+  { "tvc/TVC_64k+_V22.cfg",
+    TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22
+  },
+  { "tvc/TVC_64k+_V22_SDEXT.cfg",
     TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22 | TVC_ROM_SDEXT
   },
-  { "tvc/TVC_128k_V22_VTDOS.cfg",
+  { "tvc/TVC_64k+_V22_VTDOS.cfg",
+    TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22 | TVC_ROM_DOS12D
+  },
+  { "tvc/TVC_64k+_V22_VTDOS_CART.cfg",
     TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22 | TVC_ROM_DOS12C
     | TVC_ROM_DOS12D
   },
@@ -1580,9 +1595,9 @@ int main(int argc, char **argv)
         }
         else if (i == 3) {
           fName = "tvc_cfg.dat";
-          // TVC_128k_V22_VTDOS.cfg
+          // TVC_64k+_V22_VTDOS.cfg
           machineConfig = TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22
-                          | TVC_ROM_DOS12C | TVC_ROM_DOS12D;
+                          | TVC_ROM_DOS12D;
         }
         config = new Ep128Emu::ConfigurationDB();
         dsCfg = new Ep128EmuDisplaySndConfiguration(*config);
