@@ -64,7 +64,8 @@ namespace Ep128Emu {
     statusRegister &= uint8_t(0xFC);
     statusRegister |= n;
     dataRequestFlag = false;
-    floppyDrive->motorOff();
+    if (!isWD1773)
+      floppyDrive->motorOff();
     if ((commandRegister & 0xE0) == 0xA0 || (commandRegister & 0xF0) == 0xF0) {
       if (floppyDrive->getSectorBufferPosition() > 0L) {
         // partially written sector: fill the remaining bytes with zeros
@@ -280,7 +281,8 @@ namespace Ep128Emu {
       floppyDrive->endDataTransfer();
       // FIXME: only immediate interrupt is implemented
       statusRegister = statusRegister & 0xFE;
-      floppyDrive->motorOff();
+      if (!isWD1773)
+        floppyDrive->motorOff();
       commandRegister = n;
       if (i2 || i3) {
         if (!interruptRequestFlag) {
@@ -620,7 +622,8 @@ namespace Ep128Emu {
       interruptRequestFlag = true;  // hack to avoid triggering an interrupt
       writeCommandRegister(0xD8);
     }
-    floppyDrive->motorOff();
+    if (!isWD1773)
+      floppyDrive->motorOff();
     floppyDrive->reset();
     commandRegister = 0x00;
     statusRegister = 0x00;
