@@ -668,6 +668,7 @@ namespace TVC64 {
     case 0x14:
       // floppy emulation is disabled while recording or playing demo
       if (!(vm.isRecordingDemo | vm.isPlayingDemo)) {
+        vm.wd177x.getFloppyDrive().motorOff();
         if (!(value & 0x0F)) {
           vm.wd177x.setFloppyDrive((Ep128Emu::FloppyDrive *) 0);
           return;
@@ -1019,6 +1020,7 @@ namespace TVC64 {
     wd177x.reset(isColdReset);
     for (int i = 0; i < 4; i++) {
       floppyDrives[i].reset();
+      floppyDrives[i].motorOff();
       if (isColdReset)
         floppyDrives[i].setDiskChangeFlag(true);
     }
