@@ -464,7 +464,6 @@ namespace Ep128Emu {
           vm.soundClockFrequency = (vm.videoClockFrequency + 2U) >> 2;
           vm.videoClockFrequency = vm.soundClockFrequency << 2;
           vm.cpuClockFrequency = vm.videoClockFrequency << 1;
-          vm.enableFileIO = false;
         }
         vm.enableMemoryTimingEmulation = true;
       }
@@ -540,7 +539,7 @@ namespace Ep128Emu {
             }
             segNum = segNum + uint8_t(i < 8 ? 0xC0 : 0x70);
           }
-          else if (i > 3) {                     // TVC
+          else if (i > 4) {                     // TVC
             memory.rom[i].file.clear();
             memory.rom[i].offset = 0;
             continue;

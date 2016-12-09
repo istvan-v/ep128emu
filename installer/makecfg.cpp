@@ -407,6 +407,7 @@ static const EP_ROM_File epROMFiles[61] = {
 #define TVC_ROM_DOS12C          (uint64_t(1) << 44)
 #define TVC_ROM_DOS12D          (uint64_t(1) << 45)
 #define TVC_ROM_SDEXT           (uint64_t(1) << 46)
+#define TVC_ROM_FILEIO          (uint64_t(1) << 47)
 
 #define IS_EP_CONFIG(x)         bool((x) & 0x0000FFFFUL)
 #define EP_RAM_SIZE(x)          epRAMSizeTable[(x) & 7UL]
@@ -753,11 +754,17 @@ static const EPMachineConfig machineConfigs[] = {
   { "tvc/TVC_64k_V22.cfg",
     TVC_RAM_80K | TVC_ROM_SYS22 | TVC_ROM_EXT22
   },
+  { "tvc/TVC_64k_V22_FileIO.cfg",
+    TVC_RAM_80K | TVC_ROM_SYS22 | TVC_ROM_EXT22 | TVC_ROM_FILEIO
+  },
   { "tvc/TVC_64k_V22_SDEXT.cfg",
     TVC_RAM_80K | TVC_ROM_SYS22 | TVC_ROM_EXT22 | TVC_ROM_SDEXT
   },
   { "tvc/TVC_64k+_V12.cfg",
     TVC_RAM_128K | TVC_ROM_SYS12 | TVC_ROM_EXT12
+  },
+  { "tvc/TVC_64k+_V12_FileIO.cfg",
+    TVC_RAM_128K | TVC_ROM_SYS12 | TVC_ROM_EXT12 | TVC_ROM_FILEIO
   },
   { "tvc/TVC_64k+_V12_SDEXT.cfg",
     TVC_RAM_128K | TVC_ROM_SYS12 | TVC_ROM_EXT12 | TVC_ROM_SDEXT
@@ -767,6 +774,9 @@ static const EPMachineConfig machineConfigs[] = {
   },
   { "tvc/TVC_64k+_V22.cfg",
     TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22
+  },
+  { "tvc/TVC_64k+_V22_FileIO.cfg",
+    TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22 | TVC_ROM_FILEIO
   },
   { "tvc/TVC_64k+_V22_SDEXT.cfg",
     TVC_RAM_128K | TVC_ROM_SYS22 | TVC_ROM_EXT22 | TVC_ROM_SDEXT
@@ -862,6 +872,8 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
         memory.rom[1].file = romDirectory + "tvc_dos12c.rom";
       if (machineConfig & TVC_ROM_DOS12D)
         memory.rom[3].file = romDirectory + "tvc_dos12d.rom";
+      if (machineConfig & TVC_ROM_FILEIO)
+        memory.rom[4].file = romDirectory + "tvcfileio.rom";
       if (machineConfig & TVC_ROM_SDEXT) {
         sdext.romFile = romDirectory + "tvc_sdext.rom";
         sdext.enabled = true;
@@ -869,7 +881,7 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
       vm.cpuClockFrequency = vm.videoClockFrequency << 1;
       vm.soundClockFrequency = vm.videoClockFrequency >> 2;
       vm.enableMemoryTimingEmulation = true;
-      vm.enableFileIO = false;
+      vm.enableFileIO = bool(machineConfig & TVC_ROM_FILEIO);
     }
   }
   else {                                // Enterprise
@@ -914,10 +926,10 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
     config.createKey("memory.rom.02.offset", memory.rom[0x02].offset);
     config.createKey("memory.rom.03.file", memory.rom[0x03].file);
     config.createKey("memory.rom.03.offset", memory.rom[0x03].offset);
-  }
-  if (!(IS_ZX_CONFIG(machineConfig) || IS_TVC_CONFIG(machineConfig))) {
     config.createKey("memory.rom.04.file", memory.rom[0x04].file);
     config.createKey("memory.rom.04.offset", memory.rom[0x04].offset);
+  }
+  if (!(IS_ZX_CONFIG(machineConfig) || IS_TVC_CONFIG(machineConfig))) {
     config.createKey("memory.rom.05.file", memory.rom[0x05].file);
     config.createKey("memory.rom.05.offset", memory.rom[0x05].offset);
     config.createKey("memory.rom.06.file", memory.rom[0x06].file);
