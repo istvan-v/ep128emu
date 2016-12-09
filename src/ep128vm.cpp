@@ -313,7 +313,7 @@ namespace Ep128 {
   {
     uint8_t n;
     if (!((R.PC.W.l & 0x3FFF) < 0x3FFC &&
-          vm.memory.isSegmentROM(vm.getMemoryPage(int(R.PC.W.l >> 14))) &&
+          vm.memory.isSegmentROM(vm.memory.getPage(uint8_t(R.PC.W.l >> 14))) &&
           vm.readMemory(uint16_t(R.PC.W.l + 2), true) == 0xFE &&
           (n = vm.readMemory(uint16_t(R.PC.W.l + 3), true)) < 0x10)) {
       return;
