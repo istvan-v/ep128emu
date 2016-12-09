@@ -189,7 +189,9 @@ namespace TVC64 {
 
   TVC64VM::Z80_::Z80_(TVC64VM& vm_)
     : Ep128::Z80(),
-      vm(vm_)
+      vm(vm_),
+      fileIOFile((std::FILE *) 0),
+      fileIOWriteFlag(false)
   {
   }
 
@@ -335,6 +337,201 @@ namespace TVC64 {
     vm.updateCPUCycles(cycles);
   }
 
+  EP128EMU_REGPARM1 void TVC64VM::Z80_::tapePatch()
+  {
+    uint8_t n;
+    if (!((R.PC.W.l >= 0xC000 && R.PC.W.l < 0xCFFC) &&
+          vm.memory.getPage(uint8_t(R.PC.W.l >> 14)) == 0x02 &&
+          vm.readMemory(uint16_t(R.PC.W.l + 2), true) == 0xFE &&
+          (n = vm.readMemory(uint16_t(R.PC.W.l + 3), true)) >= 0xF0)) {
+      return;
+    }
+    n = n & 0x0F;
+    if ((!vm.fileIOEnabled) | vm.isRecordingDemo | vm.isPlayingDemo) {
+      // file I/O is disabled while recording or playing demo
+      R.AF.B.h = (n > 0 ? 0xFF : 0x00);
+      return;
+    }
+    if (n >= 3 && n <= 9 && !fileIOFile) {
+      R.AF.B.h = 0xE9;          // file not open
+      if (n == 5) {
+        R.BC.B.l = 0xFF;
+      }
+      else if (n >= 7) {
+        R.DE.W = (n == 7 ? 0x0000 : 0xFFFF);
+        R.BC.W = R.DE.W;
+      }
+      return;
+    }
+    switch (n) {
+    case 0:                             // initialization
+      closeFile();
+      R.AF.B.h = 0x00;
+      break;
+    case 1:                             // open input file
+    case 2:                             // open output file
+      if (fileIOFile) {
+        R.AF.B.h = 0xEB;        // file already open
+        break;
+      }
+      try {
+        std::string fileName;
+        std::string dirName;
+        std::string baseName;
+        uint16_t    nameAddr = uint16_t(R.DE.W);
+        uint8_t     nameLen = vm.readMemory(nameAddr, true);
+        while (nameLen) {
+          nameAddr = (nameAddr + 1) & 0xFFFF;
+          char  c = char(vm.readMemory(nameAddr, true));
+          if (c == '\0')
+            break;
+          fileName += c;
+          nameLen--;
+        }
+        int     err = vm.openFileInWorkingDirectory(
+                          fileIOFile, fileName, (n == 0x01 ? "r+b" : "w+b"));
+        switch (err) {
+        case 0:
+          R.AF.B.h = 0x00;      // no error
+          break;
+        case -2:
+          R.AF.B.h = 0xA9;      // invalid file name
+          break;
+        case -3:
+          R.AF.B.h = 0xA1;      // file not found
+          break;
+        case -4:
+          R.AF.B.h = 0xA8;      // invalid file attributes
+          break;
+        case -5:
+          R.AF.B.h = 0x9A;      // read only file
+          break;
+        case -6:
+          R.AF.B.h = 0x9B;      // file exists
+          break;
+        default:
+          R.AF.B.h = 0xAA;      // invalid path name
+          break;
+        }
+        // store file name
+        Ep128Emu::splitPath(fileName, dirName, baseName);
+        if (baseName.length() > 31)
+          baseName.resize(31);
+        nameAddr = (R.IX.W & 0x00F0) + 0x0010;
+        R.DE.W = nameAddr;
+        vm.writeMemory(nameAddr, uint8_t(baseName.length()), true);
+        for (size_t i = 0; i < baseName.length(); i++) {
+          unsigned char c = (unsigned char) baseName[i];
+          // convert name to upper case
+          if (c >= 'a' && c <= 'z')
+            c = c - ('a' - 'A');
+          nameAddr++;
+          vm.writeMemory(nameAddr, c, true);
+        }
+      }
+      catch (...) {
+        if (fileIOFile) {
+          std::fclose(fileIOFile);
+          fileIOFile = (std::FILE *) 0;
+        }
+        R.AF.B.h = 0xFB;        // not enough memory
+      }
+      break;
+    case 3:                             // close input file
+    case 4:                             // close output file
+      R.AF.B.h = 0x00;
+      if (fileIOWriteFlag) {
+        fileIOWriteFlag = false;
+        if (std::fflush(fileIOFile) != 0)
+          R.AF.B.h = 0xA3;      // disk full
+      }
+      std::fclose(fileIOFile);
+      fileIOFile = (std::FILE *) 0;
+      break;
+    case 5:                             // read character
+      R.BC.B.l = 0xFF;
+      if (fileIOWriteFlag) {
+        fileIOWriteFlag = false;
+        if (std::fseek(fileIOFile, 0L, SEEK_CUR) < 0) {
+          R.AF.B.h = 0xE5;      // invalid file position
+          break;
+        }
+      }
+      {
+        int     c = std::fgetc(fileIOFile);
+        if (c == EOF) {
+          R.AF.B.h = 0xEC;      // end of file
+          break;
+        }
+        R.AF.B.h = 0x00;
+        R.BC.B.l = uint8_t(c & 0xFF);
+      }
+      break;
+    case 6:                             // write character
+      fileIOWriteFlag = true;
+      if (std::fputc(R.BC.B.l, fileIOFile) != 0)
+        R.AF.B.h = 0xA3;        // disk full
+      else
+        R.AF.B.h = 0x00;
+      break;
+    case 7:                             // get file size
+      R.BC.W = 0x0000;
+      R.DE.W = 0x0000;
+      R.AF.B.h = 0xE5;          // invalid file position
+      {
+        long    savedPosition = std::ftell(fileIOFile);
+        if (savedPosition < 0L)
+          break;
+        fileIOWriteFlag = false;
+        if (std::fseek(fileIOFile, 0L, SEEK_END) < 0)
+          break;
+        long    fileSize = std::ftell(fileIOFile);
+        if (std::fseek(fileIOFile, savedPosition, SEEK_SET) >= 0 &&
+            fileSize >= 0L && fileSize <= 0x7FFFFFFFL) {
+          R.AF.B.h = 0x00;
+          R.DE.W = uint16_t(fileSize & 0xFFFFL);
+          R.BC.W = uint16_t(fileSize >> 16);
+        }
+      }
+      break;
+    case 8:                             // get file position
+    case 9:                             // set file position
+      {
+        long    filePos = long(R.DE.W) | (long(R.BC.W) << 16);
+        R.DE.W = 0xFFFF;
+        R.BC.W = 0xFFFF;
+        R.AF.B.h = 0xE5;        // invalid file position
+        if (n == 9) {
+          if (!(filePos >= 0L && filePos <= 0x01FFFFFFL))
+            break;
+          fileIOWriteFlag = false;
+          if (std::fseek(fileIOFile, filePos, SEEK_SET) < 0)
+            break;
+        }
+        filePos = std::ftell(fileIOFile);
+        if (filePos >= 0L && filePos <= 0x7FFFFFFFL) {
+          R.DE.W = uint16_t(filePos & 0xFFFFL);
+          R.BC.W = uint16_t(filePos >> 16);
+          R.AF.B.h = 0x00;
+        }
+      }
+      break;
+    default:
+      R.AF.B.h = 0xFF;          // invalid function
+      break;
+    }
+  }
+
+  void TVC64VM::Z80_::closeFile()
+  {
+    if (fileIOFile) {
+      // FIXME: errors are ignored here
+      (void) std::fclose(fileIOFile);
+      fileIOFile = (std::FILE *) 0;
+      fileIOWriteFlag = false;
+    }
+  }
+
   // --------------------------------------------------------------------------
 
   TVC64VM::Memory_::Memory_(TVC64VM& vm_)
@@ -370,7 +567,7 @@ namespace TVC64 {
   {
     if (getPage(uint8_t(addr >> 14)) == 0x02) { // EXT
       if (EP128EMU_UNLIKELY(getPaging() & 0xC000))
-        return 0xFF;                    // IOMEM 0 is not paged in
+        return readRaw((0x0000C000U | addr) + (getPaging() & 0xC000));
       if (addr & 0x1000)
         return extensionRAM[addr & 0x0FFF];
       return readRaw(0x0000C000U | (uint32_t(vm.vtdosROMPage) << 12)
@@ -385,7 +582,7 @@ namespace TVC64 {
   {
     if (getPage(uint8_t(addr >> 14)) == 0x02) { // EXT
       if (EP128EMU_UNLIKELY(getPaging() & 0xC000))
-        return 0xFF;                    // IOMEM 0 is not paged in
+        return readRaw((0x0000C000U | addr) + (getPaging() & 0xC000));
       if (addr & 0x1000)
         return extensionRAM[addr & 0x0FFF];
       return readRaw(0x0000C000U | (uint32_t(vm.vtdosROMPage) << 12)
@@ -400,7 +597,7 @@ namespace TVC64 {
     if (getPage(uint8_t(addr >> 14)) == 0x02) { // EXT
       if (EP128EMU_UNLIKELY(getPaging() & 0xC000))
         return;                         // IOMEM 0 is not paged in
-      if (addr & 0x1000)
+      if (EP128EMU_EXPECT((addr & 0x1000) != 0))
         extensionRAM[addr & 0x0FFF] = value;
     }
     vm.runDevices();
@@ -571,8 +768,9 @@ namespace TVC64 {
       break;
     case 0x5A:                          // extension card ID byte
     case 0x5E:
-      // extension 0 is a floppy drive, the others are unused
-      retval = 0xFE | uint8_t(vm.memory.readRaw(0xC000U) == 0xFF);
+      // extensions 0 and 1 are floppy drives, the others are unused
+      retval = 0xFA | uint8_t(vm.memory.readRaw(0x0000C000U) == 0xFF)
+               | (uint8_t(vm.memory.readRaw(0x00010000U) == 0xFF) << 2);
       break;
     case 0x5B:                          // reset tone generator (repeated twice)
     case 0x5F:
@@ -837,8 +1035,9 @@ namespace TVC64 {
       retval = (~vm.irqState & 0x1F) | ((vm.tapeInputSignal & 1) << 5) | 0xC0;
       break;
     case 0x5A:                          // extension card ID byte
-      // extension 0 is a floppy drive, the others are unused
-      retval = 0xFE | uint8_t(vm.memory.readRaw(0xC000U) == 0xFF);
+      // extensions 0 and 1 are floppy drives, the others are unused
+      retval = 0xFA | uint8_t(vm.memory.readRaw(0x0000C000U) == 0xFF)
+               | (uint8_t(vm.memory.readRaw(0x00010000U) == 0xFF) << 2);
       break;
     case 0x71:                          // CRTC registers
       retval = vm.crtc.readRegister(vm.crtcRegisterSelected);
@@ -1245,6 +1444,7 @@ namespace TVC64 {
     vtdosROMPage = 0;
     resetFloppyDrives(isColdReset);
     if (isColdReset) {
+      z80.closeFile();
       ioPorts.writeDebug(0x04, 0x00);
       toneGenCnt1 = 0U;
       toneGenCnt2 = 0;
@@ -1274,7 +1474,7 @@ namespace TVC64 {
   void TVC64VM::loadROMSegment(uint8_t n, const char *fileName, size_t offs)
   {
     stopDemo();
-    if (n > 0x03)
+    if (n > 0x04)
       throw Ep128Emu::Exception("internal error: invalid ROM segment number");
     if (fileName == (char *) 0 || fileName[0] == '\0') {
       // empty file name: delete segment
@@ -1293,7 +1493,7 @@ namespace TVC64 {
       std::fclose(f);
       throw Ep128Emu::Exception("ROM file is shorter than expected");
     }
-    if (n == 0x02)
+    if (n == 0x02 || n == 0x04)
       dataSize = (dataSize < 0x2000L ? dataSize : 0x2000L);
     else
       dataSize = (dataSize < 0x4000L ? dataSize : 0x4000L);

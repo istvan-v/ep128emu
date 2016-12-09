@@ -84,6 +84,7 @@ namespace TVC64 {
     resetKeyboard();
     // floppy and SD emulation are disabled while recording or playing demo
     resetFloppyDrives(false);
+    z80.closeFile();
 #ifdef ENABLE_SDEXT
     // FIXME: implement a better way of disabling SDExt during demo recording
     sdext.openImage((char *) 0);
@@ -135,6 +136,7 @@ namespace TVC64 {
     snapshotLoadFlag = true;
     // reset floppy and SD card emulation, as the state of these is not saved
     resetFloppyDrives(true);
+    z80.closeFile();
     try {
       z80.triggerInterrupt();
       videoRenderer.setVideoMemory(memory.getVideoMemory());

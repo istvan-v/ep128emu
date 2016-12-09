@@ -47,6 +47,8 @@ namespace TVC64 {
     class Z80_ : public Ep128::Z80 {
      private:
       TVC64VM&  vm;
+      std::FILE *fileIOFile;
+      bool      fileIOWriteFlag;        // true if last operation was a write
      public:
       Z80_(TVC64VM& vm_);
       virtual ~Z80_();
@@ -68,6 +70,9 @@ namespace TVC64 {
       virtual EP128EMU_REGPARM2 uint8_t doIn(uint16_t addr);
       virtual EP128EMU_REGPARM1 void updateCycle();
       virtual EP128EMU_REGPARM2 void updateCycles(int cycles);
+      virtual EP128EMU_REGPARM1 void tapePatch();
+     public:
+      void closeFile();
     };
     class Memory_ : public Memory {
      private:

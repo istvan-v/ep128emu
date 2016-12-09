@@ -26,7 +26,7 @@ namespace TVC64 {
   {
     if (n >= 0xFC && isROM)
       throw Ep128Emu::Exception("video memory cannot be ROM");
-    if (n > 0x03 && n < 0xF8)
+    if (n > 0x04 && n < 0xF8)
       throw Ep128Emu::Exception("invalid segment number");
     if (segmentTable[n] == (uint8_t *) 0)
       segmentTable[n] = new uint8_t[16384];
@@ -322,7 +322,7 @@ namespace TVC64 {
   void Memory::loadROMSegment(uint8_t segment,
                               const uint8_t *data, size_t dataSize)
   {
-    if (segment > 0x03)
+    if (segment > 0x04)
       throw Ep128Emu::Exception("internal error: invalid ROM segment number");
     if (!data)
       dataSize = 0;
@@ -348,7 +348,8 @@ namespace TVC64 {
     }
     for ( ; i < 0x4000 || (i & 0x3FFF) != 0; i++)
       segmentTable[segment][i & 0x3FFF] = 0xFF;
-    if (segment == 0x02 && dataSize > 0 && dataSize <= 8192) {
+    if ((segment == 0x02 || segment == 0x04) &&
+        dataSize > 0 && dataSize <= 8192) {
       std::memcpy(&(segmentTable[segment][0x2000]),
                   &(segmentTable[segment][0]), dataSize);
     }
@@ -545,11 +546,11 @@ namespace TVC64 {
     buf.writeUInt32(uint32_t(extensionRAM.size()));
     for (size_t i = 0; i < extensionRAM.size(); i++)
       buf.writeByte(extensionRAM[i]);
-    for (int i = 0x00; i <= 0x03; i++) {
+    for (int i = 0x00; i <= 0x04; i++) {
       if (segmentTable[i] != (uint8_t *) 0 &&
           !(i == 0x01 && segment1IsExtension)) {
         buf.writeByte(uint8_t(i));
-        for (size_t j = (i != 2 ? 0 : 8192); j < 16384; j++)
+        for (size_t j = ((i != 2 && i != 4) ? 0 : 8192); j < 16384; j++)
           buf.writeByte(segmentTable[i][j]);
       }
     }
@@ -606,11 +607,14 @@ namespace TVC64 {
       // load ROM segments
       while (buf.getPosition() < buf.getDataSize()) {
         uint8_t segment = buf.readByte();
-        if (segment > 0x03)
+        if (segment > 0x04)
           throw Ep128Emu::Exception("invalid ROM segment in TVC snapshot");
         allocateSegment(segment, true);
-        for (size_t i = (segment != 0x02 ? 0 : 8192); i < 16384; i++)
+        for (size_t i = ((segment != 0x02 && segment != 0x04) ? 0 : 8192);
+             i < 16384;
+             i++) {
           segmentTable[segment][i] = buf.readByte();
+        }
       }
       setPaging(currentPaging);
     }
