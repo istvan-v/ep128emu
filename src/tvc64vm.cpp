@@ -133,31 +133,33 @@ namespace TVC64 {
     if (EP128EMU_UNLIKELY(!n))
       return;
     machineHalfCycleCnt += n;
+    crtcCyclesRemainingH -= int32_t((n + (m & 2)) >> 2);
     n = n >> 1;
-    crtcCyclesRemainingH -=
-        int32_t(((machineHalfCycleCnt - (m & 0xFC)) & 0xFC) >> 2);
     m = m >> 1;
     bool    cursorState = crtc.getCursorEnabled();
     updateSndIntState(cursorState);
-    do {
-      toneGenCnt1++;
-      if (EP128EMU_UNLIKELY(toneGenCnt1 >= 4096U)) {
-        toneGenCnt1 = toneGenFreq;
+    if (EP128EMU_EXPECT((toneGenCnt1 + uint32_t(n))
+                        < (4096U + ((4096U - toneGenFreq)
+                                    * (~toneGenCnt2 & 7))))) {
+      // optimized code for the case when the output of the sound generator
+      // does not change
+      toneGenCnt1 += uint32_t(n);
+      while (EP128EMU_UNLIKELY(toneGenCnt1 >= 4096U)) {
+        toneGenCnt1 = (toneGenCnt1 & 0x0FFFU) + toneGenFreq;
         toneGenCnt2 = (toneGenCnt2 + 1) & 0x0F;
-        if (EP128EMU_UNLIKELY(!(toneGenCnt2 & 7))) {
-          if ((irqEnableMask & 0x10) != 0 && n > 1)
-            updateSndIntState(cursorState);
-        }
       }
-      m++;
-      if (!(m & 1)) {
+      uint8_t b = (n ^ m) & 1;
+      n = (n + (m & 1)) >> 1;
+      m = m >> 1;
+      while (n--) {
         TVC64VMCallback *p = firstCallback;
         while (EP128EMU_UNLIKELY(bool(p))) {
           TVC64VMCallback *nxt = p->nxt;
           p->func(p->userData);
           p = nxt;
         }
-        if (EP128EMU_UNLIKELY(!(m & 7))) {
+        m++;
+        if (EP128EMU_UNLIKELY(!(m & 3))) {
           uint32_t  tmp = uint32_t(tapeInputSignal + tapeOutputSignal) << 12;
           if (((toneGenCnt2 | 0xF7) + uint8_t(toneGenEnabled)) & 0xFF)
             tmp += uint32_t(audioOutputLevelTable[audioOutputLevel]);
@@ -167,13 +169,50 @@ namespace TVC64 {
         videoRenderer.runOneCycle();
         crtc.runOneCycle();
         if (EP128EMU_UNLIKELY(crtc.getCursorEnabled() != cursorState)) {
-          if (n > 1) {
+          if (n + b) {
             cursorState = !cursorState;
             updateSndIntState(cursorState);
           }
         }
       }
-    } while (--n);
+    }
+    else {
+      do {
+        toneGenCnt1++;
+        if (EP128EMU_UNLIKELY(toneGenCnt1 >= 4096U)) {
+          toneGenCnt1 = toneGenFreq;
+          toneGenCnt2 = (toneGenCnt2 + 1) & 0x0F;
+          if (EP128EMU_UNLIKELY(!(toneGenCnt2 & 7))) {
+            if ((irqEnableMask & 0x10) != 0 && n > 1)
+              updateSndIntState(cursorState);
+          }
+        }
+        m++;
+        if (!(m & 1)) {
+          TVC64VMCallback *p = firstCallback;
+          while (EP128EMU_UNLIKELY(bool(p))) {
+            TVC64VMCallback *nxt = p->nxt;
+            p->func(p->userData);
+            p = nxt;
+          }
+          if (EP128EMU_UNLIKELY(!(m & 7))) {
+            uint32_t  tmp = uint32_t(tapeInputSignal + tapeOutputSignal) << 12;
+            if (((toneGenCnt2 | 0xF7) + uint8_t(toneGenEnabled)) & 0xFF)
+              tmp += uint32_t(audioOutputLevelTable[audioOutputLevel]);
+            soundOutputSignal = tmp | (tmp << 16);
+            sendAudioOutput(soundOutputSignal);
+          }
+          videoRenderer.runOneCycle();
+          crtc.runOneCycle();
+          if (EP128EMU_UNLIKELY(crtc.getCursorEnabled() != cursorState)) {
+            if (n > 1) {
+              cursorState = !cursorState;
+              updateSndIntState(cursorState);
+            }
+          }
+        }
+      } while (--n);
+    }
   }
 
   // --------------------------------------------------------------------------
