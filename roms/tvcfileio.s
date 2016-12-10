@@ -34,9 +34,11 @@
     endm
 
 initDevice:
-        ld    a, ixl
+        push  ix
+        ex    (sp), hl
+        ld    a, l
         and   0f0h
-        ld    ixl, a
+        ld    l, a
         sub   10h
         rlca
         rlca
@@ -44,20 +46,34 @@ initDevice:
         or    80h
         ld    (0b05h), a
         ld    (0b0dh), a
-        ld    (ix), 4
-        ld    (ix + 1), 'F'
-        ld    (ix + 2), 'I'
-        ld    (ix + 3), 'L'
-        ld    (ix + 4), 'E'
-        ld    (ix + 15), 0              ; FFh = file was written to
-        ld    (ix + 16), 0ffh           ; name length or FFh if file not open
+        ld    (hl), 4
+        inc   l
+        ld    (hl), 'F'
+        inc   l
+        ld    (hl), 'I'
+        inc   l
+        ld    (hl), 'L'
+        inc   l
+        ld    (hl), 'E'
+        inc   l
+        set   1, l
+        set   3, l
+        ld    (hl), 0                   ; FFh = file was written to
+        inc   hl
+        ld    (hl), 0ffh                ; name length or FFh if file not open
+        ld    l, a
+        ld    a, 0f7h
+.l1:    rlca
+        dec   l
+        jp    m, .l1
+        ld    hl, 0b10h
+        and   (hl)
+        ld    (hl), a
+        pop   hl
         ep128emuSystemCall  0
         or    a
-        ret
 
 irqRoutine1:
-        ret
-
 irqRoutine2:
         ret
 
@@ -140,8 +156,56 @@ checkCASExtension:
 .l1:    pop   hl
         ret
 
+; Carry = 1: open input file
+
+retryCASFile:
+        push  af
+        push  bc
+        push  de
+        ld    a, (de)
+        ld    b, a
+        dec   a
+        cp    25
+        jr    c, .l2                    ; not empty or too long name?
+.l1:    pop   de
+        pop   bc
+        pop   af
+        or    a
+        ret
+.l2:    inc   de
+        ld    a, (de)
+        cp    '.'
+        jr    z, .l1                    ; there is already an extension?
+        djnz  .l2
+        ex    (sp), hl
+        ld    c, (hl)
+        ld    a, c
+        add   a, 4
+        ld    (hl), a
+        inc   c
+        ld    a, ixl
+        add   a, 9
+        ld    e, a
+        ld    d, ixh
+        ldir
+        ex    de, hl
+        ld    (hl), '.'                 ; add .CAS extension
+        inc   hl
+        ld    (hl), 'C'
+        inc   hl
+        ld    (hl), 'A'
+        inc   hl
+        ld    (hl), 'S'
+        ex    de, hl
+        ld    e, a
+        ld    d, ixh
+        pop   hl
+        pop   bc
+        pop   af
+        sbc   a, a
+
 fileOpen:
-        jp    p, .l5                    ; open output file?
+        jp    p, .l6                    ; open output file?
         ep128emuSystemCall  3
         ld    (ix + 7), 0
         ld    (ix + 8), 0ffh
@@ -151,7 +215,7 @@ fileOpen:
         ret   nz
 .l1:    ep128emuSystemCall  1
         or    a
-        ret   nz
+        jr    nz, .l5
         call  checkCASExtension
         jr    z, .l2
         xor   a
@@ -169,21 +233,25 @@ fileOpen:
         ld    (ix + 8), 0ffh
         ld    a, 0e7h                   ; invalid .CAS header
         ret
-.l5:    ep128emuSystemCall  4
+.l5:    cp    0a1h                      ; file not found
+        scf
+        jp    z, retryCASFile
+        ret
+.l6:    ep128emuSystemCall  4
         ld    (ix + 7), 0
         ld    (ix + 8), 0ffh
         or    a
-        jr    z, .l6
+        jr    z, .l7
         cp    0e9h                      ; file not open
         ret   nz
-.l6:    ep128emuSystemCall  2
+.l7:    ep128emuSystemCall  2
         or    a
         ret   nz
         call  checkCASExtension
-        jr    z, .l7
+        jr    z, .l8
         xor   a
         ret
-.l7:    push  bc                        ; write .CAS header for empty file
+.l8:    push  bc                        ; write .CAS header for empty file
         push  de
         ld    bc, 0000h
         ld    de, 0000h
