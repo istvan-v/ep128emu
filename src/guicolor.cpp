@@ -47,7 +47,7 @@ static const char *windowClassTable[14] = {
   "EPMainWindow",
   "ZXMainWindow",
   "CPCMainWindow",
-  (char *) 0,
+  "TVCMainWindow",
   (char *) 0,
   (char *) 0,
   (char *) 0,
@@ -220,10 +220,66 @@ static const char * const iconPixmapData_2[] = {        // cpc464emu.ico
   "+@@@@@@@@@@+++OOOOOOO+++@@@@@@@+"
 };
 
-static const char * const * const iconPixmapData[3] = {
+static const char * const iconPixmapData_3[] = {        // tvc64emu.ico
+  /* columns rows colors chars-per-pixel */
+  "32 32 17 1 ",
+  "  c #040129",
+  ". c #05023A",
+  "+ c #010157",
+  "@ c #00007E",
+  "# c #02026E",
+  "$ c #0000B6",
+  "% c #0400B0",
+  "& c #020590",
+  "* c #08129C",
+  "= c #6319AC",
+  "- c #8822A2",
+  "; c #A32997",
+  "> c #BA2F8B",
+  ", c #E0386D",
+  "' c #FF4040",
+  ") c #8888A0",
+  "! c #FFFF00",
+  /* pixels */
+  "@&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&@",
+  "&******************************&",
+  "&******************************&",
+  "&*******&&@@@@@@@@@@@@##@&*****&",
+  "&*****&&*%$$$$$$$$$$$$%*##@&***&",
+  "&****&&%$$$$$$$$$$$$$$$$$&+#&**&",
+  "&***&&%$$$$$$$$$$$$$$$$$$$&+#&*&",
+  "&***&%$$,''''-$$$$$-'''',$$#.@&&",
+  "&**&*$$$->>>>-$$$$$->>>>-$$*.+&&",
+  "&**&%$$$-'''',$$$$$,''''-$$$+.@&",
+  "&**&%$$$$;>>>>=$$$=>>>>;$$$$#.#&",
+  "&*&@%$$$$>''''>$$$>''''>$$$$@ #&",
+  "&*&@%$$$$=>>>>;$$$;>>>>=$$$$@ +&",
+  "&*&@%$$$$$,''''-$-'''',$$$$$@ +@",
+  "&*&@%$$$$$->>>>-$->>>>-$$$$$@ +@",
+  "&*&@%$$$$$-'''',$,''''-$$$$$@ +@",
+  "&*&@%$$$$$$;>>>>=>>>>;$$$$$$@ +@",
+  "&*&@%$$$$$$>''''>''''>$$$$$$@ +@",
+  "&*&@%$$$$$$=>>>>;>>>>=$$$$$$@ +@",
+  "&*&@%$$$$$$$,''''''',$$$$$$$@ +@",
+  "&*&@%$$$$$$$->>>>>>>-$$$$$$$@ +@",
+  "&*&@%$$$$$$$)!!!!!!!)$$$$$$$@ +@",
+  "&*&@%$$$$$$$$,''''',$$$$$$$$# +&",
+  "&**@*$$$$$$$$->>>>>-$$$$$$$$. #&",
+  "&**@&$$$$$$$$-'''''-$$$$$$$* .#&",
+  "&**&#*$$$$$$$$$$$$$$$$$$$$$+ .@&",
+  "&**&##*$$$$$$$$$$$$$$$$$$$# .#&&",
+  "&***&#+&$$$$$$$$$$$$$$$$%+  +@&&",
+  "&****@++#&*************#.  +#&*&",
+  "&****&&#+.............   .+#&**&",
+  "&******&@#+............++#@&***&",
+  "@&&&&&&&&&&@@@#######@@@&&&&&&&@"
+};
+
+static const char * const * const iconPixmapData[4] = {
   iconPixmapData_0,                                     // ep128emu.ico
   iconPixmapData_1,                                     // zx128emu.ico
-  iconPixmapData_2                                      // cpc464emu.ico
+  iconPixmapData_2,                                     // cpc464emu.ico
+  iconPixmapData_3                                      // tvc64emu.ico
 };
 
 #endif                  // HAVE_FLTK_1_3_3 && !WIN32
@@ -318,7 +374,7 @@ namespace Ep128Emu {
   void setWindowIcon(Fl_Window *w, int iconNum)
   {
 #ifdef WIN32
-    if (!((iconNum >= 0 && iconNum <= 2) || (iconNum >= 10 && iconNum <= 13)))
+    if (!((iconNum >= 0 && iconNum <= 3) || (iconNum >= 10 && iconNum <= 13)))
       return;                   // ignore invalid icon numbers
     // FIXME: according to the FLTK documentation, Fl_Window::show(int, char**)
     // should be used for the icon to be displayed, but Fl_Window::show() seems

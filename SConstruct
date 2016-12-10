@@ -457,7 +457,8 @@ if mingwCrossCompile:
     ep128emuResourceObject = ep128emuEnvironment.Command(
         'resource/resource.o',
         ['resource/ep128emu.rc', 'resource/cpc464emu.ico',
-         'resource/ep128emu.ico', 'resource/zx128emu.ico'],
+         'resource/ep128emu.ico', 'resource/tvc64emu.ico',
+         'resource/zx128emu.ico'],
         toolNamePrefix + 'windres -v --use-temp-file '
         + '--preprocessor="gcc.exe -E -xc -DRC_INVOKED" '
         + '-o $TARGET resource/ep128emu.rc')
@@ -584,11 +585,13 @@ if not mingwCrossCompile:
                                ["resource/cpc464emu.png",
                                 "resource/ep128emu.png",
                                 "resource/tapeedit.png",
+                                "resource/tvc64emu.png",
                                 "resource/zx128emu.png"])
     makecfgEnvironment.Install(instDesktopDir,
                                ["resource/cpc464emu.desktop",
                                 "resource/ep128.desktop",
                                 "resource/eptapeedit.desktop",
+                                "resource/tvc64emu.desktop",
                                 "resource/zx128.desktop"])
     if not buildingLinuxPackage:
         confFileList = [instConfDir + '/EP_Keyboard_HU.cfg',

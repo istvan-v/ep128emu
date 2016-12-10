@@ -493,22 +493,21 @@ void Ep128EmuGUI::createMenus()
     (void) XkbSetDetectableAutoRepeat(fl_display, True, &supportedReturn);
   }
 #endif
-  {
-    int     iconNum = (typeid(vm) == typeid(ZX128::ZX128VM) ?
-                       1 : (typeid(vm) == typeid(CPC464::CPC464VM) ? 2 : 0));
-    Ep128Emu::setWindowIcon(mainWindow, iconNum);
-    Ep128Emu::setWindowIcon(diskConfigWindow->window, iconNum);
-    Ep128Emu::setWindowIcon(displaySettingsWindow->window, iconNum);
-    Ep128Emu::setWindowIcon(keyboardConfigWindow->window, iconNum);
-    Ep128Emu::setWindowIcon(machineConfigWindow->window, iconNum);
-  }
+  int     iconNum = (typeid(vm) == typeid(Ep128::Ep128VM) ?
+                     0 : (typeid(vm) == typeid(ZX128::ZX128VM) ?
+                          1 : (typeid(vm) == typeid(CPC464::CPC464VM) ?
+                               2 : 3)));
+  Ep128Emu::setWindowIcon(mainWindow, iconNum);
+  Ep128Emu::setWindowIcon(diskConfigWindow->window, iconNum);
+  Ep128Emu::setWindowIcon(displaySettingsWindow->window, iconNum);
+  Ep128Emu::setWindowIcon(keyboardConfigWindow->window, iconNum);
+  Ep128Emu::setWindowIcon(machineConfigWindow->window, iconNum);
   Ep128Emu::setWindowIcon(aboutWindow->window, 10);
   Ep128Emu::setWindowIcon(errorMessageWindow, 12);
   // hide configuration widgets that are not useful on the given machine
   // or emulator build
 #ifdef ENABLE_SDEXT
-  if (typeid(vm) == typeid(ZX128::ZX128VM) ||
-      typeid(vm) == typeid(CPC464::CPC464VM))
+  if (iconNum >= 1 && iconNum <= 2)     // Spectrum or CPC
 #endif
   {
     machineConfigWindow->vmEnableSDExtValuator->hide();
@@ -520,7 +519,7 @@ void Ep128EmuGUI::createMenus()
     diskConfigWindow->sdCardImageGroup->hide();
 #endif
   }
-  if (typeid(vm) != typeid(Ep128::Ep128VM)) {
+  if (iconNum != 0) {                   // not Enterprise
     machineConfigWindow->vmCPUFrequencyValuator->deactivate();
     machineConfigWindow->vmSoundClockFrequencyValuator->deactivate();
     machineConfigWindow->enableMemoryTimingValuator->hide();
@@ -643,7 +642,7 @@ void Ep128EmuGUI::createMenus()
                    (char *) 0, &menuCallback_Options_SndDecVol, (void *) this);
   mainMenuBar->add("Options/Sound/Configure... (Alt+U)",
                    (char *) 0, &menuCallback_Options_SndConfig, (void *) this);
-  if (typeid(vm) != typeid(ZX128::ZX128VM)) {
+  if (iconNum != 1) {                   // not Spectrum
     mainMenuBar->add("Options/Disk/Remove floppy/Drive A", (char *) 0,
                      &menuCallback_Options_FloppyRmA, (void *) this);
     mainMenuBar->add("Options/Disk/Remove floppy/Drive B", (char *) 0,
