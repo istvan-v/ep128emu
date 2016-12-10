@@ -49,7 +49,7 @@
 #  ifndef MAKECFG_ROM_URL_2
 #    define MAKECFG_ROM_URL_2   "https://enterpriseforever.com/"        \
                                 "letoltesek-downloads/egyeb-misc/"      \
-                                "?action=dlattach;attach=16793"
+                                "?action=dlattach;attach=16823"
 #  endif
 #  include <curl/curl.h>
 #endif
@@ -1563,7 +1563,7 @@ int main(int argc, char **argv)
         }
       }
       // enable snapshot compression by default on fast machines
-      compressFiles = (decompressTime < 0.026);
+      compressFiles = (decompressTime < 0.027);
     }
     catch (std::exception& e) {
       gui->errorMessage(e.what());

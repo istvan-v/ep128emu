@@ -405,7 +405,7 @@ Section "Download and install ROM images" SecDLRoms
 
   MessageBox MB_OK "WARNING: download from ep128.hu failed ($R0), trying enterpriseforever.com instead"
 
-  INetC::get "https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/?action=dlattach;attach=16793" "$INSTDIR\roms\ep128emu_roms-2.0.11.bin"
+  INetC::get "https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/?action=dlattach;attach=16823" "$INSTDIR\roms\ep128emu_roms-2.0.11.bin"
   Pop $R0
   StrCmp $R0 "OK" downloadDone 0
   StrCmp $R0 "Cancelled" downloadDone 0
@@ -738,12 +738,14 @@ Section "Uninstall"
   Delete "$INSTDIR\roms\tvc21_sys.rom"
   Delete "$INSTDIR\roms\tvc22_ext.rom"
   Delete "$INSTDIR\roms\tvc22_sys.rom"
-  Delete "$INSTDIR\roms\tvcfileio.rom"
   Delete "$INSTDIR\roms\tvc_dos11c.rom"
   Delete "$INSTDIR\roms\tvc_dos11d.rom"
   Delete "$INSTDIR\roms\tvc_dos12c.rom"
   Delete "$INSTDIR\roms\tvc_dos12d.rom"
+  Delete "$INSTDIR\roms\tvcfileio.rom"
   Delete "$INSTDIR\roms\tvc_sdext.rom"
+  Delete "$INSTDIR\roms\tvcupm_c.rom"
+  Delete "$INSTDIR\roms\tvcupm_d.rom"
   Delete "$INSTDIR\roms\zt18.rom"
   Delete "$INSTDIR\roms\zt18ekn.rom"
   Delete "$INSTDIR\roms\zt18hfnt.rom"

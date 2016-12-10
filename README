@@ -272,7 +272,7 @@ following steps can be skipped, the configuration utility is run
 automatically by ep128emu when needed, and it can download and install
 the ROM images.
 Before installation, download ep128emu_roms-2.0.11.bin from
-  https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/msg60414
+  https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/msg60525
 and copy it to:
   ~/.local/share/ep128emu/roms                (for 'scons install')
   ~/.ep128emu/roms                            (for manual installation)
@@ -301,7 +301,7 @@ To install, just run the executable, and follow the instructions. The
 installer can automatically download the ROM images needed for running
 the emulator, but these can also be installed manually by downloading
 ep128emu_roms-2.0.11.7z from
-  https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/msg60414
+  https://enterpriseforever.com/letoltesek-downloads/egyeb-misc/msg60525
 and extracting it to roms\ under the selected installation folder.
 When asked if configuration files should be reinstalled, click 'OK'
 when installing the first time, but this step can be skipped in later
