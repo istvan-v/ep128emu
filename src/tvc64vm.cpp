@@ -390,29 +390,21 @@ namespace TVC64 {
         }
         int     err = vm.openFileInWorkingDirectory(
                           fileIOFile, fileName, (n == 0x01 ? "r+b" : "w+b"));
-        switch (err) {
-        case 0:
-          R.AF.B.h = 0x00;      // no error
-          break;
-        case -2:
-          R.AF.B.h = 0xA9;      // invalid file name
-          break;
-        case -3:
-          R.AF.B.h = 0xA1;      // file not found
-          break;
-        case -4:
-          R.AF.B.h = 0xA8;      // invalid file attributes
-          break;
-        case -5:
-          R.AF.B.h = 0x9A;      // read only file
-          break;
-        case -6:
-          R.AF.B.h = 0x9B;      // file exists
-          break;
-        default:
-          R.AF.B.h = 0xAA;      // invalid path name
+        if (err) {
+          static const uint8_t  fileIOErrorTable[8] = {
+            0xAA,       // invalid path name
+            0xAA,       // invalid path name
+            0x9B,       // file exists
+            0x9A,       // read only file
+            0xA8,       // invalid file attributes
+            0xA1,       // file not found
+            0xA9,       // invalid file name
+            0xAA        // invalid path name
+          };
+          R.AF.B.h = fileIOErrorTable[err & 7];
           break;
         }
+        R.AF.B.h = 0x00;        // no error
         // store file name
         Ep128Emu::splitPath(fileName, dirName, baseName);
         if (baseName.length() > 31)
