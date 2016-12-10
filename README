@@ -159,6 +159,9 @@ Videoton TVC emulation
     emulation
   * tape emulation (see general features for details)
   * WD1773/1793 (floppy drive controller) emulation for VT-DOS
+  * optional extension ROM (tvcfileio.rom) that implements a FILE device
+    for direct access to files on the host system in a single user
+    selectable directory
   * SD card (SDEXT) emulation, this is an experimental feature based on
     code from LGB's Xep128 emulator
 
