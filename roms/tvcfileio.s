@@ -91,6 +91,7 @@ characterIO:
         ret
 
 blockIO:
+        rla
         bit   7, (ix + 8)
         ld    a, 0e9h                   ; file not open
         ret   nz
@@ -98,7 +99,6 @@ blockIO:
         ex    de, hl
         ld    e, c
         ld    d, b
-        rla
         jr    c, .l2                    ; read block?
         ld    (ix + 7), 0ffh
         jp    .l5
@@ -156,9 +156,13 @@ checkCASExtension:
 .l1:    pop   hl
         ret
 
+fileOpen:
+        jp    m, fileOpenR              ; open input file?
+        xor   a
+
 ; Carry = 1: open input file
 
-retryCASFile:
+addCASExtension:
         push  af
         push  bc
         push  de
@@ -171,6 +175,7 @@ retryCASFile:
         pop   bc
         pop   af
         or    a
+        jp    z, fileOpenW
         ret
 .l2:    inc   de
         ld    a, (de)
@@ -179,33 +184,31 @@ retryCASFile:
         djnz  .l2
         ex    (sp), hl
         ld    c, (hl)
+        add   hl, bc
         ld    a, c
-        add   a, 4
-        ld    (hl), a
-        inc   c
-        ld    a, ixl
-        add   a, 9
+        add   a, 13
+        add   a, ixl
         ld    e, a
         ld    d, ixh
-        ldir
         ex    de, hl
-        ld    (hl), '.'                 ; add .CAS extension
-        inc   hl
-        ld    (hl), 'C'
-        inc   hl
+        ld    (hl), 'S'                 ; add .CAS extension
+        dec   hl
         ld    (hl), 'A'
-        inc   hl
-        ld    (hl), 'S'
+        dec   hl
+        ld    (hl), 'C'
+        dec   hl
+        ld    (hl), '.'
+        dec   hl
         ex    de, hl
-        ld    e, a
-        ld    d, ixh
+        lddr
+        sub   e
+        ld    (de), a
         pop   hl
         pop   bc
         pop   af
-        sbc   a, a
+        jr    nc, fileOpenW
 
-fileOpen:
-        jp    p, .l6                    ; open output file?
+fileOpenR:
         ep128emuSystemCall  3
         ld    (ix + 7), 0
         ld    (ix + 8), 0ffh
@@ -235,26 +238,28 @@ fileOpen:
         ret
 .l5:    cp    0a1h                      ; file not found
         scf
-        jp    z, retryCASFile
+        jp    z, addCASExtension
         ret
-.l6:    ep128emuSystemCall  4
+
+fileOpenW:
+        ep128emuSystemCall  4
         ld    (ix + 7), 0
         ld    (ix + 8), 0ffh
         or    a
-        jr    z, .l7
+        jr    z, .l1
         cp    0e9h                      ; file not open
         ret   nz
-.l7:    ep128emuSystemCall  2
+.l1:    ep128emuSystemCall  2
         or    a
         ret   nz
         call  checkCASExtension
-        jr    z, .l8
+        jr    z, .l2
         xor   a
         ret
-.l8:    push  bc                        ; write .CAS header for empty file
+.l2:    push  bc                        ; write .CAS header for empty file
         push  de
         ld    bc, 0000h
-        ld    de, 0000h
+        ld    de, 0080h
         call  writeCASHeader.l1
         pop   de
         pop   bc
@@ -270,16 +275,6 @@ updateCASHeader:
         ep128emuSystemCall  7
         or    a
         ret   nz
-        push  hl
-        ld    hl, 0ff80h
-        add   hl, de
-        ld    e, l
-        ld    d, h
-        ld    hl, 0ffffh
-        adc   hl, bc
-        ld    c, l
-        ld    b, h
-        pop   hl
 
 writeCASHeader:
         push  bc
@@ -292,37 +287,48 @@ writeCASHeader:
         or    a
         ret   nz
 .l1:    ld    a, e
-        res   7, e
-        rla
+        or    d
+        jr    nz, .l2
+        dec   bc
+.l2:    dec   de
+        sla   e
         rl    d
         rl    c
         rl    b
         ld    a, 0e7h                   ; invalid .CAS header
         ret   nz
         ld    b, c
-        ld    c, 11h
+        ld    a, d
+        or    b
+        cp    1
+        sbc   a, a                      ; A = FFh if 0 blocks
+        or    e
+        rrca
+        inc   a
+        ld    e, a                      ; E = number of bytes used in last block
+        ld    c, 11h                    ; byte 0 = 11h
         ep128emuSystemCall  6
         or    a
         ret   nz
-        ld    c, a
+        ld    c, a                      ; byte 1 = 00h
         ep128emuSystemCall  6
         or    a
         ret   nz
-        ld    c, d
+        ld    c, d                      ; byte 2 = number of blocks LSB
         ep128emuSystemCall  6
         or    a
         ret   nz
-        ld    c, b
+        ld    c, b                      ; byte 3 = number of blocks MSB
         ep128emuSystemCall  6
         or    a
         ret   nz
-        ld    a, e
+        ld    a, e                      ; byte 4 = bytes used in last block
         ld    b, 7ch
-.l2:    ld    c, a
+.l3:    ld    c, a
         ep128emuSystemCall  6
         or    a
         ret   nz
-        djnz  .l2
+        djnz  .l3
         ret
 
 fileClose:

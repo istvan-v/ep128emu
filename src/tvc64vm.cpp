@@ -422,10 +422,7 @@ namespace TVC64 {
         }
       }
       catch (...) {
-        if (fileIOFile) {
-          std::fclose(fileIOFile);
-          fileIOFile = (std::FILE *) 0;
-        }
+        closeFile();
         R.AF.B.h = 0xFB;        // not enough memory
       }
       break;
@@ -461,7 +458,7 @@ namespace TVC64 {
       break;
     case 6:                             // write character
       fileIOWriteFlag = true;
-      if (std::fputc(R.BC.B.l, fileIOFile) != 0)
+      if (std::fputc(R.BC.B.l, fileIOFile) == EOF)
         R.AF.B.h = 0xA3;        // disk full
       else
         R.AF.B.h = 0x00;
