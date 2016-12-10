@@ -16,7 +16,7 @@ BEGIN
     BEGIN
       VALUE "Comments", "Home page: https://github.com/istvan-v/ep128emu/"
       VALUE "CompanyName", "Istvan Varga"
-      VALUE "FileDescription", "ep128emu - Enterprise 64/128, Spectrum 48/128, and CPC 464/664/6128 emulator"
+      VALUE "FileDescription", "ep128emu - Enterprise 64/128, Spectrum 48/128, CPC 464/664/6128 and Videoton TVC emulator"
       VALUE "FileVersion", "2.0.11.0"
       VALUE "InternalName", "ep128emu"
       VALUE "LegalCopyright", "Copyright (C) 2003-2016, GPL v2 or later"
@@ -34,3 +34,5 @@ END
 101 ICON ".\\resource\\ep128emu.ico"
 102 ICON ".\\resource\\zx128emu.ico"
 103 ICON ".\\resource\\cpc464emu.ico"
+104 ICON ".\\resource\\tvc64emu.ico"
+

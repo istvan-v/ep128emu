@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=tvc64emu
+Comment=Videoton TVC emulator
+Comment[hu]=Videoton TVC emulátor
+Exec=tvc64emu
+Icon=tvc64emu
+Categories=Game;Emulator;
