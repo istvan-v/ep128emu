@@ -464,7 +464,7 @@ namespace Ep128 {
           filePos = long(readUserMemory(uint16_t(R.DE.W)))
                     | (long(readUserMemory(uint16_t(R.DE.W + 1))) << 8)
                     | (long(readUserMemory(uint16_t(R.DE.W + 2))) << 16)
-                    | (long(readUserMemory(uint16_t(R.DE.W + 2))) << 24);
+                    | (long(readUserMemory(uint16_t(R.DE.W + 3))) << 24);
           if (filePos & long(0x80000000UL)) {
             R.AF.B.h = 0xAE;            // negative position: invalid parameter
             break;
@@ -477,7 +477,7 @@ namespace Ep128 {
           break;
         }
         // set or restore file position
-        if (filePos > fileSize && filePos >= 0x01000000L) {
+        if (filePos > fileSize && filePos >= 0x02000000L) {
           R.AF.B.h = 0xAE;              // invalid parameter
           break;
         }
