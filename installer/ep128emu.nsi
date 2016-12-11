@@ -166,14 +166,14 @@ Section "ep128emu binaries" SecMain
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc6128emu - Software - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 1' "$INSTDIR\ep128emu.exe" 2
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc6128emu - Software - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 2' "$INSTDIR\ep128emu.exe" 2
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\CPC emulator\cpc6128emu - Software - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-cpc -no-opengl -colorscheme 3' "$INSTDIR\ep128emu.exe" 2
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - GL - default theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -opengl' "$INSTDIR\ep128emu.exe" 2
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - GL - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -opengl -colorscheme 1' "$INSTDIR\ep128emu.exe" 2
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - GL - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -opengl -colorscheme 2' "$INSTDIR\ep128emu.exe" 2
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - GL - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -opengl -colorscheme 3' "$INSTDIR\ep128emu.exe" 2
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - Software - default theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -no-opengl' "$INSTDIR\ep128emu.exe" 2
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - Software - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -no-opengl -colorscheme 1' "$INSTDIR\ep128emu.exe" 2
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - Software - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -no-opengl -colorscheme 2' "$INSTDIR\ep128emu.exe" 2
-    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - Software - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -no-opengl -colorscheme 3' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - GL - default theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -opengl' "$INSTDIR\ep128emu.exe" 3
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - GL - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -opengl -colorscheme 1' "$INSTDIR\ep128emu.exe" 3
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - GL - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -opengl -colorscheme 2' "$INSTDIR\ep128emu.exe" 3
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - GL - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -opengl -colorscheme 3' "$INSTDIR\ep128emu.exe" 3
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - Software - default theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -no-opengl' "$INSTDIR\ep128emu.exe" 3
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - Software - Win2000 theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -no-opengl -colorscheme 1' "$INSTDIR\ep128emu.exe" 3
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - Software - plastic theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -no-opengl -colorscheme 2' "$INSTDIR\ep128emu.exe" 3
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\TVC emulator\tvc64emu - Software - Gtk+ theme.lnk" "$INSTDIR\ep128emu.exe" '-tvc -no-opengl -colorscheme 3' "$INSTDIR\ep128emu.exe" 3
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\README.lnk" "$INSTDIR\readme.txt"
     SetOutPath "$INSTDIR\tape"
     CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Tape editor.lnk" "$INSTDIR\tapeedit.exe"
