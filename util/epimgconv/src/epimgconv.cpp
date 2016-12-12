@@ -1,6 +1,6 @@
 
 // epimgconv: Enterprise 128 image converter utility
-// Copyright (C) 2008-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2008-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -1567,6 +1567,22 @@ namespace Ep128ImgConv {
     float   r = float(ri) / 7.0;
     float   g = float(gi) / 7.0;
     float   b = float(bi) / 3.0;
+    if (monitorGamma_ < 0.99999 || monitorGamma_ > 1.00001) {
+      r = float(std::pow(double(r), monitorGamma_));
+      g = float(std::pow(double(g), monitorGamma_));
+      b = float(std::pow(double(b), monitorGamma_));
+    }
+    rgbToYUV(y, u, v, r, g, b);
+  }
+
+  void convertTVCColorToYUV(int c, float& y, float& u, float& v,
+                            double monitorGamma_)
+  {
+    c = (c | (c >> 1)) & 0x55;
+    float   i = (!(c & 0x40) ? float(4.0 / 7.0) : 1.0f);
+    float   r = (!(c & 0x04) ? 0.0f : i);
+    float   g = (!(c & 0x10) ? 0.0f : i);
+    float   b = (!(c & 0x01) ? 0.0f : i);
     if (monitorGamma_ < 0.99999 || monitorGamma_ > 1.00001) {
       r = float(std::pow(double(r), monitorGamma_));
       g = float(std::pow(double(g), monitorGamma_));

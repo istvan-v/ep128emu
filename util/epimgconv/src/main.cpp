@@ -1,6 +1,6 @@
 
 // epimgconv: Enterprise 128 image converter utility
-// Copyright (C) 2008-2011 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2008-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -28,6 +28,9 @@
 #include "pixel16_2.hpp"
 #include "pixel256.hpp"
 #include "attr16.hpp"
+#include "tvc_2.hpp"
+#include "tvc_4.hpp"
+#include "tvc_16.hpp"
 #include "imgwrite.hpp"
 
 #include <string>
@@ -349,12 +352,15 @@ int main(int argc, char **argv)
     Ep128ImgConv::limitValue(config.colorSaturationMult, 0.0f, 8.0f);
     Ep128ImgConv::limitValue(config.gammaCorrection, 0.25f, 4.0f);
     Ep128ImgConv::limitValue(config.fixBias, -1, 31);
-    Ep128ImgConv::limitValue(outputFormat, 0, 29);
+    Ep128ImgConv::limitValue(outputFormat, 0, 59);
     if (!((outputFormat >= 0 && outputFormat <= 6) ||
-          (outputFormat >= 11 && outputFormat <= 19) ||
-          (outputFormat >= 21 && outputFormat <= 29))) {
+          (outputFormat >= 11 && outputFormat <= 59 &&
+           outputFormat != 20 && outputFormat != 30 && outputFormat != 40))) {
       throw Ep128Emu::Exception("invalid output format");
     }
+    // TVC video modes are only valid when using TVC KEP output format
+    if ((outputFormat >= 50) != ((config.conversionType % 10) >= 7))
+      throw Ep128Emu::Exception("invalid video mode for output format");
     if (outputFormat >= 2 && outputFormat <= 5) {
       // non-IVIEW formats do not support interlace
       // Agsys CRF format only supports 4-color PIXEL mode
@@ -386,7 +392,7 @@ int main(int argc, char **argv)
     int     biasResolution = 0;
     int     interlaceMode = 0;
     int     compressionType = 0;
-    if (config.conversionType >= 10 && config.conversionType <= 16) {
+    if (config.conversionType >= 10 && config.conversionType <= 19) {
       config.conversionType = config.conversionType - 10;
       interlaceMode = 0x9C;
     }
@@ -394,6 +400,7 @@ int main(int argc, char **argv)
       interlaceMode = interlaceMode & 0x98;     // fixed palette
     switch (config.conversionType) {
     case 0:                                     // PIXEL / 2 colors
+    case 7:                                     // TVC 2 colors
       videoMode = 0x02;
       interlaceMode = interlaceMode & 0x94;
       for (int i = 0; i < 2; i++) {
@@ -406,6 +413,7 @@ int main(int argc, char **argv)
       }
       break;
     case 1:                                     // PIXEL / 4 colors
+    case 8:                                     // TVC 4 colors
       videoMode = 0x22;
       interlaceMode = interlaceMode & 0x94;
       for (int i = 0; i < 4; i++) {
@@ -431,8 +439,9 @@ int main(int argc, char **argv)
         }
       }
       break;
-    case 5:
-      videoMode = 0x62;                         // PIXEL / 256 colors
+    case 5:                                     // PIXEL / 256 colors
+    case 9:                                     // TVC 16 colors
+      videoMode = (config.conversionType == 5 ? 0x62 : 0x42);
       config.paletteResolution = 0;
       interlaceMode = interlaceMode & 0x90;
       break;
@@ -487,6 +496,15 @@ int main(int argc, char **argv)
       case 6:                                   // ATTRIBUTE / 16 colors
         converter = new Ep128ImgConv::ImageConv_Attr16();
         break;
+      case 7:                                   // TVC 2 colors
+        converter = new Ep128ImgConv::ImageConv_TVCPixel2();
+        break;
+      case 8:                                   // TVC 4 colors
+        converter = new Ep128ImgConv::ImageConv_TVCPixel4();
+        break;
+      case 9:                                   // TVC 16 colors
+        converter = new Ep128ImgConv::ImageConv_TVCPixel16();
+        break;
       }
       Ep128ImgConv::YUVImageConverter imgConv;
       imgConv.setScaleMode(config.scaleMode);
@@ -530,23 +548,28 @@ int main(int argc, char **argv)
       std::fprintf(stderr, "    --\n");
       std::fprintf(stderr, "        interpret all remaining arguments as file "
                            "names\n");
-      std::fprintf(stderr, "    -mode <N>           (0 to 6, or 10 to 16 for "
+      std::fprintf(stderr, "    -mode <N>           (0 to 9, or 10 to 19 for "
                            "interlace; default: 2)\n");
       std::fprintf(stderr, "        select video mode\n");
       std::fprintf(stderr, "    -palres <N>         (0 or 1, default: 1)\n");
       std::fprintf(stderr, "        set palette resolution (0: fixed for the "
                            "whole image, 1: palette\n"
                            "        can be set independently for each line)\n");
-      std::fprintf(stderr, "    -outfmt <N>         (0-6, 11-19, or 21-29; "
+      std::fprintf(stderr, "    -outfmt <N>         (0 to 6 or 11 to 59; "
                            "default: 0)\n");
       std::fprintf(stderr, "        write output as program (0) or image data "
-                           "file (1: IVIEW,\n"
-                           "        2: Agsys CRF, 3: ZozoTools VL/VS, "
-                           "4: PaintBox, 5: Zaxial,\n"
-                           "        6: raw attribute and pixel data only, "
-                           "11 to 19 or 21 to 29:\n"
-                           "        IVIEW with compression type N/10 "
-                           "and compression level N%%10)\n");
+                           "file:\n"
+                           "            1: IVIEW\n"
+                           "            2: Agsys CRF\n"
+                           "            3: ZozoTools VL/VS\n"
+                           "            4: PaintBox\n"
+                           "            5: Zaxial\n"
+                           "            6: raw attribute and pixel data only\n"
+                           "            11-49: IVIEW with compression type "
+                           "N/10 and compression\n"
+                           "                   level N%%10\n"
+                           "            50-59: TVC KEP format (50: "
+                           "uncompressed, 55: RLE)\n");
       std::fprintf(stderr, "    -raw <N>            (0 or 1, default: 0)\n");
       std::fprintf(stderr, "        same as -outfmt, but allows uncompressed "
                            "IVIEW format only\n");

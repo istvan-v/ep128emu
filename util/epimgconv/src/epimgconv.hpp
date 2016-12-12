@@ -1,6 +1,6 @@
 
 // epimgconv: Enterprise 128 image converter utility
-// Copyright (C) 2008-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2008-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -340,6 +340,9 @@ namespace Ep128ImgConv {
 
   void convertEPColorToYUV(int c, float& y, float& u, float& v,
                            double monitorGamma_ = 1.0);
+
+  void convertTVCColorToYUV(int c, float& y, float& u, float& v,
+                            double monitorGamma_ = 1.0);
 
   // make sure that the color is not out of range in the RGB colorspace,
   // but preserve the original hue

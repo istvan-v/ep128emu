@@ -544,6 +544,9 @@ if buildUtilities:
                         util/epimgconv/src/pixel256.cpp
                         util/epimgconv/src/pixel2.cpp
                         util/epimgconv/src/pixel4.cpp
+                        util/epimgconv/src/tvc_16.cpp
+                        util/epimgconv/src/tvc_2.cpp
+                        util/epimgconv/src/tvc_4.cpp
                     '''))
     Depends(epimgconv, compressLib)
     Depends(epimgconv, ep128emuLib)

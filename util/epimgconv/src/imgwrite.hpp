@@ -1,6 +1,6 @@
 
 // epimgconv: Enterprise 128 image converter utility
-// Copyright (C) 2008-2011 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2008-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -49,6 +49,10 @@ namespace Ep128ImgConv {
 
   bool writeEPImageAsRawFile(std::FILE *f,
                              const Ep128ImgConv::ImageData& imgData);
+
+  bool writeTVCImageAsKEPFile(std::FILE *f,
+                              const Ep128ImgConv::ImageData& imgData,
+                              int outputFormat = 50);
 
   void writeConvertedImageFile(const char *fileName, const ImageData& imgData,
                                int outputFormat = 0, bool noCompress = false);
