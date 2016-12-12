@@ -1,0 +1,32 @@
+#!/bin/bash
+basedir="${PWD}"
+srcdir="${basedir}/src/"
+fltkdir="${basedir}/fltk/"
+outputdir="${basedir}/po"
+[[ -d "${outputdir}" ]] || mkdir -p "${outputdir}"
+programminglanguage="c++"
+defaultdomain="ep128emu"
+packagename="ep128emu"
+comments="//"
+pofile="ep128emu.pot"
+
+xgettext -a -p "$outputdir" --strict --from-code=CP1250 --default-domain="$defaultdomain" --package-name="\"$packagename\"" --output "${outputdir}/${pofile}" gui/*.cpp src/*.cpp
+sed -i 's/CHARSET/UTF-8/' "${outputdir}/${pofile}"
+#programminglanguage="Shell"
+#comments="#"
+#cd "${basedir}"
+#echo "Generating the locales"
+#for locale in "$outputdir/"**.po
+#do
+#  if [[ -f "$locale" ]]
+#  then
+#    echo $locale
+#    DIR="${locale/*\/}"
+#    DIR="${DIR/.po}"
+#    DIR="$basedir/usr/share/locale/$DIR/LC_MESSAGES/"
+#    [[ -d "$DIR" ]] || mkdir -p "$DIR"
+#    msgfmt -o "$defaultdomain.mo" "$locale"
+#    mv "$defaultdomain.mo" "$DIR"
+#  fi
+#done
+#echo "Done"
