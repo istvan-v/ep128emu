@@ -65,10 +65,6 @@ static const unsigned char imageDisplayCode[] = {
   0xD3, 0xB1, 0x79, 0xD3, 0xB3, 0xE9, 0x00, 0x00
 };
 
-static const int compressionTypes[10] = {
-  -1, 2, 0, 3, 5, -1, 2, 0, 3, 5
-};
-
 namespace Ep128ImgConv {
 
   bool writeEPImageAsProgram(std::FILE *f,
@@ -285,92 +281,38 @@ namespace Ep128ImgConv {
     return true;
   }
 
-  bool writeEPImageAsIViewFile(std::FILE *f,
-                               const Ep128ImgConv::ImageData& imgData,
-                               int outputFormat)
+  static void compressDataBlock(std::vector< unsigned char >& outBuf,
+                                const std::vector< unsigned char >& inBuf,
+                                int compressionType, int compressionLevel)
   {
+    static const int compressionTypes[4] = {
+      2, 0, 3, 5
+    };
     Ep128Compress::Compressor *compress_ = (Ep128Compress::Compressor *) 0;
     try {
-      size_t  offsTable[11];
-      for (int i = 0; i < 2; i++) {
-        offsTable[0 + (i * 5)] = imgData.getVideoModeTableOffset(i);
-        offsTable[1 + (i * 5)] = imgData.getFixBiasTableOffset(i);
-        offsTable[2 + (i * 5)] = imgData.getPaletteDataOffset(i);
-        offsTable[3 + (i * 5)] = imgData.getAttributeDataOffset(i);
-        offsTable[4 + (i * 5)] = imgData.getVideoDataOffset(i);
+      Ep128Compress::Compressor::CompressionParameters  cfg;
+      compressionType = compressionTypes[(compressionType - 1) & 3];
+      compress_ = Ep128Compress::createCompressor(compressionType, outBuf);
+      compress_->getCompressionParameters(cfg);
+      if (compressionLevel >= 1 && compressionLevel <= 9) {
+        cfg.setCompressionLevel(compressionLevel);
       }
-      offsTable[10] = imgData.size();
-      for (int i = 9; i >= 0; i--) {
-        if (offsTable[i] == 0)
-          offsTable[i] = offsTable[i + 1];
-      }
-      std::vector< unsigned char >  buf;
-      if (outputFormat < 10) {
-        for (size_t i = 0; i < 16; i++)
-          buf.push_back(imgData[i]);
-        buf[11] = (unsigned char) (int(bool(buf[5] & 0x1F)) + 1);
-      }
-      size_t  attrOffset = 0;
-      for (int i = 0; i != 14; i += 5) {
-        i = (i < 10 ? i : (i - 9));
-        if (i == 3)
-          attrOffset = buf.size();
-        for (size_t j = offsTable[i]; j < offsTable[i + 1]; j++)
-          buf.push_back(imgData[j]);
-      }
-      if (outputFormat >= 10) {
-        if (buf.size() > 0xFE00) {
-          throw Ep128Emu::Exception("image data size is too large for "
-                                    "output format");
+      else {
+        // level -1 = default "fast" setting
+        // level -2 = default "maximum" setting
+         if (compressionLevel >= -1)
+          cfg.setCompressionLevel(compressionType == 2 ? 5 : 8);
+        else
+          cfg.setCompressionLevel(9);
+        if (compressionType == 5) {
+          cfg.minLength = 3;
+          cfg.maxOffset = 32768;
         }
-        std::vector< unsigned char >  tmpBuf;
-        std::vector< unsigned char >  tmpBuf2;
-        {
-          compress_ = Ep128Compress::createCompressor(
-                          compressionTypes[outputFormat / 10], tmpBuf);
-          compress_->setCompressionLevel(outputFormat % 10);
-          tmpBuf2.insert(tmpBuf2.end(),
-                         buf.begin(), buf.begin() + attrOffset);
-          compress_->compressData(tmpBuf2, 0xFFFFFFFFU, true, true);
-          delete compress_;
-          compress_ = (Ep128Compress::Compressor *) 0;
-          size_t  uncompressedSize = tmpBuf2.size();
-          tmpBuf2.clear();
-          tmpBuf2.insert(tmpBuf2.end(),
-                         buf.begin() + attrOffset, buf.end());
-          buf.clear();
-          for (size_t i = 0; i < 16; i++)
-            buf.push_back(imgData[i]);
-          buf[10] = (unsigned char) (outputFormat / 10);
-          buf[11] = (unsigned char) (int(bool(buf[5] & 0x1F)) + 1);
-          buf.push_back((unsigned char) (uncompressedSize & 0xFF));
-          buf.push_back((unsigned char) ((uncompressedSize >> 8) & 0xFF));
-          buf.push_back((unsigned char) (tmpBuf.size() & 0xFF));
-          buf.push_back((unsigned char) ((tmpBuf.size() >> 8) & 0xFF));
-          buf.insert(buf.end(), tmpBuf.begin(), tmpBuf.end());
-          tmpBuf.clear();
-        }
-        {
-          compress_ = Ep128Compress::createCompressor(
-                          compressionTypes[outputFormat / 10], tmpBuf);
-          compress_->setCompressionLevel(outputFormat % 10);
-          compress_->compressData(tmpBuf2, 0xFFFFFFFFU, true, true);
-          delete compress_;
-          compress_ = (Ep128Compress::Compressor *) 0;
-          size_t  uncompressedSize = tmpBuf2.size();
-          tmpBuf2.clear();
-          buf.push_back((unsigned char) (uncompressedSize & 0xFF));
-          buf.push_back((unsigned char) ((uncompressedSize >> 8) & 0xFF));
-          buf.push_back((unsigned char) (tmpBuf.size() & 0xFF));
-          buf.push_back((unsigned char) ((tmpBuf.size() >> 8) & 0xFF));
-          buf.insert(buf.end(), tmpBuf.begin(), tmpBuf.end());
-          tmpBuf.clear();
-        }
+        compress_->setCompressionParameters(cfg);
       }
-      for (size_t i = 0; i < buf.size(); i++) {
-        if (std::fputc(buf[i], f) == EOF)
-          return false;
-      }
+      compress_->compressData(inBuf, 0xFFFFFFFFU, true, true);
+      delete compress_;
+      compress_ = (Ep128Compress::Compressor *) 0;
     }
     catch (...) {
       if (compress_) {
@@ -378,6 +320,84 @@ namespace Ep128ImgConv {
         compress_ = (Ep128Compress::Compressor *) 0;
       }
       throw;
+    }
+  }
+
+  bool writeEPImageAsIViewFile(std::FILE *f,
+                               const Ep128ImgConv::ImageData& imgData,
+                               int outputFormat)
+  {
+    size_t  offsTable[11];
+    for (int i = 0; i < 2; i++) {
+      offsTable[0 + (i * 5)] = imgData.getVideoModeTableOffset(i);
+      offsTable[1 + (i * 5)] = imgData.getFixBiasTableOffset(i);
+      offsTable[2 + (i * 5)] = imgData.getPaletteDataOffset(i);
+      offsTable[3 + (i * 5)] = imgData.getAttributeDataOffset(i);
+      offsTable[4 + (i * 5)] = imgData.getVideoDataOffset(i);
+    }
+    offsTable[10] = imgData.size();
+    for (int i = 9; i >= 0; i--) {
+      if (offsTable[i] == 0)
+        offsTable[i] = offsTable[i + 1];
+    }
+    std::vector< unsigned char >  buf;
+    if (outputFormat < 10) {
+      for (size_t i = 0; i < 16; i++)
+        buf.push_back(imgData[i]);
+      buf[11] = (unsigned char) (int(bool(buf[5] & 0x1F)) + 1);
+    }
+    size_t  attrOffset = 0;
+    for (int i = 0; i != 14; i += 5) {
+      i = (i < 10 ? i : (i - 9));
+      if (i == 3)
+        attrOffset = buf.size();
+      for (size_t j = offsTable[i]; j < offsTable[i + 1]; j++)
+        buf.push_back(imgData[j]);
+    }
+    if (outputFormat >= 10) {
+      if (buf.size() > 0xFE00) {
+        throw Ep128Emu::Exception("image data size is too large for "
+                                  "output format");
+      }
+      std::vector< unsigned char >  tmpBuf;
+      std::vector< unsigned char >  tmpBuf2;
+      {
+        tmpBuf2.insert(tmpBuf2.end(),
+                       buf.begin(), buf.begin() + attrOffset);
+        compressDataBlock(tmpBuf, tmpBuf2,
+                          outputFormat / 10, outputFormat % 10);
+        size_t  uncompressedSize = tmpBuf2.size();
+        tmpBuf2.clear();
+        tmpBuf2.insert(tmpBuf2.end(),
+                       buf.begin() + attrOffset, buf.end());
+        buf.clear();
+        for (size_t i = 0; i < 16; i++)
+          buf.push_back(imgData[i]);
+        buf[10] = (unsigned char) (outputFormat / 10);
+        buf[11] = (unsigned char) (int(bool(buf[5] & 0x1F)) + 1);
+        buf.push_back((unsigned char) (uncompressedSize & 0xFF));
+        buf.push_back((unsigned char) ((uncompressedSize >> 8) & 0xFF));
+        buf.push_back((unsigned char) (tmpBuf.size() & 0xFF));
+        buf.push_back((unsigned char) ((tmpBuf.size() >> 8) & 0xFF));
+        buf.insert(buf.end(), tmpBuf.begin(), tmpBuf.end());
+        tmpBuf.clear();
+      }
+      {
+        compressDataBlock(tmpBuf, tmpBuf2,
+                          outputFormat / 10, outputFormat % 10);
+        size_t  uncompressedSize = tmpBuf2.size();
+        tmpBuf2.clear();
+        buf.push_back((unsigned char) (uncompressedSize & 0xFF));
+        buf.push_back((unsigned char) ((uncompressedSize >> 8) & 0xFF));
+        buf.push_back((unsigned char) (tmpBuf.size() & 0xFF));
+        buf.push_back((unsigned char) ((tmpBuf.size() >> 8) & 0xFF));
+        buf.insert(buf.end(), tmpBuf.begin(), tmpBuf.end());
+        tmpBuf.clear();
+      }
+    }
+    for (size_t i = 0; i < buf.size(); i++) {
+      if (std::fputc(buf[i], f) == EOF)
+        return false;
     }
     return true;
   }
@@ -718,151 +738,168 @@ namespace Ep128ImgConv {
     return true;
   }
 
+  static void tvcKEPCompress(std::vector< unsigned char >& outBuf,
+                             const unsigned char *inBuf, int w, int h)
+  {
+    size_t  nBytes = size_t(w * h);
+    std::vector< size_t >         compressedSizeBuf((nBytes + 1) << 2, 0);
+    std::vector< unsigned char >  lenBuf(nBytes << 2);
+    for (size_t i = nBytes; i-- > 0; ) {
+      unsigned char c = inBuf[i];
+      unsigned char maxLen = 63;
+      // RLE sequences may not cross line boundaries
+      if (int(maxLen) > (w - (int(i) % w)))
+        maxLen = (unsigned char) (w - (int(i) % w));
+      for (unsigned char m = 0; m < 4; m++) {
+        size_t  bestSize =
+            compressedSizeBuf[((i + 1) << 2) + ((m + 1) & 3)] + 2;
+        unsigned char bestLen = 1;
+        if ((c ^ (m << 6)) & 0xC0) {
+          size_t  n = compressedSizeBuf[((i + 1) << 2) + m] + 1;
+          if (n <= bestSize) {
+            bestSize = n;
+            bestLen = 0;
+          }
+        }
+        for (unsigned char l = 2; l <= maxLen; l++) {
+          if (inBuf[i + (l - 1)] != c) {
+            maxLen = l - 1;
+            break;
+          }
+          size_t  n = compressedSizeBuf[((i + l) << 2) + m] + 2;
+          if (n <= bestSize) {
+            bestSize = n;
+            bestLen = l;
+          }
+        }
+        compressedSizeBuf[(i << 2) + m] = bestSize;
+        lenBuf[(i << 2) + m] = bestLen;
+      }
+    }
+    unsigned char m = 0;
+    for (size_t i = 0; i < nBytes; ) {
+      unsigned char l = lenBuf[(i << 2) + m];
+      unsigned char c = inBuf[i];
+      if (!l) {
+        l = 1;
+      }
+      else {
+        outBuf.push_back((m << 6) | l);
+        if (l == 1)
+          m = (m + 1) & 3;
+      }
+      outBuf.push_back(c);
+      i = i + l;
+    }
+  }
+
   bool writeTVCImageAsKEPFile(std::FILE *f,
                               const Ep128ImgConv::ImageData& imgData,
                               int outputFormat)
   {
-    Ep128Compress::Compressor *compress_ = (Ep128Compress::Compressor *) 0;
-    try {
-      std::vector< unsigned char >  tmpBuf;
-      std::vector< unsigned char >  tmpBuf2;
-      size_t  offsTable[11];
-      for (int i = 0; i < 2; i++) {
-        offsTable[0 + (i * 5)] = imgData.getVideoModeTableOffset(i);
-        offsTable[1 + (i * 5)] = imgData.getFixBiasTableOffset(i);
-        offsTable[2 + (i * 5)] = imgData.getPaletteDataOffset(i);
-        offsTable[3 + (i * 5)] = imgData.getAttributeDataOffset(i);
-        offsTable[4 + (i * 5)] = imgData.getVideoDataOffset(i);
+    std::vector< unsigned char >  tmpBuf;
+    std::vector< unsigned char >  tmpBuf2;
+    size_t  offsTable[11];
+    for (int i = 0; i < 2; i++) {
+      offsTable[0 + (i * 5)] = imgData.getVideoModeTableOffset(i);
+      offsTable[1 + (i * 5)] = imgData.getFixBiasTableOffset(i);
+      offsTable[2 + (i * 5)] = imgData.getPaletteDataOffset(i);
+      offsTable[3 + (i * 5)] = imgData.getAttributeDataOffset(i);
+      offsTable[4 + (i * 5)] = imgData.getVideoDataOffset(i);
+    }
+    offsTable[10] = imgData.size();
+    for (int i = 9; i >= 0; i--) {
+      if (offsTable[i] == 0)
+        offsTable[i] = offsTable[i + 1];
+    }
+    std::vector< unsigned char >  buf;
+    unsigned char mode = (imgData[offsTable[0]] & 0x60) >> 5;
+    unsigned int  width = (unsigned int) imgData[8];
+    unsigned int  height =
+        (unsigned int) imgData[6] | ((unsigned int) imgData[7] << 8);
+    width = width << (4 - mode);
+    if (outputFormat != 50 && outputFormat != 55)
+      mode |= (unsigned char) (0x90 | (((outputFormat % 5) - 1) << 2));
+    if (imgData[4] != 0 && !(mode & 0x02))
+      mode = mode | 0xA0;
+    if (imgData[5] & 0x10) {
+      height = height << 1;
+      mode = mode | 0xC0;
+    }
+    if (!(mode & 0x10))
+      mode = mode | (outputFormat == 50 ? 0x08 : 0x0C);
+    // write header
+    buf.push_back(0x4B);                // 'K'
+    buf.push_back(0x45);                // 'E'
+    buf.push_back(0x50);                // 'P'
+    buf.push_back(mode);                // format / compression byte
+    buf.push_back(0x00);                // palette color 0
+    buf.push_back(0x00);                // palette color 1
+    buf.push_back(0x00);                // palette color 2
+    buf.push_back(0x00);                // palette color 3
+    buf.push_back((unsigned char) (width & 0xFFU));     // width LSB
+    buf.push_back((unsigned char) (width >> 8));        // width MSB
+    buf.push_back((unsigned char) (height & 0xFFU));    // height LSB
+    buf.push_back((unsigned char) (height >> 8));       // height MSB
+    // write palette
+    if (!(mode & 0x20)) {
+      // -palres 0
+      for (size_t i = 0; i < 4; i++) {
+        if (i >= (offsTable[3] - offsTable[2]))
+          break;
+        buf[i + 4] = imgData[offsTable[2] + i];
       }
-      offsTable[10] = imgData.size();
-      for (int i = 9; i >= 0; i--) {
-        if (offsTable[i] == 0)
-          offsTable[i] = offsTable[i + 1];
-      }
-      std::vector< unsigned char >  buf;
-      unsigned char mode = (imgData[offsTable[0]] & 0x60) >> 5;
-      unsigned int  width = (unsigned int) imgData[8];
-      unsigned int  height =
-          (unsigned int) imgData[6] | ((unsigned int) imgData[7] << 8);
-      width = width << (4 - mode);
-      if (outputFormat != 50 && outputFormat != 55)
-        mode |= (unsigned char) (0x90 | (((outputFormat % 5) - 1) << 2));
-      if (imgData[4] != 0 && !(mode & 0x02))
-        mode = mode | 0xA0;
-      if (imgData[5] & 0x10) {
-        height = height << 1;
-        mode = mode | 0xC0;
-      }
-      if (!(mode & 0xF0))
-        mode = mode | (outputFormat == 50 ? 0x08 : 0x0C);
-      // write header
-      buf.push_back(0x4B);              // 'K'
-      buf.push_back(0x45);              // 'E'
-      buf.push_back(0x50);              // 'P'
-      buf.push_back(mode);              // format / compression byte
-      buf.push_back(0x00);              // palette color 0
-      buf.push_back(0x00);              // palette color 1
-      buf.push_back(0x00);              // palette color 2
-      buf.push_back(0x00);              // palette color 3
-      buf.push_back((unsigned char) (width & 0xFFU));   // width LSB
-      buf.push_back((unsigned char) (width >> 8));      // width MSB
-      buf.push_back((unsigned char) (height & 0xFFU));  // height LSB
-      buf.push_back((unsigned char) (height >> 8));     // height MSB
-      // write palette
-      if (!(mode & 0x20)) {
-        // -palres 0
-        for (size_t i = 0; i < 4; i++) {
-          if (i >= (offsTable[3] - offsTable[2]))
-            break;
-          buf[i + 4] = imgData[offsTable[2] + i];
-        }
+    }
+    else {
+      // -palres 1
+      if (!(mode & 0x10)) {
+        for (size_t i = offsTable[2]; i < offsTable[3]; i++)
+          buf.push_back(imgData[i]);
+        for (size_t i = offsTable[7]; i < offsTable[8]; i++)
+          buf.push_back(imgData[i]);
       }
       else {
-        // -palres 1
-        if (!(mode & 0x10)) {
-          for (size_t i = offsTable[2]; i < offsTable[3]; i++)
-            buf.push_back(imgData[i]);
-          for (size_t i = offsTable[7]; i < offsTable[8]; i++)
-            buf.push_back(imgData[i]);
-        }
-        else {
-          tmpBuf.clear();
-          tmpBuf2.clear();
-          for (size_t i = offsTable[2]; i < offsTable[3]; i++)
-            tmpBuf.push_back(imgData[i]);
-          for (size_t i = offsTable[7]; i < offsTable[8]; i++)
-            tmpBuf.push_back(imgData[i]);
-          compress_ = Ep128Compress::createCompressor(
-                          compressionTypes[outputFormat % 5], tmpBuf2);
-          compress_->setCompressionLevel(outputFormat < 55 ? 5 : 9);
-          compress_->compressData(tmpBuf, 0xFFFFFFFFU, true, true);
-          delete compress_;
-          compress_ = (Ep128Compress::Compressor *) 0;
-          buf.insert(buf.end(), tmpBuf2.begin(), tmpBuf2.end());
-        }
+        tmpBuf.clear();
+        tmpBuf2.clear();
+        for (size_t i = offsTable[2]; i < offsTable[3]; i++)
+          tmpBuf.push_back(imgData[i]);
+        for (size_t i = offsTable[7]; i < offsTable[8]; i++)
+          tmpBuf.push_back(imgData[i]);
+        compressDataBlock(tmpBuf2, tmpBuf,
+                          outputFormat % 5, (outputFormat < 55 ? -1 : -2));
+        buf.insert(buf.end(), tmpBuf2.begin(), tmpBuf2.end());
       }
-      // write pixel data
+    }
+    // write pixel data
+    if (!(mode & 0x14)) {
+      // uncompressed format
+      for (size_t i = offsTable[4]; i < offsTable[5]; i++)
+        buf.push_back(imgData[i]);
+      for (size_t i = offsTable[9]; i < offsTable[10]; i++)
+        buf.push_back(imgData[i]);
+    }
+    else {
+      tmpBuf.clear();
+      for (size_t i = offsTable[4]; i < offsTable[5]; i++)
+        tmpBuf.push_back(imgData[i]);
+      for (size_t i = offsTable[9]; i < offsTable[10]; i++)
+        tmpBuf.push_back(imgData[i]);
       if (!(mode & 0x10)) {
-        if (!(mode & 0x04)) {
-          // uncompressed format
-          for (size_t i = offsTable[4]; i < offsTable[5]; i++)
-            buf.push_back(imgData[i]);
-          for (size_t i = offsTable[9]; i < offsTable[10]; i++)
-            buf.push_back(imgData[i]);
-        }
-        else {
-          // RLE compression
-          size_t        p = offsTable[4];
-          unsigned char m = 0x00;
-          for (unsigned int y = 0U; y < height; y++) {
-            if (p >= offsTable[5])
-              p = offsTable[9];
-            for (size_t x = 0; x < (size_t(imgData[8]) << 1); ) {
-              unsigned char c = imgData[p];
-              unsigned char l = 1;
-              while (l < 63 && (x + l) < (size_t(imgData[8]) << 1) &&
-                     imgData[p + l] == c) {
-                l++;
-              }
-              if (l > 1 || !((c ^ m) & 0xC0)) {
-                buf.push_back(l | m);
-                if (l == 1)
-                  m = (m + 0x40) & 0xC0;
-              }
-              buf.push_back(c);
-              x = x + l;
-              p = p + l;
-            }
-          }
-        }
+        // RLE compression
+        tvcKEPCompress(buf,
+                       &(tmpBuf.front()), int(imgData[8]) << 1, int(height));
       }
       else {
         // epcompress format
-        tmpBuf.clear();
         tmpBuf2.clear();
-        for (size_t i = offsTable[4]; i < offsTable[5]; i++)
-          tmpBuf.push_back(imgData[i]);
-        for (size_t i = offsTable[9]; i < offsTable[10]; i++)
-          tmpBuf.push_back(imgData[i]);
-        compress_ = Ep128Compress::createCompressor(
-                        compressionTypes[outputFormat % 5], tmpBuf2);
-        compress_->setCompressionLevel(outputFormat < 55 ? 5 : 9);
-        compress_->compressData(tmpBuf, 0xFFFFFFFFU, true, true);
-        delete compress_;
-        compress_ = (Ep128Compress::Compressor *) 0;
+        compressDataBlock(tmpBuf2, tmpBuf,
+                          outputFormat % 5, (outputFormat < 55 ? -1 : -2));
         buf.insert(buf.end(), tmpBuf2.begin(), tmpBuf2.end());
       }
-      for (size_t i = 0; i < buf.size(); i++) {
-        if (std::fputc(buf[i], f) == EOF)
-          return false;
-      }
     }
-    catch (...) {
-      if (compress_) {
-        delete compress_;
-        compress_ = (Ep128Compress::Compressor *) 0;
-      }
-      throw;
+    for (size_t i = 0; i < buf.size(); i++) {
+      if (std::fputc(buf[i], f) == EOF)
+        return false;
     }
     return true;
   }
