@@ -40,6 +40,8 @@ namespace Ep128ImgConv {
     setRandomSeed(tmp, uint32_t(seedValue));
     for (int i = 0; i < 4; i++) {
       unsigned char c = (unsigned char) (getRandomNumber(tmp) & 0x55);
+      if (c == 0x40)
+        c = 0x00;
       if (!fixedColors[i])
         palette[yc][i] = c;
     }
@@ -144,7 +146,7 @@ namespace Ep128ImgConv {
           int     bestColor = palette[yc][i];
           if (!fixedColors[i]) {
             for (int c = 0; c <= 0x55; c += (((c & 1) << 1) | 1)) {
-              if (c & 0xAA)
+              if ((c & 0xAA) != 0 || c == 0x40)
                 continue;               // skip redundant colors
               palette[yc][i] = (unsigned char) c;
               double  err = calculateLineError(yc, minErr);
@@ -175,7 +177,7 @@ namespace Ep128ImgConv {
     double  bestError = 1000000000.0;
     int     bestPalette[4];
     int     progressCnt = 0;
-    int     progressMax = optimizeLevel * 3 * 4 * 16;
+    int     progressMax = optimizeLevel * 3 * 4 * 15;
     for (int l = 0; l < optimizeLevel; l++) {
       randomizePalette(0, l + 1);
       setFixedPalette();
@@ -185,13 +187,13 @@ namespace Ep128ImgConv {
       do {
         doneFlag = true;
         if (++loopCnt > 3)
-          progressCnt -= (4 * 16);
+          progressCnt -= (4 * 15);
         for (int i = 0; i < 4; i++) {
           int     bestColor = palette[0][i];
           if (!fixedColors[i]) {
             for (int c = 0; c <= 0x55; c += (((c & 1) << 1) | 1)) {
-              if (c & 0xAA)
-                continue;
+              if ((c & 0xAA) != 0 || c == 0x40)
+                continue;               // skip redundant colors
               if (!setProgressPercentage(progressCnt * 100 / progressMax))
                 return -1.0;
               progressCnt++;
@@ -208,13 +210,13 @@ namespace Ep128ImgConv {
           else {
             if (!setProgressPercentage(progressCnt * 100 / progressMax))
               return -1.0;
-            progressCnt += 16;
+            progressCnt += 15;
           }
           palette[0][i] = (unsigned char) bestColor;
         }
       } while (!doneFlag);
       if (loopCnt < 3)
-        progressCnt += ((3 - loopCnt) * (4 * 16));
+        progressCnt += ((3 - loopCnt) * (4 * 15));
       if (minErr < bestError) {
         for (int i = 0; i < 4; i++)
           bestPalette[i] = palette[0][i];
@@ -232,11 +234,11 @@ namespace Ep128ImgConv {
   {
     // sort palette colors by color value
     for (int i = 0; i < 3; i++) {
+      if (fixedColors[i])
+        continue;
       for (int j = i + 1; j < 4; j++) {
-        if (fixedColors[i] || fixedColors[j] ||
-            palette[yc][i] <= palette[yc][j]) {
+        if (fixedColors[j] || palette[yc][i] <= palette[yc][j])
           continue;
-        }
         unsigned char tmp = palette[yc][i];
         palette[yc][i] = palette[yc][j];
         palette[yc][j] = tmp;
