@@ -1837,5 +1837,53 @@ namespace Ep128ImgConv {
     }
   }
 
+  void ditherLine_ordered_TVC16(IndexedImage& ditheredImage,
+                                const YUVImage& inputImage, long yc,
+                                int ditherType)
+  {
+    int     w = ditheredImage.getWidth();
+    if (w < inputImage.getWidth())
+      w = inputImage.getWidth();
+    int     h = ditheredImage.getHeight();
+    if (h < inputImage.getHeight())
+      h = inputImage.getHeight();
+    if (yc < 0L || yc >= long(h))
+      return;
+    const int *ditherTable = &(ditherTable_Bayer[0]);
+    if (ditherType == 5)
+      ditherTable = &(ditherTable_rand[0]);
+    // IRGB dither
+    for (int xc = 0; xc < w; xc++) {
+      float   y = inputImage.y(xc, yc);
+      float   u = inputImage.u(xc, yc);
+      float   v = inputImage.v(xc, yc);
+      float   r = 0.0f;
+      float   g = 0.0f;
+      float   b = 0.0f;
+      yuvToRGB(r, g, b, y, u, v);
+      float   i = (r > g ? r : g);
+      i = (b > i ? b : i);
+      float   th = (float(ditherTable[((yc & 63L) << 6) + (xc & 63)]) + 0.5f)
+                   / 4096.0f;
+      int     c = 0;
+      if (i >= float(4.0 / 7.0)) {
+        c = 8;
+      }
+      else {
+        r = r * float(7.0 / 4.0);
+        g = g * float(7.0 / 4.0);
+        b = b * float(7.0 / 4.0);
+      }
+      if (r >= th)
+        c = c | 2;
+      if (g >= th)
+        c = c | 4;
+      if (b >= th)
+        c = c | 1;
+      c = (c != 8 ? c : 0);
+      ditheredImage.setPixel(xc, yc, c);
+    }
+  }
+
 }       // namespace Ep128ImgConv
 

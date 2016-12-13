@@ -365,6 +365,10 @@ namespace Ep128ImgConv {
                           const unsigned char *linePalette,
                           size_t linePaletteSize, const float *epPaletteY);
 
+  void ditherLine_ordered_TVC16(IndexedImage& ditheredImage,
+                                const YUVImage& inputImage, long yc,
+                                int ditherType);
+
 }       // namespace Ep128ImgConv
 
 #endif  // EPIMGCONV_EPIMGCONV_HPP
