@@ -237,11 +237,11 @@ namespace Ep128ImgConv {
       if (fixedColors[i])
         continue;
       for (int j = i + 1; j < 4; j++) {
-        if (fixedColors[j] || palette[yc][i] <= palette[yc][j])
-          continue;
-        unsigned char tmp = palette[yc][i];
-        palette[yc][i] = palette[yc][j];
-        palette[yc][j] = tmp;
+        if (palette[yc][i] > palette[yc][j] && !fixedColors[j]) {
+          unsigned char tmp = palette[yc][i];
+          palette[yc][i] = palette[yc][j];
+          palette[yc][j] = tmp;
+        }
       }
     }
   }
