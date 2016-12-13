@@ -118,20 +118,25 @@ namespace Ep128ImgConv {
     setProgressPercentage(0);
     unsigned char palette[16];
     for (int i = 0; i < 16; i++) {
-      palette[i - int(i > 8)] =
-          (unsigned char) ((i & 1) | ((i & 2) << 1)
-                           | ((i & 4) << 2) | ((i & 8) << 3));
+      palette[i] = (unsigned char) ((i & 1) | ((i & 2) << 1)
+                                    | ((i & 4) << 2) | ((i & 8) << 3));
     }
     for (int yc = 0; yc < height; yc++) {
-      ditherLine(convertedImage, inputImage, ditherErrorImage, yc,
-                 ditherType, ditherDiffusion,
-                 config.colorErrorScale, &(palette[0]), 15,
-                 paletteY, paletteU, paletteV);
+      if (ditherType < 4) {
+        ditherLine(convertedImage, inputImage, ditherErrorImage, yc,
+                   ditherType, ditherDiffusion,
+                   config.colorErrorScale, &(palette[0]), 16,
+                   paletteY, paletteU, paletteV);
+      }
+      else {
+        ditherLine_ordered_TVC16(convertedImage, inputImage, yc, ditherType);
+      }
     }
     imgData.setBorderColor(borderColor);
     for (int yc = 0; yc < height; yc++) {
       for (int xc = 0; xc < width; xc++) {
         unsigned char c = convertedImage[yc][xc];
+        c = (c != 8 ? c : 0);
         c = (c & 6) | ((c & 1) << 3) | ((c & 8) >> 3);
         imgData.setPixel(xc, yc, c);
       }
