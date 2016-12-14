@@ -537,6 +537,7 @@ if buildUtilities:
                         util/epimgconv/src/attr16.cpp
                         util/epimgconv/src/epimgconv.cpp
                         util/epimgconv/src/imageconv.cpp
+                        util/epimgconv/src/img_cfg.cpp
                         util/epimgconv/src/imgwrite.cpp
                         util/epimgconv/src/main.cpp
                         util/epimgconv/src/pixel16_1.cpp

@@ -21,6 +21,7 @@
 // distributed without any restrictions.
 
 #include "epimgconv.hpp"
+#include "img_cfg.hpp"
 
 static const int  ditherTable_Bayer[4096] = {
      0, 2048,  512, 2560,  128, 2176,  640, 2688,   32, 2080,  544, 2592,
@@ -730,34 +731,6 @@ static bool defaultProgressPercentageCb(void *userData, int n)
 }
 
 namespace Ep128ImgConv {
-
-  ImageConvConfig::ImageConvConfig()
-    : conversionType(2),
-      width(40),
-      height(240),
-      borderColor(0x00),
-      paletteResolution(1),
-      conversionQuality(3),
-      colorErrorScale(0.5f),
-      ditherType(1),
-      ditherDiffusion(0.95f),
-      scaleMode(0),
-      scaleX(1.0f),
-      scaleY(1.0f),
-      offsetX(0.0f),
-      offsetY(0.0f),
-      yMin(0.0f),
-      yMax(1.0f),
-      colorSaturationMult(1.0f),
-      gammaCorrection(1.0f),
-      fixBias(-1),
-      noInterpolation(false)
-  {
-    for (int i = 0; i < 8; i++)
-      paletteColors[i] = -1;
-  }
-
-  // --------------------------------------------------------------------------
 
   ImageData::ImageData(int width_, int height_, int videoMode_,
                        int biasResolution_, int paletteResolution_,

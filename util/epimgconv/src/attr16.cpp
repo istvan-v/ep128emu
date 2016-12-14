@@ -1,6 +1,6 @@
 
 // epimgconv: Enterprise 128 image converter utility
-// Copyright (C) 2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2008-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -814,10 +814,8 @@ namespace Ep128ImgConv {
   {
     width = config.width << 3;
     height = ((imgData[5] & 0x80) == 0 ? config.height : (config.height << 1));
-    colorErrorScale = config.colorErrorScale;
-    limitValue(colorErrorScale, 0.05f, 1.0f);
+    colorErrorScale = float(config.colorErrorScale);
     conversionQuality = config.conversionQuality;
-    limitValue(conversionQuality, 1, 9);
     borderColor = config.borderColor & 0xFF;
     float   borderY = 0.0f;
     float   borderU = 0.0f;
@@ -826,8 +824,7 @@ namespace Ep128ImgConv {
     inputImage.setBorderColor(borderY, borderU, borderV);
     ditherType = config.ditherType;
     limitValue(ditherType, 0, 3);
-    ditherDiffusion = config.ditherDiffusion;
-    limitValue(ditherDiffusion, 0.0f, 1.0f);
+    ditherDiffusion = float(config.ditherDiffusion);
 
     inputImage.resize(width, height);
     ditherErrorImage.resize(width, height);

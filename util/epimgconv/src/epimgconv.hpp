@@ -24,42 +24,14 @@
 #define EPIMGCONV_EPIMGCONV_HPP
 
 #include "ep128emu.hpp"
+#include "img_cfg.hpp"
 
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <cmath>
 
 namespace Ep128ImgConv {
 
+  class ImageConvConfig;
   class YUVImageConverter;
-
-  struct ImageConvConfig {
-    int     conversionType;     // 0: 2 colors, 1: 4 colors, 2..4: 16 colors,
-                                // 5: 256 colors, 6: attribute, +10: interlace
-    int     width;              // in characters
-    int     height;             // lines per field
-    int     borderColor;
-    int     paletteResolution;  // in lines; 0: fixed palette
-    int     conversionQuality;  // 1 to 9
-    float   colorErrorScale;    // 0.0 to 1.0
-    int     ditherType;         // 0: none, 1: FS, 2: Stucki, 3: Jarvis,
-                                // 4: ordered (Bayer), 5: ordered (randomized)
-    float   ditherDiffusion;    // 0.0 to 1.0
-    int     scaleMode;          // 0: no clipping, 1: no empty areas
-    float   scaleX;
-    float   scaleY;
-    float   offsetX;
-    float   offsetY;
-    float   yMin;
-    float   yMax;
-    float   colorSaturationMult;
-    float   gammaCorrection;
-    int     fixBias;            // FIXBIAS value (0 to 31), or -1 to optimize
-    int     paletteColors[8];   // palette colors (0 to 255), or -1 to optimize
-    bool    noInterpolation;    // disable interpolation if true
-    ImageConvConfig();
-  };
 
   class ImageData {
    private:

@@ -312,10 +312,8 @@ namespace Ep128ImgConv {
   {
     width = config.width << 3;
     height = ((imgData[5] & 0x80) == 0 ? config.height : (config.height << 1));
-    colorErrorScale = config.colorErrorScale;
-    limitValue(colorErrorScale, 0.05f, 1.0f);
+    colorErrorScale = float(config.colorErrorScale);
     conversionQuality = config.conversionQuality;
-    limitValue(conversionQuality, 1, 9);
     borderColor = (config.borderColor | (config.borderColor >> 1)) & 0x55;
     float   borderY = 0.0f;
     float   borderU = 0.0f;
@@ -324,8 +322,7 @@ namespace Ep128ImgConv {
     inputImage.setBorderColor(borderY, borderU, borderV);
     ditherType = config.ditherType;
     limitValue(ditherType, 0, 5);
-    ditherDiffusion = config.ditherDiffusion;
-    limitValue(ditherDiffusion, 0.0f, 1.0f);
+    ditherDiffusion = float(config.ditherDiffusion);
 
     inputImage.resize(width, height);
     ditherErrorImage.resize(width, height);

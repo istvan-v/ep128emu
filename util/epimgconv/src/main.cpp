@@ -32,6 +32,7 @@
 #include "tvc_4.hpp"
 #include "tvc_16.hpp"
 #include "imgwrite.hpp"
+#include "img_cfg.hpp"
 
 #include <string>
 #include <vector>
@@ -103,13 +104,10 @@ int main(int argc, char **argv)
   bool    printUsageFlag = false;
   bool    helpFlag = false;
   bool    endOfOptions = false;
-  bool    noCompress = false;
-  int     outputFormat = 0;
   try {
     Fl::lock();
     fl_register_images();
     Ep128ImgConv::ImageConvConfig config;
-    config.conversionType = 2;
     std::string infileName = "";
     std::string outfileName = "";
     for (int i = 1; i < argc; i++) {
@@ -131,149 +129,115 @@ int main(int argc, char **argv)
       else if (std::strcmp(s, "-mode") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-mode'");
-        config.conversionType = int(std::atoi(argv[i]));
+        config["conversionType"] = int(std::atoi(argv[i]));
       }
       else if (std::strcmp(s, "-size") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing arguments for '-size'");
-        config.width = int(std::atoi(argv[i]));
+        config["width"] = int(std::atoi(argv[i]));
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-size'");
-        config.height = int(std::atoi(argv[i]));
+        config["height"] = int(std::atoi(argv[i]));
       }
       else if (std::strcmp(s, "-palres") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-palres'");
-        config.paletteResolution = int(std::atoi(argv[i]));
+        config["paletteResolution"] = int(std::atoi(argv[i]));
       }
       else if (std::strcmp(s, "-border") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-border'");
-        config.borderColor = convertColorValue(argv[i]);
+        config["borderColor"] = convertColorValue(argv[i]);
       }
       else if (std::strcmp(s, "-quality") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-quality'");
-        config.conversionQuality = int(std::atoi(argv[i]));
+        config["conversionQuality"] = int(std::atoi(argv[i]));
       }
       else if (std::strcmp(s, "-chromaerr") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-chromaerr'");
-        config.colorErrorScale = float(std::atof(argv[i]));
+        config["colorErrorScale"] = std::atof(argv[i]);
       }
       else if (std::strcmp(s, "-dither") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing arguments for '-dither'");
-        config.ditherType = int(std::atoi(argv[i]));
+        config["ditherType"] = int(std::atoi(argv[i]));
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-dither'");
-        config.ditherDiffusion = float(std::atof(argv[i]));
+        config["ditherDiffusion"] = std::atof(argv[i]);
       }
       else if (std::strcmp(s, "-scalemode") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-scalemode'");
-        config.scaleMode = int(std::atoi(argv[i]));
+        config["scaleMode"] = int(std::atoi(argv[i]));
       }
       else if (std::strcmp(s, "-scale") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing arguments for '-scale'");
-        config.scaleX = float(std::atof(argv[i]));
+        config["scaleX"] = std::atof(argv[i]);
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-scale'");
-        config.scaleY = float(std::atof(argv[i]));
+        config["scaleY"] = std::atof(argv[i]);
       }
       else if (std::strcmp(s, "-offset") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing arguments for '-offset'");
-        config.offsetX = float(std::atof(argv[i]));
+        config["offsetX"] = std::atof(argv[i]);
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-offset'");
-        config.offsetY = float(std::atof(argv[i]));
+        config["offsetY"] = std::atof(argv[i]);
       }
       else if (std::strcmp(s, "-nointerp") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-nointerp'");
-        config.noInterpolation = bool(std::atoi(argv[i]));
+        config["noInterpolation"] = bool(std::atoi(argv[i]));
       }
       else if (std::strcmp(s, "-ymin") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-ymin'");
-        config.yMin = float(std::atof(argv[i]));
+        config["yMin"] = std::atof(argv[i]);
       }
       else if (std::strcmp(s, "-ymax") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-ymax'");
-        config.yMax = float(std::atof(argv[i]));
+        config["yMax"] = std::atof(argv[i]);
       }
       else if (std::strcmp(s, "-saturation") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-saturation'");
-        config.colorSaturationMult = float(std::atof(argv[i]));
+        config["colorSaturationMult"] = std::atof(argv[i]);
       }
       else if (std::strcmp(s, "-gamma") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-gamma'");
-        config.gammaCorrection = float(std::atof(argv[i]));
+        config["gammaCorrection"] = std::atof(argv[i]);
       }
       else if (std::strcmp(s, "-bias") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-bias'");
-        config.fixBias = convertColorValue(argv[i], true);
+        config["fixBias"] = convertColorValue(argv[i], true);
       }
-      else if (std::strcmp(s, "-color0") == 0) {
+      else if (std::strncmp(s, "-color", 6) == 0 &&
+               s[6] >= '0' && s[6] <= '7' && s[7] == '\0') {
         if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-color0'");
-        config.paletteColors[0] = convertColorValue(argv[i]);
-      }
-      else if (std::strcmp(s, "-color1") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-color1'");
-        config.paletteColors[1] = convertColorValue(argv[i]);
-      }
-      else if (std::strcmp(s, "-color2") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-color2'");
-        config.paletteColors[2] = convertColorValue(argv[i]);
-      }
-      else if (std::strcmp(s, "-color3") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-color3'");
-        config.paletteColors[3] = convertColorValue(argv[i]);
-      }
-      else if (std::strcmp(s, "-color4") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-color4'");
-        config.paletteColors[4] = convertColorValue(argv[i]);
-      }
-      else if (std::strcmp(s, "-color5") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-color5'");
-        config.paletteColors[5] = convertColorValue(argv[i]);
-      }
-      else if (std::strcmp(s, "-color6") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-color6'");
-        config.paletteColors[6] = convertColorValue(argv[i]);
-      }
-      else if (std::strcmp(s, "-color7") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-color7'");
-        config.paletteColors[7] = convertColorValue(argv[i]);
+          throw Ep128Emu::Exception("missing argument for '-color'");
+        config[std::string("color") + s[6]] = convertColorValue(argv[i]);
       }
       else if (std::strcmp(s, "-outfmt") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-outfmt'");
-        outputFormat = int(std::atoi(argv[i]));
+        config.setOutputFormat(int(std::atoi(argv[i])));
       }
       else if (std::strcmp(s, "-raw") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-raw'");
-        outputFormat = int(bool(std::atoi(argv[i])));
+        config.setOutputFormat(int(bool(std::atoi(argv[i]))));
       }
       else if (std::strcmp(s, "-nocompress") == 0) {
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for '-nocompress'");
-        noCompress = bool(std::atoi(argv[i]));
+        config["noCompress"] = bool(std::atoi(argv[i]));
       }
       else if (std::strcmp(s, "-h") == 0 ||
                std::strcmp(s, "-help") == 0 ||
@@ -295,11 +259,6 @@ int main(int argc, char **argv)
       printUsageFlag = true;
       throw Ep128Emu::Exception("missing file name");
     }
-    if (config.paletteResolution != 0 && config.paletteResolution != 1) {
-      throw Ep128Emu::Exception("palette resolution must be 0 or 1");
-    }
-    Ep128ImgConv::limitValue(config.width, -255, 255);
-    Ep128ImgConv::limitValue(config.height, -16384, 16384);
     if (config.width < 1 || config.height < 1) {
       if (config.width < 1 && config.height < 1)
         throw Ep128Emu::Exception("invalid output image size");
@@ -333,26 +292,11 @@ int main(int argc, char **argv)
       }
       Ep128ImgConv::limitValue(w, 1, 255);
       Ep128ImgConv::limitValue(h, 1, 16384);
-      config.width = w;
-      config.height = h;
+      config["width"] = w;
+      config["height"] = h;
       std::printf("Output image size: %d, %d\n", w, h);
     }
-    config.borderColor = config.borderColor & 0xFF;
-    Ep128ImgConv::limitValue(config.conversionQuality, 1, 9);
-    Ep128ImgConv::limitValue(config.colorErrorScale, 0.05f, 1.0f);
-    Ep128ImgConv::limitValue(config.ditherType, 0, 5);
-    Ep128ImgConv::limitValue(config.ditherDiffusion, 0.0f, 1.0f);
-    Ep128ImgConv::limitValue(config.scaleMode, 0, 1);
-    Ep128ImgConv::limitValue(config.scaleX, 0.1f, 10.0f);
-    Ep128ImgConv::limitValue(config.scaleY, 0.1f, 10.0f);
-    Ep128ImgConv::limitValue(config.offsetX, -10000.0f, 10000.0f);
-    Ep128ImgConv::limitValue(config.offsetY, -10000.0f, 10000.0f);
-    Ep128ImgConv::limitValue(config.yMin, -0.5f, 1.0f);
-    Ep128ImgConv::limitValue(config.yMax, 0.0f, 2.0f);
-    Ep128ImgConv::limitValue(config.colorSaturationMult, 0.0f, 8.0f);
-    Ep128ImgConv::limitValue(config.gammaCorrection, 0.25f, 4.0f);
-    Ep128ImgConv::limitValue(config.fixBias, -1, 31);
-    Ep128ImgConv::limitValue(outputFormat, 0, 59);
+    int     outputFormat = config.getOutputFormat();
     if (!((outputFormat >= 0 && outputFormat <= 6) ||
           (outputFormat >= 11 && outputFormat <= 59 &&
            outputFormat != 20 && outputFormat != 30 && outputFormat != 40))) {
@@ -378,27 +322,23 @@ int main(int argc, char **argv)
         Ep128ImgConv::limitValue(newHeight, 1, 27);
         newHeight = newHeight * 9;
         if (newWidth != config.width || newHeight != config.height) {
-          config.width = newWidth;
-          config.height = newHeight;
+          config["width"] = newWidth;
+          config["height"] = newHeight;
           std::fprintf(stderr, "WARNING: image size changed to %d,%d "
                                "for compatibility with output format\n",
                        newWidth, newHeight);
         }
       }
     }
-    for (int i = 0; i < 8; i++)
-      Ep128ImgConv::limitValue(config.paletteColors[i], -1, 255);
     int     videoMode = 0;
     int     biasResolution = 0;
     int     interlaceMode = 0;
     int     compressionType = 0;
-    if (config.conversionType >= 10 && config.conversionType <= 19) {
-      config.conversionType = config.conversionType - 10;
+    if (config.conversionType >= 10 && config.conversionType <= 19)
       interlaceMode = 0x9C;
-    }
     if (config.paletteResolution == 0)
       interlaceMode = interlaceMode & 0x98;     // fixed palette
-    switch (config.conversionType) {
+    switch (config.conversionType % 10) {
     case 0:                                     // PIXEL / 2 colors
     case 7:                                     // TVC 2 colors
       videoMode = 0x02;
@@ -407,7 +347,7 @@ int main(int argc, char **argv)
         if (config.paletteColors[i] < 0)
           break;
         if (i == 1) {
-          config.paletteResolution = 0;
+          config["paletteResolution"] = 0;
           interlaceMode = interlaceMode & 0x90;
         }
       }
@@ -420,7 +360,7 @@ int main(int argc, char **argv)
         if (config.paletteColors[i] < 0)
           break;
         if (i == 3) {
-          config.paletteResolution = 0;
+          config["paletteResolution"] = 0;
           interlaceMode = interlaceMode & 0x90;
         }
       }
@@ -434,15 +374,15 @@ int main(int argc, char **argv)
         if (config.paletteColors[i] < 0)
           break;
         if (i == 7) {
-          config.paletteResolution = 0;
+          config["paletteResolution"] = 0;
           interlaceMode = interlaceMode & 0x90;
         }
       }
       break;
     case 5:                                     // PIXEL / 256 colors
     case 9:                                     // TVC 16 colors
-      videoMode = (config.conversionType == 5 ? 0x62 : 0x42);
-      config.paletteResolution = 0;
+      videoMode = ((config.conversionType % 10) == 5 ? 0x62 : 0x42);
+      config["paletteResolution"] = 0;
       interlaceMode = interlaceMode & 0x90;
       break;
     case 6:                                     // ATTRIBUTE / 16 colors
@@ -455,7 +395,7 @@ int main(int argc, char **argv)
         if (config.paletteColors[i] < 0)
           break;
         if (i == 7) {
-          config.paletteResolution = 0;
+          config["paletteResolution"] = 0;
           interlaceMode = interlaceMode & 0x98;
         }
       }
@@ -465,7 +405,7 @@ int main(int argc, char **argv)
     }
     if ((outputFormat >= 3 && outputFormat <= 6) &&
         config.paletteResolution != 0) {
-      config.paletteResolution = 0;
+      config["paletteResolution"] = 0;
       std::fprintf(stderr, "WARNING: output format supports fixed palette "
                            "only, setting -palres 0\n");
     }
@@ -476,7 +416,7 @@ int main(int argc, char **argv)
                                           config.paletteResolution,
                                           interlaceMode, compressionType);
     try {
-      switch (config.conversionType) {
+      switch (config.conversionType % 10) {
       case 0:                                   // PIXEL / 2 colors
         converter = new Ep128ImgConv::ImageConv_Pixel2();
         break;
@@ -508,12 +448,12 @@ int main(int argc, char **argv)
       }
       Ep128ImgConv::YUVImageConverter imgConv;
       imgConv.setScaleMode(config.scaleMode);
-      imgConv.setXYScaleAndOffset(config.scaleX, config.scaleY,
-                                  config.offsetX, config.offsetY);
+      imgConv.setXYScaleAndOffset(float(config.scaleX), float(config.scaleY),
+                                  float(config.offsetX), float(config.offsetY));
       imgConv.setEnableInterpolation(!config.noInterpolation);
-      imgConv.setGammaCorrection(config.gammaCorrection, 1.0f);
-      imgConv.setLuminanceRange(config.yMin, config.yMax);
-      imgConv.setColorSaturation(config.colorSaturationMult);
+      imgConv.setGammaCorrection(float(config.gammaCorrection), 1.0f);
+      imgConv.setLuminanceRange(float(config.yMin), float(config.yMax));
+      imgConv.setColorSaturation(float(config.colorSaturationMult));
       imgConv.setImageSize(config.width * 16, config.height * 2);
       imgConv.setPixelAspectRatio(1.0f);
       float   borderY = 0.0f;
@@ -526,7 +466,7 @@ int main(int argc, char **argv)
       if (converter->processImage(imgData, infileName.c_str(),
                                   imgConv, config)) {
         writeConvertedImageFile(outfileName.c_str(), imgData,
-                                outputFormat, noCompress);
+                                outputFormat, config.noCompress);
       }
       delete converter;
       converter = (Ep128ImgConv::ImageConverter *) 0;
