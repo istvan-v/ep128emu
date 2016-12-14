@@ -841,6 +841,10 @@ namespace Ep128ImgConv {
     buf.push_back((unsigned char) (width >> 8));        // width MSB
     buf.push_back((unsigned char) (height & 0xFFU));    // height LSB
     buf.push_back((unsigned char) (height >> 8));       // height MSB
+    buf.push_back(0x00);                // 4 unused/reserved bytes
+    buf.push_back(0x00);
+    buf.push_back(0x00);
+    buf.push_back(0x00);
     // write palette
     if (!(mode & 0x20)) {
       // -palres 0
