@@ -102,6 +102,8 @@ def configurePackage(env, pkgName):
                 if not s:
                     env['CCFLAGS'] = savedCFlags
                     env['CXXFLAGS'] = savedCXXFlags
+                    if ['_FORTIFY_SOURCE', '2'] in env['CPPDEFINES']:
+                        env['CPPDEFINES'].remove(['_FORTIFY_SOURCE', '2'])
                 return 1
             except:
                 print 'no'
@@ -208,6 +210,8 @@ if mingwCrossCompile:
     ep128emuLibEnvironment.Append(LIBS = ['user32', 'kernel32'])
     ep128emuLibEnvironment.Prepend(CCFLAGS = ['-mthreads'])
     ep128emuLibEnvironment.Prepend(LINKFLAGS = ['-mthreads'])
+elif sys.platform[:5] == 'linux':
+    ep128emuLibEnvironment.Prepend(LINKFLAGS = ['-Wl,--as-needed'])
 if buildRelease:
     ep128emuLibEnvironment.Append(LINKFLAGS = ['-s'])
 
@@ -529,28 +533,48 @@ if buildUtilities:
     Depends(dtf, compressLib)
     epimgconvEnvironment = copyEnvironment(ep128emuGLGUIEnvironment)
     epimgconvEnvironment.Append(CPPPATH = ['./util/epcompress/src'])
-    epimgconvEnvironment.Prepend(LIBS = [compressLib, ep128Lib, ep128emuLib])
-    if mingwCrossCompile:
+    epimgconvLib = epimgconvEnvironment.StaticLibrary(
+                       'epimgconv', Split('''
+                           util/epimgconv/src/attr16.cpp
+                           util/epimgconv/src/epimgconv.cpp
+                           util/epimgconv/src/imageconv.cpp
+                           util/epimgconv/src/img_cfg.cpp
+                           util/epimgconv/src/imgwrite.cpp
+                           util/epimgconv/src/pixel16_1.cpp
+                           util/epimgconv/src/pixel16_2.cpp
+                           util/epimgconv/src/pixel256.cpp
+                           util/epimgconv/src/pixel2.cpp
+                           util/epimgconv/src/pixel4.cpp
+                           util/epimgconv/src/tvc_16.cpp
+                           util/epimgconv/src/tvc_2.cpp
+                           util/epimgconv/src/tvc_4.cpp
+                       '''))
+    epimgconvEnvironment.Prepend(LIBS = [epimgconvLib, compressLib,
+                                         ep128Lib, ep128emuLib])
+    if mingwCrossCompile and not disableOpenGL:
+        epimgconvCLIEnvironment = copyEnvironment(epimgconvEnvironment)
+        epimgconvCLIEnvironment['LINKFLAGS'].remove('-mwindows')
+        epimgconvCLIEnvironment.Append(CCFLAGS = ['-DDISABLE_OPENGL_DISPLAY'])
+        epimgconvCLIMain = epimgconvCLIEnvironment.Object(
+                               'main_cli', 'util/epimgconv/src/main.cpp')
+        epimgconvCLI = epimgconvCLIEnvironment.Program(
+                           'epimgconv', [epimgconvCLIMain])
+        Depends(epimgconvCLI, epimgconvLib)
+        Depends(epimgconvCLI, compressLib)
+        Depends(epimgconvCLI, ep128emuLib)
+    epimgconvSources = ['util/epimgconv/src/main.cpp']
+    if not disableOpenGL:
+        epimgconvSources += ['util/epimgconv/src/imgconvgui.cpp',
+                             'util/epimgconv/src/img_disp.cpp',
+                             fluidCompile(['util/epimgconv/src/epimgconv.fl'])]
+    elif mingwCrossCompile:
         epimgconvEnvironment['LINKFLAGS'].remove('-mwindows')
-    epimgconv = epimgconvEnvironment.Program(
-                    'epimgconv', Split('''
-                        util/epimgconv/src/attr16.cpp
-                        util/epimgconv/src/epimgconv.cpp
-                        util/epimgconv/src/imageconv.cpp
-                        util/epimgconv/src/imgconvgui.cpp
-                        util/epimgconv/src/img_cfg.cpp
-                        util/epimgconv/src/img_disp.cpp
-                        util/epimgconv/src/imgwrite.cpp
-                        util/epimgconv/src/main.cpp
-                        util/epimgconv/src/pixel16_1.cpp
-                        util/epimgconv/src/pixel16_2.cpp
-                        util/epimgconv/src/pixel256.cpp
-                        util/epimgconv/src/pixel2.cpp
-                        util/epimgconv/src/pixel4.cpp
-                        util/epimgconv/src/tvc_16.cpp
-                        util/epimgconv/src/tvc_2.cpp
-                        util/epimgconv/src/tvc_4.cpp
-                    ''') + [fluidCompile(['util/epimgconv/src/epimgconv.fl'])])
+    if mingwCrossCompile and not disableOpenGL:
+        epimgconv = epimgconvEnvironment.Program('epimgconv_gui',
+                                                 epimgconvSources)
+    else:
+        epimgconv = epimgconvEnvironment.Program('epimgconv', epimgconvSources)
+    Depends(epimgconv, epimgconvLib)
     Depends(epimgconv, compressLib)
     Depends(epimgconv, ep128Lib)
     Depends(epimgconv, ep128emuLib)
