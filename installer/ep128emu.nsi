@@ -331,8 +331,9 @@ Section "ep128emu source code" SecSrc
 
   SetOutPath "$INSTDIR\src\util\epimgconv\src"
 
-  File "..\util\epimgconv\src\*.cpp"
-  File "..\util\epimgconv\src\*.hpp"
+  File "..\util\epimgconv\src\*.fl"
+  File /x "*_fl.cpp" "..\util\epimgconv\src\*.cpp"
+  File /x "*_fl.hpp" "..\util\epimgconv\src\*.hpp"
   File "..\util\epimgconv\src\*.s"
 
   SetOutPath "$INSTDIR\src\z80"
@@ -432,6 +433,17 @@ Section "Install epimgconv and other utilities" SecUtils
   File /nonfatal "..\dtf.exe"
   File /nonfatal "..\epcompress.exe"
   File /nonfatal "..\epimgconv.exe"
+  File /nonfatal "..\epimgconv_gui.exe"
+
+  !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
+
+    SetShellVarContext all
+
+    ;Create shortcuts
+    SetOutPath "$INSTDIR"
+    CreateShortCut "$SMPROGRAMS\$STARTMENU_FOLDER\Image converter utility.lnk" "$INSTDIR\epimgconv_gui.exe"
+
+  !insertmacro MUI_STARTMENU_WRITE_END
 
 SectionEnd
 
@@ -480,6 +492,7 @@ Section "Uninstall"
   Delete "$INSTDIR\ep128emu.exe"
   Delete "$INSTDIR\epcompress.exe"
   Delete "$INSTDIR\epimgconv.exe"
+  Delete "$INSTDIR\epimgconv_gui.exe"
   Delete "$INSTDIR\libgcc_s_dw2-1.dll"
   Delete "$INSTDIR\libgcc_s_seh-1.dll"
   Delete "$INSTDIR\libsndfile-1.dll"
@@ -809,6 +822,7 @@ Section "Uninstall"
   Delete "$SMPROGRAMS\$MUI_TEMP\TVC emulator\tvc64emu - Software - Gtk+ theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\ep128emu - GL - Win2000 theme.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\ep128emu - GL - plastic theme.lnk"
+  Delete "$SMPROGRAMS\$MUI_TEMP\Image converter utility.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\README.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\Tape editor.lnk"
   Delete "$SMPROGRAMS\$MUI_TEMP\Reinstall configuration files.lnk"
