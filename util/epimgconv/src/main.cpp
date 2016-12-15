@@ -23,12 +23,17 @@
 #include "epimgconv.hpp"
 #include "imgwrite.hpp"
 #include "img_cfg.hpp"
+#include "guicolor.hpp"
 
 #include <string>
 
 #include <FL/Fl.H>
 #include <FL/Fl_Image.H>
 #include <FL/Fl_Shared_Image.H>
+
+#ifndef DISABLE_OPENGL_DISPLAY
+#  include "epimgconv_fl.hpp"
+#endif
 
 static int convertColorValue(const char *s, bool isFixBias = false)
 {
@@ -87,163 +92,209 @@ static int convertColorValue(const char *s, bool isFixBias = false)
   return n;
 }
 
+static void parseCommandLine(Ep128ImgConv::ImageConvConfig& config,
+                             std::string& infileName, std::string& outfileName,
+                             bool& printUsageFlag, bool& helpFlag,
+                             int argc, char **argv)
+{
+  infileName.clear();
+  outfileName.clear();
+  printUsageFlag = false;
+  helpFlag = false;
+  bool    endOfOptions = false;
+  for (int i = 1; i < argc; i++) {
+    const char  *s = argv[i];
+    if (s == (char *) 0 || s[0] == '\0')
+      continue;
+    if (endOfOptions || s[0] != '-') {
+      if (infileName.length() < 1)
+        infileName = s;
+      else if (outfileName.length() < 1)
+        outfileName = s;
+      else
+        throw Ep128Emu::Exception("too many filename arguments");
+      continue;
+    }
+    if (std::strcmp(s, "--") == 0) {
+      endOfOptions = true;
+    }
+    else if (std::strcmp(s, "-mode") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-mode'");
+      config["conversionType"] = int(std::atoi(argv[i]));
+    }
+    else if (std::strcmp(s, "-size") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing arguments for '-size'");
+      config["width"] = int(std::atoi(argv[i]));
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-size'");
+      config["height"] = int(std::atoi(argv[i]));
+    }
+    else if (std::strcmp(s, "-palres") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-palres'");
+      config["paletteResolution"] = int(std::atoi(argv[i]));
+    }
+    else if (std::strcmp(s, "-border") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-border'");
+      config["borderColor"] = convertColorValue(argv[i]);
+    }
+    else if (std::strcmp(s, "-quality") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-quality'");
+      config["conversionQuality"] = int(std::atoi(argv[i]));
+    }
+    else if (std::strcmp(s, "-chromaerr") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-chromaerr'");
+      config["colorErrorScale"] = std::atof(argv[i]);
+    }
+    else if (std::strcmp(s, "-dither") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing arguments for '-dither'");
+      config["ditherType"] = int(std::atoi(argv[i]));
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-dither'");
+      config["ditherDiffusion"] = std::atof(argv[i]);
+    }
+    else if (std::strcmp(s, "-scalemode") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-scalemode'");
+      config["scaleMode"] = int(std::atoi(argv[i]));
+    }
+    else if (std::strcmp(s, "-scale") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing arguments for '-scale'");
+      config["scaleX"] = std::atof(argv[i]);
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-scale'");
+      config["scaleY"] = std::atof(argv[i]);
+    }
+    else if (std::strcmp(s, "-offset") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing arguments for '-offset'");
+      config["offsetX"] = std::atof(argv[i]);
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-offset'");
+      config["offsetY"] = std::atof(argv[i]);
+    }
+    else if (std::strcmp(s, "-nointerp") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-nointerp'");
+      config["noInterpolation"] = bool(std::atoi(argv[i]));
+    }
+    else if (std::strcmp(s, "-ymin") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-ymin'");
+      config["yMin"] = std::atof(argv[i]);
+    }
+    else if (std::strcmp(s, "-ymax") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-ymax'");
+      config["yMax"] = std::atof(argv[i]);
+    }
+    else if (std::strcmp(s, "-saturation") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-saturation'");
+      config["colorSaturationMult"] = std::atof(argv[i]);
+    }
+    else if (std::strcmp(s, "-gamma") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-gamma'");
+      config["gammaCorrection"] = std::atof(argv[i]);
+    }
+    else if (std::strcmp(s, "-bias") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-bias'");
+      config["fixBias"] = convertColorValue(argv[i], true);
+    }
+    else if (std::strncmp(s, "-color", 6) == 0 &&
+             s[6] >= '0' && s[6] <= '7' && s[7] == '\0') {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-color'");
+      config[std::string("color") + s[6]] = convertColorValue(argv[i]);
+    }
+    else if (std::strcmp(s, "-outfmt") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-outfmt'");
+      config.setOutputFormat(int(std::atoi(argv[i])));
+    }
+    else if (std::strcmp(s, "-raw") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-raw'");
+      config.setOutputFormat(int(bool(std::atoi(argv[i]))));
+    }
+    else if (std::strcmp(s, "-nocompress") == 0) {
+      if (++i >= argc)
+        throw Ep128Emu::Exception("missing argument for '-nocompress'");
+      config["noCompress"] = bool(std::atoi(argv[i]));
+    }
+    else if (std::strcmp(s, "-h") == 0 ||
+             std::strcmp(s, "-help") == 0 ||
+             std::strcmp(s, "--help") == 0) {
+      helpFlag = true;
+      throw Ep128Emu::Exception("");
+    }
+#ifdef __APPLE__
+    else if (std::strncmp(s, "-psn_", 5) == 0) {
+      continue;
+    }
+#endif
+    else {
+      printUsageFlag = true;
+      throw Ep128Emu::Exception("invalid command line option");
+    }
+  }
+}
+
 int main(int argc, char **argv)
 {
   bool    printUsageFlag = false;
   bool    helpFlag = false;
-  bool    endOfOptions = false;
   try {
     Fl::lock();
     fl_register_images();
-    Ep128ImgConv::ImageConvConfig config;
-    std::string infileName = "";
-    std::string outfileName = "";
-    for (int i = 1; i < argc; i++) {
-      const char  *s = argv[i];
-      if (s == (char *) 0 || s[0] == '\0')
-        continue;
-      if (endOfOptions || s[0] != '-') {
-        if (infileName.length() < 1)
-          infileName = s;
-        else if (outfileName.length() < 1)
-          outfileName = s;
-        else
-          throw Ep128Emu::Exception("too many filename arguments");
-        continue;
-      }
-      if (std::strcmp(s, "--") == 0) {
-        endOfOptions = true;
-      }
-      else if (std::strcmp(s, "-mode") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-mode'");
-        config["conversionType"] = int(std::atoi(argv[i]));
-      }
-      else if (std::strcmp(s, "-size") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing arguments for '-size'");
-        config["width"] = int(std::atoi(argv[i]));
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-size'");
-        config["height"] = int(std::atoi(argv[i]));
-      }
-      else if (std::strcmp(s, "-palres") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-palres'");
-        config["paletteResolution"] = int(std::atoi(argv[i]));
-      }
-      else if (std::strcmp(s, "-border") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-border'");
-        config["borderColor"] = convertColorValue(argv[i]);
-      }
-      else if (std::strcmp(s, "-quality") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-quality'");
-        config["conversionQuality"] = int(std::atoi(argv[i]));
-      }
-      else if (std::strcmp(s, "-chromaerr") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-chromaerr'");
-        config["colorErrorScale"] = std::atof(argv[i]);
-      }
-      else if (std::strcmp(s, "-dither") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing arguments for '-dither'");
-        config["ditherType"] = int(std::atoi(argv[i]));
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-dither'");
-        config["ditherDiffusion"] = std::atof(argv[i]);
-      }
-      else if (std::strcmp(s, "-scalemode") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-scalemode'");
-        config["scaleMode"] = int(std::atoi(argv[i]));
-      }
-      else if (std::strcmp(s, "-scale") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing arguments for '-scale'");
-        config["scaleX"] = std::atof(argv[i]);
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-scale'");
-        config["scaleY"] = std::atof(argv[i]);
-      }
-      else if (std::strcmp(s, "-offset") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing arguments for '-offset'");
-        config["offsetX"] = std::atof(argv[i]);
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-offset'");
-        config["offsetY"] = std::atof(argv[i]);
-      }
-      else if (std::strcmp(s, "-nointerp") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-nointerp'");
-        config["noInterpolation"] = bool(std::atoi(argv[i]));
-      }
-      else if (std::strcmp(s, "-ymin") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-ymin'");
-        config["yMin"] = std::atof(argv[i]);
-      }
-      else if (std::strcmp(s, "-ymax") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-ymax'");
-        config["yMax"] = std::atof(argv[i]);
-      }
-      else if (std::strcmp(s, "-saturation") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-saturation'");
-        config["colorSaturationMult"] = std::atof(argv[i]);
-      }
-      else if (std::strcmp(s, "-gamma") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-gamma'");
-        config["gammaCorrection"] = std::atof(argv[i]);
-      }
-      else if (std::strcmp(s, "-bias") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-bias'");
-        config["fixBias"] = convertColorValue(argv[i], true);
-      }
-      else if (std::strncmp(s, "-color", 6) == 0 &&
-               s[6] >= '0' && s[6] <= '7' && s[7] == '\0') {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-color'");
-        config[std::string("color") + s[6]] = convertColorValue(argv[i]);
-      }
-      else if (std::strcmp(s, "-outfmt") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-outfmt'");
-        config.setOutputFormat(int(std::atoi(argv[i])));
-      }
-      else if (std::strcmp(s, "-raw") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-raw'");
-        config.setOutputFormat(int(bool(std::atoi(argv[i]))));
-      }
-      else if (std::strcmp(s, "-nocompress") == 0) {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for '-nocompress'");
-        config["noCompress"] = bool(std::atoi(argv[i]));
-      }
-      else if (std::strcmp(s, "-h") == 0 ||
-               std::strcmp(s, "-help") == 0 ||
-               std::strcmp(s, "--help") == 0) {
-        helpFlag = true;
-        throw Ep128Emu::Exception("");
-      }
-#ifdef __APPLE__
-      else if (std::strncmp(s, "-psn_", 5) == 0) {
-        continue;
-      }
+#ifndef DISABLE_OPENGL_DISPLAY
+    Ep128Emu::setGUIColorScheme(3);
 #endif
-      else {
-        printUsageFlag = true;
-        throw Ep128Emu::Exception("invalid command line option");
+    Ep128ImgConv::ImageConvConfig config;
+    std::string infileName;
+    std::string outfileName;
+    parseCommandLine(config, infileName, outfileName, printUsageFlag, helpFlag,
+                     argc, argv);
+#ifndef DISABLE_OPENGL_DISPLAY
+    if (infileName.empty() && outfileName.empty()) {
+      // if there are no file name arguments, run in GUI mode,
+      // but still use any command line options specified
+      config.resetDefaultSettings();
+      try {
+        // load configuration
+        Ep128Emu::File  f("epimgcfg.dat", true);
+        config.registerChunkType(f);
+        f.processAllChunks();
       }
+      catch (...) {
+      }
+      parseCommandLine(config, infileName, outfileName,
+                       printUsageFlag, helpFlag, argc, argv);
+      config.clearConfigurationChangeFlag();
+      Ep128ImgConvGUI *gui = new Ep128ImgConvGUI(config);
+      gui->run();
+      delete gui;
+      try {
+        // save configuration
+        Ep128Emu::File  f;
+        config.saveState(f);
+        f.writeFile("epimgcfg.dat", true);
+      }
+      catch (...) {
+      }
+      return 0;
     }
-    if (infileName.length() < 1 || outfileName.length() < 1) {
+#endif
+    if (infileName.empty() || outfileName.empty()) {
       printUsageFlag = true;
       throw Ep128Emu::Exception("missing file name");
     }

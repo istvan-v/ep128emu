@@ -71,24 +71,6 @@ void Ep128ImgConvGUI::init_()
     guiConfig.createKey("configDirectory", configDirectory);
     guiConfig.createKey("outputFileDirectory", outputFileDirectory);
     emulationTimer.reset();
-    for (int i = 0; true; i++) {
-      const char  *s = Ep128ImgConv::ImageConvConfig::getVideoModeName(i);
-      if (!s)
-        break;
-      conversionTypeValuator->add(s);
-    }
-    for (int i = 0; true; i++) {
-      const char  *s = Ep128ImgConv::ImageConvConfig::getDitherName(i);
-      if (!s)
-        break;
-      ditherTypeValuator->add(s);
-    }
-    for (int i = 0; true; i++) {
-      const char  *s = Ep128ImgConv::ImageConvConfig::getOutputFormatName(i);
-      if (!s)
-        break;
-      outputFormatValuator->add(s);
-    }
     Fl::add_check(&fltkCheckCallback, (void *) this);
   }
   catch (...) {
@@ -237,10 +219,13 @@ void Ep128ImgConvGUI::applyConfigurationChanges()
       nick->loadImage(*imgData, ((config.conversionType % 10) >= 7));
     }
     else {
+      progressPercentageCallback((void *) this, 0);
+      progressMessageCallback((void *) this, "Stopped");
       fileChangedFlag = true;
       fileNotSavedFlag = false;
       nick->reset();
     }
+    config.clearConfigurationChangeFlag();
     setBusyFlag(false);
   }
   catch (std::exception& e) {
@@ -292,30 +277,30 @@ void Ep128ImgConvGUI::setWidgetColors(Fl_Widget *epWidget, Fl_Widget *tvcWidget,
 void Ep128ImgConvGUI::updateConfigWindow()
 {
   try {
-    int     conversionType = config["conversionType"];
-    int     outputFormat = config["outputFormat"];
-    int     ditherType = config["ditherType"];
+    int     conversionType = config.conversionType;
+    int     outputFormat = config.outputFormat;
+    int     ditherType = config.ditherType;
     if (((conversionType % 10) >= 7) != (outputFormat >= 11)) {
       outputFormat = ((conversionType % 10) < 7 ? 1 : 11);
       config["outputFormat"] = outputFormat;
     }
     conversionTypeValuator->value(conversionType);
-    imageWidthValuator->value(double(int(config["width"])));
-    imageHeightValuator->value(double(int(config["height"])));
-    scaleXValuator->value(double(config["scaleX"]));
-    scaleYValuator->value(double(config["scaleY"]));
-    offsetXValuator->value(double(config["offsetX"]));
-    offsetYValuator->value(double(config["offsetY"]));
-    yMinValuator->value(double(config["yMin"]));
-    yMaxValuator->value(double(config["yMax"]));
-    saturationMultValuator->value(double(config["colorSaturationMult"]));
-    gammaCorrectionValuator->value(double(config["gammaCorrection"]));
+    imageWidthValuator->value(double(config.width));
+    imageHeightValuator->value(double(config.height));
+    scaleXValuator->value(config.scaleX);
+    scaleYValuator->value(config.scaleY);
+    offsetXValuator->value(config.offsetX);
+    offsetYValuator->value(config.offsetY);
+    yMinValuator->value(config.yMin);
+    yMaxValuator->value(config.yMax);
+    saturationMultValuator->value(config.colorSaturationMult);
+    gammaCorrectionValuator->value(config.gammaCorrection);
     if (outputFormat >= 6 && outputFormat <= 10) {
       paletteResolutionValuator->deactivate();
       paletteResolutionValuator->value(0);
     }
     else {
-      paletteResolutionValuator->value(config["paletteResolution"]);
+      paletteResolutionValuator->value(config.paletteResolution);
       paletteResolutionValuator->activate();
     }
     ditherTypeValuator->value(ditherType);
@@ -324,7 +309,7 @@ void Ep128ImgConvGUI::updateConfigWindow()
       ditherDiffusionValuator->value(0.0);
     }
     else {
-      ditherDiffusionValuator->value(double(config["ditherDiffusion"]));
+      ditherDiffusionValuator->value(config.ditherDiffusion);
       ditherDiffusionValuator->activate();
     }
     if ((conversionType % 10) == 5 || (conversionType % 10) == 9) {
@@ -332,17 +317,16 @@ void Ep128ImgConvGUI::updateConfigWindow()
       conversionQualityValuator->value(9.0);
     }
     else {
-      conversionQualityValuator->value(
-          double(int(config["conversionQuality"])));
+      conversionQualityValuator->value(double(config.conversionQuality));
       conversionQualityValuator->activate();
     }
-    borderColorValuator->value(double(int(config["borderColor"])));
+    borderColorValuator->value(double(config.borderColor));
     setWidgetColors(borderColorDisplay, borderColorTVCDisplay,
-                    int(config["borderColor"]));
+                    config.borderColor);
     outputFormatValuator->value(outputFormat);
     if ((outputFormat >= 2 && outputFormat <= 6) ||
         (outputFormat >= 13 && outputFormat <= 16)) {
-      compressionLevelValuator->value(double(config["compressionLevel"]));
+      compressionLevelValuator->value(double(config.compressionLevel));
       compressionLevelValuator->activate();
     }
     else {
@@ -350,35 +334,35 @@ void Ep128ImgConvGUI::updateConfigWindow()
       compressionLevelValuator->value(5.0);
     }
     // advanced settings tab
-    noInterpolationValuator->value(int(bool(config["noInterpolation"])));
-    scaleModeValuator->value(int(bool(config["scaleMode"])));
+    noInterpolationValuator->value(int(config.noInterpolation));
+    scaleModeValuator->value(config.scaleMode);
     if (outputFormat) {
       noCompressValuator->deactivate();
       noCompressValuator->value(0);
     }
     else {
-      noCompressValuator->value(int(bool(config["noCompress"])));
+      noCompressValuator->value(int(config.noCompress));
       noCompressValuator->activate();
     }
-    colorErrorScaleValuator->value(double(config["colorErrorScale"]));
-    color0Valuator->value(double(int(config["color0"])));
-    setWidgetColors(color0Display, color0TVCDisplay, int(config["color0"]));
-    color1Valuator->value(double(int(config["color1"])));
-    setWidgetColors(color1Display, color1TVCDisplay, int(config["color1"]));
-    color2Valuator->value(double(int(config["color2"])));
-    setWidgetColors(color2Display, color2TVCDisplay, int(config["color2"]));
-    color3Valuator->value(double(int(config["color3"])));
-    setWidgetColors(color3Display, color3TVCDisplay, int(config["color3"]));
-    color4Valuator->value(double(int(config["color4"])));
-    setWidgetColors(color4Display, color4TVCDisplay, int(config["color4"]));
-    color5Valuator->value(double(int(config["color5"])));
-    setWidgetColors(color5Display, color5TVCDisplay, int(config["color5"]));
-    color6Valuator->value(double(int(config["color6"])));
-    setWidgetColors(color6Display, color6TVCDisplay, int(config["color6"]));
-    color7Valuator->value(double(int(config["color7"])));
-    setWidgetColors(color7Display, color7TVCDisplay, int(config["color7"]));
+    colorErrorScaleValuator->value(config.colorErrorScale);
+    color0Valuator->value(double(config.paletteColors[0]));
+    setWidgetColors(color0Display, color0TVCDisplay, config.paletteColors[0]);
+    color1Valuator->value(double(config.paletteColors[1]));
+    setWidgetColors(color1Display, color1TVCDisplay, config.paletteColors[1]);
+    color2Valuator->value(double(config.paletteColors[2]));
+    setWidgetColors(color2Display, color2TVCDisplay, config.paletteColors[2]);
+    color3Valuator->value(double(config.paletteColors[3]));
+    setWidgetColors(color3Display, color3TVCDisplay, config.paletteColors[3]);
+    color4Valuator->value(double(config.paletteColors[4]));
+    setWidgetColors(color4Display, color4TVCDisplay, config.paletteColors[4]);
+    color5Valuator->value(double(config.paletteColors[5]));
+    setWidgetColors(color5Display, color5TVCDisplay, config.paletteColors[5]);
+    color6Valuator->value(double(config.paletteColors[6]));
+    setWidgetColors(color6Display, color6TVCDisplay, config.paletteColors[6]);
+    color7Valuator->value(double(config.paletteColors[7]));
+    setWidgetColors(color7Display, color7TVCDisplay, config.paletteColors[7]);
     {
-      int     bias = int(config["fixBias"]);
+      int     bias = config.fixBias;
       fixBiasValuator->value(double(bias));
       setWidgetColors(fixBiasDisplay0, (Fl_Widget *) 0, bias * 8);
       setWidgetColors(fixBiasDisplay1, (Fl_Widget *) 0, bias * 8 + 1);
@@ -404,8 +388,7 @@ void Ep128ImgConvGUI::openImageFile()
       std::string tmp = imageFileName;
       if (!browseFile(tmp, imageFileDirectory,
                       "Image files (*.{bmp,jpg,png,gif,xpm,ppm})",
-                      Fl_File_Chooser::SINGLE,
-                      "Open image file")) {
+                      Fl_File_Chooser::SINGLE, "Open image file")) {
         tmp = "";
       }
       if (tmp == "")
@@ -505,7 +488,7 @@ void Ep128ImgConvGUI::saveImageFile()
           outFileName.resize(outFileName.length() - 4);
         }
       }
-      int     outputFormat = int(config["outputFileFormat"]);
+      int     outputFormat = config.outputFormat;
       if (!(outputFormat >= 0 && outputFormat <= 16))
         outputFormat = 10;              // default to raw image data
       outFileName += outputFormatTable[outputFormat * 3];
@@ -519,9 +502,13 @@ void Ep128ImgConvGUI::saveImageFile()
         setBusyFlag(true);
         if (Ep128ImgConv::writeConvertedImageFile(
                 outFileName.c_str(), *imageData, config.getOutputFormat(),
-                config["noCompress"], &progressMessageCallback,
+                config.noCompress, &progressMessageCallback,
                 &progressPercentageCallback, (void *) this)) {
           fileNotSavedFlag = false;
+        }
+        else {
+          progressPercentageCallback((void *) this, 0);
+          progressMessageCallback((void *) this, "Stopped");
         }
         setBusyFlag(false);
       }

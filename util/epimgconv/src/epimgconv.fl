@@ -118,10 +118,10 @@ class Ep128ImgConvGUI {open
   if (previewEnabled && !busyFlag)
     applyConfigurationChanges();
 }}
-        xywh {355 5 80 25} box FLAT_BOX down_box DOWN_BOX color 48
+        xywh {340 5 80 25} box FLAT_BOX down_box DOWN_BOX color 48
       }
       Fl_Progress progressDisplay {
-        xywh {475 5 200 25} selection_color 15
+        xywh {435 5 280 25} selection_color 15
         code0 {o->minimum(0.0f);}
         code1 {o->maximum(100.0f);}
         code2 {o->value(0.0f);}
@@ -132,7 +132,7 @@ class Ep128ImgConvGUI {open
   if (busyFlag)
     stopFlag = true;
 }}
-        xywh {680 5 60 25} selection_color 50 deactivate
+        xywh {720 5 60 25} selection_color 50 deactivate
       }
       Fl_Button {} {
         label About
@@ -169,7 +169,7 @@ class Ep128ImgConvGUI {open
   try {
     if (o->value() >= 0) {
       config["conversionType"] = int(o->value());
-      o->value(int(config["conversionType"]));
+      o->value(config.conversionType);
     }
   }
   catch (std::exception& e) {
@@ -188,7 +188,7 @@ class Ep128ImgConvGUI {open
               callback {{
   try {
     config["width"] = int(o->value());
-    o->value(int(config["width"]));
+    o->value(double(config.width));
   }
   catch (std::exception& e) {
     errorMessage(e.what());
@@ -201,13 +201,13 @@ class Ep128ImgConvGUI {open
               callback {{
   try {
     config["height"] = int(o->value());
-    o->value(int(config["height"]));
+    o->value(double(config.height));
   }
   catch (std::exception& e) {
     errorMessage(e.what());
   }
 }}
-              tooltip {Height in pixels per field (negative to calculate from the width and aspect ratio)} xywh {335 85 60 25} when 4 minimum -255 maximum 255 step 1 value 40
+              tooltip {Height in pixels per field (negative to calculate from the width and aspect ratio)} xywh {335 85 60 25} when 4 minimum -16384 maximum 16384 step 1 value 240
             }
             Fl_Box {} {
               label {Scale and offset}
@@ -218,10 +218,10 @@ class Ep128ImgConvGUI {open
               callback {{
   try {
     config["scaleX"] = double(o->value());
-    o->value(double(config["scaleX"]));
+    o->value(config.scaleX);
     if (fixedAspectRatioValuator->value() != 0) {
       config["scaleY"] = double(o->value());
-      scaleYValuator->value(double(config["scaleY"]));
+      scaleYValuator->value(config.scaleY);
     }
   }
   catch (std::exception& e) {
@@ -238,10 +238,10 @@ class Ep128ImgConvGUI {open
               callback {{
   try {
     config["scaleY"] = double(o->value());
-    o->value(double(config["scaleY"]));
+    o->value(config.scaleY);
     if (fixedAspectRatioValuator->value() != 0) {
       config["scaleX"] = double(o->value());
-      scaleXValuator->value(double(config["scaleX"]));
+      scaleXValuator->value(config.scaleX);
     }
   }
   catch (std::exception& e) {
@@ -255,7 +255,7 @@ class Ep128ImgConvGUI {open
               callback {{
   try {
     config["offsetX"] = double(o->value());
-    o->value(double(config["offsetX"]));
+    o->value(config.offsetX);
   }
   catch (std::exception& e) {
     errorMessage(e.what());
@@ -268,7 +268,7 @@ class Ep128ImgConvGUI {open
               callback {{
   try {
     config["offsetY"] = double(o->value());
-    o->value(double(config["offsetY"]));
+    o->value(config.offsetY);
   }
   catch (std::exception& e) {
     errorMessage(e.what());
@@ -285,7 +285,7 @@ class Ep128ImgConvGUI {open
               callback {{
   try {
     config["yMin"] = double(o->value());
-    o->value(double(config["yMin"]));
+    o->value(config.yMin);
   }
   catch (std::exception& e) {
     errorMessage(e.what());
@@ -298,7 +298,7 @@ class Ep128ImgConvGUI {open
               callback {{
   try {
     config["yMax"] = double(o->value());
-    o->value(double(config["yMax"]));
+    o->value(config.yMax);
   }
   catch (std::exception& e) {
     errorMessage(e.what());
@@ -314,8 +314,8 @@ class Ep128ImgConvGUI {open
               label Mult
               callback {{
   try {
-    config["saturationMult"] = double(o->value());
-    o->value(double(config["saturationMult"]));
+    config["colorSaturationMult"] = double(o->value());
+    o->value(config.colorSaturationMult);
   }
   catch (std::exception& e) {
     errorMessage(e.what());
@@ -331,7 +331,7 @@ class Ep128ImgConvGUI {open
               callback {{
   try {
     config["gammaCorrection"] = double(o->value());
-    o->value(double(config["gammaCorrection"]));
+    o->value(config.gammaCorrection);
   }
   catch (std::exception& e) {
     errorMessage(e.what());
@@ -348,7 +348,7 @@ class Ep128ImgConvGUI {open
   try {
     if (o->value() >= 0) {
       config["paletteResolution"] = int(o->value());
-      o->value(int(config["paletteResolution"]));
+      o->value(config.paletteResolution);
     }
   }
   catch (std::exception& e) {
@@ -368,8 +368,8 @@ class Ep128ImgConvGUI {open
               callback {{
   try {
     if (o->value() >= 0) {
-      config["ditherType"] = int(o->value()) - 1;
-      o->value(int(config["ditherType"]) + 1);
+      config["ditherType"] = int(o->value());
+      o->value(config.ditherType);
     }
   }
   catch (std::exception& e) {
@@ -384,7 +384,7 @@ class Ep128ImgConvGUI {open
               callback {{
   try {
     config["ditherDiffusion"] = double(o->value());
-    o->value(double(config["ditherDiffusion"]));
+    o->value(config.ditherDiffusion);
   }
   catch (std::exception& e) {
     errorMessage(e.what());
@@ -400,7 +400,7 @@ class Ep128ImgConvGUI {open
               callback {{
   try {
     config["conversionQuality"] = int(o->value() + 0.5);
-    o->value(double(int(config["conversionQuality"])));
+    o->value(double(config.conversionQuality));
   }
   catch (std::exception& e) {
     errorMessage(e.what());
@@ -436,7 +436,7 @@ class Ep128ImgConvGUI {open
   try {
     if (o->value() >= 0) {
       config["outputFormat"] = int(o->value());
-      o->value(int(config["outputFormat"]));
+      o->value(config.outputFormat);
       if (imageData)
         fileNotSavedFlag = true;
     }
@@ -456,7 +456,7 @@ class Ep128ImgConvGUI {open
               callback {{
   try {
     config["compressionLevel"] = int(o->value() + 0.5);
-    o->value(double(int(config["compressionLevel"])));
+    o->value(double(config.compressionLevel));
     if (imageData)
       fileNotSavedFlag = true;
   }
@@ -464,7 +464,7 @@ class Ep128ImgConvGUI {open
     errorMessage(e.what());
   }
 }}
-              tooltip {Compression level for IVIEW and TVC KEP formats} xywh {225 366 140 23} type Horizontal color 47 selection_color 52 align 4 minimum 1 maximum 9 step 1 value 5
+              tooltip {Compression level for IVIEW and TVC KEP formats; NOTE: ZLib format at level 9 uses non-standard extensions} xywh {225 366 140 23} type Horizontal color 47 selection_color 52 align 4 minimum 1 maximum 9 step 1 value 5
             }
           }
         }
@@ -483,7 +483,7 @@ class Ep128ImgConvGUI {open
               callback {{
   try {
     config["noInterpolation"] = bool(o->value());
-    o->value(int(bool(config["noInterpolation"])));
+    o->value(int(config.noInterpolation));
   }
   catch (std::exception& e) {
     errorMessage(e.what());
@@ -500,7 +500,7 @@ class Ep128ImgConvGUI {open
   try {
     if (o->value() >= 0) {
       config["scaleMode"] = int(o->value());
-      o->value(int(config["scaleMode"]));
+      o->value(config.scaleMode);
     }
   }
   catch (std::exception& e) {
@@ -520,7 +520,7 @@ class Ep128ImgConvGUI {open
               callback {{
   try {
     config["noCompress"] = bool(o->value());
-    o->value(int(bool(config["noCompress"])));
+    o->value(int(config.noCompress));
   }
   catch (std::exception& e) {
     errorMessage(e.what());
@@ -536,7 +536,7 @@ class Ep128ImgConvGUI {open
               callback {{
   try {
     config["colorErrorScale"] = double(o->value());
-    o->value(double(config["colorErrorScale"]));
+    o->value(config.colorErrorScale);
   }
   catch (std::exception& e) {
     errorMessage(e.what());
@@ -871,6 +871,26 @@ class Ep128ImgConvGUI {open
         xywh {105 115 70 25} selection_color 50
       }
     }
+    code {{
+  for (int i = 0; true; i++) {
+    const char  *s = Ep128ImgConv::ImageConvConfig::getVideoModeName(i);
+    if (!s)
+      break;
+    conversionTypeValuator->add(s);
+  }
+  for (int i = 0; true; i++) {
+    const char  *s = Ep128ImgConv::ImageConvConfig::getDitherName(i);
+    if (!s)
+      break;
+    ditherTypeValuator->add(s);
+  }
+  for (int i = 0; true; i++) {
+    const char  *s = Ep128ImgConv::ImageConvConfig::getOutputFormatName(i);
+    if (!s)
+      break;
+    outputFormatValuator->add(s);
+  }
+}} {}
   }
   Function {~Ep128ImgConvGUI()} {open
   } {
