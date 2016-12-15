@@ -314,6 +314,12 @@ namespace Ep128ImgConv {
                                                  progressCallbackUserData);
       }
       compress_->getCompressionParameters(cfg);
+      if (compressionType == 5 &&
+          compressionLevel >= -1 && compressionLevel < 9) {
+        // force use of standard ZLib format below maximum compression level
+        cfg.minLength = 3;
+        cfg.maxOffset = 32768;
+      }
       if (compressionLevel >= 1 && compressionLevel <= 9) {
         cfg.setCompressionLevel(compressionLevel);
       }
@@ -324,12 +330,8 @@ namespace Ep128ImgConv {
           cfg.setCompressionLevel(compressionType == 2 ? 5 : 8);
         else
           cfg.setCompressionLevel(9);
-        if (compressionType == 5) {
-          cfg.minLength = 3;
-          cfg.maxOffset = 32768;
-        }
-        compress_->setCompressionParameters(cfg);
       }
+      compress_->setCompressionParameters(cfg);
       retval = compress_->compressData(inBuf, 0xFFFFFFFFU, true, true);
       delete compress_;
       compress_ = (Ep128Compress::Compressor *) 0;
