@@ -175,10 +175,14 @@ void Ep128ImgConvGUI_Nick::loadImage(const Ep128ImgConv::ImageData& imgData,
     nPaletteColors = 8;
   for (int i = 0; i < (int((interlaceFlags & 0x10) >> 4) + 1); i++) {
     for (int j = 0; j < height; j++) {
+      long      palettePos = long(imgData.getPaletteDataOffset(0));
+      if (nPaletteColors > 0 && imgData[4] == 0x01) {
+        palettePos = long(imgData.getPaletteDataOffset(i)
+                          + size_t((j + yOffs) * nPaletteColors));
+      }
       uint16_t  lpbAddr = lineLPBAddrTable[(i == 0 ? j : (j + height))];
       for (int k = 0; k < nPaletteColors; k++) {
-        uint8_t c = imgData[imgData.getPaletteDataOffset(i)
-                            + size_t((j + yOffs) * nPaletteColors) + k];
+        uint8_t c = imgData[palettePos + k];
         if (isTVC)
           c = tvcColorToEPColor(c);
         videoRAMPtr[lpbAddr + 8 + k] = c;
