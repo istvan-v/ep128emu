@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2009 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -96,7 +96,9 @@ namespace Ep128Emu {
     bool          *linesChanged;
     // 1024x16 texture in 16-bit (R5G6B5) format
     uint16_t      *textureBuffer16;
+   protected:
     unsigned long textureID;
+   private:
     uint8_t       forceUpdateLineCnt;
     uint8_t       forceUpdateLineMask;
     bool          redrawFlag;
@@ -114,6 +116,7 @@ namespace Ep128Emu {
     int           shaderMode;   // 0: no shader, 1: PAL
     unsigned long shaderHandle;
     unsigned long programHandle;
+   protected:
     // space allocated for textureBuffer16 and textureBuffer32
     unsigned char *textureSpace;
     // 1024x16 YUV texture in 32-bit (A2U10Y10V10) format
