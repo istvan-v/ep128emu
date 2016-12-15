@@ -33,7 +33,7 @@ namespace Ep128ImgConv {
     "IVIEW (epcompress -m3)",           // 4
     "IVIEW (ZLib)",                     // 5
     "Agsys CRF",                        // 6
-    "ZozoTools VL/VS",                  // 7
+    "ZozoTools VL\\/VS",                // 7
     "PaintBox",                         // 8
     "Zaxial",                           // 9
     "Raw image data",                   // 10
@@ -288,7 +288,7 @@ namespace Ep128ImgConv {
     if (outputFormat < 2)
       return outputFormat;
     if (outputFormat < 6)
-      return (outputFormat * 10 + compressionLevel);
+      return ((outputFormat - 1) * 10 + compressionLevel);
     if (outputFormat < 11)
       return (outputFormat - 4);
     if (outputFormat < 13)
