@@ -246,6 +246,7 @@ void Ep128ImgConvGUI::setWidgetColors(Fl_Widget *epWidget, Fl_Widget *tvcWidget,
       continue;
     if (c < 0) {
       o->color(Fl_Color(48));
+      o->redraw();
       continue;
     }
     int     ri = 0;
