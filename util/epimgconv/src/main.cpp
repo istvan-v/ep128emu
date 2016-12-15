@@ -21,22 +21,10 @@
 // distributed without any restrictions.
 
 #include "epimgconv.hpp"
-#include "imageconv.hpp"
-#include "pixel2.hpp"
-#include "pixel4.hpp"
-#include "pixel16_1.hpp"
-#include "pixel16_2.hpp"
-#include "pixel256.hpp"
-#include "attr16.hpp"
-#include "tvc_2.hpp"
-#include "tvc_4.hpp"
-#include "tvc_16.hpp"
 #include "imgwrite.hpp"
 #include "img_cfg.hpp"
 
 #include <string>
-#include <vector>
-#include <map>
 
 #include <FL/Fl.H>
 #include <FL/Fl_Image.H>
@@ -259,222 +247,18 @@ int main(int argc, char **argv)
       printUsageFlag = true;
       throw Ep128Emu::Exception("missing file name");
     }
-    if (config.width < 1 || config.height < 1) {
-      if (config.width < 1 && config.height < 1)
-        throw Ep128Emu::Exception("invalid output image size");
-      // width or height is unspecified, calculate from the other value
-      // and image aspect ratio
-      Fl_Shared_Image *f = Fl_Shared_Image::get(infileName.c_str());
-      if (!f)
-        throw Ep128Emu::Exception("error opening image file");
-      int     w = f->w();
-      int     h = f->h();
-      f->release();
-      f = (Fl_Shared_Image *) 0;
-      if (w < 1 || w > 16384 || h < 1 || h > 16384)
-        throw Ep128Emu::Exception("invalid input image size");
-      double  aspectRatio = double(w) / double(h);
-      w = config.width;
-      h = config.height;
-      if (w < 1) {
-        w = int(double(h) * aspectRatio * 0.125 + 0.9);
-        if (config.width < 0 && (-w) < config.width) {
-          w = -(config.width);
-          h = int(double(w) / (aspectRatio * 0.125) + 0.9);
-        }
+    Ep128ImgConv::ImageData *imgData =
+        Ep128ImgConv::convertImage(infileName.c_str(), config);
+    if (imgData) {
+      try {
+        writeConvertedImageFile(outfileName.c_str(), *imgData,
+                                config.getOutputFormat(), config.noCompress);
       }
-      else {
-        h = int(double(w) / (aspectRatio * 0.125) + 0.9);
-        if (config.height < 0 && (-h) < config.height) {
-          h = -(config.height);
-          w = int(double(h) * aspectRatio * 0.125 + 0.9);
-        }
+      catch (...) {
+        delete imgData;
+        throw;
       }
-      Ep128ImgConv::limitValue(w, 1, 255);
-      Ep128ImgConv::limitValue(h, 1, 16384);
-      config["width"] = w;
-      config["height"] = h;
-      std::printf("Output image size: %d, %d\n", w, h);
-    }
-    int     outputFormat = config.getOutputFormat();
-    if (!((outputFormat >= 0 && outputFormat <= 6) ||
-          (outputFormat >= 11 && outputFormat <= 59 &&
-           outputFormat != 20 && outputFormat != 30 && outputFormat != 40))) {
-      throw Ep128Emu::Exception("invalid output format");
-    }
-    // TVC video modes are only valid when using TVC KEP output format
-    if ((outputFormat >= 50) != ((config.conversionType % 10) >= 7))
-      throw Ep128Emu::Exception("invalid video mode for output format");
-    if (outputFormat >= 2 && outputFormat <= 5) {
-      // non-IVIEW formats do not support interlace
-      // Agsys CRF format only supports 4-color PIXEL mode
-      // ZozoTools VL/VS format does not support attribute mode
-      if (config.conversionType >= 10 ||
-          (outputFormat == 2 && config.conversionType != 1) ||
-          (outputFormat == 3 && config.conversionType == 6)) {
-        throw Ep128Emu::Exception("invalid video mode for output format");
-      }
-      if (outputFormat >= 3 && outputFormat <= 5) {
-        // make sure that the output image size is EXOS compatible
-        int     newWidth = config.width;
-        int     newHeight = (config.height + 8) / 9;
-        Ep128ImgConv::limitValue(newWidth, 1, 42);
-        Ep128ImgConv::limitValue(newHeight, 1, 27);
-        newHeight = newHeight * 9;
-        if (newWidth != config.width || newHeight != config.height) {
-          config["width"] = newWidth;
-          config["height"] = newHeight;
-          std::fprintf(stderr, "WARNING: image size changed to %d,%d "
-                               "for compatibility with output format\n",
-                       newWidth, newHeight);
-        }
-      }
-    }
-    int     videoMode = 0;
-    int     biasResolution = 0;
-    int     interlaceMode = 0;
-    int     compressionType = 0;
-    if (config.conversionType >= 10 && config.conversionType <= 19)
-      interlaceMode = 0x9C;
-    if (config.paletteResolution == 0)
-      interlaceMode = interlaceMode & 0x98;     // fixed palette
-    switch (config.conversionType % 10) {
-    case 0:                                     // PIXEL / 2 colors
-    case 7:                                     // TVC 2 colors
-      videoMode = 0x02;
-      interlaceMode = interlaceMode & 0x94;
-      for (int i = 0; i < 2; i++) {
-        if (config.paletteColors[i] < 0)
-          break;
-        if (i == 1) {
-          config["paletteResolution"] = 0;
-          interlaceMode = interlaceMode & 0x90;
-        }
-      }
-      break;
-    case 1:                                     // PIXEL / 4 colors
-    case 8:                                     // TVC 4 colors
-      videoMode = 0x22;
-      interlaceMode = interlaceMode & 0x94;
-      for (int i = 0; i < 4; i++) {
-        if (config.paletteColors[i] < 0)
-          break;
-        if (i == 3) {
-          config["paletteResolution"] = 0;
-          interlaceMode = interlaceMode & 0x90;
-        }
-      }
-      break;
-    case 2:                                     // PIXEL / 16 colors
-    case 3:
-    case 4:
-      videoMode = 0x42;
-      interlaceMode = interlaceMode & 0x94;
-      for (int i = 0; i < 8; i++) {
-        if (config.paletteColors[i] < 0)
-          break;
-        if (i == 7) {
-          config["paletteResolution"] = 0;
-          interlaceMode = interlaceMode & 0x90;
-        }
-      }
-      break;
-    case 5:                                     // PIXEL / 256 colors
-    case 9:                                     // TVC 16 colors
-      videoMode = ((config.conversionType % 10) == 5 ? 0x62 : 0x42);
-      config["paletteResolution"] = 0;
-      interlaceMode = interlaceMode & 0x90;
-      break;
-    case 6:                                     // ATTRIBUTE / 16 colors
-      if (config.ditherType >= 4) {
-        throw Ep128Emu::Exception("ordered dither is not supported in "
-                                  "attribute mode");
-      }
-      videoMode = 0x04;
-      for (int i = 0; i < 8; i++) {
-        if (config.paletteColors[i] < 0)
-          break;
-        if (i == 7) {
-          config["paletteResolution"] = 0;
-          interlaceMode = interlaceMode & 0x98;
-        }
-      }
-      break;
-    default:
-      throw Ep128Emu::Exception("invalid video mode");
-    }
-    if ((outputFormat >= 3 && outputFormat <= 6) &&
-        config.paletteResolution != 0) {
-      config["paletteResolution"] = 0;
-      std::fprintf(stderr, "WARNING: output format supports fixed palette "
-                           "only, setting -palres 0\n");
-    }
-    Ep128ImgConv::ImageConverter  *converter =
-        (Ep128ImgConv::ImageConverter *) 0;
-    Ep128ImgConv::ImageData       imgData(config.width, config.height,
-                                          videoMode,  biasResolution,
-                                          config.paletteResolution,
-                                          interlaceMode, compressionType);
-    try {
-      switch (config.conversionType % 10) {
-      case 0:                                   // PIXEL / 2 colors
-        converter = new Ep128ImgConv::ImageConv_Pixel2();
-        break;
-      case 1:                                   // PIXEL / 4 colors
-        converter = new Ep128ImgConv::ImageConv_Pixel4();
-        break;
-      case 2:                                   // PIXEL / 16 colors
-      case 3:
-        converter = new Ep128ImgConv::ImageConv_Pixel16_1();
-        break;
-      case 4:
-        converter = new Ep128ImgConv::ImageConv_Pixel16_2();
-        break;
-      case 5:                                   // PIXEL / 256 colors
-        converter = new Ep128ImgConv::ImageConv_Pixel256();
-        break;
-      case 6:                                   // ATTRIBUTE / 16 colors
-        converter = new Ep128ImgConv::ImageConv_Attr16();
-        break;
-      case 7:                                   // TVC 2 colors
-        converter = new Ep128ImgConv::ImageConv_TVCPixel2();
-        break;
-      case 8:                                   // TVC 4 colors
-        converter = new Ep128ImgConv::ImageConv_TVCPixel4();
-        break;
-      case 9:                                   // TVC 16 colors
-        converter = new Ep128ImgConv::ImageConv_TVCPixel16();
-        break;
-      }
-      Ep128ImgConv::YUVImageConverter imgConv;
-      imgConv.setScaleMode(config.scaleMode);
-      imgConv.setXYScaleAndOffset(float(config.scaleX), float(config.scaleY),
-                                  float(config.offsetX), float(config.offsetY));
-      imgConv.setEnableInterpolation(!config.noInterpolation);
-      imgConv.setGammaCorrection(float(config.gammaCorrection), 1.0f);
-      imgConv.setLuminanceRange(float(config.yMin), float(config.yMax));
-      imgConv.setColorSaturation(float(config.colorSaturationMult));
-      imgConv.setImageSize(config.width * 16, config.height * 2);
-      imgConv.setPixelAspectRatio(1.0f);
-      float   borderY = 0.0f;
-      float   borderU = 0.0f;
-      float   borderV = 0.0f;
-      Ep128ImgConv::convertEPColorToYUV(config.borderColor,
-                                        borderY, borderU, borderV, 1.0);
-      imgConv.setBorderColor(borderY, borderU, borderV);
-      imgData.setBorderColor(config.borderColor);
-      if (converter->processImage(imgData, infileName.c_str(),
-                                  imgConv, config)) {
-        writeConvertedImageFile(outfileName.c_str(), imgData,
-                                outputFormat, config.noCompress);
-      }
-      delete converter;
-      converter = (Ep128ImgConv::ImageConverter *) 0;
-    }
-    catch (...) {
-      if (converter)
-        delete converter;
-      throw;
+      delete imgData;
     }
     return 0;
   }

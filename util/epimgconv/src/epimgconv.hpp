@@ -33,6 +33,9 @@ namespace Ep128ImgConv {
   class ImageConvConfig;
   class YUVImageConverter;
 
+  void defaultProgressMessageCb(void *userData, const char *msg);
+  bool defaultProgressPercentageCb(void *userData, int n);
+
   class ImageData {
    private:
     unsigned char *buf;
@@ -116,6 +119,20 @@ namespace Ep128ImgConv {
     void setAttributes(long xc, long yc, int c0, int c1);
     void setPixel(long xc, long yc, int c);
   };
+
+}       // namespace Ep128ImgConv
+
+#ifndef DISABLE_OPENGL_DISPLAY
+#  include <FL/Fl.H>
+#  include <FL/Fl_File_Chooser.H>
+class Ep128ImgConvGUI;
+class Ep128ImgConvGUI_Display;
+class Ep128ImgConvGUI_Nick;
+#  include "img_disp.hpp"
+#  include "epimgconv_fl.hpp"
+#endif
+
+namespace Ep128ImgConv {
 
   class YUVImage {
    private:
@@ -340,6 +357,14 @@ namespace Ep128ImgConv {
   void ditherLine_ordered_TVC16(IndexedImage& ditheredImage,
                                 const YUVImage& inputImage, long yc,
                                 int ditherType);
+
+  ImageData *convertImage(
+      const char *inputFileName, const ImageConvConfig& config_,
+      void (*progressMessageCallback)(void *userData, const char *msg) =
+          (void (*)(void *, const char *)) 0,
+      bool (*progressPercentageCallback)(void *userData, int n) =
+          (bool (*)(void *, int)) 0,
+      void *progressCallbackUserData = (void *) 0);
 
 }       // namespace Ep128ImgConv
 

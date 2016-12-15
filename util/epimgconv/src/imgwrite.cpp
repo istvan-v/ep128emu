@@ -69,7 +69,10 @@ namespace Ep128ImgConv {
 
   bool writeEPImageAsProgram(std::FILE *f,
                              const Ep128ImgConv::ImageData& imgData,
-                             bool noCompress)
+                             bool noCompress,
+      void (*progressMessageCallback)(void *userData, const char *msg),
+      bool (*progressPercentageCallback)(void *userData, int n),
+      void *progressCallbackUserData)
   {
     std::vector< unsigned char >  buf;
     int     nLines = int(imgData[6]) | (int(imgData[7]) << 8);
@@ -260,6 +263,12 @@ namespace Ep128ImgConv {
       Ep128Compress::Compressor *compressor =
           Ep128Compress::createCompressor(0, tmpBuf);
       try {
+        if (progressMessageCallback && progressPercentageCallback) {
+          compressor->setProgressMessageCallback(progressMessageCallback,
+                                                 progressCallbackUserData);
+          compressor->setProgressPercentageCallback(progressPercentageCallback,
+                                                    progressCallbackUserData);
+        }
         compressor->setCompressionLevel(8);
         if (!(compressor->compressData(buf, 0x0100U, true, true))) {
           delete compressor;
@@ -276,23 +285,34 @@ namespace Ep128ImgConv {
     }
     for (size_t i = 0; i < buf.size(); i++) {
       if (std::fputc(buf[i], f) == EOF)
-        return false;
+        throw Ep128Emu::Exception("error writing output file");
     }
     return true;
   }
 
-  static void compressDataBlock(std::vector< unsigned char >& outBuf,
-                                const std::vector< unsigned char >& inBuf,
-                                int compressionType, int compressionLevel)
+  static bool compressDataBlock(
+      std::vector< unsigned char >& outBuf,
+      const std::vector< unsigned char >& inBuf,
+      int compressionType, int compressionLevel,
+      void (*progressMessageCallback)(void *userData, const char *msg),
+      bool (*progressPercentageCallback)(void *userData, int n),
+      void *progressCallbackUserData)
   {
     static const int compressionTypes[4] = {
       2, 0, 3, 5
     };
     Ep128Compress::Compressor *compress_ = (Ep128Compress::Compressor *) 0;
+    bool    retval = false;
     try {
       Ep128Compress::Compressor::CompressionParameters  cfg;
       compressionType = compressionTypes[(compressionType - 1) & 3];
       compress_ = Ep128Compress::createCompressor(compressionType, outBuf);
+      if (progressMessageCallback && progressPercentageCallback) {
+        compress_->setProgressMessageCallback(progressMessageCallback,
+                                              progressCallbackUserData);
+        compress_->setProgressPercentageCallback(progressPercentageCallback,
+                                                 progressCallbackUserData);
+      }
       compress_->getCompressionParameters(cfg);
       if (compressionLevel >= 1 && compressionLevel <= 9) {
         cfg.setCompressionLevel(compressionLevel);
@@ -310,7 +330,7 @@ namespace Ep128ImgConv {
         }
         compress_->setCompressionParameters(cfg);
       }
-      compress_->compressData(inBuf, 0xFFFFFFFFU, true, true);
+      retval = compress_->compressData(inBuf, 0xFFFFFFFFU, true, true);
       delete compress_;
       compress_ = (Ep128Compress::Compressor *) 0;
     }
@@ -321,11 +341,14 @@ namespace Ep128ImgConv {
       }
       throw;
     }
+    return retval;
   }
 
-  bool writeEPImageAsIViewFile(std::FILE *f,
-                               const Ep128ImgConv::ImageData& imgData,
-                               int outputFormat)
+  bool writeEPImageAsIViewFile(
+      std::FILE *f, const Ep128ImgConv::ImageData& imgData, int outputFormat,
+      void (*progressMessageCallback)(void *userData, const char *msg),
+      bool (*progressPercentageCallback)(void *userData, int n),
+      void *progressCallbackUserData)
   {
     size_t  offsTable[11];
     for (int i = 0; i < 2; i++) {
@@ -364,8 +387,13 @@ namespace Ep128ImgConv {
       {
         tmpBuf2.insert(tmpBuf2.end(),
                        buf.begin(), buf.begin() + attrOffset);
-        compressDataBlock(tmpBuf, tmpBuf2,
-                          outputFormat / 10, outputFormat % 10);
+        if (!compressDataBlock(tmpBuf, tmpBuf2,
+                               outputFormat / 10, outputFormat % 10,
+                               progressMessageCallback,
+                               progressPercentageCallback,
+                               progressCallbackUserData)) {
+          return false;
+        }
         size_t  uncompressedSize = tmpBuf2.size();
         tmpBuf2.clear();
         tmpBuf2.insert(tmpBuf2.end(),
@@ -383,8 +411,13 @@ namespace Ep128ImgConv {
         tmpBuf.clear();
       }
       {
-        compressDataBlock(tmpBuf, tmpBuf2,
-                          outputFormat / 10, outputFormat % 10);
+        if (!compressDataBlock(tmpBuf, tmpBuf2,
+                               outputFormat / 10, outputFormat % 10,
+                               progressMessageCallback,
+                               progressPercentageCallback,
+                               progressCallbackUserData)) {
+          return false;
+        }
         size_t  uncompressedSize = tmpBuf2.size();
         tmpBuf2.clear();
         buf.push_back((unsigned char) (uncompressedSize & 0xFF));
@@ -397,7 +430,7 @@ namespace Ep128ImgConv {
     }
     for (size_t i = 0; i < buf.size(); i++) {
       if (std::fputc(buf[i], f) == EOF)
-        return false;
+        throw Ep128Emu::Exception("error writing output file");
     }
     return true;
   }
@@ -489,7 +522,7 @@ namespace Ep128ImgConv {
     }
     for (size_t i = 0; i < buf.size(); i++) {
       if (std::fputc(buf[i], f) == EOF)
-        return false;
+        throw Ep128Emu::Exception("error writing output file");
     }
     return true;
   }
@@ -584,7 +617,7 @@ namespace Ep128ImgConv {
     }
     for (size_t i = 0; i < buf.size(); i++) {
       if (std::fputc(buf[i], f) == EOF)
-        return false;
+        throw Ep128Emu::Exception("error writing output file");
     }
     return true;
   }
@@ -641,7 +674,7 @@ namespace Ep128ImgConv {
     }
     for (size_t i = 0; i < buf.size(); i++) {
       if (std::fputc(buf[i], f) == EOF)
-        return false;
+        throw Ep128Emu::Exception("error writing output file");
     }
     return true;
   }
@@ -707,7 +740,7 @@ namespace Ep128ImgConv {
     }
     for (size_t i = 0; i < buf.size(); i++) {
       if (std::fputc(buf[i], f) == EOF)
-        return false;
+        throw Ep128Emu::Exception("error writing output file");
     }
     return true;
   }
@@ -733,7 +766,7 @@ namespace Ep128ImgConv {
     }
     for (size_t i = 0; i < buf.size(); i++) {
       if (std::fputc(buf[i], f) == EOF)
-        return false;
+        throw Ep128Emu::Exception("error writing output file");
     }
     return true;
   }
@@ -793,9 +826,11 @@ namespace Ep128ImgConv {
     }
   }
 
-  bool writeTVCImageAsKEPFile(std::FILE *f,
-                              const Ep128ImgConv::ImageData& imgData,
-                              int outputFormat)
+  bool writeTVCImageAsKEPFile(
+      std::FILE *f, const Ep128ImgConv::ImageData& imgData, int outputFormat,
+      void (*progressMessageCallback)(void *userData, const char *msg),
+      bool (*progressPercentageCallback)(void *userData, int n),
+      void *progressCallbackUserData)
   {
     std::vector< unsigned char >  tmpBuf;
     std::vector< unsigned char >  tmpBuf2;
@@ -869,8 +904,13 @@ namespace Ep128ImgConv {
           tmpBuf.push_back(imgData[i]);
         for (size_t i = offsTable[7]; i < offsTable[8]; i++)
           tmpBuf.push_back(imgData[i]);
-        compressDataBlock(tmpBuf2, tmpBuf,
-                          outputFormat % 5, (outputFormat < 55 ? -1 : -2));
+        if (!compressDataBlock(tmpBuf2, tmpBuf,
+                               outputFormat % 5, (outputFormat < 55 ? -1 : -2),
+                               progressMessageCallback,
+                               progressPercentageCallback,
+                               progressCallbackUserData)) {
+          return false;
+        }
         buf.insert(buf.end(), tmpBuf2.begin(), tmpBuf2.end());
       }
     }
@@ -896,20 +936,29 @@ namespace Ep128ImgConv {
       else {
         // epcompress format
         tmpBuf2.clear();
-        compressDataBlock(tmpBuf2, tmpBuf,
-                          outputFormat % 5, (outputFormat < 55 ? -1 : -2));
+        if (!compressDataBlock(tmpBuf2, tmpBuf,
+                               outputFormat % 5, (outputFormat < 55 ? -1 : -2),
+                               progressMessageCallback,
+                               progressPercentageCallback,
+                               progressCallbackUserData)) {
+          return false;
+        }
         buf.insert(buf.end(), tmpBuf2.begin(), tmpBuf2.end());
       }
     }
     for (size_t i = 0; i < buf.size(); i++) {
       if (std::fputc(buf[i], f) == EOF)
-        return false;
+        throw Ep128Emu::Exception("error writing output file");
     }
     return true;
   }
 
-  void writeConvertedImageFile(const char *fileName, const ImageData& imgData,
-                               int outputFormat, bool noCompress)
+  bool writeConvertedImageFile(
+      const char *fileName, const ImageData& imgData,
+      int outputFormat, bool noCompress,
+      void (*progressMessageCallback)(void *userData, const char *msg),
+      bool (*progressPercentageCallback)(void *userData, int n),
+      void *progressCallbackUserData)
   {
     if (!((outputFormat >= 0 && outputFormat <= 6) ||
           (outputFormat >= 11 && outputFormat <= 59 &&
@@ -926,7 +975,10 @@ namespace Ep128ImgConv {
       bool    writeSuccessful = false;
       switch (outputFormat) {
       case 0:
-        writeSuccessful = writeEPImageAsProgram(f, imgData, noCompress);
+        writeSuccessful = writeEPImageAsProgram(f, imgData, noCompress,
+                                                progressMessageCallback,
+                                                progressPercentageCallback,
+                                                progressCallbackUserData);
         break;
       case 2:
         writeSuccessful = writeEPImageAsCRFFile(f, imgData);
@@ -944,14 +996,27 @@ namespace Ep128ImgConv {
         writeSuccessful = writeEPImageAsRawFile(f, imgData);
         break;
       default:
-        if (outputFormat >= 50)
-          writeSuccessful = writeTVCImageAsKEPFile(f, imgData, outputFormat);
-        else
-          writeSuccessful = writeEPImageAsIViewFile(f, imgData, outputFormat);
+        if (outputFormat >= 50) {
+          writeSuccessful = writeTVCImageAsKEPFile(f, imgData, outputFormat,
+                                                   progressMessageCallback,
+                                                   progressPercentageCallback,
+                                                   progressCallbackUserData);
+        }
+        else {
+          writeSuccessful = writeEPImageAsIViewFile(f, imgData, outputFormat,
+                                                    progressMessageCallback,
+                                                    progressPercentageCallback,
+                                                    progressCallbackUserData);
+        }
         break;
       }
-      writeSuccessful = writeSuccessful && (std::fflush(f) == 0);
-      if (!writeSuccessful)
+      if (!writeSuccessful) {
+        std::fclose(f);
+        f = (std::FILE *) 0;
+        std::remove(fileName);
+        return false;
+      }
+      if (std::fflush(f) != 0)
         throw Ep128Emu::Exception("error writing output file");
       std::fclose(f);
       f = (std::FILE *) 0;
@@ -963,6 +1028,7 @@ namespace Ep128ImgConv {
       }
       throw;
     }
+    return true;
   }
 
 }       // namespace Ep128ImgConv

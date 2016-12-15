@@ -1,6 +1,6 @@
 
 // epimgconv: Enterprise 128 image converter utility
-// Copyright (C) 2008 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2008-2016 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -29,23 +29,6 @@
 #include <FL/Fl.H>
 #include <FL/Fl_Image.H>
 #include <FL/Fl_Shared_Image.H>
-
-static void defaultProgressMessageCb(void *userData, const char *msg)
-{
-  (void) userData;
-  if (msg != (char *) 0 && msg[0] != '\0')
-    std::fprintf(stderr, "%s\n", msg);
-}
-
-static bool defaultProgressPercentageCb(void *userData, int n)
-{
-  (void) userData;
-  if (n != 100)
-    std::fprintf(stderr, "\r  %3d%%    ", n);
-  else
-    std::fprintf(stderr, "\r  %3d%%    \n", n);
-  return true;
-}
 
 static void parseXPMHeader(std::vector< long >& buf, const char *s)
 {

@@ -27,35 +27,56 @@
 
 namespace Ep128ImgConv {
 
-  bool writeEPImageAsProgram(std::FILE *f,
-                             const Ep128ImgConv::ImageData& imgData,
-                             bool noCompress = false);
+  bool writeEPImageAsProgram(
+      std::FILE *f, const Ep128ImgConv::ImageData& imgData,
+      bool noCompress = false,
+      void (*progressMessageCallback)(void *userData, const char *msg) =
+          (void (*)(void *, const char *)) 0,
+      bool (*progressPercentageCallback)(void *userData, int n) =
+          (bool (*)(void *, int)) 0,
+      void *progressCallbackUserData = (void *) 0);
 
-  bool writeEPImageAsIViewFile(std::FILE *f,
-                               const Ep128ImgConv::ImageData& imgData,
-                               int outputFormat = 1);
+  bool writeEPImageAsIViewFile(
+      std::FILE *f, const Ep128ImgConv::ImageData& imgData,
+      int outputFormat = 1,
+      void (*progressMessageCallback)(void *userData, const char *msg) =
+          (void (*)(void *, const char *)) 0,
+      bool (*progressPercentageCallback)(void *userData, int n) =
+          (bool (*)(void *, int)) 0,
+      void *progressCallbackUserData = (void *) 0);
 
-  bool writeEPImageAsCRFFile(std::FILE *f,
-                             const Ep128ImgConv::ImageData& imgData);
+  bool writeEPImageAsCRFFile(
+      std::FILE *f, const Ep128ImgConv::ImageData& imgData);
 
-  bool writeEPImageAsVLoadFile(std::FILE *f,
-                               const Ep128ImgConv::ImageData& imgData);
+  bool writeEPImageAsVLoadFile(
+      std::FILE *f, const Ep128ImgConv::ImageData& imgData);
 
-  bool writeEPImageAsPaintBoxFile(std::FILE *f,
-                                  const Ep128ImgConv::ImageData& imgData);
+  bool writeEPImageAsPaintBoxFile(
+      std::FILE *f, const Ep128ImgConv::ImageData& imgData);
 
-  bool writeEPImageAsZaxialFile(std::FILE *f,
-                                const Ep128ImgConv::ImageData& imgData);
+  bool writeEPImageAsZaxialFile(
+      std::FILE *f, const Ep128ImgConv::ImageData& imgData);
 
-  bool writeEPImageAsRawFile(std::FILE *f,
-                             const Ep128ImgConv::ImageData& imgData);
+  bool writeEPImageAsRawFile(
+      std::FILE *f, const Ep128ImgConv::ImageData& imgData);
 
-  bool writeTVCImageAsKEPFile(std::FILE *f,
-                              const Ep128ImgConv::ImageData& imgData,
-                              int outputFormat = 50);
+  bool writeTVCImageAsKEPFile(
+      std::FILE *f, const Ep128ImgConv::ImageData& imgData,
+      int outputFormat = 50,
+      void (*progressMessageCallback)(void *userData, const char *msg) =
+          (void (*)(void *, const char *)) 0,
+      bool (*progressPercentageCallback)(void *userData, int n) =
+          (bool (*)(void *, int)) 0,
+      void *progressCallbackUserData = (void *) 0);
 
-  void writeConvertedImageFile(const char *fileName, const ImageData& imgData,
-                               int outputFormat = 0, bool noCompress = false);
+  bool writeConvertedImageFile(
+      const char *fileName, const ImageData& imgData,
+      int outputFormat = 0, bool noCompress = false,
+      void (*progressMessageCallback)(void *userData, const char *msg) =
+          (void (*)(void *, const char *)) 0,
+      bool (*progressPercentageCallback)(void *userData, int n) =
+          (bool (*)(void *, int)) 0,
+      void *progressCallbackUserData = (void *) 0);
 
 }       // namespace Ep128ImgConv
 

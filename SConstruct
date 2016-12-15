@@ -527,9 +527,9 @@ if buildUtilities:
     dtfEnvironment = copyEnvironment(epcompressEnvironment)
     dtf = dtfEnvironment.Program('dtf', ['util/dtf/dtf.cpp'])
     Depends(dtf, compressLib)
-    epimgconvEnvironment = copyEnvironment(makecfgEnvironment)
+    epimgconvEnvironment = copyEnvironment(ep128emuGLGUIEnvironment)
     epimgconvEnvironment.Append(CPPPATH = ['./util/epcompress/src'])
-    epimgconvEnvironment.Prepend(LIBS = [compressLib, ep128emuLib])
+    epimgconvEnvironment.Prepend(LIBS = [compressLib, ep128Lib, ep128emuLib])
     if mingwCrossCompile:
         epimgconvEnvironment['LINKFLAGS'].remove('-mwindows')
     epimgconv = epimgconvEnvironment.Program(
@@ -537,7 +537,9 @@ if buildUtilities:
                         util/epimgconv/src/attr16.cpp
                         util/epimgconv/src/epimgconv.cpp
                         util/epimgconv/src/imageconv.cpp
+                        util/epimgconv/src/imgconvgui.cpp
                         util/epimgconv/src/img_cfg.cpp
+                        util/epimgconv/src/img_disp.cpp
                         util/epimgconv/src/imgwrite.cpp
                         util/epimgconv/src/main.cpp
                         util/epimgconv/src/pixel16_1.cpp
@@ -548,8 +550,9 @@ if buildUtilities:
                         util/epimgconv/src/tvc_16.cpp
                         util/epimgconv/src/tvc_2.cpp
                         util/epimgconv/src/tvc_4.cpp
-                    '''))
+                    ''') + [fluidCompile(['util/epimgconv/src/epimgconv.fl'])])
     Depends(epimgconv, compressLib)
+    Depends(epimgconv, ep128Lib)
     Depends(epimgconv, ep128emuLib)
 
 # -----------------------------------------------------------------------------
