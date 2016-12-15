@@ -1882,9 +1882,16 @@ namespace Ep128ImgConv {
       bool (*progressPercentageCallback)(void *userData, int n),
       void *progressCallbackUserData)
   {
-    ImageConvConfig config = config_;
     if (!inputFileName || inputFileName[0] == '\0')
       throw Ep128Emu::Exception("invalid input file name");
+    ImageConvConfig config;
+    // FIXME: ugly hack to use a local copy of the configuration; this code
+    // assumes that 'outputFormat' is the first configuration variable and
+    // 'configChangeFlag' is after the last one
+    std::memcpy(&(config.outputFormat), &(config_.outputFormat),
+                size_t((unsigned char *) &(config_.configChangeFlag)
+                       - (unsigned char *) &(config_.outputFormat)));
+    config.configChangeFlag = false;
     if (config.width < 1 || config.height < 1) {
       if (config.width < 1 && config.height < 1)
         throw Ep128Emu::Exception("invalid output image size");
