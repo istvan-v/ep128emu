@@ -296,7 +296,7 @@ void Ep128ImgConvGUI::updateConfigWindow()
     yMaxValuator->value(config.yMax);
     saturationMultValuator->value(config.colorSaturationMult);
     gammaCorrectionValuator->value(config.gammaCorrection);
-    if (outputFormat >= 6 && outputFormat <= 10) {
+    if (outputFormat >= 7 && outputFormat <= 10) {
       paletteResolutionValuator->deactivate();
       paletteResolutionValuator->value(0);
     }
@@ -325,7 +325,7 @@ void Ep128ImgConvGUI::updateConfigWindow()
     setWidgetColors(borderColorDisplay, borderColorTVCDisplay,
                     config.borderColor);
     outputFormatValuator->value(outputFormat);
-    if ((outputFormat >= 2 && outputFormat <= 6) ||
+    if ((outputFormat >= 2 && outputFormat <= 5) ||
         (outputFormat >= 13 && outputFormat <= 16)) {
       compressionLevelValuator->value(double(config.compressionLevel));
       compressionLevelValuator->activate();
