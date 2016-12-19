@@ -878,10 +878,10 @@ namespace Ep128ImgConv {
     buf.push_back((unsigned char) (width >> 8));        // width MSB
     buf.push_back((unsigned char) (height & 0xFFU));    // height LSB
     buf.push_back((unsigned char) (height >> 8));       // height MSB
-    buf.push_back(0x00);                // 4 unused/reserved bytes
-    buf.push_back(0x00);
-    buf.push_back(0x00);
-    buf.push_back(0x00);
+    buf.push_back((imgData | (imgData << 1)) & 0xAA);   // border color
+    buf.push_back(0x00);                // unused / reserved byte
+    buf.push_back(0x00);                // compressed palette data size LSB
+    buf.push_back(0x00);                // compressed palette data size MSB
     // write palette
     if (!(mode & 0x20)) {
       // -palres 0
@@ -913,6 +913,9 @@ namespace Ep128ImgConv {
                                progressCallbackUserData)) {
           return false;
         }
+        // store compressed size in header
+        buf[14] = (unsigned char) (tmpBuf2.size() & 0xFF);
+        buf[15] = (unsigned char) (tmpBuf2.size() >> 8);
         buf.insert(buf.end(), tmpBuf2.begin(), tmpBuf2.end());
       }
     }
