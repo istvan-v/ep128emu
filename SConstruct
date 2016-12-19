@@ -46,7 +46,7 @@ else:
 fltkLibsLinux = '-lfltk -lfltk_images -lfltk_jpeg -lfltk_png'
 fltkLibsMinGW = fltkLibsLinux + ' -lz -lcomdlg32 -lcomctl32 -lole32'
 fltkLibsMinGW = fltkLibsMinGW + ' -luuid -lws2_32 -lwinmm -lgdi32'
-fltkLibsLinux = fltkLibsLinux + ' -lfltk_z -lXinerama -lXext -lXft'
+fltkLibsLinux = fltkLibsLinux + ' -lfltk_z -lXinerama -lXrender -lXext -lXft'
 fltkLibsLinux = fltkLibsLinux + ' -lXfixes -lX11 -lfontconfig -ldl'
 
 packageConfigs = {
