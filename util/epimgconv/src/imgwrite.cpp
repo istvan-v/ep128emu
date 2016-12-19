@@ -878,7 +878,7 @@ namespace Ep128ImgConv {
     buf.push_back((unsigned char) (width >> 8));        // width MSB
     buf.push_back((unsigned char) (height & 0xFFU));    // height LSB
     buf.push_back((unsigned char) (height >> 8));       // height MSB
-    buf.push_back((imgData | (imgData << 1)) & 0xAA);   // border color
+    buf.push_back((imgData[9] | (imgData[9] << 1)) & 0xAA);     // border color
     buf.push_back(0x00);                // unused / reserved byte
     buf.push_back(0x00);                // compressed palette data size LSB
     buf.push_back(0x00);                // compressed palette data size MSB
