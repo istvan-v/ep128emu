@@ -375,23 +375,38 @@ Section "Associate Spectrum .TZX and .Z80 files with ep128emu" SecAssocZX
 
 SectionEnd
 
-Section "Associate CPC .CDT, .DSK and .SNA files with ep128emu" SecAssocCPC
+Section "Associate CPC .CDT and .SNA files with ep128emu" SecAssocCPC
 
   WriteRegStr HKCR ".cdt" "" "Ep128Emu.CDTFile"
   WriteRegStr HKCR "Ep128Emu.CDTFile" "" "Ep128Emu CPC tape file"
   WriteRegStr HKCR "Ep128Emu.CDTFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,2"
   WriteRegStr HKCR "Ep128Emu.CDTFile\shell" "" "open"
   WriteRegStr HKCR "Ep128Emu.CDTFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -cpc "tape.imageFile=%1"'
-  WriteRegStr HKCR ".dsk" "" "Ep128Emu.DSKFile"
-  WriteRegStr HKCR "Ep128Emu.DSKFile" "" "Ep128Emu CPC disk image"
-  WriteRegStr HKCR "Ep128Emu.DSKFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,2"
-  WriteRegStr HKCR "Ep128Emu.DSKFile\shell" "" "open"
-  WriteRegStr HKCR "Ep128Emu.DSKFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -cpc "floppy.a.imageFile=%1"'
   WriteRegStr HKCR ".sna" "" "Ep128Emu.SNAFile"
   WriteRegStr HKCR "Ep128Emu.SNAFile" "" "Ep128Emu CPC snapshot file"
   WriteRegStr HKCR "Ep128Emu.SNAFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,2"
   WriteRegStr HKCR "Ep128Emu.SNAFile\shell" "" "open"
   WriteRegStr HKCR "Ep128Emu.SNAFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -snapshot "%1"'
+
+SectionEnd
+
+Section /o "Associate CPC .DSK files with ep128emu" SecAssocDiskCPC
+
+  WriteRegStr HKCR ".dsk" "" "Ep128Emu.CPCDiskFile"
+  WriteRegStr HKCR "Ep128Emu.CPCDiskFile" "" "Ep128Emu CPC disk image"
+  WriteRegStr HKCR "Ep128Emu.CPCDiskFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,2"
+  WriteRegStr HKCR "Ep128Emu.CPCDiskFile\shell" "" "open"
+  WriteRegStr HKCR "Ep128Emu.CPCDiskFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -cpc "floppy.a.imageFile=%1"'
+
+SectionEnd
+
+Section /o "Associate TVC .DSK files with ep128emu" SecAssocDiskTVC
+
+  WriteRegStr HKCR ".dsk" "" "Ep128Emu.TVCDiskFile"
+  WriteRegStr HKCR "Ep128Emu.TVCDiskFile" "" "Ep128Emu TVC disk image"
+  WriteRegStr HKCR "Ep128Emu.TVCDiskFile\DefaultIcon" "" "$INSTDIR\ep128emu.exe,3"
+  WriteRegStr HKCR "Ep128Emu.TVCDiskFile\shell" "" "open"
+  WriteRegStr HKCR "Ep128Emu.TVCDiskFile\shell\open\command" "" '"$INSTDIR\ep128emu.exe" -tvc "floppy.a.imageFile=%1"'
 
 SectionEnd
 
@@ -455,7 +470,9 @@ SectionEnd
   LangString DESC_SecSrc ${LANG_ENGLISH} "ep128emu source code"
   LangString DESC_SecAssocFiles ${LANG_ENGLISH} "Associate snapshot and demo files with ep128emu"
   LangString DESC_SecAssocZX ${LANG_ENGLISH} "Associate Spectrum .TZX and .Z80 files with ep128emu"
-  LangString DESC_SecAssocCPC ${LANG_ENGLISH} "Associate CPC .CDT, .DSK and .SNA files with ep128emu"
+  LangString DESC_SecAssocCPC ${LANG_ENGLISH} "Associate CPC .CDT and .SNA files with ep128emu"
+  LangString DESC_SecAssocDiskCPC ${LANG_ENGLISH} "Associate CPC .DSK files with ep128emu"
+  LangString DESC_SecAssocDiskTVC ${LANG_ENGLISH} "Associate TVC .DSK files with ep128emu"
   LangString DESC_SecDLRoms ${LANG_ENGLISH} "Download and install ROM images"
   LangString DESC_SecInstCfg ${LANG_ENGLISH} "Install configuration files"
   LangString DESC_SecUtils ${LANG_ENGLISH} "Install epimgconv and other utilities"
@@ -467,6 +484,8 @@ SectionEnd
     !insertmacro MUI_DESCRIPTION_TEXT ${SecAssocFiles} $(DESC_SecAssocFiles)
     !insertmacro MUI_DESCRIPTION_TEXT ${SecAssocZX} $(DESC_SecAssocZX)
     !insertmacro MUI_DESCRIPTION_TEXT ${SecAssocCPC} $(DESC_SecAssocCPC)
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecAssocDiskCPC} $(DESC_SecAssocDiskCPC)
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecAssocDiskTVC} $(DESC_SecAssocDiskTVC)
     !insertmacro MUI_DESCRIPTION_TEXT ${SecDLRoms} $(DESC_SecDLRoms)
     !insertmacro MUI_DESCRIPTION_TEXT ${SecInstCfg} $(DESC_SecInstCfg)
     !insertmacro MUI_DESCRIPTION_TEXT ${SecUtils} $(DESC_SecUtils)
