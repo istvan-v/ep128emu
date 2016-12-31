@@ -1963,6 +1963,12 @@ namespace Ep128ImgConv {
         }
       }
     }
+    if ((outputFormat >= 3 && outputFormat <= 6) &&
+        config.paletteResolution != 0) {
+      config.paletteResolution = 0;
+      std::fprintf(stderr, "WARNING: output format supports fixed palette "
+                           "only, setting -palres 0\n");
+    }
     int     videoMode = 0;
     int     biasResolution = 0;
     int     interlaceMode = 0;
@@ -2037,12 +2043,6 @@ namespace Ep128ImgConv {
       break;
     default:
       throw Ep128Emu::Exception("invalid video mode");
-    }
-    if ((outputFormat >= 3 && outputFormat <= 6) &&
-        config.paletteResolution != 0) {
-      config.paletteResolution = 0;
-      std::fprintf(stderr, "WARNING: output format supports fixed palette "
-                           "only, setting -palres 0\n");
     }
     ImageConverter  *converter = (ImageConverter *) 0;
     ImageData       *imgData = (ImageData *) 0;
