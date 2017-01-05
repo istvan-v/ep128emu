@@ -103,26 +103,28 @@ namespace Ep128Compress {
         (huffTable == 0 ? huffmanOffsetTable0 : huffmanOffsetTable1);
     unsigned int  *decodeTable =
         (huffTable == 0 ? huffmanDecodeTable0 : huffmanDecodeTable1);
-    for (size_t i = 0; i < 15; i++) {
+    for (size_t i = 0; i < 15; i++)
       symCntTable[i] = 0U;
-      offsetTable[i] = (unsigned int) nSymbols;
-    }
     for (size_t i = 0; i < nSymbols; i++) {
       decodeTable[i] = 0xFFFFFFFFU;
       if (lenBuf[i])
         symCntTable[lenBuf[i] - 1] = symCntTable[lenBuf[i] - 1] + 1U;
     }
-    size_t  n = 0;
-    for (size_t i = 1; i <= 15; i++) {
-      size_t  j = size_t(symCntTable[i - 1]);
-      for (size_t c = 0; j > 0 && c < nSymbols; c++) {
-        if (size_t(lenBuf[c]) == i) {
-          decodeTable[n] = (unsigned int) c;
-          n++;
-          j--;
-        }
+    {
+      unsigned int  offs = 0U;
+      for (size_t i = 0; i < 15; i++) {
+        offsetTable[i] = offs;
+        offs = offs + symCntTable[i];
       }
-      offsetTable[i - 1] = (unsigned int) n;
+    }
+    for (size_t i = 0; i < nSymbols; i++) {
+      unsigned char len = lenBuf[i];
+      if (len) {
+        len--;
+        unsigned int  offs = offsetTable[len];
+        decodeTable[offs] = (unsigned int) i;
+        offsetTable[len] = offs + 1U;
+      }
     }
   }
 
