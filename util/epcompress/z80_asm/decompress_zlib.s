@@ -77,10 +77,8 @@ decompressData:
         pop   ix
     endif
     if NO_ZLIB_HEADER == 0
-        inc   hl                        ; skip Adler-32 checksum
-        inc   hl
-        inc   hl
-        inc   hl
+        ld    bc, 4                     ; skip Adler-32 checksum
+        add   hl, bc
     endif
         ret
 .l3:    exx
@@ -209,7 +207,7 @@ huffmanDecode:
         ret
 
 setFixedHuffmanCode:
-        push  de
+        push  de                        ; B = 0 from readBits8 to read header
         ld    hl, fixedHuffmanEncoding
         ld    de, huffmanSymbolTableL
         xor   a
@@ -226,18 +224,17 @@ setFixedHuffmanCode:
         ld    c, 32                     ; HDIST
         push  bc
         inc   b                         ; HLIT (288 = 256 + 32)
-        jp    huffmanInit.l10
+        jp    huffmanInit.l11
 
 huffmanInit:
         dec   a
         jr    z, setFixedHuffmanCode
-        ld    d, 2
+        ld    h, 2
 .l1:    ld    b, 5
         call  readBits8
         inc   a
-        dec   d
+        dec   h
         ld    l, a
-        ld    h, d
         push  hl                        ; HLIT, HDIST
         jr    nz, .l1
         ld    a, 4
@@ -251,25 +248,22 @@ huffmanInit:
         inc   hl
         djnz  .l2
 .l3:    ld    b, 3                      ; read code length encoding
-        call  readBits8
-        ld    (hl), a
-        inc   l
+        call  readBits8                 ; 16,17,18,0,
+        ld    (hl), a                   ; 8,7,9,6,10,5,11,4,12,3,13,2,14,1,15
         ld    a, l
-        ld    l, low huffmanSymbolTableC
-        sub   l
-        cp    19
-        jr    nc, .l5
-        cp    17
-        jr    nc, .l4
-        cpl
-        add   a, 17
-        cp    8
+        sub   low huffmanSymbolTableC
+        jr    z, .l5
+        cp    16
         jr    c, .l4
-        sub   7
-        or    8
-.l4:    add   a, l
+        cp    18
+        jr    c, .l6
+        ld    a, 15
+.l4:    cpl                             ; -9,-8,-10,-7,-11,...
+        add   a, 8                      ; -1,0,-2,1,-3,...
+.l5:    adc   a, low (huffmanSymbolTableC + 7)  ; 6,8,5,9,4,...
         ld    l, a
-.l5:    dec   d
+.l6:    inc   l
+        dec   d
         jr    nz, .l3
         ld    l, low huffmanSymbolTableC
         ld    a, low huffmanDecodeTableC
@@ -284,35 +278,35 @@ huffmanInit:
         ld    c, l
         ld    b, h
         ld    hl, huffmanSymbolTableL
-.l6:    push  hl
+.l7:    push  hl
         ld    hl, huffmanDecodeTableC + 1
         call  huffmanDecode
         pop   hl
         cp    16
-        jr    c, .l9                    ; not an RLE code?
+        jr    c, .l10                   ; not an RLE code?
         push  bc
         ld    bc, 0202h
-        jr    z, .l7
+        jr    z, .l8
         ld    d, 0
         inc   b
         cp    17
-        jr    z, .l7
+        jr    z, .l8
         ld    bc, 070ah
-.l7:    ld    a, c
+.l8:    ld    a, c
         call  readBits8.l1              ; A = length - 1
         pop   bc
-.l8:    ld    (hl), d                   ; write RLE sequence
+.l9:    ld    (hl), d                   ; write RLE sequence
         inc   hl
         dec   bc
         dec   a
-        jr    nz, .l8
+        jr    nz, .l9
         defb  0feh                      ; = CP nn
-.l9:    ld    d, a
+.l10:   ld    d, a
         ld    (hl), d
         cpi
-        jp    pe, .l6
+        jp    pe, .l7
         pop   bc                        ; HLIT
-.l10:   ld    hl, huffmanSymbolTableL
+.l11:   ld    hl, huffmanSymbolTableL
         ld    a, low huffmanDecodeTableL
         call  buildDecodeTable
         pop   bc                        ; HDIST
