@@ -532,7 +532,7 @@ namespace Ep128Emu {
         getFullPathFileName(fileName, fullName);
       else
         fullName = fileName;
-      std::FILE *f = std::fopen(fullName.c_str(), "rb");
+      std::FILE *f = fileOpen(fullName.c_str(), "rb");
       if (f) {
         try {
           int     c;
@@ -676,7 +676,7 @@ namespace Ep128Emu {
         getFullPathFileName(fileName, fullName);
       else
         fullName = fileName;
-      std::FILE *f = std::fopen(fullName.c_str(), "wb");
+      std::FILE *f = fileOpen(fullName.c_str(), "wb");
       if (f) {
         err = !(enableCompression ||
                 std::fwrite(&(ep128EmuFile_Magic[0]), 1, 16, f) == 16);
@@ -690,7 +690,7 @@ namespace Ep128Emu {
         if (std::fclose(f) != 0)
           err = true;
         if (err)
-          std::remove(fullName.c_str());
+          fileRemove(fullName.c_str());
       }
     }
     buf.clear();

@@ -281,7 +281,7 @@ int main(int argc, char **argv)
           makecfgNeeded = config->memory.rom[0x00].file.empty();
           if (!makecfgNeeded) {
             std::FILE *tmp =
-                std::fopen(config->memory.rom[0x00].file.c_str(), "rb");
+                Ep128Emu::fileOpen(config->memory.rom[0x00].file.c_str(), "rb");
             makecfgNeeded = (!tmp);
             if (!makecfgNeeded) {
               std::fclose(tmp);

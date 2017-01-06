@@ -215,14 +215,19 @@ namespace Ep128Emu {
   {
     return std::fopen(fileName, mode);
   }
+  EP128EMU_INLINE int fileRemove(const char *fileName)
+  {
+    return std::remove(fileName);
+  }
 #else
   /*!
    * Convert UTF-8 encoded string to wchar_t.
    */
   void convertUTF8(wchar_t *buf, const char *s, size_t bufSize);
 
-  // fopen() wrapper with support for UTF-8 encoded file names
+  // file I/O wrappers with support for UTF-8 encoded file names
   std::FILE *fileOpen(const char *fileName, const char *mode);
+  int fileRemove(const char *fileName);
 #endif
 
 }       // namespace Ep128Emu

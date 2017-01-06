@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 #include "ep128emu.hpp"
 #include "tape.hpp"
+#include "system.hpp"
 
 #include <cmath>
 #include <sndfile.h>
@@ -329,15 +330,15 @@ namespace Ep128Emu {
         buf[i] = 0;
       fileHeader = new uint32_t[1024];
       if (mode == 0 || mode == 1)
-        f = std::fopen(fileName, "r+b");
+        f = fileOpen(fileName, "r+b");
       if (f == (std::FILE *) 0 && mode != 3) {
-        f = std::fopen(fileName, "rb");
+        f = fileOpen(fileName, "rb");
         if (f)
           isReadOnly = true;
       }
       if (f == (std::FILE *) 0 && (mode == 0 || mode == 3)) {
         // create new tape file
-        f = std::fopen(fileName, "w+b");
+        f = fileOpen(fileName, "w+b");
         if (f) {
           usingNewFormat = true;
           sampleRate = sampleRate_;
@@ -350,7 +351,7 @@ namespace Ep128Emu {
             fileHeader[i] = 0xFFFFFFFFU;
           if (!writeHeader_()) {
             std::fclose(f);
-            std::remove(fileName);
+            fileRemove(fileName);
             f = (std::FILE *) 0;
           }
         }
@@ -592,7 +593,7 @@ namespace Ep128Emu {
   {
     if (fileName == (char *) 0 || fileName[0] == '\0')
       throw Exception("invalid tape file name");
-    f = std::fopen(fileName, "rb");
+    f = fileOpen(fileName, "rb");
     if (!f)
       throw Exception("error opening tape file");
     bool    isEPTEFile = false;
@@ -768,7 +769,7 @@ namespace Ep128Emu {
     tapeReset();
     if (fileName == (char *) 0 || fileName[0] == '\0')
       throw Exception("invalid tape file name");
-    f = std::fopen(fileName, "rb");
+    f = fileOpen(fileName, "rb");
     if (!f)
       throw Exception("error opening tape file");
     bool    isTZXFile = false;
@@ -1722,7 +1723,7 @@ namespace Ep128Emu {
     isReadOnly = (mode == 2);
     if (!isReadOnly) {
       // check if file exists so that libsndfile does not create an empty file
-      std::FILE *f = std::fopen(fileName, "rb");
+      std::FILE *f = fileOpen(fileName, "rb");
       if (f)
         std::fclose(f);
       else

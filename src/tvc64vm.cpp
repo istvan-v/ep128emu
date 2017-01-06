@@ -1473,7 +1473,7 @@ namespace TVC64 {
     // load file into memory
     std::vector<uint8_t>  buf;
     buf.resize(0x4000, 0xFF);
-    std::FILE *f = std::fopen(fileName, "rb");
+    std::FILE *f = Ep128Emu::fileOpen(fileName, "rb");
     if (!f)
       throw Ep128Emu::Exception("cannot open ROM file");
     std::fseek(f, 0L, SEEK_END);

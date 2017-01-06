@@ -859,7 +859,7 @@ namespace Ep128Emu {
     catch (...) {
       if (f) {
         std::fclose(f);
-        std::remove(fileName);
+        fileRemove(fileName);
       }
       throw;
     }

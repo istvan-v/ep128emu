@@ -8,6 +8,7 @@ Changes in version 2.0.11
   * the debugger window has been made resizeable within a limited range
   * fixed bug in re-opening files selected with a file chooser dialog
   * fixed FILE device bug in EXOS 10 with files larger than 64 KB
+  * improved support for Unicode characters in file names on Windows
   * some other bug fixes
 
 Changes in version 2.0.10

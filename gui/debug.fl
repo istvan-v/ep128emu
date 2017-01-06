@@ -398,7 +398,7 @@ class Ep128EmuGUI_DebugWindow {open
     if (gui.browseFile(tmp, gui.debuggerDirectory,
                        "All files\\t*", Fl_Native_File_Chooser::BROWSE_FILE,
                        "Load watchpoint definitions from file")) {
-      f = std::fopen(tmp.c_str(), "rb");
+      f = Ep128Emu::fileOpen(tmp.c_str(), "rb");
       if (!f)
         throw Ep128Emu::Exception("cannot open file");
       tmp = "";
@@ -448,7 +448,7 @@ class Ep128EmuGUI_DebugWindow {open
                        "All files\\t*",
                        Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
                        "Save watchpoint definitions to file")) {
-      f = std::fopen(tmp.c_str(), "w");
+      f = Ep128Emu::fileOpen(tmp.c_str(), "w");
       if (!f)
         throw Ep128Emu::Exception("cannot open file");
       buf = bpEditBuffer->text();
@@ -506,7 +506,7 @@ class Ep128EmuGUI_DebugWindow {open
                        "Lua scripts\\t*.lua",
                        Fl_Native_File_Chooser::BROWSE_FILE,
                        "Load Lua script from file")) {
-      f = std::fopen(tmp.c_str(), "rb");
+      f = Ep128Emu::fileOpen(tmp.c_str(), "rb");
       if (!f)
         throw Ep128Emu::Exception("cannot open file");
       tmp = "";
@@ -553,7 +553,7 @@ class Ep128EmuGUI_DebugWindow {open
                        "Lua scripts\\t*.lua",
                        Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
                        "Save Lua script to file")) {
-      f = std::fopen(tmp.c_str(), "w");
+      f = Ep128Emu::fileOpen(tmp.c_str(), "w");
       if (!f)
         throw Ep128Emu::Exception("cannot open file");
       buf = scriptEditBuffer->text();

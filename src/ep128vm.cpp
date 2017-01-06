@@ -362,7 +362,7 @@ namespace Ep128 {
             if (n == 0x01) {
               // if opening the file in RW mode failed,
               // try again in read only mode
-              f = std::fopen(fileName.c_str(), "rb");
+              f = Ep128Emu::fileOpen(fileName.c_str(), "rb");
               err = (!f ? err : 0);
             }
           }

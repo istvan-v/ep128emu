@@ -26,6 +26,7 @@
 // http://users.ece.utexas.edu/~valvano/EE345M/SD_Physical_Layer_Spec.pdf
 
 #include "ep128emu.hpp"
+#include "system.hpp"
 
 #include <cstring>
 #include <limits.h>
@@ -179,9 +180,9 @@ namespace Ep128 {
     this->reset(1);
     if (!sdimg_path || sdimg_path[0] == '\0')
       return;
-    sdf = std::fopen(sdimg_path, "r+b");
+    sdf = Ep128Emu::fileOpen(sdimg_path, "r+b");
     if (!sdf) {
-      sdf = std::fopen(sdimg_path, "rb");
+      sdf = Ep128Emu::fileOpen(sdimg_path, "rb");
       if (!sdf)
         throw Ep128Emu::Exception("error opening SD card image file");
     }
@@ -224,7 +225,7 @@ namespace Ep128 {
       romDataChanged = false;
       if (!(romFileName.empty() || romFileWriteProtected)) {
         // write old ROM to disk
-        std::FILE *f = std::fopen(romFileName.c_str(), "wb");
+        std::FILE *f = Ep128Emu::fileOpen(romFileName.c_str(), "wb");
         if (!f) {
           errMsg = "SDExt: error saving flash ROM";
         }
@@ -248,9 +249,9 @@ namespace Ep128 {
     if (!fileName || fileName[0] == '\0')
       return;
     // load ROM image from disk
-    std::FILE *f = std::fopen(fileName, "r+b");
+    std::FILE *f = Ep128Emu::fileOpen(fileName, "r+b");
     if (!f) {
-      f = std::fopen(fileName, "rb");
+      f = Ep128Emu::fileOpen(fileName, "rb");
       if (!f)
         throw Ep128Emu::Exception("SDExt: error opening ROM file");
       romFileWriteProtected = true;

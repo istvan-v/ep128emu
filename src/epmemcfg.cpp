@@ -22,6 +22,7 @@
 #ifdef ENABLE_SDEXT
 #  include "sdext.hpp"
 #endif
+#include "system.hpp"
 
 #include <vector>
 
@@ -72,7 +73,7 @@ namespace Ep128 {
     // load file into memory
     std::vector<uint8_t>  buf;
     buf.resize(0x4000, 0xFF);
-    std::FILE   *f = std::fopen(fileName, "rb");
+    std::FILE   *f = Ep128Emu::fileOpen(fileName, "rb");
     if (!f)
       throw Ep128Emu::Exception("cannot open ROM file");
     std::fseek(f, 0L, SEEK_END);
@@ -110,7 +111,7 @@ namespace Ep128 {
     try {
       if (fileName_.length() < 1)
         throw Ep128Emu::Exception("invalid memory configuration file name");
-      f = std::fopen(fileName_.c_str(), "rb");
+      f = Ep128Emu::fileOpen(fileName_.c_str(), "rb");
       if (!f)
         throw Ep128Emu::Exception("error opening memory configuration file");
       std::vector< std::string >  args;
@@ -264,7 +265,7 @@ namespace Ep128 {
         }
         romFile = (std::FILE *) 0;
         if (fileName.length() > 0) {
-          romFile = std::fopen(fileName.c_str(), "rb");
+          romFile = Ep128Emu::fileOpen(fileName.c_str(), "rb");
           if (!romFile)
             throw Ep128Emu::Exception("error opening ROM file");
         }

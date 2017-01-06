@@ -19,6 +19,7 @@
 
 #include "ep128emu.hpp"
 #include "ide.hpp"
+#include "system.hpp"
 
 namespace Ep128 {
 
@@ -630,9 +631,9 @@ namespace Ep128 {
     }
     setImageFile((char *) 0);   // close any previously opened image file first
     try {
-      imageFile = std::fopen(fileName, "r+b");
+      imageFile = Ep128Emu::fileOpen(fileName, "r+b");
       if (!imageFile) {
-        imageFile = std::fopen(fileName, "rb");
+        imageFile = Ep128Emu::fileOpen(fileName, "rb");
         if (!imageFile)
           throw Ep128Emu::Exception("error opening IDE disk image");
       }

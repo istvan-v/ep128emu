@@ -621,6 +621,14 @@ namespace Ep128Emu {
     return _wfopen(fileName_, mode_);
   }
 
+  int fileRemove(const char *fileName)
+  {
+    wchar_t tmpBuf[512];
+    wchar_t *fileName_ = &(tmpBuf[0]);
+    convertUTF8(fileName_, fileName, 512);
+    return _wremove(fileName_);
+  }
+
 #endif
 
 }       // namespace Ep128Emu

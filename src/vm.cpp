@@ -18,6 +18,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include "ep128emu.hpp"
+#include "system.hpp"
 #include "fileio.hpp"
 #include "display.hpp"
 #include "snd_conv.hpp"
@@ -933,7 +934,12 @@ namespace Ep128Emu {
 #else
       struct _stat  st;
       std::memset(&st, 0, sizeof(struct _stat));
-      int   err = _stat(fullName.c_str(), &st);
+      int   err;
+      {
+        wchar_t tmpBuf[512];
+        convertUTF8(&(tmpBuf[0]), fullName.c_str(), 512);
+        err = _wstat(&(tmpBuf[0]), &st);
+      }
 #endif
       if (err != 0) {
         if (mode == (char *) 0 || mode[0] != 'w')
@@ -952,7 +958,7 @@ namespace Ep128Emu {
       }
       // FIXME: the file may possibly be created, changed, or removed between
       // calling stat() and fopen()
-      f = std::fopen(fullName.c_str(), mode);
+      f = fileOpen(fullName.c_str(), mode);
       if (!f)
         return -5;                      // error: cannot open file
     }

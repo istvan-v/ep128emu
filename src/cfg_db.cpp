@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
 // Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// https://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -700,7 +700,7 @@ namespace Ep128Emu {
 #endif
     }
     fullName += fileName;
-    std::FILE *f = std::fopen(fullName.c_str(), "w");
+    std::FILE *f = fileOpen(fullName.c_str(), "w");
     if (!f)
       throw Exception("error opening configuration file");
     bool  err = false;

@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -280,9 +280,9 @@ namespace CPC464 {
                                             nSectorsPerTrack);
     if (err > 0) {
       if (err == 1)
-        imageFile = std::fopen(fileName, "rb");
+        imageFile = Ep128Emu::fileOpen(fileName, "rb");
       else
-        imageFile = std::fopen(fileName, "r+b");
+        imageFile = Ep128Emu::fileOpen(fileName, "r+b");
       if (!imageFile) {
         err = -1;
       }
@@ -397,9 +397,9 @@ namespace CPC464 {
       if (openFloppyDevice(fileName))
         return;
       // open image file
-      imageFile = std::fopen(fileName, "r+b");
+      imageFile = Ep128Emu::fileOpen(fileName, "r+b");
       if (!imageFile) {
-        imageFile = std::fopen(fileName, "rb");
+        imageFile = Ep128Emu::fileOpen(fileName, "rb");
         if (!imageFile)
           throw Ep128Emu::Exception("error opening CPC disk image file");
       }
