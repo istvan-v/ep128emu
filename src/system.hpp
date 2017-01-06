@@ -1,7 +1,7 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
-// http://sourceforge.net/projects/ep128emu/
+// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// https://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -209,6 +209,21 @@ namespace Ep128Emu {
    * character), append a dot character and 's' to the file name.
    */
   void addFileNameExtension(std::string& fileName, const char *s);
+
+#ifndef WIN32
+  EP128EMU_INLINE std::FILE *fileOpen(const char *fileName, const char *mode)
+  {
+    return std::fopen(fileName, mode);
+  }
+#else
+  /*!
+   * Convert UTF-8 encoded string to wchar_t.
+   */
+  void convertUTF8(wchar_t *buf, const char *s, size_t bufSize);
+
+  // fopen() wrapper with support for UTF-8 encoded file names
+  std::FILE *fileOpen(const char *fileName, const char *mode);
+#endif
 
 }       // namespace Ep128Emu
 
