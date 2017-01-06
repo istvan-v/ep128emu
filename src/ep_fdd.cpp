@@ -19,6 +19,7 @@
 
 #include "ep128emu.hpp"
 #include "ep_fdd.hpp"
+#include "system.hpp"
 
 #include <vector>
 
@@ -616,19 +617,22 @@ namespace std {
 
   FILE *ep_fopen(const char *filename, const char *mode)
   {
+    wchar_t tmpBuf[512];
+    wchar_t *fileName_ = &(tmpBuf[0]);
+    Ep128Emu::convertUTF8(fileName_, filename, 512);
     HANDLE  hF = 0;
 
     if (!strcmp(mode, "rb")) {
-      hF = CreateFile(filename, GENERIC_READ,
-                      FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING,
-                      FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH
-                      | FILE_FLAG_NO_BUFFERING, 0);
+      hF = CreateFileW(LPCWSTR(fileName_), GENERIC_READ,
+                       FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING,
+                       FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH
+                       | FILE_FLAG_NO_BUFFERING, 0);
     }
     else if (!strcmp(mode, "r+b")) {
-      hF = CreateFile(filename, GENERIC_READ | GENERIC_WRITE,
-                      FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING,
-                      FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH
-                      | FILE_FLAG_NO_BUFFERING, 0);
+      hF = CreateFileW(LPCWSTR(fileName_), GENERIC_READ | GENERIC_WRITE,
+                       FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING,
+                       FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH
+                       | FILE_FLAG_NO_BUFFERING, 0);
 
       if (filename[0] == '\\' && filename[1] == '\\' &&
           filename[2] == '.' && filename[3] == '\\') {

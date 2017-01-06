@@ -826,7 +826,7 @@ namespace Ep128Emu {
         Compressor_ZLib::compressData(outBuf, &(imgDataBuf.front()),
                                       imgDataBuf.size(), blockSize);
       }
-      f = std::fopen(fileName, "wb");
+      f = fileOpen(fileName, "wb");
       if (!f)
         throw Exception("error opening PNG image file");
       if (std::fwrite(pngSignature, sizeof(char), 8, f) != 8)
