@@ -449,6 +449,7 @@ Section "Install epimgconv and other utilities" SecUtils
   File /nonfatal "..\epcompress.exe"
   File /nonfatal "..\epimgconv.exe"
   File /nonfatal "..\epimgconv_gui.exe"
+  File /nonfatal "..\iview2png.exe"
 
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
 
@@ -512,6 +513,7 @@ Section "Uninstall"
   Delete "$INSTDIR\epcompress.exe"
   Delete "$INSTDIR\epimgconv.exe"
   Delete "$INSTDIR\epimgconv_gui.exe"
+  Delete "$INSTDIR\iview2png.exe"
   Delete "$INSTDIR\libgcc_s_dw2-1.dll"
   Delete "$INSTDIR\libgcc_s_seh-1.dll"
   Delete "$INSTDIR\libsndfile-1.dll"

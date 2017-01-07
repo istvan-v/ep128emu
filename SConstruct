@@ -528,9 +528,11 @@ if buildUtilities:
     epcompress = epcompressEnvironment.Program(
                      'epcompress', ['util/epcompress/src/main.cpp'])
     Depends(epcompress, compressLib)
-    dtfEnvironment = copyEnvironment(epcompressEnvironment)
-    dtf = dtfEnvironment.Program('dtf', ['util/dtf/dtf.cpp'])
+    dtf = epcompressEnvironment.Program('dtf', ['util/dtf/dtf.cpp'])
     Depends(dtf, compressLib)
+    iview2png = epcompressEnvironment.Program(
+                    'iview2png', ['util/epimgconv/src/iview2png.cpp'])
+    Depends(iview2png, compressLib)
     epimgconvEnvironment = copyEnvironment(ep128emuGLGUIEnvironment)
     epimgconvEnvironment.Append(CPPPATH = ['./util/epcompress/src'])
     epimgconvLib = epimgconvEnvironment.StaticLibrary(
@@ -611,7 +613,8 @@ if not mingwCrossCompile:
         makecfgEnvironment.Command(prgName, ep128emu,
                                    ['ln -s -f ep128emu "' + prgName + '"'])
     if buildUtilities:
-        makecfgEnvironment.Install(instBinDir, [dtf, epcompress, epimgconv])
+        makecfgEnvironment.Install(instBinDir,
+                                   [dtf, epcompress, epimgconv, iview2png])
     makecfgEnvironment.Install(instPixmapDir,
                                ["resource/cpc464emu.png",
                                 "resource/ep128emu.png",
