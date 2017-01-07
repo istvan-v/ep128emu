@@ -1,6 +1,6 @@
 
 // epimgconv: Enterprise 128 image converter utility
-// Copyright (C) 2008-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2008-2017 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "epimgconv.hpp"
 #include "imgwrite.hpp"
 #include "compress.hpp"
+#include "system.hpp"
 
 #include <vector>
 
@@ -974,7 +975,7 @@ namespace Ep128ImgConv {
     try {
       if (fileName == (char *) 0 || fileName[0] == '\0')
         throw Ep128Emu::Exception("invalid output file name");
-      f = std::fopen(fileName, "wb");
+      f = Ep128Emu::fileOpen(fileName, "wb");
       if (!f)
         throw Ep128Emu::Exception("error opening output file");
       bool    writeSuccessful = false;
