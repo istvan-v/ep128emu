@@ -8,7 +8,7 @@ NO_BORDER_FX            equ     0
 ; decrease code size at the expense of slightly slower decompression
 SIZE_OPTIMIZED          equ     0
 
-; total data size is 864 bytes; the lower 7 bits of the start address must be 0
+; total data size is 851 bytes; the lower 7 bits of the start address must be 0
 decompressDataBegin     equ     0fc80h
 
 huffmanSymbolTableL     equ     decompressDataBegin
@@ -17,7 +17,7 @@ huffmanSymbolTableC     equ     huffmanSymbolTableD + 32
 huffmanDecodeTableL     equ     decompressDataBegin + 384
 huffmanDecodeTableD     equ     huffmanDecodeTableL + 64
 huffmanDecodeTableC     equ     huffmanDecodeTableL + 64
-decompressDataEnd       equ     decompressDataBegin + 864
+decompressDataEnd       equ     decompressDataBegin + 851
 
 ;       org   0fa00h
 
@@ -49,7 +49,7 @@ decompressData:
         srl   a
         push  af                        ; save last block flag
         call  nz, huffmanInit           ; compressed block?
-        jr    nz, .l5                   ; huffmanInit always returns with Z = 0
+        jp    po, .l5                   ; huffmanInit always clears P/V
         ld    e, 01h                    ; uncompressed blocks are byte aligned
         ld    b, 32
     if NO_ZLIB_HEADER == 0
@@ -206,10 +206,10 @@ huffmanDecode:
         adc   a, h
         sub   l
         ld    h, a
-        cp    (hl)
-        inc   h
-        inc   h
         ld    a, (hl)
+        dec   h
+        dec   h
+        cp    (hl)
         ret
 
 setFixedHuffmanCode:
@@ -353,9 +353,9 @@ buildDecodeTable:
         jp    pe, .l2
         ld    l, e                      ; calculate initial symbol table offsets
         ld    h, d
-        dec   h
+        inc   h
         ld    a, 16
-.l6:    ld    (ix + 20h), l             ; store table offset - 256
+.l6:    ld    (ix + 20h), l             ; store table offset + 256
         ld    (ix + 30h), h
         ld    c, (ix)
         add   hl, bc
@@ -363,7 +363,6 @@ buildDecodeTable:
         dec   a
         jr    nz, .l6
         pop   bc
-        push  bc
         ld    l, e
         ld    h, d
 .l7:    ld    a, (hl)                   ; build symbol table
@@ -381,37 +380,35 @@ buildDecodeTable:
         ld    (hl), b
         ld    l, a
         ld    (hl), c
-        ld    hl, 0300h - 1
-        add   hl, bc
+        dec   bc
+        ld    l, c
+        ld    h, b
+        inc   b
+        dec   h
         exx
+    if (huffmanDecodeTableL & 0080h) == 0
+        cp    (hl)
+    else
+        add   a, (hl)
+    endif
+        sbc   a, a                      ; clear length, keep decoded value MSB
+        ld    (hl), a
         ld    a, l
         sub   e
         exx
-        ld    (hl), a                   ; store decoded value LSB
+        ld    (bc), a                   ; store decoded value LSB
         exx
         ld    a, h
         sbc   a, d
         exx
-        dec   h
-        dec   h
-        rrca
+        rrca                            ; A = bit 8 of decoded value * 80h
         or    (hl)
-        ld    (hl), a                   ; store bit 8 of decoded value
+        ld    (hl), a                   ; store in table
         exx
 .l8:    cpi
         jp    pe, .l7
-        ld    l, e
-        ld    h, d
-        pop   bc
         pop   ix
-        pop   de
-.l9:    ld    a, (hl)
-        rla
-        sbc   a, a                      ; MSB = FFh if decoded value >= 256
-        ld    (hl), a
-        cpi
-        jp    pe, .l9
-        dec   a                         ; return with BC = 0, Z = 0,
+        pop   de                        ; return with BC = 0, P/V = 0,
         ret                             ; HL = symbol table end
 
 readBits8:
