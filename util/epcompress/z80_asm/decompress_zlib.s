@@ -31,15 +31,15 @@ decompressDataEnd       equ     decompressDataBegin + 864
 
 decompressData:
     if NO_ZLIB_HEADER == 0
-        inc   hl                        ; ignore ZLib header
-        inc   hl
+        ld    bc, 6                     ; ignore ZLib header and Adler-32 checksum
+        add   hl, bc
     endif
     if DEFLATE_EXTENSIONS != 0
         push  ix                        ; IX = last offset
     endif
         push  hl
         ex    (sp), iy                  ; IY = compressed data read address
-        push  de
+        push  de                        ;      (+ 4 if ZLib format)
         exx
         pop   de                        ; DE' = decompressed data write address
         exx
@@ -52,11 +52,16 @@ decompressData:
         jr    nz, .l5                   ; huffmanInit always returns with Z = 0
         ld    e, 01h                    ; uncompressed blocks are byte aligned
         ld    b, 32
+    if NO_ZLIB_HEADER == 0
+        push  iy
+    endif
         call  readBits16                ; read block size, ignore 1's complement
         push  hl
         exx
         pop   bc
+    if NO_ZLIB_HEADER != 0
         push  iy
+    endif
         pop   hl
         add   iy, bc
         ldir                            ; copy uncompressed data
@@ -75,10 +80,6 @@ decompressData:
         pop   hl                        ; HL = address of last byte read + 1
     if DEFLATE_EXTENSIONS != 0
         pop   ix
-    endif
-    if NO_ZLIB_HEADER == 0
-        ld    bc, 4                     ; skip Adler-32 checksum
-        add   hl, bc
     endif
         ret
 .l3:    exx
@@ -186,7 +187,12 @@ huffmanDecode:
         srl   e
     endif
         jp    nz, .l1
-.l3:    ld    e, (iy)
+.l3:
+    if NO_ZLIB_HEADER == 0
+        ld    e, (iy - 4)
+    else
+        ld    e, (iy)
+    endif
         inc   iy
         rr    e
         rla
@@ -269,42 +275,49 @@ huffmanInit:
         ld    a, low huffmanDecodeTableC
         ld    c, 19                     ; B = 0 from readBits8
         call  buildDecodeTable
-        ld    d, b                      ; previous value for RLE (BC = 0)
         pop   hl                        ; HDIST
-        pop   bc                        ; HLIT
+        ld    a, l
+        ex    (sp), hl                  ; HLIT
+        add   a, l
         push  hl
-        push  bc
-        add   hl, bc
-        ld    c, l
-        ld    b, h
         ld    hl, huffmanSymbolTableL
+        add   a, l                      ; C = previous value for RLE (BC = 0)
+        ld    d, a                      ; D = symbol table end address LSB
 .l7:    push  hl
         ld    hl, huffmanDecodeTableC + 1
         call  huffmanDecode
         pop   hl
         cp    16
         jr    c, .l10                   ; not an RLE code?
-        push  bc
-        ld    bc, 0202h
         jr    z, .l8
-        ld    d, 0
-        inc   b
-        cp    17
-        jr    z, .l8
-        ld    bc, 070ah
-.l8:    ld    a, c
-        call  readBits8.l1              ; A = length - 1
-        pop   bc
-.l9:    ld    (hl), d                   ; write RLE sequence
+        ld    c, b                      ; B = 0
+        rla
+        rla
+        sub   51
+.l8:    sub   14
+        ld    b, a                      ; B = number of bits to read (2, 3, 7)
+        and   4
+        inc   a
+        rla                             ; A = length - 1 (2, 2, 10)
+        ld    (hl), c
+        call  readBits8.l1
+        ld    b, a
+        ld    a, (hl)
+.l9:    ld    (hl), a                   ; write RLE sequence
         inc   hl
-        dec   bc
-        dec   a
-        jr    nz, .l9
-        defb  0feh                      ; = CP nn
-.l10:   ld    d, a
-        ld    (hl), d
-        cpi
-        jp    pe, .l7
+        djnz  .l9
+.l10:   ld    c, a
+        ld    (hl), a
+        inc   hl
+        ld    a, l
+        cp    d
+        jr    nz, .l7
+        bit   0, h
+    if (huffmanSymbolTableL & 0100h) == 0
+        jr    z, .l7
+    else
+        jr    nz, .l7
+    endif
         pop   bc                        ; HLIT
 .l11:   ld    hl, huffmanSymbolTableL
         ld    a, low huffmanDecodeTableL
@@ -366,7 +379,7 @@ buildDecodeTable:
         ld    b, (hl)
         inc   bc                        ; update and store table offset
         ld    (hl), b
-        res   4, l
+        ld    l, a
         ld    (hl), c
         ld    hl, 0300h - 1
         add   hl, bc
@@ -407,7 +420,11 @@ readBits8:
 .l2:    srl   e
         jr    nc, .l4
         jr    nz, .l3
+    if NO_ZLIB_HEADER == 0
+        ld    e, (iy - 4)
+    else
         ld    e, (iy)
+    endif
         inc   iy
         rr    e
         jr    nc, .l4
@@ -437,7 +454,12 @@ readBits16:
         srl   e
         jr    nc, .l3
         jp    nz, .l2
-.l5:    ld    e, (iy)
+.l5:
+    if NO_ZLIB_HEADER == 0
+        ld    e, (iy - 4)
+    else
+        ld    e, (iy)
+    endif
         inc   iy
         rr    e
         jr    c, .l2
