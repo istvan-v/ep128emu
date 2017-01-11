@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2017 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -174,12 +174,15 @@ namespace Ep128Compress {
           rleCode = (rleCode + 0x07000000U)
                     | ((rleLength - 11U) << (rleCode >> 24));
         }
-        ioBuf.push_back(rleCode);
-        i = i + (rleLength - 1U);
+        if ((rleCode >> 24)
+            <= (huffmanEncoder3.getSymbolSize(codeLength) * rleLength)) {
+          // use RLE only if it does not expand the data size
+          ioBuf.push_back(rleCode);
+          i = i + (rleLength - 1U);
+          continue;
+        }
       }
-      else {
-        ioBuf.push_back(huffmanEncoder3.encodeSymbol(codeLength));
-      }
+      ioBuf.push_back(huffmanEncoder3.encodeSymbol(codeLength));
     }
   }
 
