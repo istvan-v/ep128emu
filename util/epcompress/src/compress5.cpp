@@ -159,24 +159,16 @@ namespace Ep128Compress {
       }
       prvCode = codeLength;
       if (rleLength >= 3U) {
-        if (rleCode) {
-          rleCode = huffmanEncoder3.encodeSymbol(16U);
-          rleCode = (rleCode + 0x02000000U)
-                    | ((rleLength - 3U) << (rleCode >> 24));
-        }
-        else if (rleLength < 11U) {
-          rleCode = huffmanEncoder3.encodeSymbol(17U);
-          rleCode = (rleCode + 0x03000000U)
-                    | ((rleLength - 3U) << (rleCode >> 24));
-        }
-        else {
-          rleCode = huffmanEncoder3.encodeSymbol(18U);
-          rleCode = (rleCode + 0x07000000U)
-                    | ((rleLength - 11U) << (rleCode >> 24));
-        }
-        if ((rleCode >> 24)
+        rleCode = 16U + (unsigned int) (!rleCode)
+                  + (unsigned int) (rleLength >= 11U);
+        unsigned int  nBits = (rleCode != 18U ? (rleCode - 14U) : 7U);
+        size_t  symLen = huffmanEncoder3.getSymbolSize(rleCode);
+        if ((symLen + size_t(nBits))
             <= (huffmanEncoder3.getSymbolSize(codeLength) * rleLength)) {
           // use RLE only if it does not expand the data size
+          rleCode = huffmanEncoder3.encodeSymbol(rleCode);
+          rleCode = (rleCode + (nBits << 24))
+                    | ((rleLength - (((nBits + 1U) & 8U) + 3U)) << symLen);
           ioBuf.push_back(rleCode);
           i = i + (rleLength - 1U);
           continue;
