@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2017 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -80,6 +80,59 @@ namespace Ep128Compress {
 
   // --------------------------------------------------------------------------
 
+  void Compressor_M0::huffmanCompatibilityHack(
+      unsigned int *encodeTable, const unsigned int *symbolCnts,
+      size_t nSymbols, bool reverseBits)
+  {
+    unsigned int  sizeCounts[20];
+    unsigned int  sizeCodes[20];
+    for (size_t i = 0; i <= 16; i++)
+      sizeCounts[i] = 0U;
+    for (size_t i = 0; i < nSymbols; i++) {
+      unsigned int  symLen = encodeTable[i] >> 24;
+      encodeTable[i] = symLen;
+      sizeCounts[symLen] = sizeCounts[symLen] + 1U;
+    }
+    sizeCounts[0] = 0U;
+    sizeCodes[0] = 0U;
+    for (unsigned int i = 1U; i <= 15U; i++) {
+      sizeCodes[i] = (sizeCodes[i - 1] + sizeCounts[i - 1]) << 1;
+      while (EP128EMU_UNLIKELY(sizeCounts[i] > 255U)) {
+        // FIXME: this code is inefficient, but it runs rarely
+        unsigned int  minCnt = 0xFFFFFFFFU;
+        unsigned int  c = 0U;
+        for (size_t j = 0; j < nSymbols; j++) {
+          if (encodeTable[j] == i) {
+            if (symbolCnts[j] < minCnt) {
+              minCnt = symbolCnts[j];
+              c = (unsigned int) j;
+            }
+          }
+        }
+        encodeTable[c] = i + 1U;
+        sizeCounts[i + 1] = sizeCounts[i + 1] + 1U;
+        sizeCounts[i] = sizeCounts[i] - 1U;
+      }
+    }
+    for (size_t i = 0; i < nSymbols; i++) {
+      unsigned int  nBits = encodeTable[i];
+      if (nBits) {
+        unsigned int  huffCode = sizeCodes[nBits];
+        sizeCodes[nBits]++;
+        if (reverseBits) {
+          // Deflate format stores Huffman codes in most significant bit first
+          // order, but everything else is least significant bit first
+          huffCode = ((huffCode & 0x00FFU) << 8) | ((huffCode & 0xFF00U) >> 8);
+          huffCode = ((huffCode & 0x0F0FU) << 4) | ((huffCode & 0xF0F0U) >> 4);
+          huffCode = ((huffCode & 0x3333U) << 2) | ((huffCode & 0xCCCCU) >> 2);
+          huffCode = ((huffCode & 0x5555U) << 1) | ((huffCode & 0xAAAAU) >> 1);
+          huffCode = huffCode >> (16U - nBits);
+        }
+        encodeTable[i] = (nBits << 24) | huffCode;
+      }
+    }
+  }
+
   static void writeGammaCode(std::vector< unsigned int >& outBuf, size_t n,
                              unsigned int flagBits = 0U)
   {
@@ -133,20 +186,14 @@ namespace Ep128Compress {
           sizeCnt += size_t((encodeTable[c] >> 24) == l);
         if (EP128EMU_UNLIKELY(sizeCnt >= 256)) {
           // compatibility hack for new FAST_HUFFMAN decompressor code
-          if (EP128EMU_UNLIKELY(l >= 16U || sizeCnt > 256)) {
+          if (EP128EMU_UNLIKELY(l >= 16U)) {
             ioBuf.resize(savedBufSize);
             maxLen--;
             h--;
             break;
           }
-          sizeCnt--;
-          for (unsigned int c = nSymbols; c-- > 0U; ) {
-            if ((encodeTable[c] >> 24) == l) {
-              encodeTable[c] =
-                  ((encodeTable[c] & 0x007FFFFFU) << 1) | ((l + 1U) << 24);
-              break;
-            }
-          }
+          huffmanCompatibilityHack(encodeTable, symbolCnts, nSymbols, false);
+          sizeCnt = 255;
         }
         writeGammaCode(ioBuf, sizeCnt + 1, hdrFlagBits);
         unsigned int  prvCode = 0U - 1U;

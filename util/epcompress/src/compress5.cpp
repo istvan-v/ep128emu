@@ -71,18 +71,13 @@ namespace Ep128Compress {
           sizeCnt += size_t((encodeTable[c] >> 24) == l);
         if (EP128EMU_UNLIKELY(sizeCnt >= 256)) {
           // compatibility hack for new FAST_HUFFMAN decompressor code
-          if (EP128EMU_UNLIKELY(l >= 15U || sizeCnt > 256)) {
+          if (EP128EMU_UNLIKELY(l >= 15U)) {
             maxLen--;
             h--;
             break;
           }
-          sizeCnt--;
-          for (unsigned int c = nSymbols; c-- > 0U; ) {
-            if ((encodeTable[c] >> 24) == l) {
-              encodeTable[c] = encodeTable[c] + 0x01000000U;
-              break;
-            }
-          }
+          huffmanCompatibilityHack(encodeTable, symbolCnts, nSymbols, true);
+          sizeCnt = 255;
         }
       }
       if (EP128EMU_UNLIKELY(h < 0))

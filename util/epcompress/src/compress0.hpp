@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2017 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -119,6 +119,10 @@ namespace Ep128Compress {
     unsigned int    *symbolCntTable2;
     unsigned int    *encodeTable1;
     unsigned int    *encodeTable2;
+    // --------
+    static void huffmanCompatibilityHack(unsigned int *encodeTable,
+                                         const unsigned int *symbolCnts,
+                                         size_t nSymbols, bool reverseBits);
    private:
     void calculateHuffmanEncoding(std::vector< unsigned int >& ioBuf);
    protected:
