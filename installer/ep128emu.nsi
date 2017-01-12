@@ -255,6 +255,18 @@ Section "ep128emu source code" SecSrc
 
   File "..\msvc\include\*.h"
 
+  SetOutPath "$INSTDIR\src\resid"
+
+  File "..\resid\AUTHORS"
+  File "..\resid\COPYING"
+  File "..\resid\ChangeLog"
+  File "..\resid\NEWS"
+  File "..\resid\README"
+  File "..\resid\THANKS"
+  File "..\resid\TODO"
+  File "..\resid\*.cpp"
+  File "..\resid\*.hpp"
+
   SetOutPath "$INSTDIR\src\resource"
 
   File "..\resource\*.rc"
@@ -664,6 +676,7 @@ Section "Uninstall"
   Delete "$INSTDIR\config\tvc\TVC_64k+_V12.cfg"
   Delete "$INSTDIR\config\tvc\TVC_64k+_V12_FileIO.cfg"
   Delete "$INSTDIR\config\tvc\TVC_64k+_V12_SDEXT.cfg"
+  Delete "$INSTDIR\config\tvc\TVC_64k+_V12_UPM.cfg"
   Delete "$INSTDIR\config\tvc\TVC_64k+_V12_VTDOS.cfg"
   Delete "$INSTDIR\config\tvc\TVC_64k+_V22.cfg"
   Delete "$INSTDIR\config\tvc\TVC_64k+_V22_FileIO.cfg"
