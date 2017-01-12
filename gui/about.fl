@@ -37,10 +37,11 @@ class Ep128EmuGUI_AboutWindow {open
   buf->append("                    ep128emu version 2.0.11 beta\\n");
   buf->append("\\n");
   buf->append("Portable Enterprise 128 emulator\\n");
-  buf->append("Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>\\n");
+  buf->append("Copyright \\302\\251 2003-2017 Istvan Varga <istvanv@users.sourceforge.net>\\n");
   buf->append("  https://github.com/istvan-v/ep128emu/\\n");
-  buf->append("Z80 emulation copyright (C) 1999-2003 by Kevin Thacker and Vincze\\n");
-  buf->append("B\\351la Gy\\366rgy. dotconf 1.3 (C) by Lukas Schr\\366der and William Hubbs.\\n");
+  buf->append("Z80 emulation copyright \\302\\251 1999-2003 by Kevin Thacker and Vincze B\\303\\251la\\n");
+  buf->append("Gy\\303\\266rgy. dotconf 1.3 \\302\\251 by Lukas Schr\\303\\266der and William Hubbs. reSID 1.0\\n");
+  buf->append("\\302\\251 2010 by Dag Lem.\\n");
   buf->append("\\n");
   buf->append("This program is free software; you can redistribute it and/or modify\\n");
   buf->append("it under the terms of the GNU General Public License as published by\\n");
