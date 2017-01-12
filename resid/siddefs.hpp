@@ -22,8 +22,7 @@
 
 #include "ep128emu.hpp"
 
-// (PAL frequency (17734475 / 20) + NTSC frequency (14318180 / 16)) / 2
-#define RESID_CLOCK_FREQUENCY   890805.0
+#define RESID_CLOCK_FREQUENCY   1000000.0
 
 namespace Ep128 {
 
