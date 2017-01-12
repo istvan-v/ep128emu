@@ -248,6 +248,8 @@ can be passed to scons:
       Emulate the CMOS version of the Z80 CPU
   sdext=0
       Disable SD card (SDEXT) emulation
+  resid=1
+      Enable SID card emulation
   curl=0
       Do not use libcurl in epmakecfg for downloading the ROM package
   cflags="..."

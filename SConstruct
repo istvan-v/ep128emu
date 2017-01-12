@@ -18,6 +18,8 @@ useLuaJIT = int(ARGUMENTS.get('luajit', 0))
 cmosZ80 = int(ARGUMENTS.get('z80cmos', 0))
 # build with experimental SD card emulation
 enableSDExt = int(ARGUMENTS.get('sdext', 1))
+# enable SID card emulation
+enableReSID = int(ARGUMENTS.get('resid', 0))
 # use cURL library in makecfg to download the ROM package
 enableCURL = int(ARGUMENTS.get('curl', int(not mingwCrossCompile)))
 userFlags = ARGUMENTS.get('cflags', '')
@@ -328,6 +330,8 @@ if cmosZ80:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DZ80_ENABLE_CMOS'])
 if enableSDExt:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DENABLE_SDEXT'])
+if enableReSID:
+    ep128emuLibEnvironment.Append(CCFLAGS = ['-DENABLE_RESID'])
 
 ep128emuGUIEnvironment.MergeFlags(ep128emuLibEnvironment['CCFLAGS'])
 ep128emuGLGUIEnvironment.MergeFlags(ep128emuLibEnvironment['CCFLAGS'])
@@ -444,12 +448,32 @@ tvc64Lib = tvc64LibEnvironment.StaticLibrary('tvc64', Split('''
 
 # -----------------------------------------------------------------------------
 
+if enableReSID:
+    residLibEnvironment = copyEnvironment(ep128emuLibEnvironment)
+    residLibEnvironment.Append(CPPPATH = ['./resid'])
+    residLibSources = Split('''
+        resid/dac.cpp
+        resid/envelope.cpp
+        resid/extfilt.cpp
+        resid/filter.cpp
+        resid/pot.cpp
+        resid/sid.cpp
+        resid/version.cpp
+        resid/voice.cpp
+        resid/wave.cpp
+    ''')
+    residLib = residLibEnvironment.StaticLibrary('resid', residLibSources)
+
+# -----------------------------------------------------------------------------
+
 ep128emuEnvironment = copyEnvironment(ep128emuGLGUIEnvironment)
 ep128emuEnvironment.Append(CPPPATH = ['./z80', './gui'])
 if haveLua and oldLuaVersion:
     ep128emuEnvironment.Append(LIBS = ['lualib'])
-ep128emuEnvironment.Prepend(LIBS = ['ep128', 'zx128', 'cpc464', 'tvc64',
-                                    'ep128emu'])
+ep128emuEnvironment.Prepend(LIBS = [ep128emuLib])
+if enableReSID:
+    ep128emuEnvironment.Prepend(LIBS = [residLib])
+ep128emuEnvironment.Prepend(LIBS = [ep128Lib, zx128Lib, cpc464Lib, tvc64Lib])
 
 ep128emuSources = ['gui/gui.cpp']
 ep128emuSources += fluidCompile(['gui/gui.fl', 'gui/disk_cfg.fl',
@@ -468,11 +492,6 @@ if mingwCrossCompile:
         + '-o $TARGET resource/ep128emu.rc')
     ep128emuSources += [ep128emuResourceObject]
 ep128emu = ep128emuEnvironment.Program('ep128emu', ep128emuSources)
-Depends(ep128emu, ep128Lib)
-Depends(ep128emu, zx128Lib)
-Depends(ep128emu, cpc464Lib)
-Depends(ep128emu, tvc64Lib)
-Depends(ep128emu, ep128emuLib)
 
 if sys.platform[:6] == 'darwin':
     Command('ep128emu.app/Contents/MacOS/ep128emu', 'ep128emu',
