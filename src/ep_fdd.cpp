@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2017 Istvan Varga <istvanv@users.sourceforge.net>
 // https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -366,8 +366,17 @@ namespace Ep128Emu {
       }
       if (!(nTracks_ >= 1 && nTracks_ <= 254 &&
             nSides_ >= 1 && nSides_ <= 2 &&
-            nSectorsPerTrack_ >= 1 && nSectorsPerTrack_ <= 240))
-        throw Exception("FDD: cannot determine size of disk image");
+            nSectorsPerTrack_ >= 1 && nSectorsPerTrack_ <= 240)) {
+        if (!(nTracksValid | nSidesValid | nSectorsPerTrackValid
+              | (fileSize != (80L * 2 * 9 * 512)))) {
+          nTracks_ = 80;
+          nSides_ = 2;
+          nSectorsPerTrack_ = 9;
+        }
+        else {
+          throw Exception("FDD: cannot determine size of disk image");
+        }
+      }
       fileSize = long(nTracks_ * nSides_) * long(nSectorsPerTrack_) * 512L;
       bool    err = true;
       if (std::fseek(imageFile, fileSize - 512L, SEEK_SET) >= 0) {
