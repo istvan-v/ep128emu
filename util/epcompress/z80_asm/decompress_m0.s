@@ -1,9 +1,6 @@
 
 ; border effects are disabled if this is set to any non-zero value
 NO_BORDER_FX            equ     0
-; assume that more than 255 symbols never use the same code length
-; this allows for better optimization, but it may fail in very rare cases
-FAST_HUFFMAN            equ     1
 ; decrease code size at the expense of slightly slower decompression
 SIZE_OPTIMIZED          equ     0
 
@@ -50,22 +47,13 @@ huffmanDecode1:
         ld    hl, huffmanDecodeTable
 
 huffmanDecode2:
-    if FAST_HUFFMAN == 0
-        ld    a, (hl)
-        inc   l
-    else
         xor   a
-    endif
         sla   e
         jr    z, .l3
 .l1:    rla
         sbc   a, (hl)
         jr    c, .l4
 .l2:    inc   l
-    if FAST_HUFFMAN == 0
-        or    (hl)
-        inc   l
-    endif
         sla   e
     if SIZE_OPTIMIZED == 0
         jr    z, .l3
@@ -73,10 +61,6 @@ huffmanDecode2:
         sbc   a, (hl)
         jr    c, .l4
         inc   l
-      if FAST_HUFFMAN == 0
-        or    (hl)
-        inc   l
-      endif
         sla   e
     endif
         jp    nz, .l1
@@ -88,11 +72,7 @@ huffmanDecode2:
         jp    nc, .l2
 .l4:    set   5, l
         add   a, (hl)
-    if FAST_HUFFMAN == 0
-        dec   l
-    else
         set   4, l
-    endif
         ld    h, (hl)
         ld    l, a
         adc   a, h
@@ -193,25 +173,12 @@ huffmanInit:
         ld    c, a
         dec   bc
         ld    d, c                      ; D = number of symbols remaining & FFh
-    if FAST_HUFFMAN == 0
-        ld    a, c
-        or    b
-        jr    z, .l3
-        ld    a, 80h                    ; if non-zero, store as (N - 1) | 8000h
-        dec   bc
-.l3:    ld    (hl), a
-        inc   l
-    else
-        and   b
-.l3:    jr    nz, .l3                   ; halt on unsupported symbol cnt (256)
-    endif
-        ld    (hl), c
-        set   5, l
-    if FAST_HUFFMAN == 0
-        ld    a, b
-    endif
+        dec   b
         pop   bc
-        or    d
+.l3:    jr    z, .l3                    ; halt on unsupported symbol cnt >= 256
+        ld    (hl), d
+        set   5, l
+        dec   a
         jr    z, .l5                    ; unused code length?
         push  hl
         ld    hl, 0ffffh                ; HL = decoded value (from -1)
@@ -234,25 +201,13 @@ huffmanInit:
         jr    nz, .l4                   ; not done with this code size yet?
         pop   hl
 .l5:    ld    (hl), c                   ; store table address offset - 256
-    if FAST_HUFFMAN == 0
-        dec   l
-    else
         set   4, l
-    endif
         ld    (hl), b
         dec   (hl)
         ld    a, l
-    if FAST_HUFFMAN == 0
-        sub   20h - 2
-    else
         sub   30h - 1
-    endif
         ld    l, a
-    if FAST_HUFFMAN == 0
-        and   1eh
-    else
         and   0fh
-    endif
         jr    nz, .l2                   ; continue with the next code size
         ret
 

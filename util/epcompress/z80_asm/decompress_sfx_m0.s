@@ -252,12 +252,12 @@ huffmanInit:
         ld    c, a
         dec   bc
         ld    d, c                      ; D = number of symbols remaining & FFh
-        and   b
-.l3:    jr    nz, .l3                   ; halt on unsupported symbol cnt (256)
-        ld    (hl), c
-        set   5, l
+        dec   b
         pop   bc
-        or    d
+.l3:    jr    z, .l3                    ; halt on unsupported symbol cnt >= 256
+        ld    (hl), d
+        set   5, l
+        dec   a
         jr    z, .l5                    ; unused code length?
         push  hl
         ld    hl, 0ffffh                ; HL = decoded value (from -1)
