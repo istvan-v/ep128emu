@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2017 Istvan Varga <istvanv@users.sourceforge.net>
 // https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -408,13 +408,15 @@ static const EP_ROM_File epROMFiles[61] = {
 #define TVC_ROM_DOS12D          (uint64_t(1) << 45)
 #define TVC_ROM_SDEXT           (uint64_t(1) << 46)
 #define TVC_ROM_FILEIO          (uint64_t(1) << 47)
+#define TVC_ROM_UPM_C           (uint64_t(1) << 48)
+#define TVC_ROM_UPM_D           (uint64_t(1) << 49)
 
 #define IS_EP_CONFIG(x)         bool((x) & 0x0000FFFFUL)
 #define EP_RAM_SIZE(x)          epRAMSizeTable[(x) & 7UL]
 #define ZX_CPC_RAM_SIZE(x)      int(((x) & 0x003F0000UL) >> 12)
 #define IS_ZX_CONFIG(x)         ((((x) >> 24) & 0xFFUL) && !IS_EP_CONFIG(x))
 #define IS_CPC_CONFIG(x)        ((((x) >> 32) & 0xFFUL) && !IS_EP_CONFIG(x))
-#define IS_TVC_CONFIG(x)        ((((x) >> 40) & 0xFFUL) && !IS_EP_CONFIG(x))
+#define IS_TVC_CONFIG(x)        ((((x) >> 40) & 0x03FFUL) && !IS_EP_CONFIG(x))
 
 // ----------------------------------------------------------------------------
 
@@ -769,6 +771,10 @@ static const EPMachineConfig machineConfigs[] = {
   { "tvc/TVC_64k+_V12_SDEXT.cfg",
     TVC_RAM_128K | TVC_ROM_SYS12 | TVC_ROM_EXT12 | TVC_ROM_SDEXT
   },
+  { "tvc/TVC_64k+_V12_UPM.cfg",
+    TVC_RAM_128K | TVC_ROM_SYS12 | TVC_ROM_EXT12 | TVC_ROM_UPM_C
+    | TVC_ROM_UPM_D
+  },
   { "tvc/TVC_64k+_V12_VTDOS.cfg",
     TVC_RAM_128K | TVC_ROM_SYS12 | TVC_ROM_EXT12 | TVC_ROM_DOS12D
   },
@@ -878,6 +884,10 @@ Ep128EmuMachineConfiguration::Ep128EmuMachineConfiguration(
         sdext.romFile = romDirectory + "tvc_sdext.rom";
         sdext.enabled = true;
       }
+      if (machineConfig & TVC_ROM_UPM_C)
+        memory.rom[1].file = romDirectory + "tvcupm_c.rom";
+      if (machineConfig & TVC_ROM_UPM_D)
+        memory.rom[3].file = romDirectory + "tvcupm_d.rom";
       vm.cpuClockFrequency = vm.videoClockFrequency << 1;
       vm.soundClockFrequency = vm.videoClockFrequency >> 2;
       vm.enableMemoryTimingEmulation = true;
