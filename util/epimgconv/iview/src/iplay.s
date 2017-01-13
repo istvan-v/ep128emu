@@ -1681,9 +1681,9 @@ readBits:
 .l2:    ld    e, (hl)
         inc   l
         call  z, readBlock
-        rl    e
+.l3:    rl    e
         adc   a, a
-        jp    nc, .l1
+        jp    nc, .l3
         exx
         ret
 
