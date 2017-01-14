@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2017 Istvan Varga <istvanv@users.sourceforge.net>
 // https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -29,6 +29,9 @@
 #ifdef ENABLE_SDEXT
 #  include "sdext.hpp"
 #endif
+#ifdef ENABLE_RESID
+#  include "resid/sid.hpp"
+#endif
 
 namespace Ep128 {
 
@@ -42,14 +45,24 @@ namespace Ep128 {
 #ifdef ENABLE_SDEXT
     sdext.saveState(f);
 #endif
+#ifdef ENABLE_RESID
+    if (sidModel)
+      sid->saveState(f);
+#endif
     {
       Ep128Emu::File::Buffer  buf;
       buf.setPosition(0);
-#ifndef ENABLE_SDEXT
-      buf.writeUInt32(0x01000005);      // version number
-#else
-      buf.writeUInt32(0x01010005);      // bit 16 is set if SDExt is included
+      {
+        uint32_t  v = 0x01000005;       // version number
+#ifdef ENABLE_SDEXT
+        v = v | 0x00010000;             // bit 16 is set if SDExt is included
 #endif
+#ifdef ENABLE_RESID
+        if (sidModel)
+          v = v | 0x00020000;           // bit 17 is set if reSID is included
+#endif
+        buf.writeUInt32(v);
+      }
       buf.writeByte(memory.getPage(0));
       buf.writeByte(memory.getPage(1));
       buf.writeByte(memory.getPage(2));
@@ -76,6 +89,12 @@ namespace Ep128 {
       buf.writeByte(prvB7PortState);
       buf.writeUInt32(mouseTimer);
       buf.writeUInt64(mouseData);
+#ifdef ENABLE_RESID
+      if (sidModel) {
+        buf.writeBoolean(sidEnabled);
+        buf.writeByte(sidAddressRegister);
+      }
+#endif
       f.addChunk(Ep128Emu::File::EP128EMU_CHUNKTYPE_VM_STATE, buf);
     }
   }
@@ -158,7 +177,7 @@ namespace Ep128 {
     // check version number
     unsigned int  version = buf.readUInt32();
     // bit 16 of the version is set if the snapshot includes SDExt state
-    if (!(version >= 0x01000000 && (version & 0xFFFEFFFFU) <= 0x01000005)) {
+    if (!(version >= 0x01000000 && (version & 0xFFFCFFFFU) <= 0x01000005)) {
       buf.setPosition(buf.getDataSize());
       throw Ep128Emu::Exception("incompatible ep128 snapshot version");
     }
@@ -179,7 +198,19 @@ namespace Ep128 {
         sdext.openROMFile((char *) 0);
       }
 #endif
-      version = version & 0xFFFEFFFFU;
+      bool      haveSIDState = bool(version & 0x00020000);
+#ifdef ENABLE_RESID
+      if (!haveSIDState) {
+        if (sid)
+          sid->reset();
+        if (sidEnabled) {
+          setCallback(&sidCallback, this, false);
+          sidEnabled = false;
+        }
+        sidAddressRegister = 0x00;
+      }
+#endif
+      version = version & 0xFFFCFFFFU;
       uint8_t   p0, p1, p2, p3;
       p0 = buf.readByte();
       p1 = buf.readByte();
@@ -264,6 +295,24 @@ namespace Ep128 {
       mouseDeltaY = 0;
       mouseButtonState = 0x00;
       mouseWheelDelta = 0x00;
+      if (haveSIDState) {
+#ifdef ENABLE_RESID
+        bool    sidEnabled_ = buf.readBoolean();
+        uint8_t sidAddressRegister_ = buf.readByte() & 0x1F;
+        if (!sidModel) {
+          sidEnabled_ = false;
+          sidAddressRegister_ = 0x00;
+        }
+        if (sidEnabled_ != sidEnabled) {
+          setCallback(&sidCallback, this, sidEnabled_);
+          sidEnabled = sidEnabled_;
+        }
+        sidAddressRegister = sidAddressRegister_;
+#else
+        (void) buf.readBoolean();
+        (void) buf.readByte();
+#endif
+      }
       if (buf.getPosition() != buf.getDataSize()) {
         throw Ep128Emu::Exception("trailing garbage at end of "
                                   "ep128 snapshot data");
@@ -455,6 +504,10 @@ namespace Ep128 {
     nick.registerChunkType(f);
 #ifdef ENABLE_SDEXT
     sdext.registerChunkType(f);
+#endif
+#ifdef ENABLE_RESID
+    if (sid)
+      sid->registerChunkType(f);
 #endif
   }
 

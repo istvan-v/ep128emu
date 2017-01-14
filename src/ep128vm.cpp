@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2017 Istvan Varga <istvanv@users.sourceforge.net>
 // https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -32,6 +32,9 @@
 #include "ide.hpp"
 #ifdef ENABLE_SDEXT
 #  include "sdext.hpp"
+#endif
+#ifdef ENABLE_RESID
+#  include "resid/sid.hpp"
 #endif
 
 #include <vector>
@@ -1112,6 +1115,46 @@ namespace Ep128 {
     vm.davePortWriteCallback(userData, addr, value);
   }
 
+#ifdef ENABLE_RESID
+
+  uint8_t Ep128VM::sidPortReadCallback(void *userData, uint16_t addr)
+  {
+    // write-only ports
+    (void) userData;
+    (void) addr;
+    return 0xFF;
+  }
+
+  void Ep128VM::sidPortWriteCallback(void *userData,
+                                     uint16_t addr, uint8_t value)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    if (!vm.sidModel)
+      return;
+    if (!(addr & 1)) {
+      vm.sidAddressRegister = value & 0x1F;
+    }
+    else {
+      if (EP128EMU_UNLIKELY(!vm.sidEnabled)) {
+        vm.setCallback(&Ep128VM::sidCallback, &vm, true);
+        vm.sidEnabled = true;
+      }
+      vm.sid->write(vm.sidAddressRegister, value);
+    }
+  }
+
+  uint8_t Ep128VM::sidPortDebugReadCallback(void *userData, uint16_t addr)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    if (!vm.sidModel)
+      return 0xFF;
+    if (!(addr & 1))
+      return vm.sidAddressRegister;
+    return uint8_t(vm.sid->readDebug(vm.sidAddressRegister));
+  }
+
+#endif
+
   void Ep128VM::mouseTimerCallback(void *userData)
   {
     Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
@@ -1196,6 +1239,29 @@ namespace Ep128 {
     Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
     vm.videoCapture->runOneCycle(vm.soundOutputSignal + vm.externalDACOutput);
   }
+
+#ifdef ENABLE_RESID
+
+  void Ep128VM::sidCallback(void *userData)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    int64_t   tmp = vm.daveCyclesRemaining + vm.daveCyclesPerNickCycle;
+    if (tmp >= 0L) {
+      do {
+        tmp -= (int64_t(1) << 32);
+        vm.sidOutputAccumulator = 0;
+        SID::clockCallback(vm.sid);
+        SID::clockCallback(vm.sid);
+        int32_t outL = vm.sidOutputAccumulator * vm.sidVolumeL + 51640320;
+        int32_t outR = vm.sidOutputAccumulator * vm.sidVolumeR + 51640320;
+        outL = (outL >= 0 ? (outL < 103280640 ? outL : 103280640) : 0);
+        outR = (outR >= 0 ? (outR < 103280640 ? outR : 103280640) : 0);
+        vm.externalDACOutput = uint32_t((outL >> 12) | ((outR >> 12) << 16));
+      } while (EP128EMU_UNLIKELY(tmp >= 0L));
+    }
+  }
+
+#endif
 
   uint8_t Ep128VM::checkSingleStepModeBreak()
   {
@@ -1460,6 +1526,15 @@ namespace Ep128 {
       mouseDeltaY(0),
       mouseButtonState(0x00),
       mouseWheelDelta(0x00)
+#ifdef ENABLE_RESID
+      , sid((SID *) 0),
+      sidEnabled(false),
+      sidModel(0),
+      sidAddressRegister(0x00),
+      sidOutputAccumulator(0),
+      sidVolumeL(65),
+      sidVolumeR(65)
+#endif
   {
 #ifdef ENABLE_SDEXT
     memory.setSDExtPtr(&sdext);
@@ -1530,6 +1605,12 @@ namespace Ep128 {
     ioPorts.setDebugReadCallback(0xEC, 0xEF,
                                  &ideDriveIOReadCallback, this, 0xEC);
     ioPorts.setWriteCallback(0xEC, 0xEF, &ideDriveIOWriteCallback, this, 0xEC);
+#ifdef ENABLE_RESID
+    ioPorts.setReadCallback(0x0E, 0x0F, &sidPortReadCallback, this, 0x08);
+    ioPorts.setWriteCallback(0x0E, 0x0F, &sidPortWriteCallback, this, 0x08);
+    ioPorts.setDebugReadCallback(0x0E, 0x0F,
+                                 &sidPortDebugReadCallback, this, 0x08);
+#endif
     // reset
     this->reset(true);
   }
@@ -1643,7 +1724,46 @@ namespace Ep128 {
 #ifdef ENABLE_SDEXT
     sdext.reset(int(isColdReset));
 #endif
+#ifdef ENABLE_RESID
+    if (isColdReset)
+      sidAddressRegister = 0x00;
+    if (sid) {
+      if (sidEnabled) {
+        setCallback(&sidCallback, this, false);
+        sidEnabled = false;
+      }
+      sid->reset();
+    }
+#endif
   }
+
+#ifdef ENABLE_RESID
+
+  void Ep128VM::setSIDConfiguration(int n, int model,
+                                    double volumeL, double volumeR)
+  {
+    if (n != 3)
+      return;
+    if (model <= 0 || model > 2) {
+      if (sidEnabled) {
+        setCallback(&sidCallback, this, false);
+        sidEnabled = false;
+      }
+      model = 0;
+    }
+    else if (!sid) {
+      sid = new SID(sidOutputAccumulator);
+    }
+    if (bool(model) != bool(sidModel) && sid)
+      sid->reset();
+    sidModel = uint8_t(model);
+    if (model)
+      sid->set_chip_model(model == 1 ? MOS6581 : MOS8580);
+    sidVolumeL = int32_t(volumeL * 49.248798352);
+    sidVolumeR = int32_t(volumeR * 49.248798352);
+  }
+
+#endif
 
   void Ep128VM::setCPUFrequency(size_t freq_)
   {

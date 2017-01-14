@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2017 Istvan Varga <istvanv@users.sourceforge.net>
 // https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -34,6 +34,9 @@
 #include "wd177x.hpp"
 #ifdef ENABLE_SDEXT
 #  include "sdext.hpp"
+#endif
+#ifdef ENABLE_RESID
+#  include "resid/sid.hpp"
 #endif
 
 #include <map>
@@ -220,6 +223,15 @@ namespace Ep128 {
 #ifdef ENABLE_SDEXT
     SDExt     sdext;
 #endif
+#ifdef ENABLE_RESID
+    SID       *sid;
+    bool      sidEnabled;
+    uint8_t   sidModel;                 // 0: disabled, 1: 6581, 2: 8580
+    uint8_t   sidAddressRegister;
+    int32_t   sidOutputAccumulator;
+    int32_t   sidVolumeL;
+    int32_t   sidVolumeR;
+#endif
     // ----------------
     void updateTimingParameters();
     void setMemoryWaitTiming();
@@ -255,11 +267,20 @@ namespace Ep128 {
                                         uint16_t addr, uint8_t value);
     static void mouseRTSWriteCallback(void *userData,
                                       uint16_t addr, uint8_t value);
+#ifdef ENABLE_RESID
+    static uint8_t sidPortReadCallback(void *userData, uint16_t addr);
+    static void sidPortWriteCallback(void *userData,
+                                     uint16_t addr, uint8_t value);
+    static uint8_t sidPortDebugReadCallback(void *userData, uint16_t addr);
+#endif
     static void mouseTimerCallback(void *userData);
     static void tapeCallback(void *userData);
     static void demoPlayCallback(void *userData);
     static void demoRecordCallback(void *userData);
     static void videoCaptureCallback(void *userData);
+#ifdef ENABLE_RESID
+    static void sidCallback(void *userData);
+#endif
     void stopDemoPlayback();
     void stopDemoRecording(bool writeFile_);
     uint8_t checkSingleStepModeBreak();
@@ -302,6 +323,14 @@ namespace Ep128 {
      */
     virtual void configureSDCard(bool isEnabled,
                                  const std::string& romFileName);
+#endif
+#ifdef ENABLE_RESID
+    /*!
+     * Configure SID 'n' (0 to 3, currently only 3 is supported),
+     * 'model' can be 0 to disable the emulation, 1 for MOS 6581 or 2 for 8580.
+     */
+    virtual void setSIDConfiguration(int n, int model,
+                                     double volumeL, double volumeR);
 #endif
     /*!
      * Set CPU clock frequency (in Hz); defaults to 4000000 Hz.
