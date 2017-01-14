@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2017 Istvan Varga <istvanv@users.sourceforge.net>
 // https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -404,6 +404,21 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "compressFiles",
                                 compressFiles, false,
                                 videoCaptureSettingsChanged);
+#ifdef ENABLE_RESID
+      defineConfigurationVariable(*this, "sid.3.model",
+                                  sid.model, int(0),
+                                  sidConfigurationChanged, 0.0, 2.0);
+      defineConfigurationVariable(*this, "sid.3.volumeL",
+                                  sid.volumeL, 1.0,
+                                  sidConfigurationChanged, 0.0, 2.0);
+      defineConfigurationVariable(*this, "sid.3.volumeR",
+                                  sid.volumeR, 1.0,
+                                  sidConfigurationChanged, 0.0, 2.0);
+#else
+      sid.model = 0;
+      sid.volumeL = 1.0;
+      sid.volumeR = 1.0;
+#endif
     // set machine specific defaults
     if (typeid(vm_) != typeid(Ep128::Ep128VM)) {
       int     cpuMult = 4;
@@ -743,6 +758,12 @@ namespace Ep128Emu {
     if (videoCaptureSettingsChanged) {
       videoCaptureSettingsChanged = false;
     }
+#ifdef ENABLE_RESID
+    if (sidConfigurationChanged) {
+      sidConfigurationChanged = false;
+      vm_.setSIDConfiguration(3, sid.model, sid.volumeL, sid.volumeR);
+    }
+#endif
   }
 
   int EmulatorConfiguration::convertKeyCode(int keyCode)

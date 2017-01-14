@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2017 Istvan Varga <istvanv@users.sourceforge.net>
 // https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -148,6 +148,14 @@ namespace Ep128Emu {
      */
     virtual void configureSDCard(bool isEnabled,
                                  const std::string& romFileName);
+#endif
+#ifdef ENABLE_RESID
+    /*!
+     * Configure SID 'n' (0 to 3, currently only 3 is supported),
+     * 'model' can be 0 to disable the emulation, 1 for MOS 6581 or 2 for 8580.
+     */
+    virtual void setSIDConfiguration(int n, int model,
+                                     double volumeL, double volumeR);
 #endif
     /*!
      * Set audio output quality.

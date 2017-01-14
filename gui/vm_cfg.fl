@@ -1,15 +1,14 @@
 # data file for the Fltk User Interface Designer (fluid)
-version 1.0109 
+version 1.0110 
 do_not_include_H_from_C 
 header_name {.hpp} 
 code_name {.cpp}
-decl {\#include "gui.hpp"} {selected private local
+decl {\#include "gui.hpp"} {selected
 } 
 
 class Ep128EmuGUI_MachineConfigWindow {open
 } {
-  decl {Ep128EmuGUI& gui;} {private local
-  }
+  decl {Ep128EmuGUI& gui;} {}
   Function {Ep128EmuGUI_MachineConfigWindow(Ep128EmuGUI& gui_) : gui(gui_)} {open
   } {
     Fl_Window window {
@@ -992,6 +991,41 @@ class Ep128EmuGUI_MachineConfigWindow {open
             }
           }
         }
+        Fl_Group sidConfigurationTab {
+          label SID open
+          xywh {10 35 380 370} hide
+        } {
+          Fl_Group {} {
+            label {SID emulation settings} open
+            xywh {20 45 360 135} box ENGRAVED_FRAME align 21
+          } {
+            Fl_Choice sidModelValuator {
+              label Model
+              callback {{
+  gui.config.sid.model = o->value();
+  gui.config.sidConfigurationChanged = true;
+}}
+              xywh {30 70 145 25} down_box BORDER_BOX align 8
+              code0 {o->add("Disabled|MOS 6581|MOS 8580");}
+            } {}
+            Fl_Value_Slider sidVolumeLValuator {
+              label {Left volume}
+              callback {{
+  gui.config.sid.volumeL = o->value();
+  gui.config.sidConfigurationChanged = true;
+}}
+              xywh {30 106 145 23} type Horizontal color 47 selection_color 52 align 8 maximum 2 step 0.04 value 1
+            }
+            Fl_Value_Slider sidVolumeRValuator {
+              label {Right volume}
+              callback {{
+  gui.config.sid.volumeR = o->value();
+  gui.config.sidConfigurationChanged = true;
+}}
+              xywh {30 141 145 23} type Horizontal color 47 selection_color 52 align 8 maximum 2 step 0.04 value 1
+            }
+          }
+        }
       }
     }
   }
@@ -1004,6 +1038,9 @@ class Ep128EmuGUI_MachineConfigWindow {open
   Function {show()} {open return_type void
   } {
     code {{
+\#ifndef ENABLE_RESID
+  sidConfigurationTab->hide();
+\#endif
   updateWindow();
   window->show();
 }} {}
@@ -1097,6 +1134,11 @@ class Ep128EmuGUI_MachineConfigWindow {open
   tapeEnableFilterValuator->value(gui.config.tape.enableSoundFileFilter ? 1 : 0);
   tapeMinFreqValuator->value(gui.config.tape.soundFileFilterMinFreq);
   tapeMaxFreqValuator->value(gui.config.tape.soundFileFilterMaxFreq);
+\#ifdef ENABLE_RESID
+  sidModelValuator->value(gui.config.sid.model);
+  sidVolumeLValuator->value(gui.config.sid.volumeL);
+  sidVolumeRValuator->value(gui.config.sid.volumeR);
+\#endif
 }} {}
   }
   Function {setROMImageFile(uint8_t segment_, const std::string& fileName_)} {open private return_type void
