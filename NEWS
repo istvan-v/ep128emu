@@ -5,10 +5,13 @@ Changes in version 2.0.11
   * the epimgconv utility has a graphical user interface now, and it can
     also convert images to TVC format
   * various improvements and new features in the epcompress utility
+  * SID card emulation using reSID 1.0
   * the debugger window has been made resizeable within a limited range
+  * improved support for Unicode characters in file names on Windows
+  * unformatted or non-FAT floppy disk images default to 80/2/9 geometry
+    if the file size is 737280 bytes
   * fixed bug in re-opening files selected with a file chooser dialog
   * fixed FILE device bug in EXOS 10 with files larger than 64 KB
-  * improved support for Unicode characters in file names on Windows
   * some other bug fixes
 
 Changes in version 2.0.10

@@ -97,6 +97,9 @@ Enterprise emulation
     wheel is emulated in native mode on column K of the keyboard matrix
   * SD card (SDEXT) emulation, this is an experimental feature based on
     code from LGB's Xep128 emulator
+  * SID card emulation at ports 0E (address) and 0F (data) using reSID
+    1.0; NOTE: this currently breaks the external DAC emulation when
+    active
 
 Spectrum emulation
 ------------------
@@ -248,8 +251,8 @@ can be passed to scons:
       Emulate the CMOS version of the Z80 CPU
   sdext=0
       Disable SD card (SDEXT) emulation
-  resid=1
-      Enable SID card emulation
+  resid=0
+      Disable SID card emulation
   curl=0
       Do not use libcurl in epmakecfg for downloading the ROM package
   cflags="..."
