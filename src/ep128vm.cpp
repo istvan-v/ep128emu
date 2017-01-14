@@ -1532,8 +1532,8 @@ namespace Ep128 {
       sidModel(0),
       sidAddressRegister(0x00),
       sidOutputAccumulator(0),
-      sidVolumeL(65),
-      sidVolumeR(65)
+      sidVolumeL(49),
+      sidVolumeR(49)
 #endif
   {
 #ifdef ENABLE_SDEXT
