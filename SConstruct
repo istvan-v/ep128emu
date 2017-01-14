@@ -19,7 +19,7 @@ cmosZ80 = int(ARGUMENTS.get('z80cmos', 0))
 # build with experimental SD card emulation
 enableSDExt = int(ARGUMENTS.get('sdext', 1))
 # enable SID card emulation
-enableReSID = int(ARGUMENTS.get('resid', 0))
+enableReSID = int(ARGUMENTS.get('resid', 1))
 # use cURL library in makecfg to download the ROM package
 enableCURL = int(ARGUMENTS.get('curl', int(not mingwCrossCompile)))
 userFlags = ARGUMENTS.get('cflags', '')
