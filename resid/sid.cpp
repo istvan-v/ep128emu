@@ -343,7 +343,7 @@ namespace Ep128 {
     filter.clock(voice[0].output(), voice[1].output(), voice[2].output());
 
     soundOutputAccumulator =
-        soundOutputAccumulator + (int32_t(filter.output()) << 4);
+        soundOutputAccumulator + (int32_t(filter.output()) << 3);
 
     // Pipelined writes on the MOS8580.
     if (EP128EMU_UNLIKELY(write_pipeline)) {

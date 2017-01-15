@@ -1252,11 +1252,16 @@ namespace Ep128 {
         vm.sidOutputAccumulator = 0;
         SID::clockCallback(vm.sid);
         SID::clockCallback(vm.sid);
-        int32_t outL = vm.sidOutputAccumulator * vm.sidVolumeL + 51640320;
-        int32_t outR = vm.sidOutputAccumulator * vm.sidVolumeR + 51640320;
-        outL = (outL >= 0 ? (outL < 103280640 ? outL : 103280640) : 0);
-        outR = (outR >= 0 ? (outR < 103280640 ? outR : 103280640) : 0);
-        vm.externalDACOutput = uint32_t((outL >> 12) | ((outR >> 12) << 16));
+        // FIXME: this is the maximum safe range with all 4 DAVE channels
+        // active, but it can overflow with tape feedback (unlikely in
+        // practice)
+        const int32_t sidOutputMax = (65535 - (63 * 4 * 128)) << 15;
+        const int32_t sidOutputOffs = (65535 - (63 * 4 * 128) + 1) << 14;
+        int32_t outL = vm.sidOutputAccumulator * vm.sidVolumeL + sidOutputOffs;
+        int32_t outR = vm.sidOutputAccumulator * vm.sidVolumeR + sidOutputOffs;
+        outL = (outL >= 0 ? (outL < sidOutputMax ? outL : sidOutputMax) : 0);
+        outR = (outR >= 0 ? (outR < sidOutputMax ? outR : sidOutputMax) : 0);
+        vm.externalDACOutput = uint32_t((outL >> 15) | ((outR >> 15) << 16));
       } while (EP128EMU_UNLIKELY(tmp >= 0L));
     }
   }
@@ -1532,8 +1537,8 @@ namespace Ep128 {
       sidModel(0),
       sidAddressRegister(0x00),
       sidOutputAccumulator(0),
-      sidVolumeL(49),
-      sidVolumeR(49)
+      sidVolumeL(1039),
+      sidVolumeR(1039)
 #endif
   {
 #ifdef ENABLE_SDEXT
@@ -1759,8 +1764,8 @@ namespace Ep128 {
     sidModel = uint8_t(model);
     if (model)
       sid->set_chip_model(model == 1 ? MOS6581 : MOS8580);
-    sidVolumeL = int32_t(volumeL * 49.248798352);
-    sidVolumeR = int32_t(volumeR * 49.248798352);
+    sidVolumeL = int32_t(volumeL * 1039.75);
+    sidVolumeR = int32_t(volumeR * 1039.75);
   }
 
 #endif
