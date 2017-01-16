@@ -523,9 +523,14 @@ void Ep128EmuGUI::createMenus()
     machineConfigWindow->vmCPUFrequencyValuator->deactivate();
     machineConfigWindow->vmSoundClockFrequencyValuator->deactivate();
     machineConfigWindow->enableMemoryTimingValuator->hide();
-#ifdef ENABLE_RESID
-    machineConfigWindow->sidConfigurationTab->hide();
+#ifndef ENABLE_RESID
+  }
+  {
 #endif
+    machineConfigWindow->sidConfigurationGroup->deactivate();
+    machineConfigWindow->sidConfigurationGroup->hide();
+    machineConfigWindow->vmConfigurationTabs->remove(
+        *(machineConfigWindow->sidConfigurationGroup));
   }
   mainMenuBar->add("File/Configuration/Load from ASCII file (Alt+Q)",
                    (char *) 0, &menuCallback_File_LoadConfig, (void *) this);

@@ -52,7 +52,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
 }}
         xywh {325 415 60 25} selection_color 50
       }
-      Fl_Tabs {} {open
+      Fl_Tabs vmConfigurationTabs {open
         xywh {10 10 380 395}
       } {
         Fl_Group {} {
@@ -991,7 +991,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
             }
           }
         }
-        Fl_Group sidConfigurationTab {
+        Fl_Group sidConfigurationGroup {
           label SID open
           xywh {10 35 380 370} hide
         } {
@@ -1038,9 +1038,6 @@ class Ep128EmuGUI_MachineConfigWindow {open
   Function {show()} {open return_type void
   } {
     code {{
-\#ifndef ENABLE_RESID
-  sidConfigurationTab->hide();
-\#endif
   updateWindow();
   window->show();
 }} {}
