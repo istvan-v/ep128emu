@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2017 Istvan Varga <istvanv@users.sourceforge.net>
 // https://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -28,6 +28,16 @@
 
 #include <stdio.h>
 #include "dotconf.h"
+
+#ifdef WIN32
+extern "C" {
+  // C wrapper for dotconf.c
+  std::FILE *Ep128Emu_fileOpen(const char *name, const char *mode)
+  {
+    return Ep128Emu::fileOpen(name, mode);
+  }
+}
+#endif
 
 namespace Ep128Emu {
 

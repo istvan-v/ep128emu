@@ -75,6 +75,11 @@ typedef unsigned long ulong;
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #endif
 
+#ifdef WIN32
+/* defined in cfg_db.cpp */
+extern FILE *Ep128Emu_fileOpen(const char *name, const char *mode);
+#endif
+
 static char name[CFG_MAX_OPTION + 1];   /* option name */
 
 /*
@@ -797,7 +802,12 @@ configfile_t *dotconf_create(char *fname, const configoption_t * options,
         else
                 new_cfg->cmp_func = strncmp;
 
+#ifndef WIN32
         new_cfg->stream = fopen(fname, "r");
+#else
+        /* use UTF-8 compatible wrapper on Windows */
+        new_cfg->stream = Ep128Emu_fileOpen(fname, "r");
+#endif
         if (new_cfg->stream == NULL) {
                 fprintf(stderr, "Error opening configuration file '%s'\n",
                         fname);
@@ -857,6 +867,8 @@ configfile_t *dotconf_create(char *fname, const configoption_t * options,
         }
         return new_cfg;
 }
+
+#ifndef WIN32
 
 /* ------ internal utility function that verifies if a character is in the WILDCARDS list -- */
 int dotconf_is_wild_card(char value)
@@ -1415,6 +1427,8 @@ int dotconf_handle_star(command_t * cmd, char *path, char *pre, char *ext)
         return 0;
 }
 
+#endif  /* !WIN32 */
+
 char *get_cwd(void)
 {
         char *buf = calloc(1, CFG_MAX_FILENAME);
@@ -1453,11 +1467,12 @@ DOTCONF_CB(dotconf_cb_include)
 {
         char *filename = 0;
         configfile_t *included;
-
+#ifndef WIN32
         char wild_card;
         char *path = 0;
         char *pre = 0;
         char *ext = 0;
+#endif
 
         (void) ctx;
 
@@ -1493,6 +1508,7 @@ DOTCONF_CB(dotconf_cb_include)
                 filename = strdup(cmd->data.str);
 
         /* Added wild card support here */
+#ifndef WIN32
         if (dotconf_find_wild_card(filename, &wild_card, &path, &pre, &ext) >=
             0) {
                 if (dotconf_handle_wild_card(cmd, wild_card, path, pre, ext) <
@@ -1518,6 +1534,7 @@ DOTCONF_CB(dotconf_cb_include)
                 free(filename);
                 return NULL;
         }
+#endif  /* !WIN32 */
 
         included = dotconf_create(filename, cmd->configfile->config_options[1],
                                   cmd->configfile->context,
