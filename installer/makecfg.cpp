@@ -1384,19 +1384,20 @@ int main(int argc, char **argv)
 #else
     {
       // try to get installation directory from registry
-      char    installDir[256];
+      wchar_t installDir[256];
+      wchar_t valueName = wchar_t(0);
       HKEY    regKey = 0;
       DWORD   regType = 0;
-      DWORD   bufSize = 256;
+      DWORD   bufSize = DWORD(sizeof(wchar_t) * 256);
       if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
                        "Software\\ep128emu2\\InstallDirectory", 0,
                        KEY_QUERY_VALUE | KEY_WOW64_32KEY, &regKey)
           == ERROR_SUCCESS) {
-        if (RegQueryValueEx(regKey, "", (LPDWORD) 0, &regType,
-                            (LPBYTE) installDir, &bufSize)
+        if (RegQueryValueExW(regKey, LPCWSTR(&valueName), (LPDWORD) 0, &regType,
+                             (LPBYTE) installDir, &bufSize)
             == ERROR_SUCCESS && regType == REG_SZ && bufSize < 256) {
-          installDir[bufSize] = '\0';
-          tmp = installDir;
+          installDir[bufSize] = wchar_t(0);
+          Ep128Emu::convertToUTF8(tmp, &(installDir[0]));
         }
         RegCloseKey(regKey);
       }
@@ -1511,40 +1512,40 @@ int main(int argc, char **argv)
     installDirectory.resize(installDirectory.length() - 1);
   }
   {
-    _mkdir(installDirectory.c_str());
+    Ep128Emu::mkdir_UTF8(installDirectory.c_str());
     std::string tmp = installDirectory;
     if (tmp[tmp.length() - 1] != '/' && tmp[tmp.length() - 1] != '\\')
       tmp += '\\';
     std::string tmp2 = tmp + "config";
-    _mkdir(tmp2.c_str());
+    Ep128Emu::mkdir_UTF8(tmp2.c_str());
     tmp2 = tmp + "config\\cpc";
-    _mkdir(tmp2.c_str());
+    Ep128Emu::mkdir_UTF8(tmp2.c_str());
     tmp2 = tmp + "config\\ep128brd";
-    _mkdir(tmp2.c_str());
+    Ep128Emu::mkdir_UTF8(tmp2.c_str());
     tmp2 = tmp + "config\\ep128esp";
-    _mkdir(tmp2.c_str());
+    Ep128Emu::mkdir_UTF8(tmp2.c_str());
     tmp2 = tmp + "config\\ep128hun";
-    _mkdir(tmp2.c_str());
+    Ep128Emu::mkdir_UTF8(tmp2.c_str());
     tmp2 = tmp + "config\\ep128uk";
-    _mkdir(tmp2.c_str());
+    Ep128Emu::mkdir_UTF8(tmp2.c_str());
     tmp2 = tmp + "config\\ep64";
-    _mkdir(tmp2.c_str());
+    Ep128Emu::mkdir_UTF8(tmp2.c_str());
     tmp2 = tmp + "config\\tvc";
-    _mkdir(tmp2.c_str());
+    Ep128Emu::mkdir_UTF8(tmp2.c_str());
     tmp2 = tmp + "config\\zx";
-    _mkdir(tmp2.c_str());
+    Ep128Emu::mkdir_UTF8(tmp2.c_str());
     tmp2 = tmp + "demo";
-    _mkdir(tmp2.c_str());
+    Ep128Emu::mkdir_UTF8(tmp2.c_str());
     tmp2 = tmp + "disk";
-    _mkdir(tmp2.c_str());
+    Ep128Emu::mkdir_UTF8(tmp2.c_str());
     tmp2 = tmp + "files";
-    _mkdir(tmp2.c_str());
+    Ep128Emu::mkdir_UTF8(tmp2.c_str());
     tmp2 = tmp + "roms";
-    _mkdir(tmp2.c_str());
+    Ep128Emu::mkdir_UTF8(tmp2.c_str());
     tmp2 = tmp + "snapshot";
-    _mkdir(tmp2.c_str());
+    Ep128Emu::mkdir_UTF8(tmp2.c_str());
     tmp2 = tmp + "tape";
-    _mkdir(tmp2.c_str());
+    Ep128Emu::mkdir_UTF8(tmp2.c_str());
   }
 #endif
 #ifdef WIN32
