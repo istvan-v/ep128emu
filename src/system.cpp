@@ -613,7 +613,7 @@ namespace Ep128Emu {
       wchar_t w = wchar_t(c);
       if (EP128EMU_UNLIKELY(c >= 0xC0)) {
         unsigned char n = (c >> 4) & 3;
-        w = c & (0x0F | (~c >> 1));
+        w = c & (0x3F >> n);
         unsigned char i = 0;
         while (true) {
           if ((s[i] & 0xC0) != 0x80) {
