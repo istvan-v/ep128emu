@@ -1,3 +1,8 @@
+Changes in version 2.0.11.1
+---------------------------
+
+  * fixed error on Windows with non-ASCII characters in the user name
+
 Changes in version 2.0.11
 -------------------------
 

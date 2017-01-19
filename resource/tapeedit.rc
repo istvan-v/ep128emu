@@ -2,8 +2,8 @@
 #include <winver.h>
 
 VS_VERSION_INFO VERSIONINFO
-  FILEVERSION     2, 0, 11, 0
-  PRODUCTVERSION  2, 0, 11, 0
+  FILEVERSION     2, 0, 11, 1
+  PRODUCTVERSION  2, 0, 11, 1
   FILEFLAGSMASK   0
   FILEFLAGS       0
   FILEOS          VOS__WINDOWS32
@@ -17,12 +17,12 @@ BEGIN
       VALUE "Comments", "Home page: https://github.com/istvan-v/ep128emu/"
       VALUE "CompanyName", "Istvan Varga"
       VALUE "FileDescription", "ep128emu tape editor utility"
-      VALUE "FileVersion", "2.0.11.0"
+      VALUE "FileVersion", "2.0.11.1"
       VALUE "InternalName", "tapeedit"
-      VALUE "LegalCopyright", "Copyright (C) 2003-2016, GPL v2 or later"
+      VALUE "LegalCopyright", "Copyright (C) 2003-2017, GPL v2 or later"
       VALUE "OriginalFilename", "tapeedit"
       VALUE "ProductName", "Ep128Emu"
-      VALUE "ProductVersion", "2.0.11.0"
+      VALUE "ProductVersion", "2.0.11.1"
     END
   END
   BLOCK "VarFileInfo"
