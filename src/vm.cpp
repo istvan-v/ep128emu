@@ -944,13 +944,7 @@ namespace Ep128Emu {
       }
 #else
       struct _stat  st;
-      std::memset(&st, 0, sizeof(struct _stat));
-      int   err;
-      {
-        wchar_t tmpBuf[512];
-        convertUTF8(&(tmpBuf[0]), fullName.c_str(), 512);
-        err = _wstat(&(tmpBuf[0]), &st);
-      }
+      int     err = fileStat(fullName.c_str(), &st);
 #endif
       if (err != 0) {
         if (mode == (char *) 0 || mode[0] != 'w')
