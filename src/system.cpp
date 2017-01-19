@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2017 Istvan Varga <istvanv@users.sourceforge.net>
 // https://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -420,38 +420,31 @@ namespace Ep128Emu {
 #  endif
     mkdir(dirName.c_str(), 0750);
 #else
-    const char  *s = std::getenv("USERPROFILE");
-    if (s) {
-      dirName = s;
-      stripString(dirName);
-    }
-    if ((int) dirName.size() != 0) {
+    getenv_UTF8(dirName, "USERPROFILE");
+    stripString(dirName);
+    if (!dirName.empty()) {
       struct _stat tmp;
-      std::memset(&tmp, 0, sizeof(struct _stat));
       if (dirName[dirName.size() - 1] != '\\')
         dirName += '\\';
       dirName += "Application Data";
-      if (_stat(dirName.c_str(), &tmp) != 0 ||
+      if (fileStat(dirName.c_str(), &tmp) != 0 ||
           !(tmp.st_mode & _S_IFDIR))
-        dirName = "";
+        dirName.clear();
     }
-    if ((int) dirName.size() == 0) {
-      s = std::getenv("HOME");
-      if (s) {
-        dirName = s;
-        stripString(dirName);
-      }
-      if ((int) dirName.size() != 0) {
+    if (dirName.empty()) {
+      getenv_UTF8(dirName, "HOME");
+      stripString(dirName);
+      if (!dirName.empty()) {
         struct _stat tmp;
-        std::memset(&tmp, 0, sizeof(struct _stat));
-        if (_stat(dirName.c_str(), &tmp) != 0 ||
+        if (fileStat(dirName.c_str(), &tmp) != 0 ||
             !(tmp.st_mode & _S_IFDIR))
-          dirName = "";
+          dirName.clear();
       }
     }
-    if ((int) dirName.size() == 0) {
+    if (dirName.empty()) {
       char  buf[512];
       int   len;
+      // FIXME: this may not work with Unicode characters
       len = (int) GetModuleFileName((HMODULE) 0, &(buf[0]), (DWORD) 512);
       if (len >= 512)
         len = 0;
@@ -470,7 +463,7 @@ namespace Ep128Emu {
     if (dirName[dirName.size() - 1] != '\\')
       dirName += '\\';
     dirName += ".ep128emu";
-    _mkdir(dirName.c_str());
+    mkdir_UTF8(dirName.c_str());
 #endif
     return dirName;
   }
@@ -572,39 +565,72 @@ namespace Ep128Emu {
 
 #ifdef WIN32
 
+  void convertToUTF8(std::string& buf, const wchar_t *s)
+  {
+    buf.clear();
+    if (!s)
+      return;
+    for (int i = 0; s[i] != wchar_t(0); i++) {
+      wchar_t c = s[i];
+      if (EP128EMU_EXPECT(c < 0x0080)) {
+        buf += char(c);
+      }
+      else if (c < 0x0800) {
+        buf += char(0xC0 | (c >> 6));
+        buf += char(0x80 | (c & 0x3F));
+      }
+      else {
+        buf += char(0xE0 | ((c >> 12) & 0x0F));
+        buf += char(0x80 | ((c >> 6) & 0x3F));
+        buf += char(0x80 | (c & 0x3F));
+      }
+    }
+  }
+
+  void getenv_UTF8(std::string& s, const char *name)
+  {
+    s.clear();
+    wchar_t nameBuf[32];
+    if (!name || name[0] == '\0' || std::strlen(name) >= 32)
+      return;
+    for (int i = 0; true; i++) {
+      unsigned char c = (unsigned char) name[i];
+      nameBuf[i] = wchar_t(c);
+      if (!c)
+        break;
+    }
+    convertToUTF8(s, _wgetenv(&(nameBuf[0])));
+  }
+
   void convertUTF8(wchar_t *buf, const char *s, size_t bufSize)
   {
     if (EP128EMU_UNLIKELY(!buf || bufSize < 1))
       return;
     if (!s)
       s = "";
-    wchar_t w = wchar_t(0);
-    unsigned char n = 0;
     unsigned char c;
     while ((c = (unsigned char) *(s++)) != '\0') {
-      if (EP128EMU_EXPECT(!(c & 0x80))) {
-        w = wchar_t(c);
-      }
-      else if (c >= 0xC0) {
-        n = 1;
-        while (EP128EMU_UNLIKELY(c & (0x40 >> n)))
-          n++;
-        w = wchar_t(c & ((0x80 >> n) - 1));
-        n--;
-        continue;
-      }
-      else {
-        w = (w << 6) | wchar_t(c & 0x3F);
-        if (EP128EMU_UNLIKELY(n > 0)) {
-          n--;
-          continue;
+      wchar_t w = wchar_t(c);
+      if (EP128EMU_UNLIKELY(c >= 0xC0)) {
+        unsigned char n = (c >> 4) & 3;
+        w = c & (0x0F | (~c >> 1));
+        unsigned char i = 0;
+        while (true) {
+          if ((s[i] & 0xC0) != 0x80) {
+            // do not translate invalid (not UTF-8) sequences
+            w = wchar_t(c);
+            break;
+          }
+          w = (w << 6) | wchar_t(s[i] & 0x3F);
+          if (++i >= n) {
+            s = s + i;
+            break;
+          }
         }
       }
       if (EP128EMU_UNLIKELY(!(--bufSize)))
         break;
       *(buf++) = w;
-      w = wchar_t(0);
-      n = 0;
     }
     *buf = wchar_t(0);
   }
@@ -627,6 +653,24 @@ namespace Ep128Emu {
     wchar_t *fileName_ = &(tmpBuf[0]);
     convertUTF8(fileName_, fileName, 512);
     return _wremove(fileName_);
+  }
+
+  int fileStat(const char *fileName, void *st)
+  {
+    wchar_t tmpBuf[512];
+    wchar_t *fileName_ = &(tmpBuf[0]);
+    struct _stat  *st_ = reinterpret_cast< struct _stat * >(st);
+    std::memset(st_, 0, sizeof(struct _stat));
+    convertUTF8(fileName_, fileName, 512);
+    return _wstat(fileName_, st_);
+  }
+
+  int mkdir_UTF8(const char *dirName)
+  {
+    wchar_t tmpBuf[512];
+    wchar_t *dirName_ = &(tmpBuf[0]);
+    convertUTF8(dirName_, dirName, 512);
+    return _wmkdir(dirName_);
   }
 
 #endif
