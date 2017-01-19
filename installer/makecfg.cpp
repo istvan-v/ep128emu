@@ -1125,7 +1125,7 @@ bool Ep128EmuConfigInstallerGUI::unpackROMFiles(const std::string& romDir,
     fName = romDir;
     // assume there is a path delimiter character at the end of 'romDir'
     fName += MAKECFG_ROM_PKG_NAME;
-    f = std::fopen(fName.c_str(), "rb");
+    f = Ep128Emu::fileOpen(fName.c_str(), "rb");
 #if defined(__linux) || defined(__linux__)
     if (!f && !enableROMDownload) {
       usingLocalFile = false;
@@ -1272,7 +1272,7 @@ bool Ep128EmuConfigInstallerGUI::unpackROMFiles(const std::string& romDir,
         }
         fName += char(c);
       }
-      f = std::fopen(fName.c_str(), "wb");
+      f = Ep128Emu::fileOpen(fName.c_str(), "wb");
       if (!f) {
         err = true;
       }
@@ -1325,7 +1325,7 @@ static void saveConfigurationFile(Ep128Emu::ConfigurationDB& config,
         // hack to work around errors due to lack of write access to
         // Program Files if makecfg is run as a normal user; if the
         // file already exists, then the error is ignored
-        std::FILE *f = std::fopen(fullName.c_str(), "rb");
+        std::FILE *f = Ep128Emu::fileOpen(fullName.c_str(), "rb");
         if (!f)
           throw;
         else
@@ -1567,10 +1567,10 @@ int main(int argc, char **argv)
         // if successfully extracted, delete compressed ROM package
         std::string tmp(romDirectory);
         tmp += MAKECFG_ROM_PKG_NAME;
-        std::FILE *f = std::fopen(tmp.c_str(), "r+b");
+        std::FILE *f = Ep128Emu::fileOpen(tmp.c_str(), "r+b");
         if (f) {
           std::fclose(f);
-          std::remove(tmp.c_str());
+          Ep128Emu::fileRemove(tmp.c_str());
         }
       }
       // enable snapshot compression by default on fast machines
