@@ -490,6 +490,7 @@ Section "Create desktop shortcuts" SecDesktop
     CreateShortCut "$DESKTOP\zx128emu.lnk" "$INSTDIR\ep128emu.exe" '-zx -opengl' "$INSTDIR\ep128emu.exe" 1
     CreateShortCut "$DESKTOP\cpc6128emu.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl' "$INSTDIR\ep128emu.exe" 2
     CreateShortCut "$DESKTOP\tvc64emu.lnk" "$INSTDIR\ep128emu.exe" '-tvc -opengl' "$INSTDIR\ep128emu.exe" 3
+    CreateShortCut "$DESKTOP\ep128emu tape editor.lnk" "$INSTDIR\tapeedit.exe"
     SectionGetFlags ${SecUtils} $0
     IntOp $0 $0 & ${SF_SELECTED}
     IntCmp $0 0 noImgConv
@@ -843,6 +844,7 @@ Section "Uninstall"
   Delete "$DESKTOP\zx128emu.lnk"
   Delete "$DESKTOP\cpc6128emu.lnk"
   Delete "$DESKTOP\tvc64emu.lnk"
+  Delete "$DESKTOP\ep128emu tape editor.lnk"
   Delete "$DESKTOP\epimgconv.lnk"
 
   !insertmacro MUI_STARTMENU_GETFOLDER Application $MUI_TEMP
