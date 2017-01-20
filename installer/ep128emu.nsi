@@ -196,6 +196,8 @@ Section "ep128emu source code" SecSrc
   File "..\*.patch"
   File "..\*.sh"
   File "..\*.spec"
+  File "..\.gitignore"
+  File "..\maketranslation"
 
   SetOutPath "$INSTDIR\src\Fl_Native_File_Chooser"
 
@@ -475,6 +477,29 @@ Section "Install epimgconv and other utilities" SecUtils
 
 SectionEnd
 
+Section "Create desktop shortcuts" SecDesktop
+
+  !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
+
+    SetShellVarContext all
+
+    ;Create shortcuts
+    SetOutPath "$INSTDIR"
+
+    CreateShortCut "$DESKTOP\ep128emu.lnk" "$INSTDIR\ep128emu.exe" '-opengl'
+    CreateShortCut "$DESKTOP\zx128emu.lnk" "$INSTDIR\ep128emu.exe" '-zx -opengl' "$INSTDIR\ep128emu.exe" 1
+    CreateShortCut "$DESKTOP\cpc6128emu.lnk" "$INSTDIR\ep128emu.exe" '-cpc -opengl' "$INSTDIR\ep128emu.exe" 2
+    CreateShortCut "$DESKTOP\tvc64emu.lnk" "$INSTDIR\ep128emu.exe" '-tvc -opengl' "$INSTDIR\ep128emu.exe" 3
+    SectionGetFlags ${SecUtils} $0
+    IntOp $0 $0 & ${SF_SELECTED}
+    IntCmp $0 0 noImgConv
+    CreateShortCut "$DESKTOP\epimgconv.lnk" "$INSTDIR\epimgconv_gui.exe"
+noImgConv:
+
+  !insertmacro MUI_STARTMENU_WRITE_END
+
+SectionEnd
+
 ;--------------------------------
 ;Descriptions
 
@@ -489,6 +514,7 @@ SectionEnd
   LangString DESC_SecDLRoms ${LANG_ENGLISH} "Download and install ROM images"
   LangString DESC_SecInstCfg ${LANG_ENGLISH} "Install configuration files"
   LangString DESC_SecUtils ${LANG_ENGLISH} "Install epimgconv and other utilities"
+  LangString DESC_SecDesktop ${LANG_ENGLISH} "Create desktop shortcuts"
 
   ;Assign language strings to sections
   !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
@@ -502,6 +528,7 @@ SectionEnd
     !insertmacro MUI_DESCRIPTION_TEXT ${SecDLRoms} $(DESC_SecDLRoms)
     !insertmacro MUI_DESCRIPTION_TEXT ${SecInstCfg} $(DESC_SecInstCfg)
     !insertmacro MUI_DESCRIPTION_TEXT ${SecUtils} $(DESC_SecUtils)
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} $(DESC_SecDesktop)
   !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 ;--------------------------------
@@ -811,6 +838,12 @@ Section "Uninstall"
   RMDir "$INSTDIR\snapshot"
   RMDir /r "$INSTDIR\src"
   RMDir "$INSTDIR\tape"
+
+  Delete "$DESKTOP\ep128emu.lnk"
+  Delete "$DESKTOP\zx128emu.lnk"
+  Delete "$DESKTOP\cpc6128emu.lnk"
+  Delete "$DESKTOP\tvc64emu.lnk"
+  Delete "$DESKTOP\epimgconv.lnk"
 
   !insertmacro MUI_STARTMENU_GETFOLDER Application $MUI_TEMP
 
