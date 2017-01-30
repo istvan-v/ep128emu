@@ -1811,7 +1811,7 @@ namespace Ep128 {
   void Ep128VM::setSoundClockFrequency(size_t freq_)
   {
     size_t  freq;
-    freq = (freq_ > 250000 ? (freq_ < 1000000 ? freq_ : 1000000) : 250000);
+    freq = (freq_ > 250000 ? (freq_ < 1250000 ? freq_ : 1250000) : 250000);
     if (daveFrequency != freq) {
       daveFrequency = freq;
       updateTimingParameters();
@@ -2184,7 +2184,10 @@ namespace Ep128 {
       stopDemoPlayback();
       stopDemoRecording(false);
     }
-    ioPorts.writeDebug(addr, value);
+    if ((addr & 0xF0) == 0x80)
+      nick.writePort(addr, value);
+    else
+      ioPorts.writeDebug(addr, value);
   }
 
   uint16_t Ep128VM::getProgramCounter() const
