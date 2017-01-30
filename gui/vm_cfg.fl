@@ -102,7 +102,7 @@ class Ep128EmuGUI_MachineConfigWindow {open
   }
   o->value(double(gui.config.vm.soundClockFrequency));
 }}
-              xywh {30 140 120 25} align 8 when 4 minimum 50000 maximum 1e+06 step 1 value 500000
+              xywh {30 140 120 25} align 8 when 4 minimum 50000 maximum 1.25e+06 step 1 value 500000
               code0 {o->cursor_color(Fl_Color(3));}
             }
             Fl_Light_Button enableMemoryTimingValuator {

@@ -96,7 +96,7 @@ namespace Ep128Emu {
                                 vmConfigurationChanged, 178125.0, 1781250.0);
     defineConfigurationVariable(*this, "vm.soundClockFrequency",
                                 vm.soundClockFrequency, 500000U,
-                                vmConfigurationChanged, 250000.0, 1000000.0);
+                                vmConfigurationChanged, 250000.0, 1250000.0);
     defineConfigurationVariable(*this, "vm.speedPercentage",
                                 vm.speedPercentage, 100U,
                                 soundSettingsChanged, 0.0, 1000.0);
