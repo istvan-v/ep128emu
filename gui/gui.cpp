@@ -131,10 +131,10 @@ void Ep128EmuGUI::init_()
 void Ep128EmuGUI::updateDisplay_windowTitle()
 {
   if (oldPauseFlag) {
-    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.11.1 (paused)");
+    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.11.2 (paused)");
   }
   else {
-    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.11.1 (%d%%)",
+    std::sprintf(&(windowTitleBuf[0]), "ep128emu 2.0.11.2 (%d%%)",
                  int(oldSpeedPercentage));
   }
   mainWindow->label(&(windowTitleBuf[0]));

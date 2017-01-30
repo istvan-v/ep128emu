@@ -1,7 +1,7 @@
 # Checkout: cvs -z3 -d:pserver:anonymous@ep128emu.cvs.sourceforge.net:/cvsroot/ep128emu co -P ep128emu2
 
 Name:			ep128emu
-Version:		2.0.11.1
+Version:		2.0.11.2
 Release:		%mkrel 1
 Summary:		Enterprise 64/128, ZX Spectrum 48/128, Amstrad CPC 464/664/6128 and Videoton TVC emulator
 License:		GPLv2+
