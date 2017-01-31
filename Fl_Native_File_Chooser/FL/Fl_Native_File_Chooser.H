@@ -24,17 +24,17 @@
 
 // Use Windows' chooser
 #ifdef _WIN32
-#include <FL/Fl_Native_File_Chooser_WIN32.H>
+#include "Fl_Native_File_Chooser_WIN32.H"
 #endif
 
 // Use Apple's chooser
 #ifdef __APPLE__
-#include <FL/Fl_Native_File_Chooser_MAC.H>
+#include "Fl_Native_File_Chooser_MAC.H"
 #endif
 
 // All else falls back to FLTK's own chooser
 #if ! defined(__APPLE__) && !defined(_WIN32)
-#include <FL/Fl_Native_File_Chooser_FLTK.H>
+#include "Fl_Native_File_Chooser_FLTK.H"
 #endif
 
 #endif /*FL_NATIVE_FILE_CHOOSER_H*/

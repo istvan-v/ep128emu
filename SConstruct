@@ -31,12 +31,12 @@ enableBuildCache = int(ARGUMENTS.get('cache', 0))
 compilerFlags = ''
 if buildRelease:
     if linux32CrossCompile or (mingwCrossCompile and not win64CrossCompile):
-        compilerFlags = ' -march=pentium2 -mtune=generic '
+        compilerFlags = ' -march=pentium2 '
 if enableDebug and not buildRelease:
     compilerFlags = ' -Wno-long-long -Wshadow -g -O0 ' + compilerFlags
     compilerFlags = ' -Wall -W -ansi -pedantic ' + compilerFlags
 else:
-    compilerFlags = ' -Wall -O3 ' + compilerFlags
+    compilerFlags = ' -Wall -O3 ' + compilerFlags + ' -mtune=generic '
     compilerFlags = compilerFlags + ' -fno-inline-functions '
     compilerFlags = compilerFlags + ' -fomit-frame-pointer -ffast-math '
 
@@ -300,6 +300,8 @@ else:
     ep128emuLibEnvironment.Append(CPPPATH = ['./Fl_Native_File_Chooser'])
     ep128emuGUIEnvironment.Append(CPPPATH = ['./Fl_Native_File_Chooser'])
     ep128emuGLGUIEnvironment.Append(CPPPATH = ['./Fl_Native_File_Chooser'])
+    makecfgEnvironment.Append(CPPPATH = ['./Fl_Native_File_Chooser'])
+    tapeeditEnvironment.Append(CPPPATH = ['./Fl_Native_File_Chooser'])
 if configure.CheckCHeader('stdint.h'):
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DHAVE_STDINT_H'])
 if sys.platform[:5] == 'linux' and not mingwCrossCompile:
