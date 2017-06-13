@@ -893,19 +893,13 @@ namespace Ep128Emu {
           fileNameCallback(fileNameCallbackUserData, fullName);
         if (fullName.length() == 0)
           return -2;                    // error: invalid file name
-#ifdef WIN32
-        fileName_ = fullName;
-#endif
       }
       // attempt to stat() file
 #ifndef WIN32
       struct stat   st;
       std::memset(&st, 0, sizeof(struct stat));
       int   err = stat(fullName.c_str(), &st);
-      if (fileName_.empty()) {
-        fileName_ = fullName;
-      }
-      else if (err != 0) {
+      if (err != 0 && !fileName_.empty()) {
         // not found, try case insensitive file search
         std::string tmpName(fullName);
         tmpName[0] = tmpName.c_str()[0];    // unshare string
@@ -964,6 +958,7 @@ namespace Ep128Emu {
       // FIXME: the file may possibly be created, changed, or removed between
       // calling stat() and fopen()
       f = fileOpen(fullName.c_str(), mode);
+      fileName_ = fullName;
       if (!f)
         return -5;                      // error: cannot open file
     }

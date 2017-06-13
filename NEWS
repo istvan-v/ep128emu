@@ -1,6 +1,12 @@
 Changes in version 2.0.11.2
 ---------------------------
 
+  * increased Enterprise maximum sound clock frequency to 1.25 MHz for
+    accurate emulation of machines with 10 MHz CPU
+  * fixed FILE: bug in re-opening read only files
+  * fixed keys "sticking" because of buggy FLTK file chooser on Linux
+  * fixed Z80 clock stretching on debug writes to NICK ports
+
 Changes in version 2.0.11.1
 ---------------------------
 

@@ -688,12 +688,12 @@ namespace Ep128Emu {
      * lower case, invalid characters are replaced with underscores, and the
      * file is searched case-insensitively. If 'fileName_' is empty, the file
      * name callback (if any) is called, which should return either a full path
-     * file name that will be stored in 'fileName_', or an empty string in
-     * which case this function fails and returns -2 (invalid file name).
+     * file name, or an empty string in which case this function fails and
+     * returns -2 (invalid file name).
      * 'mode' is the mode parameter to be passed to std::fopen().
-     * On success, the file handle is stored in 'f', and zero is returned.
-     * Otherwise, 'f' is set to NULL, and the return value is one of the
-     * following error codes:
+     * On success, the file handle is stored in 'f', the full path file name in
+     * 'fileName_', and zero is returned. Otherwise, 'f' is set to NULL, and
+     * the return value is one of the following error codes:
      *   -1: unknown error
      *   -2: invalid (empty) file name
      *   -3: the file is not found
