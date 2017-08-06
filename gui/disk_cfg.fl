@@ -1,24 +1,20 @@
 # data file for the Fltk User Interface Designer (fluid)
-version 1.0109 
+version 1.0110 
 do_not_include_H_from_C 
 header_name {.hpp} 
 code_name {.cpp}
-decl {\#include "gui.hpp"} {selected private local
+decl {\#include "gui.hpp"} {selected
 } 
 
-decl {\#include "ep128vm.hpp"} {private local
-} 
+decl {\#include "ep128vm.hpp"} {} 
 
-decl {\#include "tvc64vm.hpp"} {private local
-} 
+decl {\#include "tvc64vm.hpp"} {} 
 
-decl {\#include <typeinfo>} {private local
-} 
+decl {\#include <typeinfo>} {} 
 
 class Ep128EmuGUI_DiskConfigWindow {open
 } {
-  decl {Ep128EmuGUI& gui;} {private local
-  }
+  decl {Ep128EmuGUI& gui;} {}
   Function {Ep128EmuGUI_DiskConfigWindow(Ep128EmuGUI& gui_) : gui(gui_)} {open
   } {
     Fl_Window window {
@@ -75,7 +71,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
               code0 {o->cursor_color(Fl_Color(3));}
             }
             Fl_Button {} {
-              label {...}
+              label {@fileopen}
               callback {{
   try {
     std::string tmp;
@@ -91,7 +87,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
     gui.errorMessage(e.what());
   }
 }}
-              xywh {265 55 25 25} color 50 selection_color 51
+              xywh {265 55 25 25} color 50 selection_color 51 labelcolor 3
             }
             Fl_Box {} {
               label {Image file}
@@ -161,7 +157,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
               code0 {o->cursor_color(Fl_Color(3));}
             }
             Fl_Button {} {
-              label {...}
+              label {@fileopen}
               callback {{
   try {
     std::string tmp;
@@ -177,7 +173,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
     gui.errorMessage(e.what());
   }
 }}
-              xywh {265 145 25 25} color 50 selection_color 51
+              xywh {265 145 25 25} color 50 selection_color 51 labelcolor 3
             }
             Fl_Box {} {
               label {Image file}
@@ -231,7 +227,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
               code0 {o->cursor_color(Fl_Color(3));}
             }
             Fl_Button {} {
-              label {...}
+              label {@fileopen}
               callback {{
   try {
     std::string tmp;
@@ -247,7 +243,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
     gui.errorMessage(e.what());
   }
 }}
-              xywh {265 235 25 25} color 50 selection_color 51
+              xywh {265 235 25 25} color 50 selection_color 51 labelcolor 3
             }
             Fl_Box {} {
               label {Image file}
@@ -301,7 +297,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
               code0 {o->cursor_color(Fl_Color(3));}
             }
             Fl_Button {} {
-              label {...}
+              label {@fileopen}
               callback {{
   try {
     std::string tmp;
@@ -317,7 +313,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
     gui.errorMessage(e.what());
   }
 }}
-              xywh {265 325 25 25} color 50 selection_color 51
+              xywh {265 325 25 25} color 50 selection_color 51 labelcolor 3
             }
             Fl_Box {} {
               label {Image file}
@@ -356,7 +352,7 @@ class Ep128EmuGUI_DiskConfigWindow {open
           }
         }
         Fl_Group ideConfigGroup {
-          label IDE/SD open
+          label {IDE/SD} open
           xywh {10 35 380 370} box THIN_UP_BOX hide
         } {
           Fl_Group {} {
