@@ -20,6 +20,8 @@ cmosZ80 = int(ARGUMENTS.get('z80cmos', 0))
 enableSDExt = int(ARGUMENTS.get('sdext', 1))
 # enable SID card emulation
 enableReSID = int(ARGUMENTS.get('resid', 1))
+# enable MIDI port emulation
+enableMIDI = int(ARGUMENTS.get('midi', 0))
 # use cURL library in makecfg to download the ROM package
 enableCURL = int(ARGUMENTS.get('curl', int(not mingwCrossCompile)))
 userFlags = ARGUMENTS.get('cflags', '')
@@ -34,7 +36,7 @@ if buildRelease:
         compilerFlags = ' -march=pentium2 '
 if enableDebug and not buildRelease:
     compilerFlags = ' -Wno-long-long -Wshadow -g -O0 ' + compilerFlags
-    compilerFlags = ' -Wall -W -ansi -pedantic ' + compilerFlags
+    compilerFlags = ' -Wall -W -pedantic ' + compilerFlags
 else:
     compilerFlags = ' -Wall -O3 ' + compilerFlags + ' -mtune=generic '
     compilerFlags = compilerFlags + ' -fno-inline-functions '
@@ -213,6 +215,8 @@ if mingwCrossCompile:
     ep128emuLibEnvironment.Prepend(CCFLAGS = ['-mthreads'])
     ep128emuLibEnvironment.Prepend(LINKFLAGS = ['-mthreads'])
 elif sys.platform[:5] == 'linux':
+    if enableMIDI:
+        ep128emuLibEnvironment.Prepend(CCFLAGS = ['-DPMALSA=1'])
     ep128emuLibEnvironment.Prepend(LINKFLAGS = ['-Wl,--as-needed'])
 if buildRelease:
     ep128emuLibEnvironment.Append(LINKFLAGS = ['-s'])
@@ -334,6 +338,10 @@ if enableSDExt:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DENABLE_SDEXT'])
 if enableReSID:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DENABLE_RESID'])
+if enableMIDI:
+    ep128emuLibEnvironment.Append(CCFLAGS = ['-DENABLE_MIDI_PORT'])
+    ep128emuLibEnvironment.Append(CPPPATH = ['./portmidi/pm_common',
+                                             './portmidi/porttime'])
 
 ep128emuGUIEnvironment.MergeFlags(ep128emuLibEnvironment['CCFLAGS'])
 ep128emuGLGUIEnvironment.MergeFlags(ep128emuLibEnvironment['CCFLAGS'])
@@ -378,6 +386,25 @@ ep128emuLibSources = Split('''
     src/vmthread.cpp
     src/wd177x.cpp
 ''')
+if enableMIDI:
+    ep128emuLibSources += ['portmidi/pm_common/pmutil.c',
+                           'portmidi/pm_common/portmidi.c',
+                           'portmidi/porttime/porttime.c']
+    if mingwCrossCompile:
+        ep128emuLibSources += ['portmidi/pm_win/pmwin.c',
+                               'portmidi/pm_win/pmwinmm.c',
+                               'portmidi/porttime/ptwinmm.c']
+    elif sys.platform[:5] == 'linux':
+        ep128emuLibSources += ['portmidi/pm_linux/finddefault.c',
+                               'portmidi/pm_linux/pmlinuxalsa.c',
+                               'portmidi/pm_linux/pmlinux.c',
+                               'portmidi/porttime/ptlinux.c']
+    elif sys.platform[:6] == 'darwin':
+        ep128emuLibSources += ['portmidi/pm_mac/finddefault.c',
+                               'portmidi/pm_mac/pmmac.c',
+                               'portmidi/pm_mac/pmmacosxcm.c',
+                               'portmidi/pm_mac/readbinaryplist.c',
+                               'portmidi/porttime/ptmacosx_mach.c']
 if not fltkVersion13:
     ep128emuLibSources += ['Fl_Native_File_Chooser/Fl_Native_File_Chooser.cxx']
 if disableOpenGL:
