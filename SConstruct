@@ -220,6 +220,10 @@ elif sys.platform[:5] == 'linux':
     ep128emuLibEnvironment.Prepend(LINKFLAGS = ['-Wl,--as-needed'])
 if buildRelease:
     ep128emuLibEnvironment.Append(LINKFLAGS = ['-s'])
+if enableMIDI:
+    ep128emuLibEnvironment.Append(CCFLAGS = ['-DENABLE_MIDI_PORT'])
+    ep128emuLibEnvironment.Append(CPPPATH = ['./portmidi/pm_common',
+                                             './portmidi/porttime'])
 
 ep128emuGUIEnvironment = copyEnvironment(ep128emuLibEnvironment)
 if mingwCrossCompile:
@@ -338,10 +342,6 @@ if enableSDExt:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DENABLE_SDEXT'])
 if enableReSID:
     ep128emuLibEnvironment.Append(CCFLAGS = ['-DENABLE_RESID'])
-if enableMIDI:
-    ep128emuLibEnvironment.Append(CCFLAGS = ['-DENABLE_MIDI_PORT'])
-    ep128emuLibEnvironment.Append(CPPPATH = ['./portmidi/pm_common',
-                                             './portmidi/porttime'])
 
 ep128emuGUIEnvironment.MergeFlags(ep128emuLibEnvironment['CCFLAGS'])
 ep128emuGLGUIEnvironment.MergeFlags(ep128emuLibEnvironment['CCFLAGS'])
