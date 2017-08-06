@@ -257,6 +257,74 @@ Section "ep128emu source code" SecSrc
 
   File "..\msvc\include\*.h"
 
+  SetOutPath "$INSTDIR\src\portmidi"
+
+  File "..\portmidi\*.png"
+  File "..\portmidi\*.txt"
+  File "..\portmidi\Doxyfile"
+
+  SetOutPath "$INSTDIR\src\portmidi\pm_common"
+
+  File "..\portmidi\pm_common\*.c"
+  File "..\portmidi\pm_common\*.h"
+
+  SetOutPath "$INSTDIR\src\portmidi\pm_dylib"
+
+  File "..\portmidi\pm_dylib\*.txt"
+
+  SetOutPath "$INSTDIR\src\portmidi\pm_linux"
+
+  File "..\portmidi\pm_linux\*.c"
+  File "..\portmidi\pm_linux\*.h"
+  File "..\portmidi\pm_linux\*.txt"
+
+  SetOutPath "$INSTDIR\src\portmidi\pm_mac"
+
+  File "..\portmidi\pm_mac\*.c"
+  File "..\portmidi\pm_mac\*.h"
+  File "..\portmidi\pm_mac\*.txt"
+  File "..\portmidi\pm_mac\Makefile.osx"
+
+  SetOutPath "$INSTDIR\src\portmidi\pm_mac\pmdefaults"
+
+  SetOutPath "$INSTDIR\src\portmidi\pm_mac\pmdefaults\make"
+
+  File "..\portmidi\pm_mac\pmdefaults\make\*.sh"
+  File "..\portmidi\pm_mac\pmdefaults\make\*.xml"
+
+  SetOutPath "$INSTDIR\src\portmidi\pm_mac\pmdefaults\resources"
+
+  File "..\portmidi\pm_mac\pmdefaults\resources\*.plist"
+  File "..\portmidi\pm_mac\pmdefaults\resources\Manifest"
+
+  SetOutPath "$INSTDIR\src\portmidi\pm_mac\pmdefaults\resources\English.lproj"
+
+  File "..\portmidi\pm_mac\pmdefaults\resources\English.lproj\*.rtf"
+  File "..\portmidi\pm_mac\pmdefaults\resources\English.lproj\*.strings"
+
+  SetOutPath "$INSTDIR\src\portmidi\pm_mac\pm_mac.xcodeproj"
+
+  File "..\portmidi\pm_mac\pm_mac.xcodeproj\*.pbxproj"
+
+  SetOutPath "$INSTDIR\src\portmidi\pm_mingw"
+
+  File "..\portmidi\pm_mingw\*.txt"
+
+  SetOutPath "$INSTDIR\src\portmidi\pm_mingw\msys"
+
+  File "..\portmidi\pm_mingw\msys\*.txt"
+
+  SetOutPath "$INSTDIR\src\portmidi\pm_win"
+
+  File "..\portmidi\pm_win\*.c"
+  File "..\portmidi\pm_win\*.h"
+  File "..\portmidi\pm_win\*.txt"
+
+  SetOutPath "$INSTDIR\src\portmidi\porttime"
+
+  File "..\portmidi\porttime\*.c"
+  File "..\portmidi\porttime\*.h"
+
   SetOutPath "$INSTDIR\src\resid"
 
   File "..\resid\AUTHORS"
