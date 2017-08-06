@@ -1185,6 +1185,11 @@ bool Ep128EmuGUI::browseFile(std::string& fileName, std::string& dirName,
     }
     fileName.clear();
     browseFileStatus = 1;
+#if defined(LINUX_FLTK_VERSION) && (LINUX_FLTK_VERSION >= 10303)
+    // work around buggy GTK file chooser introduced in FLTK 1.3.3
+    // not sending FL_UNFOCUS event to the emulator window
+    handleFLTKEvent(this, FL_UNFOCUS);
+#endif
     if (currentThreadID != mainThreadID) {
       browseFileWindowShowFlag = true;
       do {
@@ -1196,11 +1201,6 @@ bool Ep128EmuGUI::browseFile(std::string& fileName, std::string& dirName,
       } while (browseFileWindowShowFlag);
     }
     else {
-#if defined(LINUX_FLTK_VERSION) && (LINUX_FLTK_VERSION >= 10303)
-      // work around buggy GTK file chooser introduced in FLTK 1.3.3
-      // not sending FL_UNFOCUS event to the emulator window
-      handleFLTKEvent(this, FL_UNFOCUS);
-#endif
       browseFileStatus = browseFileWindow->show();
     }
     if (browseFileStatus < 0) {
