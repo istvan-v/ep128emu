@@ -232,6 +232,14 @@ namespace Ep128 {
     int32_t   sidVolumeL;
     int32_t   sidVolumeR;
 #endif
+#ifdef ENABLE_MIDI_PORT
+    Ep128Emu::Mutex midiBufferMutex;
+    uint8_t   midiBufferReadPos;
+    uint8_t   midiBufferWritePos;
+    uint8_t   midiDevFlags;
+    uint8_t   midiSavedStatus;
+    uint8_t   midiBuffer[256];
+#endif
     // ----------------
     void updateTimingParameters();
     void setMemoryWaitTiming();
@@ -259,6 +267,12 @@ namespace Ep128 {
     static uint8_t externalDACIOReadCallback(void *userData, uint16_t addr);
     static void externalDACIOWriteCallback(void *userData,
                                            uint16_t addr, uint8_t value);
+#ifdef ENABLE_MIDI_PORT
+    static uint8_t midiPortReadCallback(void *userData, uint16_t addr);
+    static void midiPortWriteCallback(void *userData,
+                                      uint16_t addr, uint8_t value);
+    static uint8_t midiPortDebugReadCallback(void *userData, uint16_t addr);
+#endif
     static uint8_t cmosMemoryIOReadCallback(void *userData, uint16_t addr);
     static void cmosMemoryIOWriteCallback(void *userData,
                                           uint16_t addr, uint8_t value);
@@ -401,6 +415,23 @@ namespace Ep128 {
      * the output file.
      */
     virtual void closeVideoCapture();
+#ifdef ENABLE_MIDI_PORT
+    /*!
+     * Send MIDI event to the emulated machine
+     * (evt = status + (data1 << 8) + (data2 << 16).
+     */
+    virtual void midiInReceiveEvent(int32_t evt);
+    /*!
+     * Receive MIDI event sent by the emulated machine, in the format
+     * status + (data1 << 8) + (data2 << 16). If no event is available,
+     * -1 is returned.
+     */
+    virtual int32_t midiOutSendEvent();
+    /*!
+     * Set MIDI device type: 0 = none (default), 1 = input, 2 = output.
+     */
+    virtual void midiSetDeviceType(int t);
+#endif
     // -------------------------- DISK AND FILE I/O ---------------------------
     /*!
      * Load disk image for drive 'n' (counting from zero; 0 to 3 are floppy

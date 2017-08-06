@@ -189,6 +189,9 @@ namespace Ep128 {
     resetFloppyDrives(true);
     ideInterface->reset(3);
     z80.closeAllFiles();
+#ifdef ENABLE_MIDI_PORT
+    midiPortWriteCallback((void *) this, 0xF6, 0x00);
+#endif
     try {
 #ifdef ENABLE_SDEXT
       if (!(version & 0x00010000)) {

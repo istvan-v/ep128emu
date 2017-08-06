@@ -1,5 +1,5 @@
 # data file for the Fltk User Interface Designer (fluid)
-version 1.0109 
+version 1.0110 
 do_not_include_H_from_C 
 header_name {.hpp} 
 code_name {.cpp}
@@ -31,18 +31,27 @@ class Ep128EmuGUI_SoundConfigWindow {open
         xywh {10 10 380 185} box THIN_UP_BOX
       } {
         Fl_Choice soundDeviceValuator {
+          label Audio
           callback {{
   if (o->value() >= 0) {
     gui.config.sound.device = o->value() - 1;
     gui.config.soundSettingsChanged = true;
   }
 }} open
-          xywh {20 20 235 25} down_box BORDER_BOX align 8
+          xywh {20 20 145 25} down_box BORDER_BOX labelsize 12 align 8 textsize 12
         } {}
-        Fl_Box {} {
-          label {Audio device}
-          xywh {265 20 115 25} align 20
-        }
+        Fl_Choice midiDeviceValuator {
+          label MIDI
+          callback {{
+\#ifdef ENABLE_MIDI_PORT
+  if (o->value() >= 0) {
+    gui.config.sound.midiDevice = o->value() - 1;
+    gui.config.midiSettingsChanged = true;
+  }
+\#endif
+}} open
+          xywh {207 20 145 25} down_box BORDER_BOX labelsize 12 align 8 textsize 12
+        } {}
         Fl_Light_Button enableSoundValuator {
           label {Enable sound output}
           callback {{
@@ -82,7 +91,7 @@ class Ep128EmuGUI_SoundConfigWindow {open
           code0 {o->cursor_color(Fl_Color(3));}
         }
         Fl_Button {} {
-          label {...}
+          label {@fileopen}
           callback {{
   try {
     std::string tmp;
@@ -99,11 +108,11 @@ class Ep128EmuGUI_SoundConfigWindow {open
     gui.errorMessage(e.what());
   }
 }}
-          xywh {230 160 25 25} color 50 selection_color 51
+          xywh {230 160 25 25} color 50 selection_color 51 labelcolor 3
         }
         Fl_Box {} {
           label {Audio output file}
-          xywh {265 160 115 25} align 20
+          xywh {255 160 115 25} align 20
         }
         Fl_Value_Slider soundLatencyValuator {
           label Latency
@@ -338,6 +347,38 @@ class Ep128EmuGUI_SoundConfigWindow {open
       for (i = 1; i <= j; i++)
         soundDeviceValuator->replace(int(i), sndDeviceList[i - 1].c_str());
     }
+\#ifdef ENABLE_MIDI_PORT
+    midiDeviceValuator->value(-1);
+    {
+      std::vector< std::string >  midiDeviceList =
+          gui.config.midiPort.getDeviceList();
+      size_t  i = size_t(midiDeviceValuator->size());
+      size_t  j = midiDeviceList.size();
+      i = (i > 0 ? (i - 1) : 0);
+      j = (j < 999 ? j : 999);
+      while (i > 0) {
+        i--;
+        midiDeviceValuator->remove(int(i));
+      }
+      for (i = 0; i <= j; i++) {
+        char    tmpBuf[4];
+        std::sprintf(&(tmpBuf[0]), "%d", int(i));
+        midiDeviceValuator->add(&(tmpBuf[0]), int(0), (Fl_Callback *) 0);
+      }
+      midiDeviceValuator->replace(0, "<none>");
+      for (i = 1; i <= j; i++)
+        midiDeviceValuator->replace(int(i), midiDeviceList[i - 1].c_str());
+    }
+\#else
+    if (midiDeviceValuator->visible()) {
+      midiDeviceValuator->hide();
+      soundDeviceValuator->labelsize(14);
+      soundDeviceValuator->label("Audio device");
+      soundDeviceValuator->resize(soundDeviceValuator->x(),
+                                  soundDeviceValuator->y(),
+                                  235, 25);
+    }
+\#endif
     updateWindow();
     window->show();
   }
@@ -367,6 +408,13 @@ class Ep128EmuGUI_SoundConfigWindow {open
       soundDeviceValuator->value(n);
     else
       soundDeviceValuator->value(-1);
+\#ifdef ENABLE_MIDI_PORT
+    n = gui.config.sound.midiDevice + 1;
+    if (n >= 0 && (n + 1) < midiDeviceValuator->size())
+      midiDeviceValuator->value(n);
+    else
+      midiDeviceValuator->value(-1);
+\#endif
   }
   enableSoundValuator->value(gui.config.sound.enabled ? 1 : 0);
   soundHighQualityValuator->value(gui.config.sound.highQuality ? 1 : 0);

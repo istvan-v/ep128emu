@@ -256,6 +256,23 @@ namespace Ep128Emu {
      * the output file.
      */
     virtual void closeVideoCapture();
+#ifdef ENABLE_MIDI_PORT
+    /*!
+     * Send MIDI event to the emulated machine
+     * (evt = status + (data1 << 8) + (data2 << 16).
+     */
+    virtual void midiInReceiveEvent(int32_t evt);
+    /*!
+     * Receive MIDI event sent by the emulated machine, in the format
+     * status + (data1 << 8) + (data2 << 16). If no event is available,
+     * -1 is returned.
+     */
+    virtual int32_t midiOutSendEvent();
+    /*!
+     * Set MIDI device type: 0 = none (default), 1 = input, 2 = output.
+     */
+    virtual void midiSetDeviceType(int t);
+#endif
     // -------------------------- DISK AND FILE I/O ---------------------------
     /*!
      * Load disk image for drive 'n' (counting from zero; 0 to 3 are floppy

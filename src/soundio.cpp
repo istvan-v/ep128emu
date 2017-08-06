@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2017 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -20,9 +20,14 @@
 #include "ep128emu.hpp"
 #include "system.hpp"
 #include "soundio.hpp"
+#include "vm.hpp"
 
 #include <sndfile.h>
 #include <portaudio.h>
+#ifdef ENABLE_MIDI_PORT
+#  include <portmidi.h>
+#  include <porttime.h>
+#endif
 #include <vector>
 
 #ifdef ENABLE_SOUND_DEBUG
@@ -581,6 +586,157 @@ namespace Ep128Emu {
     }
     Pa_StartStream(paStream);
   }
+
+  // --------------------------------------------------------------------------
+
+#ifdef ENABLE_MIDI_PORT
+
+#define MIDI_BUFFER_SIZE        128
+
+  void MIDIPort::portTimeInCallback(PtTimestamp timestamp, void *userData)
+  {
+    PmEvent   evtBuf[MIDI_BUFFER_SIZE];
+    MIDIPort& midiPort = *(reinterpret_cast< MIDIPort * >(userData));
+    VirtualMachine& vm = midiPort.vm;
+    (void) timestamp;
+    if (EP128EMU_EXPECT(bool(midiPort.portMidiInStream))) {
+      while (Pm_Poll(midiPort.portMidiInStream) == TRUE) {
+        int     n = Pm_Read(midiPort.portMidiInStream,
+                            &(evtBuf[0]), MIDI_BUFFER_SIZE);
+        for (int i = 0; i < n; i++)
+          vm.midiInReceiveEvent(int32_t(evtBuf[i].message));
+      }
+    }
+  }
+
+  void MIDIPort::portTimeOutCallback(PtTimestamp timestamp, void *userData)
+  {
+    PmEvent   evtBuf[MIDI_BUFFER_SIZE];
+    MIDIPort& midiPort = *(reinterpret_cast< MIDIPort * >(userData));
+    VirtualMachine& vm = midiPort.vm;
+    (void) timestamp;
+    if (EP128EMU_EXPECT(bool(midiPort.portMidiOutStream))) {
+      int     bufPos = 0;
+      int32_t evt;
+      while ((evt = vm.midiOutSendEvent()) >= 0) {
+        evtBuf[bufPos].message = PmMessage(evt);
+        evtBuf[bufPos].timestamp = PmTimestamp(0);
+        if (++bufPos >= MIDI_BUFFER_SIZE) {
+          bufPos = 0;
+          (void) Pm_Write(midiPort.portMidiOutStream,
+                          &(evtBuf[0]), MIDI_BUFFER_SIZE);
+        }
+      }
+      if (EP128EMU_EXPECT(bool(bufPos)))
+        (void) Pm_Write(midiPort.portMidiOutStream, &(evtBuf[0]), bufPos);
+    }
+  }
+
+  MIDIPort::MIDIPort(VirtualMachine& vm_)
+    : vm(vm_),
+      portMidiInStream((PortMidiStream *) 0),
+      portMidiOutStream((PortMidiStream *) 0),
+      portMidiDevNum(-1)
+  {
+    if (Pm_Initialize() != pmNoError)
+      throw Exception("error initializing PortMidi");
+  }
+
+  MIDIPort::~MIDIPort()
+  {
+    try {
+      openDevice(-1);
+    }
+    catch (...) {
+    }
+    (void) Pm_Terminate();
+  }
+
+  std::vector< std::string > MIDIPort::getDeviceList()
+  {
+    std::vector< std::string >  devList;
+    static const char *midiDevInfoStrings[8] = {
+      "",       " (I)",   " (O)",   " (IO)",
+      " (",     " (I, ",  " (O, ",  " (IO, "
+    };
+    int     n = Pm_CountDevices();
+    for (int i = 0; i < n; i++) {
+      std::string devName("unknown");
+      const PmDeviceInfo  *devInfo = Pm_GetDeviceInfo(PmDeviceID(i));
+      if (devInfo && (devInfo->interf || devInfo->name)) {
+        if (devInfo->name)
+          devName = devInfo->name;
+        devName += midiDevInfoStrings[int(bool(devInfo->input))
+                                      | (int(bool(devInfo->output)) << 1)
+                                      | (int(bool(devInfo->interf)) << 2)];
+        if (devInfo->interf) {
+          devName += devInfo->interf;
+          devName += ')';
+        }
+      }
+      devList.push_back(devName);
+    }
+    return devList;
+  }
+
+  void MIDIPort::openDevice(int n)
+  {
+    if (n < 0)
+      n = -1;
+    if (n == portMidiDevNum)
+      return;
+    portMidiDevNum = -1;
+    if (portMidiInStream || portMidiOutStream) {
+      PortMidiStream  *p = portMidiInStream;
+      if (!p)
+        p = portMidiOutStream;
+      portMidiInStream = (PortMidiStream *) 0;
+      portMidiOutStream = (PortMidiStream *) 0;
+      (void) Pt_Stop();
+      (void) Pm_Close(p);
+    }
+    vm.midiSetDeviceType(0);
+    if (n >= 0) {
+      const PmDeviceInfo  *devInfo = Pm_GetDeviceInfo(PmDeviceID(n));
+      if (!devInfo || !(devInfo->input | devInfo->output))
+        throw Exception("invalid PortMidi device number");
+      bool    isInput = bool(devInfo->input);
+      if (Pt_Start(1, (isInput ? &portTimeInCallback : &portTimeOutCallback),
+                   (void *) this) != ptNoError) {
+        throw Exception("error starting PortTime");
+      }
+      PortMidiStream  *p = (PortMidiStream *) 0;
+      if (isInput) {
+        if (Pm_OpenInput(&p, PmDeviceID(n), (void *) 0, MIDI_BUFFER_SIZE,
+                         PmTimeProcPtr(0), (void *) 0) != pmNoError) {
+          (void) Pt_Stop();
+          throw Exception("error opening PortMidi input device");
+        }
+        // ignore system messages with the exception of
+        // 0xF8 (Clock), 0xFA (Start), 0xFB (Continue) and 0xFC (Stop)
+        if (Pm_SetFilter(p, 0xE2FF) != pmNoError) {
+          (void) Pt_Stop();
+          (void) Pm_Close(p);
+          throw Exception("error setting PortMidi input filter");
+        }
+        portMidiDevNum = n;
+        portMidiInStream = p;
+        vm.midiSetDeviceType(1);
+      }
+      else {
+        if (Pm_OpenOutput(&p, PmDeviceID(n), (void *) 0, MIDI_BUFFER_SIZE,
+                          PmTimeProcPtr(0), (void *) 0, 0) != pmNoError) {
+          (void) Pt_Stop();
+          throw Exception("error opening PortMidi output device");
+        }
+        portMidiDevNum = n;
+        portMidiOutStream = p;
+        vm.midiSetDeviceType(2);
+      }
+    }
+  }
+
+#endif  // ENABLE_MIDI_PORT
 
 }       // namespace Ep128Emu
 

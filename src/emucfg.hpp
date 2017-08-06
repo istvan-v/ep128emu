@@ -36,6 +36,11 @@ namespace Ep128Emu {
     VirtualMachine& vm_;
     VideoDisplay&   videoDisplay;
     AudioOutput&    audioOutput;
+#ifdef ENABLE_MIDI_PORT
+   public:
+    MIDIPort&       midiPort;
+   private:
+#endif
     std::map< int, int >  keyboardMap;
     void            (*errorCallback)(void *, const char *);
     void            *errorCallbackUserData;
@@ -126,9 +131,15 @@ namespace Ep128Emu {
         double    level;
         double    q;
       } equalizer;
+#ifdef ENABLE_MIDI_PORT
+      int         midiDevice;
+#endif
     };
     SoundConfiguration_   sound;
     bool          soundSettingsChanged;
+#ifdef ENABLE_MIDI_PORT
+    bool          midiSettingsChanged;
+#endif
     // --------
     int           keyboard[128][2];
     bool          keyboardMapChanged;
@@ -231,7 +242,11 @@ namespace Ep128Emu {
     // ----------------
     EmulatorConfiguration(VirtualMachine& vm__,
                           VideoDisplay& videoDisplay_,
-                          AudioOutput& audioOutput_);
+                          AudioOutput& audioOutput_
+#ifdef ENABLE_MIDI_PORT
+                          , MIDIPort& midiPort_
+#endif
+                          );
     virtual ~EmulatorConfiguration();
     void applySettings();
     int convertKeyCode(int keyCode);

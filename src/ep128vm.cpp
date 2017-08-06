@@ -1011,6 +1011,73 @@ namespace Ep128 {
     }
   }
 
+#ifdef ENABLE_MIDI_PORT
+  uint8_t Ep128VM::midiPortReadCallback(void *userData, uint16_t addr)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    uint8_t   value = 0xFF;
+    if (!(vm.isRecordingDemo | vm.isPlayingDemo)) {
+      vm.midiBufferMutex.lock();
+      if (!(addr & 1)) {
+        value = vm.midiDevFlags;
+        if (vm.midiBufferReadPos == vm.midiBufferWritePos)
+          value = value | 0x80;
+        if (vm.midiBufferReadPos == ((vm.midiBufferWritePos + 1) & 0xFF))
+          value = value | 0x40;
+      }
+      else if (!(vm.midiDevFlags & 0x01) &&
+               vm.midiBufferReadPos != vm.midiBufferWritePos) {
+        value = vm.midiBuffer[vm.midiBufferReadPos];
+        vm.midiBufferReadPos = (vm.midiBufferReadPos + 1) & 0xFF;
+      }
+      vm.midiBufferMutex.unlock();
+    }
+    return value;
+  }
+
+  void Ep128VM::midiPortWriteCallback(void *userData,
+                                      uint16_t addr, uint8_t value)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    if (!(vm.isRecordingDemo | vm.isPlayingDemo)) {
+      vm.midiBufferMutex.lock();
+      if (!(addr & 1)) {
+        if (value == 0x00) {
+          vm.midiBufferReadPos = 0;
+          vm.midiBufferWritePos = 0;
+          vm.midiSavedStatus = 0x00;
+        }
+      }
+      else if (!(vm.midiDevFlags & 0x02) &&
+               vm.midiBufferReadPos != ((vm.midiBufferWritePos + 1) & 0xFF)) {
+        vm.midiBuffer[vm.midiBufferWritePos] = value;
+        vm.midiBufferWritePos = (vm.midiBufferWritePos + 1) & 0xFF;
+      }
+      vm.midiBufferMutex.unlock();
+    }
+  }
+
+  uint8_t Ep128VM::midiPortDebugReadCallback(void *userData, uint16_t addr)
+  {
+    Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
+    uint8_t   value = 0xFF;
+    vm.midiBufferMutex.lock();
+    if (!(addr & 1)) {
+      value = vm.midiDevFlags;
+      if (vm.midiBufferReadPos == vm.midiBufferWritePos)
+        value = value | 0x80;
+      if (vm.midiBufferReadPos == ((vm.midiBufferWritePos + 1) & 0xFF))
+        value = value | 0x40;
+    }
+    else if (!(vm.midiDevFlags & 0x01) &&
+             vm.midiBufferReadPos != vm.midiBufferWritePos) {
+      value = vm.midiBuffer[vm.midiBufferReadPos];
+    }
+    vm.midiBufferMutex.unlock();
+    return value;
+  }
+#endif
+
   uint8_t Ep128VM::cmosMemoryIOReadCallback(void *userData, uint16_t addr)
   {
     Ep128VM&  vm = *(reinterpret_cast<Ep128VM *>(userData));
@@ -1540,6 +1607,12 @@ namespace Ep128 {
       sidVolumeL(1039),
       sidVolumeR(1039)
 #endif
+#ifdef ENABLE_MIDI_PORT
+      , midiBufferReadPos(0),
+      midiBufferWritePos(0),
+      midiDevFlags(0xFF),
+      midiSavedStatus(0x00)
+#endif
   {
 #ifdef ENABLE_SDEXT
     memory.setSDExtPtr(&sdext);
@@ -1601,6 +1674,12 @@ namespace Ep128 {
                             &externalDACIOReadCallback, this, 0xF0);
     ioPorts.setWriteCallback(0xF0, 0xF3,
                              &externalDACIOWriteCallback, this, 0xF0);
+#ifdef ENABLE_MIDI_PORT
+    ioPorts.setReadCallback(0xF6, 0xF7, &midiPortReadCallback, this, 0xF6);
+    ioPorts.setDebugReadCallback(0xF6, 0xF7,
+                                 &midiPortDebugReadCallback, this, 0xF6);
+    ioPorts.setWriteCallback(0xF6, 0xF7, &midiPortWriteCallback, this, 0xF6);
+#endif
     ioPorts.setReadCallback(0x7E, 0x7F, &cmosMemoryIOReadCallback, this, 0x7E);
     ioPorts.setDebugReadCallback(0x7E, 0x7F,
                                  &cmosMemoryIOReadCallback, this, 0x7E);
@@ -1739,6 +1818,13 @@ namespace Ep128 {
       }
       sid->reset();
     }
+#endif
+#ifdef ENABLE_MIDI_PORT
+    midiBufferMutex.lock();
+    midiBufferReadPos = 0;
+    midiBufferWritePos = 0;
+    midiSavedStatus = 0x00;
+    midiBufferMutex.unlock();
 #endif
   }
 
@@ -1945,6 +2031,108 @@ namespace Ep128 {
       videoCapture = (Ep128Emu::VideoCapture *) 0;
     }
   }
+
+#ifdef ENABLE_MIDI_PORT
+  void Ep128VM::midiInReceiveEvent(int32_t evt)
+  {
+    if ((evt & 0xF8) < 0x80 || (evt & 0xF8) == 0xF0)
+      return;                           // system messages are ignored
+    midiBufferMutex.lock();
+    uint8_t bytesBuffered = (midiBufferWritePos - midiBufferReadPos) & 0xFF;
+    switch (evt & 0xF0) {
+    case 0x80:                          // note off
+    case 0x90:                          // note on
+    case 0xA0:                          // poly aftertouch
+    case 0xB0:                          // control change
+    case 0xE0:                          // pitch bend
+      if (bytesBuffered <= 252) {
+        midiBuffer[midiBufferWritePos] = uint8_t(evt & 0xFF);
+        midiBufferWritePos = (midiBufferWritePos + 1) & 0xFF;
+        midiBuffer[midiBufferWritePos] = uint8_t((evt >> 8) & 0xFF);
+        midiBufferWritePos = (midiBufferWritePos + 1) & 0xFF;
+        midiBuffer[midiBufferWritePos] = uint8_t((evt >> 16) & 0xFF);
+        midiBufferWritePos = (midiBufferWritePos + 1) & 0xFF;
+      }
+      break;
+    case 0xC0:                          // program change
+    case 0xD0:                          // channel aftertouch
+      if (bytesBuffered <= 253) {
+        midiBuffer[midiBufferWritePos] = uint8_t(evt & 0xFF);
+        midiBufferWritePos = (midiBufferWritePos + 1) & 0xFF;
+        midiBuffer[midiBufferWritePos] = uint8_t((evt >> 8) & 0xFF);
+        midiBufferWritePos = (midiBufferWritePos + 1) & 0xFF;
+      }
+      break;
+    default:                            // system messages (0xF8-0xFE only)
+      if (evt >= 0xF8 && evt < 0xFF && bytesBuffered <= 254) {
+        midiBuffer[midiBufferWritePos] = uint8_t(evt & 0xFF);
+        midiBufferWritePos = (midiBufferWritePos + 1) & 0xFF;
+      }
+      break;
+    }
+    midiBufferMutex.unlock();
+  }
+
+  int32_t Ep128VM::midiOutSendEvent()
+  {
+    int32_t evt = -1;
+    midiBufferMutex.lock();
+    uint8_t bytesBuffered = (midiBufferWritePos - midiBufferReadPos) & 0xFF;
+    if (bytesBuffered > 0) {
+      uint8_t st = midiBuffer[midiBufferReadPos];
+      uint8_t d1 = 0x00;
+      uint8_t d2 = 0x00;
+      bool    stFlag = false;
+      if (st < 0x80 && midiSavedStatus >= 0x80) {
+        d1 = st;
+        st = midiSavedStatus;
+        stFlag = true;
+      }
+      else {
+        bytesBuffered--;
+      }
+      if (bytesBuffered >= (st < 0x80 || st >= 0xF0 ?
+                            0 : (st < 0xC0 || st >= 0xE0 ? 2 : 1))) {
+        midiBufferReadPos = (midiBufferReadPos + 1) & 0xFF;
+        if (st >= 0x80 && (st < 0xF0 || (st >= 0xF8 && st < 0xFF))) {
+          if (st < 0xF0) {
+            midiSavedStatus = st;
+            if (!stFlag) {
+              d1 = midiBuffer[midiBufferReadPos];
+              if (d1 < 0x80)
+                midiBufferReadPos = (midiBufferReadPos + 1) & 0xFF;
+            }
+            if (st < 0xC0 || st >= 0xE0) {
+              d2 = midiBuffer[midiBufferReadPos];
+              if (d2 < 0x80)
+                midiBufferReadPos = (midiBufferReadPos + 1) & 0xFF;
+            }
+          }
+          else {
+            midiSavedStatus = 0x00;
+          }
+          if ((d1 | d2) < 0x80)
+            evt = int32_t(st) | (int32_t(d1) << 8) | (int32_t(d2) << 16);
+        }
+      }
+    }
+    midiBufferMutex.unlock();
+    return evt;
+  }
+
+  void Ep128VM::midiSetDeviceType(int t)
+  {
+    uint8_t f = (t == 1 ? 0x7E : (t == 2 ? 0xBD : 0xFF));
+    midiBufferMutex.lock();
+    if (f != midiDevFlags) {
+      midiBufferReadPos = 0;
+      midiBufferWritePos = 0;
+      midiDevFlags = f;
+      midiSavedStatus = 0x00;
+    }
+    midiBufferMutex.unlock();
+  }
+#endif  // ENABLE_MIDI_PORT
 
   void Ep128VM::setDiskImageFile(int n, const std::string& fileName_,
                                  int nTracks_, int nSides_,

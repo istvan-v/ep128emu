@@ -81,10 +81,17 @@ namespace Ep128Emu {
 
   EmulatorConfiguration::EmulatorConfiguration(VirtualMachine& vm__,
                                                VideoDisplay& videoDisplay_,
-                                               AudioOutput& audioOutput_)
+                                               AudioOutput& audioOutput_
+#ifdef ENABLE_MIDI_PORT
+                                               , MIDIPort& midiPort_
+#endif
+                                               )
     : vm_(vm__),
       videoDisplay(videoDisplay_),
       audioOutput(audioOutput_),
+#ifdef ENABLE_MIDI_PORT
+      midiPort(midiPort_),
+#endif
       errorCallback(&defaultErrorCallback),
       errorCallbackUserData((void *) 0)
   {
@@ -254,6 +261,11 @@ namespace Ep128Emu {
     defineConfigurationVariable(*this, "sound.equalizer.q",
                                 sound.equalizer.q, 0.7071,
                                 soundSettingsChanged, 0.001, 100.0);
+#ifdef ENABLE_MIDI_PORT
+    defineConfigurationVariable(*this, "sound.midiDevice",
+                                sound.midiDevice, int(-1),
+                                midiSettingsChanged, -1.0, 1000.0);
+#endif
     // ----------------
     for (int i = 0; i < 128; i++) {
       char  tmpBuf[16];
@@ -648,6 +660,19 @@ namespace Ep128Emu {
       }
       soundSettingsChanged = false;
     }
+#ifdef ENABLE_MIDI_PORT
+    if (midiSettingsChanged) {
+      try {
+        midiPort.openDevice(sound.midiDevice);
+      }
+      catch (Exception& e) {
+        sound.midiDevice = -1;
+        midiPort.openDevice(-1);
+        errorCallback(errorCallbackUserData, e.what());
+      }
+      midiSettingsChanged = false;
+    }
+#endif
     if (keyboardMapChanged) {
       keyboardMap.clear();
       for (int i = 0; i < 128; i++) {

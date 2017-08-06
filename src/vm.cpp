@@ -406,6 +406,23 @@ namespace Ep128Emu {
   {
   }
 
+#ifdef ENABLE_MIDI_PORT
+  void VirtualMachine::midiInReceiveEvent(int32_t evt)
+  {
+    (void) evt;
+  }
+
+  int32_t VirtualMachine::midiOutSendEvent()
+  {
+    return -1;
+  }
+
+  void VirtualMachine::midiSetDeviceType(int t)
+  {
+    (void) t;
+  }
+#endif
+
   void VirtualMachine::setDiskImageFile(int n, const std::string& fileName_,
                                         int nTracks_, int nSides_,
                                         int nSectorsPerTrack_)

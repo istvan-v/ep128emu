@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2017 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -25,6 +25,10 @@
 
 #include <sndfile.h>
 #include <portaudio.h>
+#ifdef ENABLE_MIDI_PORT
+#  include <portmidi.h>
+#  include <porttime.h>
+#endif
 #include <vector>
 
 namespace Ep128Emu {
@@ -124,6 +128,28 @@ namespace Ep128Emu {
    protected:
     virtual void openDevice();
   };
+
+  // --------------------------------------------------------------------------
+
+#ifdef ENABLE_MIDI_PORT
+  class VirtualMachine;
+
+  class MIDIPort {
+   protected:
+    VirtualMachine& vm;
+    PortMidiStream  *portMidiInStream;
+    PortMidiStream  *portMidiOutStream;
+    int     portMidiDevNum;
+    // --------
+    static void portTimeInCallback(PtTimestamp timestamp, void *userData);
+    static void portTimeOutCallback(PtTimestamp timestamp, void *userData);
+   public:
+    MIDIPort(VirtualMachine& vm_);
+    virtual ~MIDIPort();
+    virtual std::vector< std::string > getDeviceList();
+    virtual void openDevice(int n);
+  };
+#endif
 
 }       // namespace Ep128Emu
 

@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2017 Istvan Varga <istvanv@users.sourceforge.net>
 // https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -64,6 +64,9 @@ int main(int argc, char **argv)
   Fl_Window *w = (Fl_Window *) 0;
   Ep128Emu::VirtualMachine  *vm = (Ep128Emu::VirtualMachine *) 0;
   Ep128Emu::AudioOutput     *audioOutput = (Ep128Emu::AudioOutput *) 0;
+#ifdef ENABLE_MIDI_PORT
+  Ep128Emu::MIDIPort        *midiPort = (Ep128Emu::MIDIPort *) 0;
+#endif
   Ep128Emu::EmulatorConfiguration   *config =
       (Ep128Emu::EmulatorConfiguration *) 0;
   Ep128Emu::VMThread        *vmThread = (Ep128Emu::VMThread *) 0;
@@ -221,8 +224,15 @@ int main(int argc, char **argv)
       vm = new Ep128::Ep128VM(*(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
                               *audioOutput);
     }
+#ifdef ENABLE_MIDI_PORT
+    midiPort = new Ep128Emu::MIDIPort(*vm);
+#endif
     config = new Ep128Emu::EmulatorConfiguration(
-        *vm, *(dynamic_cast<Ep128Emu::VideoDisplay *>(w)), *audioOutput);
+        *vm, *(dynamic_cast<Ep128Emu::VideoDisplay *>(w)), *audioOutput
+#ifdef ENABLE_MIDI_PORT
+        , *midiPort
+#endif
+        );
     config->setErrorCallback(&cfgErrorFunc, (void *) 0);
     // load base configuration (if available)
     {
@@ -308,8 +318,11 @@ int main(int argc, char **argv)
           config = (Ep128Emu::EmulatorConfiguration *) 0;
           makecfgNeeded = true;
           config = new Ep128Emu::EmulatorConfiguration(
-              *vm, *(dynamic_cast<Ep128Emu::VideoDisplay *>(w)),
-              *audioOutput);
+              *vm, *(dynamic_cast<Ep128Emu::VideoDisplay *>(w)), *audioOutput
+#ifdef ENABLE_MIDI_PORT
+              , *midiPort
+#endif
+              );
           config->setErrorCallback(&cfgErrorFunc, (void *) 0);
 #endif
         }
@@ -427,6 +440,10 @@ int main(int argc, char **argv)
     }
     delete config;
   }
+#ifdef ENABLE_MIDI_PORT
+  if (midiPort)
+    delete midiPort;
+#endif
   if (vm)
     delete vm;
   if (w)
