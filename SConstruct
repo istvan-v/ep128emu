@@ -1,5 +1,6 @@
 # vim: syntax=python
 
+from __future__ import print_function
 import sys, os
 
 win64CrossCompile = int(ARGUMENTS.get('win64', 0))
@@ -38,7 +39,11 @@ if enableDebug and not buildRelease:
     compilerFlags = ' -Wno-long-long -Wshadow -g -O0 ' + compilerFlags
     compilerFlags = ' -Wall -W -pedantic ' + compilerFlags
 else:
-    compilerFlags = ' -Wall -O3 ' + compilerFlags + ' -mtune=generic '
+    compilerFlags = ' -Wall -O3 ' + compilerFlags
+    if (os.uname()[4][:5] == 'armv7'):
+        compilerFlags = compilerFlags + ' -mtune=generic-armv7-a '
+    else:
+        compilerFlags = compilerFlags + ' -mtune=generic '
     compilerFlags = compilerFlags + ' -fno-inline-functions '
     compilerFlags = compilerFlags + ' -fomit-frame-pointer -ffast-math '
 
@@ -92,17 +97,17 @@ def configurePackage(env, pkgName):
     if not disablePkgConfig:
         for s in packageConfigs[pkgName][1]:
             if not s:
-                print 'Checking for package ' + pkgName + '...',
+                print('Checking for package ' + pkgName + '...',end=' ')
                 # hack to work around fltk-config adding unwanted compiler flags
                 savedCFlags = env['CCFLAGS']
                 savedCXXFlags = env['CXXFLAGS']
             else:
-                print 'Checking for package ' + s + '...',
+                print('Checking for package ' + s + '...',end=' ')
                 s = ' ' + s
             try:
                 if not env.ParseConfig(packageConfigs[pkgName][0] + s):
                     raise Exception()
-                print 'yes'
+                print('yes')
                 if not s:
                     env['CCFLAGS'] = savedCFlags
                     env['CXXFLAGS'] = savedCXXFlags
@@ -110,7 +115,7 @@ def configurePackage(env, pkgName):
                         env['CPPDEFINES'].remove(['_FORTIFY_SOURCE', '2'])
                 return 1
             except:
-                print 'no'
+                print('no')
                 continue
         pkgFound = 0
     else:
@@ -125,9 +130,9 @@ def configurePackage(env, pkgName):
                 packageConfigs[pkgName][2 + int(bool(mingwCrossCompile))])
     if not pkgFound:
         if not packageConfigs[pkgName][6]:
-            print ' *** error configuring ' + pkgName
+            print(' *** error configuring ' + pkgName)
             Exit(-1)
-        print 'WARNING: package ' + pkgName + ' not found'
+        print('WARNING: package ' + pkgName + ' not found')
         return 0
     return 1
 
@@ -163,7 +168,7 @@ oldSConsVersion = 0
 try:
     EnsureSConsVersion(0, 97)
 except:
-    print 'WARNING: using old SCons version'
+    print('WARNING: using old SCons version')
     oldSConsVersion = 1
 
 def copyEnvironment(env):
@@ -252,14 +257,14 @@ if configurePackage(ep128emuGLGUIEnvironment, 'FLTK-GL'):
             if not configure.CheckType('PFNGLCOMPILESHADERPROC',
                                        '#include <GL/gl.h>\n'
                                        + '#include <GL/glext.h>'):
-                print 'WARNING: disabling GL shader support'
+                print('WARNING: disabling GL shader support')
                 enableGLShaders = 0
     configure.Finish()
 if sys.platform[:5] == 'linux' and not mingwCrossCompile:
     ep128emuGUIEnvironment.Append(LIBS = ['X11'])
     ep128emuGLGUIEnvironment.Append(LIBS = ['GL', 'X11'])
 if disableOpenGL:
-    print 'WARNING: OpenGL is not found, only software video will be supported'
+    print('WARNING: OpenGL is not found, only software video will be supported')
     enableGLShaders = 0
     ep128emuGLGUIEnvironment = copyEnvironment(ep128emuGUIEnvironment)
     ep128emuGLGUIEnvironment.Append(CCFLAGS = ['-DDISABLE_OPENGL_DISPLAY'])
@@ -300,7 +305,7 @@ if configure.CheckType('PaStreamCallbackTimeInfo', '#include <portaudio.h>'):
     havePortAudioV19 = 1
 else:
     havePortAudioV19 = 0
-    print 'WARNING: using old v18 PortAudio interface'
+    print('WARNING: using old v18 PortAudio interface')
 fltkVersion13 = 0
 if configure.CheckCXXHeader('FL/Fl_Cairo.H'):
     fltkVersion13 = 1
@@ -321,7 +326,7 @@ if haveLua:
     if not configure.CheckType('lua_Integer',
                                '#include <lua.h>\n#include <lauxlib.h>'):
         oldLuaVersion = 1
-        print 'WARNING: using old Lua 5.0.x API'
+        print('WARNING: using old Lua 5.0.x API')
 configure.Finish()
 
 if not havePortAudioV19:
@@ -648,7 +653,8 @@ makecfg = makecfgEnvironment.Program(programNamePrefix + 'makecfg',
 Depends(makecfg, ep128emuLib)
 
 if sys.platform[:6] == 'darwin':
-    Command('ep128emu.app/Contents/MacOS/makecfg', 'makecfg',
+    Command('ep128emu.app/Contents/MacOS/' + programNamePrefix + 'makecfg',
+            programNamePrefix + 'makecfg',
             'mkdir -p ep128emu.app/Contents/MacOS ; cp -pf $SOURCES $TARGET')
 
 # -----------------------------------------------------------------------------
