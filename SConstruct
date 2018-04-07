@@ -39,7 +39,11 @@ if enableDebug and not buildRelease:
     compilerFlags = ' -Wno-long-long -Wshadow -g -O0 ' + compilerFlags
     compilerFlags = ' -Wall -W -pedantic ' + compilerFlags
 else:
-    compilerFlags = ' -Wall -O3 ' + compilerFlags + ' -mtune=generic '
+    compilerFlags = ' -Wall -O3 ' + compilerFlags
+    if (os.uname()[4][:5] == 'armv7'):
+        compilerFlags = compilerFlags + ' -mtune=generic-armv7-a '
+    else:
+        compilerFlags = compilerFlags + ' -mtune=generic '
     compilerFlags = compilerFlags + ' -fno-inline-functions '
     compilerFlags = compilerFlags + ' -fomit-frame-pointer -ffast-math '
 
