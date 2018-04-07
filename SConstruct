@@ -648,7 +648,8 @@ makecfg = makecfgEnvironment.Program(programNamePrefix + 'makecfg',
 Depends(makecfg, ep128emuLib)
 
 if sys.platform[:6] == 'darwin':
-    Command('ep128emu.app/Contents/MacOS/makecfg', 'makecfg',
+    Command('ep128emu.app/Contents/MacOS/' + programNamePrefix + 'makecfg',
+            programNamePrefix + 'makecfg',
             'mkdir -p ep128emu.app/Contents/MacOS ; cp -pf $SOURCES $TARGET')
 
 # -----------------------------------------------------------------------------
