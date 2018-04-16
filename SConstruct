@@ -97,12 +97,12 @@ def configurePackage(env, pkgName):
     if not disablePkgConfig:
         for s in packageConfigs[pkgName][1]:
             if not s:
-                print('Checking for package ' + pkgName + '...',end=' ')
+                print('Checking for package ' + pkgName + '...', end = ' ')
                 # hack to work around fltk-config adding unwanted compiler flags
                 savedCFlags = env['CCFLAGS']
                 savedCXXFlags = env['CXXFLAGS']
             else:
-                print('Checking for package ' + s + '...',end=' ')
+                print('Checking for package ' + s + '...', end = ' ')
                 s = ' ' + s
             try:
                 if not env.ParseConfig(packageConfigs[pkgName][0] + s):
