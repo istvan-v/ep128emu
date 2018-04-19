@@ -78,7 +78,7 @@ packageConfigs = {
         'portaudio.h', '', 0 ],
     'Lua' : [
         'pkg-config --silence-errors --cflags --libs',
-        ['lua-5.3', 'lua53', 'lua-5.2', 'lua52', 'lua-5.1', 'lua51', 'lua'],
+        ['lua-5.3', 'lua5.3', 'lua53', 'lua-5.2', 'lua5.2', 'lua52', 'lua-5.1', 'lua5.1', 'lua51', 'lua'],
         '-llua', '', 'lua.h', '', 1 ],
     'SDL' : [
         'pkg-config --silence-errors --cflags --libs',
