@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2018 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -29,8 +29,7 @@ static bool   extractMode = false;
 static bool   testMode = false;
 // assume archive format (implies forceRawMode)
 static bool   archiveFormat = false;
-// compression type (0, 2, 3 or 5; default: 2, or auto-detect when
-// decompressing)
+// compression type (0 to 5; default: 2, or auto-detect when decompressing)
 static int    compressionType = -1;
 // compression level (1: fast, low compression ... 9: slow, high compression)
 static int    compressionLevel = 5;
@@ -362,20 +361,12 @@ int main(int argc, char **argv)
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for -m");
         compressionType = int(std::atoi(argv[i]));
-        if (!(compressionType == -1 || compressionType == 0 ||
-              compressionType == 2 || compressionType == 3 ||
-              compressionType == 5)) {
+        if (!(compressionType >= -1 && compressionType <= 5))
           throw Ep128Emu::Exception("invalid compression type");
-        }
       }
-      else if (tmp == "-m0") {
-        compressionType = 0;
-      }
-      else if (tmp == "-m2") {
-        compressionType = 2;
-      }
-      else if (tmp == "-m3") {
-        compressionType = 3;
+      else if (tmp.length() == 3 && tmp[0] == '-' && tmp[1] == 'm' &&
+               tmp[2] >= '0' && tmp[2] <= '5') {
+        compressionType = int(tmp[2] - '0');
       }
       else if (tmp == "-mz") {
         compressionType = 5;
@@ -552,24 +543,26 @@ int main(int argc, char **argv)
       }
     }
     if (!maxOffset) {
-      maxOffset = ((compressionType == 0 || compressionType == 2) ?
-                   65536 : (compressionType == 3 ? 65535 : 32768));
+      maxOffset = (compressionType == 3 ?
+                   65535 : (compressionType == 5 ? 32768 : 65536));
     }
     if (maxOffset > 65536) {
-      if (!(forceRawMode && compressionType == 2)) {
+      if (!(forceRawMode &&
+            (compressionType == 1 || compressionType == 2 ||
+             compressionType == 4))) {
         throw Ep128Emu::Exception("-maxoffs > 65536 requires -m2 and "
                                   "-a or -raw");
       }
       std::fprintf(stderr, "WARNING: -maxoffs > 65536 currently "
                            "cannot be decompressed on the Enterprise\n");
     }
-    if (compressionType == 5) {
-      if (!forceRawMode)
-        throw Ep128Emu::Exception("ZLib format (-mz) requires -a or -raw");
-      if (maxOffset > 32768) {
-        std::fprintf(stderr, "WARNING: using non-standard ZLib (-mz) format "
-                             "with -maxoffs > 32768\n");
-      }
+    if (compressionType != 0 && compressionType != 2 && compressionType != 3 &&
+        !forceRawMode) {
+      throw Ep128Emu::Exception("output format requires -a or -raw");
+    }
+    if (compressionType == 5 && maxOffset > 32768) {
+      std::fprintf(stderr, "WARNING: using non-standard ZLib (-mz) format "
+                           "with -maxoffs > 32768\n");
     }
     std::vector< unsigned char >  outBuf;
     std::vector< unsigned char >  inBuf;

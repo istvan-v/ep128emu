@@ -562,13 +562,17 @@ if buildUtilities:
                       'epcompress', Split('''
                           util/epcompress/src/archive.cpp
                           util/epcompress/src/compress0.cpp
+                          util/epcompress/src/compress1.cpp
                           util/epcompress/src/compress2.cpp
                           util/epcompress/src/compress3.cpp
+                          util/epcompress/src/compress4.cpp
                           util/epcompress/src/compress5.cpp
                           util/epcompress/src/compress.cpp
                           util/epcompress/src/decompress0.cpp
+                          util/epcompress/src/decompress1.cpp
                           util/epcompress/src/decompress2.cpp
                           util/epcompress/src/decompress3.cpp
+                          util/epcompress/src/decompress4.cpp
                           util/epcompress/src/decompress5.cpp
                           util/epcompress/src/sfxcode.cpp
                           util/epcompress/src/sfxdecomp.cpp
