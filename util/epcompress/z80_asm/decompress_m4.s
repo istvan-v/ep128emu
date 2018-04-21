@@ -23,10 +23,14 @@ decodeTablesEnd         equ     offs3DecodeTable + (32 * 3)
 
 decompressData:
         ld      a, 80h                  ; initialize shift register
+    if NO_BORDER_FX != 0
+        defb    0feh                    ; = CP n
+.l7:    ret     nc
+    endif
 .l1:    push    de                      ; decompress data block
         ld      bc, 4002h
-        or      a
-        call    readBitsB               ; get prefix size for >= 3 byte matches
+        add     a, a
+        call    readBitsB.l2            ; get prefix size for >= 3 byte matches
         inc     b
         push    hl
     if READ_ONLY_CODE == 0
@@ -77,12 +81,12 @@ decompressData:
         pop     hl
         pop     de                      ; DE = decompressed data write address
         jr      .l10                    ; jump to main decompress loop
-.l7:    jr      c, .l1                  ; more blocks remaining?
     if NO_BORDER_FX == 0
+.l7:    jr      c, .l1                  ; more blocks remaining?
         xor     a                       ; reset border color
         out     (81h), a
-    endif
         ret
+    endif
 .l8:    ld      c, (hl)                 ; read length - 16
         srl     c
         ld      c, (hl)
@@ -133,7 +137,7 @@ copyLZMatch:
     endif
         jr      .l3
 .l2:    ld      bc, 7f00h + ((10000h - lengthDecodeTable) & 00ffh)
-.l3:    call    .l5                     ; read offset prefix and decode offset
+.l3:    call    readBitsB               ; read offset prefix and decode offset
         pop     bc                      ; BC = length
         ex      (sp), hl
         push    hl
@@ -144,13 +148,13 @@ copyLZMatch:
         jr      decompressData.l10      ; return to main decompress loop
 .l4:    ld      a, (hl)
         inc     hl
-.l5:    adc     a, a                    ; readBitsB
-        jr      z, .l4
-        rl      b
-        jr      nc, .l5
-        ret     p
 
-readBitsB       equ     copyLZMatch.l5
+readBitsB:
+.l1:    adc     a, a
+.l2:    jr      z, copyLZMatch.l4
+        rl      b
+        jr      nc, .l1
+        ret     p
 
 decodeLZMatchParam:
         ex      de, hl
