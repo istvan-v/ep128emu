@@ -45,7 +45,7 @@ decompressData:
         ld      hl, decodeTablesBegin   ; initialize decode tables
 .l3:    ld      de, 1
 .l4:    ld      b, 10h
-        ex      (sp), hl
+        ex      (sp), hl                ; Carry must be 0 here
         call    readBitsB
         inc     b
         ex      (sp), hl
