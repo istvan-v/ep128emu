@@ -1,5 +1,5 @@
 
-; if non-zero, there are no border effects, and code size is smaller by 5 bytes
+; if non-zero, there are no border effects, and code size is smaller by 6 bytes
 NO_BORDER_FX            equ     0
 ; disable the use of self-modifying code (1 byte smaller, but uses IX)
 READ_ONLY_CODE          equ     0
