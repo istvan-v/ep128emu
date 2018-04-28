@@ -567,6 +567,7 @@ if buildUtilities:
                           util/epcompress/src/compress3.cpp
                           util/epcompress/src/compress4.cpp
                           util/epcompress/src/compress5.cpp
+                          util/epcompress/src/compress6.cpp
                           util/epcompress/src/compress.cpp
                           util/epcompress/src/decompress0.cpp
                           util/epcompress/src/decompress1.cpp
@@ -574,6 +575,7 @@ if buildUtilities:
                           util/epcompress/src/decompress3.cpp
                           util/epcompress/src/decompress4.cpp
                           util/epcompress/src/decompress5.cpp
+                          util/epcompress/src/decompress6.cpp
                           util/epcompress/src/sfxcode.cpp
                           util/epcompress/src/sfxdecomp.cpp
                       '''))
