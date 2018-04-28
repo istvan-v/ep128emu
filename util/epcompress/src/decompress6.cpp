@@ -62,6 +62,8 @@ namespace Ep128Compress {
         throw Ep128Emu::Exception("invalid encoding definition");
       }
     }
+    if (!nSlots)
+      return s;
     if (nSlots < 2 || nSlots > (isLength ? 23 : 64))
       throw Ep128Emu::Exception("invalid encoding definition");
     while ((size_t(1) << prefixBits) < nSlots)
@@ -170,14 +172,12 @@ namespace Ep128Compress {
       s++;
     }
 
-    if (*s != ',')
-      s = parseEncoding(offs1EncodeTable, offs1DecodeTable, offs1Bits, s);
+    s = parseEncoding(offs1EncodeTable, offs1DecodeTable, offs1Bits, s);
     if (*s != ',')
       throw Ep128Emu::Exception("invalid encoding definition");
     s++;
 
-    if (*s != ',')
-      s = parseEncoding(offs2EncodeTable, offs2DecodeTable, offs2Bits, s);
+    s = parseEncoding(offs2EncodeTable, offs2DecodeTable, offs2Bits, s);
     if (*s != ',')
       throw Ep128Emu::Exception("invalid encoding definition");
     s++;
