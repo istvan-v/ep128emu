@@ -25,9 +25,9 @@ decompressData:
         push  de
         ld    de, 1000h                 ; Carry = 1 if length is 2 bytes
         ld    b, 3
-        jr    c, .lX                    ; length == 2?
+        jr    c, .l3                    ; length == 2?
         inc   b                         ; length > 2: 4 offset prefix bits
-.lX:    call  readBits.l2
+.l3:    call  readBits.l2
         ld    b, e
         call  nc, readBits.l1           ; length == 2?
         dec   de
@@ -41,12 +41,12 @@ decompressData:
         pop   de
         ldir                            ; and expand match
         pop   hl
-.l8:    adc   a, a                      ; check flag bit:
+.l4:    adc   a, a                      ; check flag bit:
         jr    nc, .l2                   ; LZ77 match?
         jr    nz, .l1                   ; no, continue with literal sequence
         ld    a, (hl)
         inc   hl
-        jr    .l8
+        jr    .l4
 
 ; read gamma encoded sequence length (B must be 0)
 
