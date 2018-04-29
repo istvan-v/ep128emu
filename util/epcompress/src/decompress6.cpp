@@ -205,7 +205,7 @@ namespace Ep128Compress {
     maxOffs3 = (offs3EncodeTable.size() >> 1) - 1;
   }
 
-  void M6Encoder::reverseBuffer(std::vector< unsigned char >& tmpBuf)
+  void M6Encoder::reverseBuffer(std::vector< unsigned char >& tmpBuf) const
   {
     if (reverseDirection && tmpBuf.size() > 1) {
       size_t  i = 0;

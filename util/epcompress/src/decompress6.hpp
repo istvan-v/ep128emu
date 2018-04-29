@@ -67,6 +67,10 @@ namespace Ep128Compress {
     M6Encoder();
     virtual ~M6Encoder();
     void parseEncoding(const char *s);
+    inline bool getLiterals9Bit() const
+    {
+      return literals9Bit;
+    }
     inline size_t getLiteralSequenceSize(size_t n) const
     {
       if (literals9Bit)
@@ -101,7 +105,7 @@ namespace Ep128Compress {
       }
       return nBits;
     }
-    void reverseBuffer(std::vector< unsigned char >& tmpBuf);
+    void reverseBuffer(std::vector< unsigned char >& tmpBuf) const;
     void reverseBuffer()
     {
       reverseBuffer(buf);

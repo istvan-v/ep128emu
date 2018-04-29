@@ -65,11 +65,22 @@ namespace Ep128Compress {
           }
         }
       }
-      {
+      if (encoder.getLiterals9Bit()) {
+        // and literal byte
+        size_t  nBits = bitCountTable[i + 1] + 9;
+        if (nBits <= bestSize) {
+          bestSize = nBits;
+          bestOffs = 0;
+          bestLen = 1;
+          if ((i + 1) < nBytes && matchTable[i + 1].d == 0)
+            bestLen = matchTable[i + 1].len + 1;
+        }
+      }
+      else {
+        size_t  nBitsBase = 1;
         for (size_t k = 1; (i + k) <= nBytes; k++) {
-          // and all possible literal sequence lengths
-          size_t  nBits = encoder.getLiteralSequenceSize(k)
-                          + bitCountTable[i + k];
+          // or all possible literal sequence lengths
+          size_t  nBits = nBitsBase + (k << 3) + bitCountTable[i + k];
           if (nBits <= bestSize &&
               !((i + k) < nBytes && matchTable[i + k].d == 0)) {
             // a literal sequence can only be followed by an LZ77 match
@@ -80,6 +91,8 @@ namespace Ep128Compress {
           else if (nBits > (bestSize + 47)) {
             break;
           }
+          if (!(k & (k + 1)))
+            nBitsBase = nBitsBase + 2;
         }
       }
       matchTable[i].d = (unsigned int) bestOffs;
