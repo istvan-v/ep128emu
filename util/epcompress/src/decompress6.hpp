@@ -71,6 +71,26 @@ namespace Ep128Compress {
     {
       return literals9Bit;
     }
+    inline size_t getMinLength() const
+    {
+      return minLength;
+    }
+    inline size_t getMaxLength() const
+    {
+      return maxLength;
+    }
+    inline size_t getMaxOffs1() const
+    {
+      return maxOffs1;
+    }
+    inline size_t getMaxOffs2() const
+    {
+      return maxOffs2;
+    }
+    inline size_t getMaxOffs3() const
+    {
+      return maxOffs3;
+    }
     inline size_t getLiteralSequenceSize(size_t n) const
     {
       if (literals9Bit)

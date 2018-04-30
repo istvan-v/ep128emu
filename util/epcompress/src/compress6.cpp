@@ -26,7 +26,7 @@ namespace Ep128Compress {
   void Compressor_M6::optimizeMatches(LZMatchParameters *matchTable,
                                       size_t *bitCountTable, size_t nBytes)
   {
-    size_t  maxLen = (config.splitOptimizationDepth < 9 ? maxRepeatLen : 1023);
+    size_t  maxLen = (config.splitOptimizationDepth < 8 ? maxRepeatLen : 1023);
     size_t  minLen = config.minLength;
     for (size_t i = nBytes; i-- > 0; ) {
       size_t  bestSize = 0x7FFFFFFF;
@@ -35,6 +35,8 @@ namespace Ep128Compress {
       const unsigned int  *matchPtr = searchTable->getMatches(i);
       size_t  len = *matchPtr;          // match length
       if (len >= minLen) {
+        if (EP128EMU_UNLIKELY(len > encoder.getMaxLength()))
+          len = encoder.getMaxLength();
         bestLen = len;
         bestOffs = *(++matchPtr) >> 10;
         bestSize = encoder.getLZ77SequenceSize(len, bestOffs)
@@ -166,15 +168,22 @@ namespace Ep128Compress {
       std::vector< unsigned char >  inBufRev;
       inBufRev.insert(inBufRev.end(), inBuf.begin(), inBuf.end());
       encoder.reverseBuffer(inBufRev);
-      searchTable =
-          new LZSearchTable(
-              config.minLength,
-              (config.splitOptimizationDepth < 9 ? maxRepeatLen : 1023),
-              lengthMaxValue,
-              (config.maxOffset < 1024 ? config.maxOffset : 1024),
-              (config.maxOffset < 65536 ? config.maxOffset : 65536),
-              (config.maxOffset < maxRepeatDist ?
-               config.maxOffset : maxRepeatDist));
+      {
+        size_t  minLen = encoder.getMinLength();
+        minLen = (minLen > config.minLength ? minLen : config.minLength);
+        size_t  maxLen =
+            (config.splitOptimizationDepth < 8 ? maxRepeatLen : 1023);
+        size_t  maxOffs = maxRepeatDist;
+        maxOffs = (maxOffs < config.maxOffset ? maxOffs : config.maxOffset);
+        size_t  maxOffs1 = encoder.getMaxOffs1();
+        maxOffs1 = (maxOffs1 < maxOffs ? maxOffs1 : maxOffs);
+        size_t  maxOffs2 = encoder.getMaxOffs2();
+        maxOffs2 = (maxOffs2 < maxOffs ? maxOffs2 : maxOffs);
+        size_t  maxOffs3 = encoder.getMaxOffs3();
+        maxOffs3 = (maxOffs3 < maxOffs ? maxOffs3 : maxOffs);
+        searchTable = new LZSearchTable(minLen, maxLen, lengthMaxValue,
+                                        maxOffs1, maxOffs2, maxOffs3);
+      }
       searchTable->findMatches(&(inBufRev.front()), 0, nBytes);
       compressData_(inBufRev);
       delete searchTable;
