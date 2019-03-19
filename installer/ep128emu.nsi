@@ -387,7 +387,6 @@ Section "ep128emu source code" SecSrc
 
   SetOutPath "$INSTDIR\src\util\epcompress\z80_asm"
 
-  File "..\util\epcompress\z80_asm\*.f"
   File "..\util\epcompress\z80_asm\*.py"
   File "..\util\epcompress\z80_asm\*.s"
 

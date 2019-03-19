@@ -1,22 +1,17 @@
 
-; if non-zero, there are no border effects, and code size is smaller by 5 bytes
+; if non-zero, there are no border effects, and code size is smaller by 6 bytes
 NO_BORDER_FX            equ     0
-; disable the use of self-modifying code (2 bytes smaller, but uses IY)
+; disable the use of self-modifying code (1 byte smaller, but uses IX)
 READ_ONLY_CODE          equ     0
-; smaller code by 6 bytes, but ~3.5% slower
-SIZE_OPTIMIZED          equ     0
 
 ; total table size is 156 bytes, and should not cross a 256-byte page boundary
-decodeTablesBegin       equ     0ff64h
-        assert  (decodeTablesBegin & 001fh) == 0004h
-        assert  (decodeTablesBegin & 00ffh) >= 0018h
-        assert  (decodeTablesBegin & 00ffh) <= 0064h
+decodeTablesBegin       equ     0ff00h
 
-offs1DecodeTable        equ     decodeTablesBegin + 104
-lengthDecodeTable       equ     offs1DecodeTable + 4
-offs2DecodeTable        equ     lengthDecodeTable + 8
-offs3DecodeTable        equ     offs2DecodeTable + 8
-decodeTablesEnd         equ     offs3DecodeTable + 32
+offs1DecodeTable        equ     decodeTablesBegin
+lengthDecodeTable       equ     offs1DecodeTable + (4 * 3)
+offs2DecodeTable        equ     lengthDecodeTable + (8 * 3)
+offs3DecodeTable        equ     offs2DecodeTable + (8 * 3)
+decodeTablesEnd         equ     offs3DecodeTable + (32 * 3)
 
 ; input/output parameters (updated on return):
 ;   HL:               source address (forward decompression)
@@ -24,40 +19,46 @@ decodeTablesEnd         equ     offs3DecodeTable + 32
 ; registers used:
 ;   BC:               0 on return
 ;   A:                undefined if NO_BORDER_FX, 0 otherwise
-;   IX:               undefined
-;   IY:               undefined if READ_ONLY_CODE, otherwise not changed
+;   IX:               undefined if READ_ONLY_CODE, otherwise not changed
 
 decompressData:
         ld      a, 80h                  ; initialize shift register
+    if NO_BORDER_FX != 0
+        defb    0feh                    ; = CP n
+.l7:    ret     nc
+    endif
 .l1:    push    de                      ; decompress data block
         ld      bc, 4002h
         add     a, a
         call    readBitsB.l2            ; get prefix size for >= 3 byte matches
         inc     b
+        push    hl
     if READ_ONLY_CODE == 0
-        ld      d, a
-        ld      a, low ((offs3DecodeTable >> 1) | 80h)
+        ld      hl, 0f000h + ((10000h - decodeTablesEnd) & 00ffh)
 .l2:    sla     c                       ; len >= 3 offset slots: 4, 8, 16, 32
-        rra
+        srl     h
         djnz    .l2
-        ld      (copyLZMatch.l1 + 1), a
-        ld      a, d
+        ld      (copyLZMatch.l1 + 1), hl
     else
-        ld      d, low ((offs3DecodeTable >> 1) | 80h)  ; prefix size codes:
-.l2:    sla     c                       ; 40h, 20h, 10h, 08h with table offset
+        ld      d, 0f0h                 ; prefix size codes: 40h, 20h, 10h, 08h
+.l2:    sla     c                       ; with -20h offset
         srl     d
         djnz    .l2
-        ld      iyh, d
+        ld      ixh, d
     endif
-        ld      ix, decodeTablesBegin   ; initialize decode tables
+        ld      hl, decodeTablesBegin   ; initialize decode tables
 .l3:    ld      de, 1
-.l4:    ld      b, 10h                  ; Carry must be 0 here
+.l4:    ld      b, 10h
+        ex      (sp), hl                ; Carry must be 0 here
         call    readBitsB
         inc     b
-        ld      (ix + 104), b           ; store the number of bits to read + 1
-        ld      (ix), e                 ; store base value LSB
-        ld      (ix + 52), d            ; store base value MSB
-        inc     ixl
+        ex      (sp), hl
+        ld      (hl), b                 ; store the number of bits to read + 1
+        inc     l
+        ld      (hl), e                 ; store base value LSB
+        inc     l
+        ld      (hl), d                 ; store base value MSB
+        inc     l
         push    hl
         ld      hl, 1                   ; calculate 2 ^ nBits
         defb    0feh                    ; = CP n
@@ -67,8 +68,8 @@ decompressData:
         ex      de, hl
         pop     hl
         ld      b, a
-        ld      a, ixl
-        sub     low (offs3DecodeTable - 104)
+        ld      a, l
+        sub     low offs3DecodeTable
         jr      nc, .l6
         and     07h
         ld      a, b
@@ -77,9 +78,21 @@ decompressData:
         jr      z, .l3                  ; at the beginning of the next table?
         dec     c
         jr      nz, .l4                 ; continue until all tables are read
+        pop     hl
         pop     de                      ; DE = decompressed data write address
         jr      .l10                    ; jump to main decompress loop
-.l8:    ldir                            ; copy literal sequence
+    if NO_BORDER_FX == 0
+.l7:    jr      c, .l1                  ; more blocks remaining?
+        xor     a                       ; reset border color
+        out     (81h), a
+        ret
+    endif
+.l8:    ld      c, (hl)                 ; read length - 16
+        srl     c
+        ld      c, (hl)
+        inc     hl
+        jr      z, .l7                  ; end of block?
+        ldir
         ld      c, 15
         ldir
 .l9:    ldi                             ; copy literal byte
@@ -89,34 +102,18 @@ decompressData:
         inc     hl
         rla
 .l11:   jr      nc, .l9                 ; literal byte?
-        ld      bc, 0800h | (lengthDecodeTable & 00ffh)
-.l12:   add     a, a                    ; read length prefix bits
+        ld      bc, 0f700h + ((10000h - offs2DecodeTable) & 00ffh)
+.l12:   inc     b
+        jr      z, .l8                  ; literal sequence?
+        add     a, a                    ; read length prefix bits
         jr      nz, .l13
         ld      a, (hl)
         inc     hl
         rla
-.l13:   jr      nc, copyLZMatch
-        inc     c
-        djnz    .l12
-        ld      c, (hl)                 ; literal sequence, read length - 16
-        inc     hl
-        dec     c
-        jr      z, .l1                  ; next block?
-        inc     c
-        jr      nz, .l8                 ; not end of block?
-    if NO_BORDER_FX == 0
-        xor     a                       ; reset border color
-        out     (81h), a
-    endif
-        ret
+.l13:   jr      c, .l12
 
 copyLZMatch:
         push    de
-    if SIZE_OPTIMIZED == 0
-        ld      ixl, c
-    else
-        ld      b, c
-    endif
         call    decodeLZMatchParam      ; decode length
     if NO_BORDER_FX == 0
         out     (81h), a
@@ -127,18 +124,19 @@ copyLZMatch:
         jr      nz, .l1                 ; length >= 256 bytes?
         dec     e
         jr      z, .l2                  ; length == 1?
-        ld      b, low (((offs2DecodeTable & 00ffh) | 0100h) >> 3)
+        ld      bc, 3f00h + ((10000h - offs3DecodeTable) & 00ffh)
         dec     e
         jr      z, .l3                  ; length == 2?
 .l1:                                    ; length >= 3 bytes,
                                         ; variable prefix size
     if READ_ONLY_CODE == 0
-        ld      b, low (((offs3DecodeTable & 00ffh) | 0100h) >> 4)      ; *
+        ld      bc, 1e00h + ((10000h - decodeTablesEnd) & 00ffh)        ; *
     else
-        ld      b, iyh
+        ld      c, low (10000h - decodeTablesEnd)
+        ld      b, ixh
     endif
-        defb    0cah                    ; = JP Z, nn
-.l2:    ld      b, low (((offs1DecodeTable & 00ffh) | 0100h) >> 2)
+        jr      .l3
+.l2:    ld      bc, 7f00h + ((10000h - lengthDecodeTable) & 00ffh)
 .l3:    call    readBitsB               ; read offset prefix and decode offset
         pop     bc                      ; BC = length
         ex      (sp), hl
@@ -157,38 +155,36 @@ readBitsB:
         rl      b
         jr      nc, .l1
         ret     p
-    if SIZE_OPTIMIZED == 0
-        ld      ixl, b
-    endif
 
 decodeLZMatchParam:
-    if SIZE_OPTIMIZED != 0
-        ld      ixl, b                  ; IX = table address
-    endif
-        ld      b, (ix)                 ; B = number of extra bits + 1
-        ld      c, (ix - 104)
-    if SIZE_OPTIMIZED == 0
-        djnz    .l1
-        ld      e, c
-        ld      d, (ix - 52)
-        or      a                       ; Carry = 0 on return
-        ret
-    endif
-.l1:    ex      de, hl
-        ld      hl, 0
-    if SIZE_OPTIMIZED != 0
+        ex      de, hl
+        ld      h, a
+        ld      a, b                    ; calculate table address L (3 * B - C)
+        add     a, a
+        add     a, b
+        sub     c
+        ld      l, a                    ; Carry = 0
+        ld      a, h
+        ld      h, high decodeTablesBegin
+        ld      b, (hl)                 ; B = number of extra bits + 1
+        inc     l
+        ld      c, (hl)
+        inc     l
+        ld      h, (hl)
+        ld      l, c                    ; HL = base value
         dec     b
-        jr      z, .l4
-    endif
-.l2:    add     a, a
-        jp      nz, .l3
+        jr      z, .l3
+        push    hl
+        ld      hl, 0
+.l1:    add     a, a
+        jp      nz, .l2
         ld      a, (de)
         inc     de
         rla
-.l3:    adc     hl, hl
-        djnz    .l2
-.l4:    ld      b, (ix - 52)            ; BC = base value
+.l2:    adc     hl, hl
+        djnz    .l1
+        pop     bc
         add     hl, bc
-        ex      de, hl
+.l3:    ex      de, hl
         ret
 
