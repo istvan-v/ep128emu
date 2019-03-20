@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2019 Istvan Varga <istvanv@users.sourceforge.net>
 // https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -371,7 +371,7 @@ namespace Ep128Emu {
         case 4:
         case 13:
           if (n != 0x4E) {
-            if (bytesReceived >= 7) {
+            if (curState != 13 || bytesReceived >= 7) {
               writeTrackState = nxtState;
               continue;
             }
@@ -384,7 +384,7 @@ namespace Ep128Emu {
         case 5:
         case 14:
           if (n != 0x00) {
-            if (bytesReceived >= 7) {
+            if (bytesReceived >= 4) {
               writeTrackState = nxtState;
               continue;
             }
@@ -393,8 +393,12 @@ namespace Ep128Emu {
             }
           }
           break;
-        case 2:                         // address mark
+        case 2:                         // index address mark (optional)
           if (bytesReceived > 3 || (n != 0xF6 && bytesReceived != 3)) {
+            if (bytesReceived == 0 && n == 0xF5) {
+              writeTrackState = 6;
+              continue;
+            }
             setError(0x04);
           }
           else if (bytesReceived == 3) {
@@ -472,17 +476,14 @@ namespace Ep128Emu {
             writeTrackState = nxtState;
           break;
         default:                        // gap at end of sector / track
-          if (n != 0x4E) {
-            setError(0x04);
-            return;
-          }
-          if (bytesReceived >= 6) {
+          if (n != 0x4E || bytesReceived >= 6) {
             if (writeTrackSectorsRemaining > 0)
               writeTrackSectorsRemaining--;
-            if (writeTrackSectorsRemaining > 0)
+            if (writeTrackSectorsRemaining > 0) {
               writeTrackState = 4;          // continue with next sector
-            else
-              writeTrackState = nxtState;   // done formatting all sectors
+              continue;
+            }
+            writeTrackState = nxtState;     // done formatting all sectors
             if (writeTrackState == 31) {
               // done formatting track
               // FIXME: errors are ignored here

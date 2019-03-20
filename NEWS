@@ -8,6 +8,7 @@ Changes in version 2.0.11.2
   * fixed Z80 clock stretching on debug writes to NICK ports
   * added support for new formats in epcompress (-m1, -m4, and -m6)
   * experimental support for MIDI port emulation using PortMidi
+  * fixed formatting floppy disks with 11 sectors per track
 
 Changes in version 2.0.11.1
 ---------------------------
