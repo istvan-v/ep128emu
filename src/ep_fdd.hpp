@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2019 Istvan Varga <istvanv@users.sourceforge.net>
 // https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -41,8 +41,8 @@ namespace Ep128Emu {
 
   class FloppyDrive {
    private:
-    static const uint32_t ledStateCount1 = 60U;         // 120 ms
-    static const uint32_t ledStateCount2 = 500U;        // 1000 ms
+    static const uint32_t ledStateCount1 = 81U;         // 162 ms
+    static const uint32_t ledStateCount2 = 528U;        // 1056 ms
     std::string imageFileName;
     std::FILE   *imageFile;
     uint8_t     nTracks;
@@ -99,7 +99,10 @@ namespace Ep128Emu {
     {
       motorOnInput = true;
       isMotorOn = true;
-      ledStateCounter = ledStateCount1;
+      if (ledStateCounter < ((ledStateCount1 * 3U) >> 2) ||
+          ledStateCounter > ledStateCount1) {
+        ledStateCounter = (ledStateCount1 * 3U) >> 2;
+      }
     }
     inline void motorOff()
     {
@@ -109,11 +112,15 @@ namespace Ep128Emu {
     {
       return isMotorOn;
     }
+    inline bool getIsReady() const
+    {
+      return (imageFile != (std::FILE *) 0 && bool(ledStateCounter & 1U));
+    }
     // returns 0: black (off), 1: red, 2: green, 3: yellow-green
     // should be called at a rate of 500 Hz
     inline uint8_t getLEDState()
     {
-      if (ledStateCounter)
+      if (EP128EMU_UNLIKELY(ledStateCounter))
         return getLEDState_();
       return 0x00;
     }

@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2017 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2019 Istvan Varga <istvanv@users.sourceforge.net>
 // https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -865,7 +865,7 @@ namespace Ep128 {
                    | (vm.wd177x.getFloppyDrive().getDiskChangeFlag() ?
                       0x00 : 0x40)
                    | (vm.wd177x.getDataRequestFlag() ? 0x80 : 0x00)
-                   | (vm.wd177x.getFloppyDrive().haveDisk() ? 0x00 : 0x01));
+                   | (vm.wd177x.getFloppyDrive().getIsReady() ? 0x00 : 0x01));
   }
 
   void Ep128VM::exdosPortWriteCallback(void *userData,
@@ -927,7 +927,7 @@ namespace Ep128 {
                    | (vm.wd177x.getFloppyDrive().getDiskChangeFlag() ?
                       0x00 : 0x40)
                    | (vm.wd177x.getDataRequestFlag() ? 0x80 : 0x00)
-                   | (vm.wd177x.getFloppyDrive().haveDisk() ? 0x00 : 0x01));
+                   | (vm.wd177x.getFloppyDrive().getIsReady() ? 0x00 : 0x01));
   }
 
   uint8_t Ep128VM::spectrumEmulatorIOReadCallback(void *userData, uint16_t addr)

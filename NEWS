@@ -9,6 +9,7 @@ Changes in version 2.0.11.2
   * added support for new formats in epcompress (-m1, -m4, and -m6)
   * experimental support for MIDI port emulation using PortMidi
   * fixed formatting floppy disks with 11 sectors per track
+  * fixed floppy drive ready signal in EXDOS
 
 Changes in version 2.0.11.1
 ---------------------------

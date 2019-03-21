@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2017 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2019 Istvan Varga <istvanv@users.sourceforge.net>
 // https://github.com/istvan-v/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -562,7 +562,7 @@ namespace Ep128Emu {
 
   uint8_t FloppyDrive::getLEDState_()
   {
-    if (ledStateCounter == 0U)
+    if (EP128EMU_UNLIKELY(ledStateCounter == 0U))
       return 0x00;
     if (ledStateCounter > ledStateCount1) {
       if (!trackDirtyFlag) {
@@ -578,7 +578,8 @@ namespace Ep128Emu {
       return 0x01;
     }
     if (motorOnInput) {
-      ledStateCounter = ledStateCount1;
+      if (ledStateCounter < ledStateCount1)
+        ledStateCounter++;
     }
     else if (--ledStateCounter == 0U) {
       isMotorOn = false;
