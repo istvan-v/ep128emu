@@ -3,7 +3,7 @@
 NO_BORDER_FX            equ     0
 ; disable the use of self-modifying code (2 bytes smaller, but uses IY)
 READ_ONLY_CODE          equ     0
-; smaller code by 6 bytes, but ~3.5% slower
+; smaller code by 7 bytes, but ~3.5% slower
 SIZE_OPTIMIZED          equ     0
 
 ; total table size is 156 bytes, and should not cross a 256-byte page boundary
@@ -125,11 +125,12 @@ copyLZMatch:
         inc     d
         dec     d
         jr      nz, .l1                 ; length >= 256 bytes?
+        ld      b, low (((offs1DecodeTable & 00ffh) | 0100h) >> 2)
         dec     e
         jr      z, .l2                  ; length == 1?
         ld      b, low (((offs2DecodeTable & 00ffh) | 0100h) >> 3)
         dec     e
-        jr      z, .l3                  ; length == 2?
+        jr      z, .l2                  ; length == 2?
 .l1:                                    ; length >= 3 bytes,
                                         ; variable prefix size
     if READ_ONLY_CODE == 0
@@ -137,9 +138,7 @@ copyLZMatch:
     else
         ld      b, iyh
     endif
-        defb    0cah                    ; = JP Z, nn
-.l2:    ld      b, low (((offs1DecodeTable & 00ffh) | 0100h) >> 2)
-.l3:    call    readBitsB               ; read offset prefix and decode offset
+.l2:    call    readBitsB               ; read offset prefix and decode offset
         pop     bc                      ; BC = length
         ex      (sp), hl
         push    hl
@@ -147,13 +146,17 @@ copyLZMatch:
         pop     de
         ldir                            ; expand match
         pop     hl
-        jr      decompressData.l10      ; return to main decompress loop
-.l4:    ld      a, (hl)
+    if SIZE_OPTIMIZED == 0
+        jp      decompressData.l10      ; return to main decompress loop
+    else
+        jr      decompressData.l10
+    endif
+.l3:    ld      a, (hl)
         inc     hl
 
 readBitsB:
 .l1:    adc     a, a
-.l2:    jr      z, copyLZMatch.l4
+.l2:    jr      z, copyLZMatch.l3
         rl      b
         jr      nc, .l1
         ret     p

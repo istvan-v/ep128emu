@@ -3,7 +3,7 @@
 NO_BORDER_FX            equ     0
 ; disable the use of self-modifying code (2 bytes smaller, but uses IYH)
 READ_ONLY_CODE          equ     1
-; smaller code by 6 bytes, but ~3.5% slower
+; smaller code by 7 bytes, but ~3.5% slower
 SIZE_OPTIMIZED          equ     1
 
 ; total table size is 156 bytes, and should not cross a 256-byte page boundary
@@ -129,11 +129,12 @@ copyLZMatch:
         inc     d
         dec     d
         jr      nz, .l1                 ; length >= 256 bytes?
+        ld      b, low (((offs1DecodeTable & 00ffh) | 0100h) >> 2)
         dec     e
         jr      z, .l2                  ; length == 1?
         ld      b, low (((offs2DecodeTable & 00ffh) | 0100h) >> 3)
         dec     e
-        jr      z, .l3                  ; length == 2?
+        jr      z, .l2                  ; length == 2?
 .l1:                                    ; length >= 3 bytes,
                                         ; variable prefix size
     if READ_ONLY_CODE == 0
@@ -141,40 +142,42 @@ copyLZMatch:
     else
         ld      b, iyh
     endif
-        defb    0cah                    ; = JP Z, nn
-.l2:    ld      b, low (((offs1DecodeTable & 00ffh) | 0100h) >> 2)
-.l3:    call    readBitsB               ; read offset prefix and decode offset
+.l2:    call    readBitsB               ; read offset prefix and decode offset
         inc     b
         pop     bc                      ; BC = length
-        jr      z, .l5                  ; sequence with delta value?
+        jr      z, .l4                  ; sequence with delta value?
         ex      (sp), hl
         push    hl
         sbc     hl, de                  ; Carry = 0
         pop     de
         ldir                            ; expand match
-.l4:    pop     hl
-        jr      decompressData.l10      ; return to main decompress loop
-.l5:    ld      ixl, a
+.l3:    pop     hl
+    if SIZE_OPTIMIZED == 0
+        jp      decompressData.l10      ; return to main decompress loop
+    else
+        jr      decompressData.l10
+    endif
+.l4:    ld      ixl, a
         ld      a, (hl)                 ; read delta value
         inc     hl
         ex      (sp), hl
         ex      de, hl
         dec     hl                      ; HL = 2's complement of offset
         add     hl, de                  ; calculate source address
-.l6:    add     a, (hl)
+.l5:    add     a, (hl)
         ld      (de), a
         sub     (hl)
         inc     de
         cpi
-        jp      pe, .l6
+        jp      pe, .l5
         ld      a, ixl
-        jr      .l4
-.l7:    ld      a, (hl)
+        jr      .l3
+.l6:    ld      a, (hl)
         inc     hl
 
 readBitsB:
 .l1:    adc     a, a
-.l2:    jr      z, copyLZMatch.l7
+.l2:    jr      z, copyLZMatch.l6
         rl      b
         jr      nc, .l1
         ret     p
