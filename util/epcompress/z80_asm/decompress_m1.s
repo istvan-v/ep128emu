@@ -3,7 +3,7 @@
 NO_BORDER_FX            equ     0
 ; disable the use of self-modifying code (2 bytes smaller, but uses IYH)
 READ_ONLY_CODE          equ     1
-; smaller code by 7 bytes, but ~3.5% slower
+; smaller code by 6 bytes, but ~3.5% slower
 SIZE_OPTIMIZED          equ     1
 
 ; total table size is 156 bytes, and should not cross a 256-byte page boundary
@@ -154,7 +154,7 @@ copyLZMatch:
         ldir                            ; expand match
 .l4:    pop     hl
         jr      decompressData.l10      ; return to main decompress loop
-.l5:    push    af
+.l5:    ld      ixl, a
         ld      a, (hl)                 ; read delta value
         inc     hl
         ex      (sp), hl
@@ -167,13 +167,8 @@ copyLZMatch:
         inc     de
         cpi
         jp      pe, .l6
-        pop     af
-    if SIZE_OPTIMIZED == 0
-        pop     hl
-        jr      decompressData.l10
-    else
+        ld      a, ixl
         jr      .l4
-    endif
 .l7:    ld      a, (hl)
         inc     hl
 
