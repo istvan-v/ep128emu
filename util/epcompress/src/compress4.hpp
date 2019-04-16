@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2018 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2019 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -96,6 +96,11 @@ namespace Ep128Compress {
     void optimizeMatches_noStats(LZMatchParameters *matchTable,
                                  size_t *bitCountTable,
                                  size_t offs, size_t nBytes);
+   public:
+    static size_t findNonMonotonicEncoding(const EncodeTable& encTable1,
+                                           const EncodeTable& encTable2,
+                                           const EncodeTable& encTable3);
+   private:
     void optimizeMatches(LZMatchParameters *matchTable,
                          size_t *bitCountTable, uint64_t *offsSumTable,
                          size_t offs, size_t nBytes);

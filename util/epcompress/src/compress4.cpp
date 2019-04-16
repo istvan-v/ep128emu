@@ -195,17 +195,25 @@ namespace Ep128Compress {
     }
   }
 
-  static void findNonMonotonicEncoding(size_t& d, const EncodeTable& encTable)
+  size_t Compressor_M4::findNonMonotonicEncoding(const EncodeTable& encTable1,
+                                                 const EncodeTable& encTable2,
+                                                 const EncodeTable& encTable3)
   {
-    size_t  n = 0;
-    size_t  maxBits = 0;
-    for (size_t i = 0; i < encTable.getSlotCnt(); i++) {
-      size_t  nBits = encTable.getSlotSize(i);
-      n = n + (size_t(1) << nBits);
-      if (nBits < maxBits && n > d)
-        d = n;
-      maxBits = (nBits > maxBits ? nBits : maxBits);
+    size_t  d = 1;
+    for (int j = 0; j < 3; j++) {
+      const EncodeTable&  encTable =
+          (j == 0 ? encTable1 : (j == 1 ? encTable2 : encTable3));
+      size_t  n = 0;
+      size_t  maxBits = 0;
+      for (size_t i = 0; i < encTable.getSlotCnt(); i++) {
+        size_t  nBits = encTable.getSlotSize(i);
+        n = n + (size_t(1) << nBits);
+        if (nBits < maxBits && n > d)
+          d = n;
+        maxBits = (nBits > maxBits ? nBits : maxBits);
+      }
     }
+    return d;
   }
 
   void Compressor_M4::optimizeMatches(LZMatchParameters *matchTable,
@@ -219,10 +227,9 @@ namespace Ep128Compress {
       len2BitsP1 = lengthEncodeTable.getSymbolSize(2U - minRepeatLen) + 1;
     if (config.minLength < 2)
       len1BitsP1 = lengthEncodeTable.getSymbolSize(1U - minRepeatLen) + 1;
-    size_t  maxOffsNonMonotonic = 1;
-    findNonMonotonicEncoding(maxOffsNonMonotonic, offs1EncodeTable);
-    findNonMonotonicEncoding(maxOffsNonMonotonic, offs2EncodeTable);
-    findNonMonotonicEncoding(maxOffsNonMonotonic, offs3EncodeTable);
+    size_t  maxOffsNonMonotonic =
+        findNonMonotonicEncoding(offs1EncodeTable, offs2EncodeTable,
+                                 offs3EncodeTable);
     for (size_t i = nBytes; i-- > 0; ) {
       size_t  bestSize = 0x7FFFFFFF;
       size_t  bestLen = 1;
@@ -302,7 +309,7 @@ namespace Ep128Compress {
             } while (--len >= 3);
           }
           // check short match lengths:
-          if (len == 2) {                                         // 2 bytes
+          if (len == 2) {                                       // 2 bytes
             if (d <= offs2EncodeTable.getSymbolsEncoded()) {
               size_t  nBits = len2BitsP1 + offs2EncodeTable.getSymbolSize(
                                                d - (unsigned int) minRepeatDist)
@@ -317,7 +324,7 @@ namespace Ep128Compress {
               }
             }
           }
-          if (d <= offs1EncodeTable.getSymbolsEncoded()) {        // 1 byte
+          if (d <= offs1EncodeTable.getSymbolsEncoded()) {      // 1 byte
             size_t  nBits = len1BitsP1 + offs1EncodeTable.getSymbolSize(
                                              d - (unsigned int) minRepeatDist)
                             + bitCountTable[i + 1];
