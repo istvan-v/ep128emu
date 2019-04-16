@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2018 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2019 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ namespace Ep128Compress {
   void Compressor_M6::optimizeMatches(LZMatchParameters *matchTable,
                                       size_t *bitCountTable, size_t nBytes)
   {
-    size_t  maxLen = (config.splitOptimizationDepth < 8 ? maxRepeatLen : 1023);
+    size_t  lenMax = (config.splitOptimizationDepth < 8 ? maxRepeatLen : 1023);
     size_t  minLen = config.minLength;
     for (size_t i = nBytes; i-- > 0; ) {
       size_t  bestSize = 0x7FFFFFFF;
@@ -34,6 +34,8 @@ namespace Ep128Compress {
       size_t  bestOffs = 0;
       const unsigned int  *matchPtr = searchTable->getMatches(i);
       size_t  len = *matchPtr;          // match length
+      size_t  maxLen = nBytes - i;
+      len = (len < maxLen ? len : maxLen);
       if (len >= minLen) {
         if (EP128EMU_UNLIKELY(len > encoder.getMaxLength()))
           len = encoder.getMaxLength();
@@ -41,7 +43,7 @@ namespace Ep128Compress {
         bestOffs = *(++matchPtr) >> 10;
         bestSize = encoder.getLZ77SequenceSize(len, bestOffs)
                    + bitCountTable[i + len];
-        if (len > maxLen) {
+        if (len > lenMax) {
           // long LZ77 match
           if (bestOffs == 1) {
             // if a long RLE match is possible, use that
@@ -50,20 +52,46 @@ namespace Ep128Compress {
             bitCountTable[i] = bestSize;
             continue;
           }
-          len = maxLen;
+          len = lenMax;
         }
         // otherwise check all possible LZ77 match lengths,
-        for ( ; len > 0; len = (*matchPtr & 0x03FFU)) {
-          unsigned int  d = *(matchPtr++) >> 10;
-          while (len >= minLen) {
-            size_t  nBits = encoder.getLZ77SequenceSize(len, d)
-                            + bitCountTable[i + len];
-            if (nBits < bestSize) {
-              bestSize = nBits;
-              bestOffs = d;
-              bestLen = len;
+        for (int k = 0; k < (config.splitOptimizationDepth < 10 ? 1 : 4); k++) {
+          unsigned int  d_offs = 0;
+          if (EP128EMU_UNLIKELY(k)) {
+            // search distant matches
+            // if the offset can be encoded with fewer bits
+            if (bestOffs == 0)
+              break;
+            matchPtr = searchTable->getMatches(i);
+            len = *(matchPtr++);
+            for (int j = 0; j < k && len > 0; j++) {
+              len = (len < maxLen ? len : maxLen);
+              maxLen = (len < lenMax ? len : lenMax);
+              d_offs = d_offs + (*matchPtr >> 10);
+              matchPtr = searchTable->getMatches(i - d_offs);
+              len = *(matchPtr++);
             }
-            len--;
+            for ( ; len > 0; len = *(++matchPtr) & 0x03FFU) {
+              unsigned int  d = (*matchPtr >> 10) + d_offs;
+              if (d <= config.maxOffset)
+                break;
+            }
+            if (!len)
+              break;
+          }
+          for ( ; len > 0; len = (*matchPtr & 0x03FFU)) {
+            len = (len < maxLen ? len : maxLen);
+            unsigned int  d = (*(matchPtr++) >> 10) + d_offs;
+            while (len >= minLen) {
+              size_t  nBits = encoder.getLZ77SequenceSize(len, d)
+                              + bitCountTable[i + len];
+              if (nBits < bestSize) {
+                bestSize = nBits;
+                bestOffs = d;
+                bestLen = len;
+              }
+              len--;
+            }
           }
         }
       }
