@@ -1,6 +1,6 @@
 
 // ep128emu -- portable Enterprise 128 emulator
-// Copyright (C) 2003-2011 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2003-2019 Istvan Varga <istvanv@users.sourceforge.net>
 // http://sourceforge.net/projects/ep128emu/
 //
 // This program is free software; you can redistribute it and/or modify
@@ -21,9 +21,6 @@
 #include "bplist.hpp"
 
 #include <map>
-#include <sstream>
-#include <iomanip>
-#include <algorithm>
 
 namespace Ep128Emu {
 
@@ -255,79 +252,6 @@ namespace Ep128Emu {
   {
     lst_.push_back(BreakPoint(true, false, r, w, false, false,
                               0, addr & 0xFF, priority));
-  }
-
-  std::string BreakPointList::getBreakPointList()
-  {
-    std::ostringstream  lst;
-    lst << std::hex << std::uppercase << std::right << std::setfill('0');
-    if (lst_.size() > 0) {
-      std::stable_sort(lst_.begin(), lst_.end());
-      BreakPoint  prv_bp(lst_[0]);
-      uint16_t    firstAddr = prv_bp.addr();
-      for (size_t i = 1; i < lst_.size(); i++) {
-        BreakPoint  bp(lst_[i]);
-        uint16_t    lastAddr = prv_bp.addr();
-        if (i >= (lst_.size() - 1)) {
-          lastAddr = bp.addr();
-        }
-        else {
-          if ((bp.addr() == (lastAddr + 1U) || bp.addr() == lastAddr) &&
-              bp.isIO() == prv_bp.isIO() &&
-              bp.haveSegment() == prv_bp.haveSegment() &&
-              bp.isRead() == prv_bp.isRead() &&
-              bp.isWrite() == prv_bp.isWrite() &&
-              bp.isExecute() == prv_bp.isExecute() &&
-              bp.isIgnore() == prv_bp.isIgnore() &&
-              bp.priority() == prv_bp.priority() &&
-              bp.segment() == prv_bp.segment()) {
-            prv_bp = bp;
-            continue;
-          }
-        }
-        if (prv_bp.haveSegment())
-          lst << std::setw(2) << uint32_t(prv_bp.segment()) << ":";
-        // bit 0 = read, bit 1 = write, bit 2 = execute
-        uint8_t rwxFlags = uint8_t((prv_bp.n_ & 0x07000000U) >> 24);
-        if (prv_bp.isIO()) {
-          rwxFlags = rwxFlags & 3;
-          rwxFlags = (rwxFlags != 0 ? rwxFlags : uint8_t(3));
-        }
-        else {
-          if (prv_bp.isIgnore()) {
-            lst << std::setw(4) << firstAddr;
-            if (lastAddr != firstAddr)
-              lst << "-" << std::setw(4) << lastAddr;
-            lst << "i\n";
-            if (rwxFlags != 0 && prv_bp.haveSegment())
-              lst << std::setw(2) << uint32_t(prv_bp.segment()) << ":";
-          }
-          else {
-            rwxFlags = (rwxFlags != 0 ? rwxFlags : uint8_t(7));
-          }
-        }
-        if (rwxFlags) {
-          lst << std::setw(prv_bp.isIO() ? 2 : 4) << firstAddr;
-          if (lastAddr != firstAddr)
-            lst << "-" << std::setw(prv_bp.isIO() ? 2 : 4) << lastAddr;
-          if ((rwxFlags | (uint8_t(prv_bp.isIO()) << 2)) != 7) {
-            if (rwxFlags & 1)
-              lst << "r";
-            if (rwxFlags & 2)
-              lst << "w";
-            if (rwxFlags & 4)
-              lst << "x";
-          }
-          if (prv_bp.priority() != 2)
-            lst << "p" << std::setw(1) << prv_bp.priority();
-          lst << "\n";
-        }
-        prv_bp = bp;
-        firstAddr = bp.addr();
-      }
-    }
-    lst << "\n";
-    return lst.str();
   }
 
   // --------------------------------------------------------------------------
