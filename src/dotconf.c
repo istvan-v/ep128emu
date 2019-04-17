@@ -21,10 +21,6 @@
 
 /* -- dotconf.c - this code is responsible for the input, parsing and dispatching of options  */
 
-#ifndef _BSD_SOURCE
-#  define _BSD_SOURCE   1
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
