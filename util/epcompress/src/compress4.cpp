@@ -221,165 +221,170 @@ namespace Ep128Compress {
                                       uint64_t *offsSumTable,
                                       size_t offs, size_t nBytes)
   {
-    size_t  len1BitsP1 = 16383;
-    size_t  len2BitsP1 = 16383;
-    if (config.minLength < 3)
-      len2BitsP1 = lengthEncodeTable.getSymbolSizeFast(2U - minRepeatLen) + 1;
-    if (config.minLength < 2)
-      len1BitsP1 = lengthEncodeTable.getSymbolSizeFast(1U - minRepeatLen) + 1;
+    size_t  len2BitsP1 =
+        lengthEncodeTable.getSymbolSizeFast(2U - minRepeatLen) + 1;
+    size_t  len1BitsP1 =
+        lengthEncodeTable.getSymbolSizeFast(1U - minRepeatLen) + 1;
     size_t  maxOffsNonMonotonic =
         findNonMonotonicEncoding(offs1EncodeTable, offs2EncodeTable,
                                  offs3EncodeTable);
+    bitCountTable = bitCountTable + nBytes;
+    offsSumTable = offsSumTable + nBytes;
     for (size_t i = nBytes; i-- > 0; ) {
+      bitCountTable--;
+      offsSumTable--;
       size_t  bestSize = 0x7FFFFFFF;
       size_t  bestLen = 1;
       size_t  bestOffs = 0;
       uint64_t  bestOffsSum = uint64_t(0) - uint64_t(1);
       const unsigned int  *matchPtr = searchTable->getMatches(offs + i);
       size_t  len = matchPtr[0];        // match length
-      size_t  maxLen = nBytes - i;
-      len = (len < maxLen ? len : maxLen);
-      if (len > maxRepeatLen) {
-        if (matchPtr[1] > 1024U) {
-          // long LZ77 match
-          bestOffs = matchPtr[1] >> 10;
-          bestLen = len;
-          bestSize = getRepeatCodeLength(bestOffs, len)
-                     + bitCountTable[i + len];
-          bestOffsSum = offsSumTable[i + len] + bestOffs;
-          len = maxRepeatLen;
-        }
-        else {
-          // if a long RLE match is possible, use that
-          matchTable[i].d = 1;
-          matchTable[i].len = (unsigned int) len;
-          bitCountTable[i] = bitCountTable[i + len]
-                             + getRepeatCodeLength(1, len);
-          offsSumTable[i] = offsSumTable[i + len] + 1UL;
-          continue;
-        }
-      }
-      // otherwise check all possible LZ77 match lengths,
-      for (int k = 0; k < int(config.splitOptimizationDepth < 8 ?
-                              1 : (config.splitOptimizationDepth - 6)); k++) {
-        unsigned int  d_offs = 0;
-        if (EP128EMU_UNLIKELY(k)) {
-          // search distant matches if the offset can be encoded with fewer bits
-          if (bestOffs == 0 || bestOffs > maxOffsNonMonotonic)
-            break;
-          matchPtr = searchTable->getMatches(offs + i);
-          len = *(matchPtr++);
-          for (int j = 0; j < k && len > 0; j++) {
-            len = (len < maxLen ? len : maxLen);
-            maxLen = (len < maxRepeatLen ? len : maxRepeatLen);
-            d_offs = d_offs + (*matchPtr >> 10);
-            matchPtr = searchTable->getMatches(offs + i - d_offs);
-            len = *(matchPtr++);
+      if (len > 0) {
+        size_t  maxLen = nBytes - i;
+        len = (len < maxLen ? len : maxLen);
+        bestLen = len;
+        bestOffs = matchPtr[1] >> 10;
+        bestSize = getRepeatCodeLength(bestOffs, len) + bitCountTable[len];
+        bestOffsSum = offsSumTable[len] + bestOffs;
+        if (EP128EMU_UNLIKELY(len > maxRepeatLen)) {
+          if (matchPtr[1] > 1024U) {
+            // long LZ77 match
+            len = maxRepeatLen + 1;
           }
-          for ( ; len > 0; len = *(++matchPtr) & 0x03FFU) {
-            unsigned int  d = (*matchPtr >> 10) + d_offs;
-            if (d <= config.maxOffset && d <= maxOffsNonMonotonic)
+          else {
+            // if a long RLE match is possible, use that
+            matchTable[i].d = 1;
+            matchTable[i].len = (unsigned int) len;
+            *bitCountTable = bestSize;
+            *offsSumTable = bestOffsSum;
+            continue;
+          }
+        }
+        len -= size_t(len > 1);
+        maxLen = (maxLen < lengthEncodeTable.getSymbolsEncoded() ?
+                  maxLen : lengthEncodeTable.getSymbolsEncoded());
+        // otherwise check all possible LZ77 match lengths,
+        for (int k = 0; k < int(config.splitOptimizationDepth < 8 ?
+                                1 : (config.splitOptimizationDepth - 6)); k++) {
+          unsigned int  d_offs = 0;
+          if (EP128EMU_UNLIKELY(k)) {
+            // search distant matches
+            // if the offset can be encoded with fewer bits
+            if (bestOffs == 0 || bestOffs > maxOffsNonMonotonic)
+              break;
+            matchPtr = searchTable->getMatches(offs + i);
+            len = *(matchPtr++);
+            for (int j = 0; j < k && len > 0; j++) {
+              len = (len < maxLen ? len : maxLen);
+              maxLen = (len < maxRepeatLen ? len : maxRepeatLen);
+              d_offs = d_offs + (*matchPtr >> 10);
+              matchPtr = searchTable->getMatches(offs + i - d_offs);
+              len = *(matchPtr++);
+            }
+            for ( ; len > 0; len = *(++matchPtr) & 0x03FFU) {
+              unsigned int  d = (*matchPtr >> 10) + d_offs;
+              if (d <= config.maxOffset && d <= maxOffsNonMonotonic)
+                break;
+            }
+            if (!len)
               break;
           }
-          if (!len)
-            break;
-        }
-        else {
-          matchPtr++;
-        }
-        for ( ; len > 0; len = (*(++matchPtr) & 0x03FFU)) {
-          len = (len < maxLen ? len : maxLen);
-          unsigned int  d = (*matchPtr >> 10) + d_offs;
-          if (len >= 2) {
-            if (len >= 3 &&
-                EP128EMU_EXPECT(d <= offs3EncodeTable.getSymbolsEncoded())) {
-              // flag bit + offset bits
-              size_t  nBitsBase = offs3EncodeTable.getSymbolSizeFast(
-                                      d - (unsigned int) minRepeatDist) + 1;
-              do {
-                size_t  nBits = lengthEncodeTable.getSymbolSize(
-                                    (unsigned int) (len - minRepeatLen))
-                                + nBitsBase + bitCountTable[i + len];
-                if (EP128EMU_EXPECT(nBits > bestSize) ||
+          else {
+            matchPtr++;
+          }
+          for ( ; len > 0; len = (*(++matchPtr) & 0x03FFU)) {
+            len = (len < maxLen ? len : maxLen);
+            unsigned int  d = (*matchPtr >> 10) + d_offs;
+            if (len >= 2) {
+              if (len >= 3 &&
+                  EP128EMU_EXPECT(d <= offs3EncodeTable.getSymbolsEncoded())) {
+                // flag bit + offset bits
+                size_t  nBitsBase = offs3EncodeTable.getSymbolSizeFast(
+                                        d - (unsigned int) minRepeatDist) + 1;
+                do {
+                  size_t  nBits = lengthEncodeTable.getSymbolSizeFast(
+                                      (unsigned int) (len - minRepeatLen))
+                                  + nBitsBase + bitCountTable[len];
+                  if (EP128EMU_EXPECT(nBits > bestSize) ||
+                      (nBits == bestSize &&
+                       (offsSumTable[len] + d) > bestOffsSum)) {
+                    continue;
+                  }
+                  bestSize = nBits;
+                  bestOffs = d;
+                  bestLen = len;
+                  bestOffsSum = offsSumTable[len] + d;
+                } while (--len >= 3);
+              }
+              // check short match lengths:
+              if (d <= offs2EncodeTable.getSymbolsEncoded()) {  // 2 bytes
+                size_t  nBits =
+                    len2BitsP1 + offs2EncodeTable.getSymbolSizeFast(
+                                     d - (unsigned int) minRepeatDist)
+                    + bitCountTable[2];
+                if (nBits < bestSize ||
                     (nBits == bestSize &&
-                     (offsSumTable[i + len] + d) > bestOffsSum)) {
-                  continue;
+                     (offsSumTable[2] + d) <= bestOffsSum)) {
+                  bestSize = nBits;
+                  bestOffs = d;
+                  bestLen = 2;
+                  bestOffsSum = offsSumTable[2] + d;
                 }
-                bestSize = nBits;
-                bestOffs = d;
-                bestLen = len;
-                bestOffsSum = offsSumTable[i + len] + d;
-              } while (--len >= 3);
+              }
             }
-            // check short match lengths:
-            if (d <= offs2EncodeTable.getSymbolsEncoded()) {    // 2 bytes
-              size_t  nBits = len2BitsP1 + offs2EncodeTable.getSymbolSizeFast(
+            if (d <= offs1EncodeTable.getSymbolsEncoded()) {    // 1 byte
+              size_t  nBits = len1BitsP1 + offs1EncodeTable.getSymbolSizeFast(
                                                d - (unsigned int) minRepeatDist)
-                              + bitCountTable[i + 2];
+                              + bitCountTable[1];
               if (nBits < bestSize ||
-                  (nBits == bestSize &&
-                   (offsSumTable[i + 2] + d) <= bestOffsSum)) {
+                  (nBits == bestSize && (offsSumTable[1] + d) <= bestOffsSum)) {
                 bestSize = nBits;
                 bestOffs = d;
-                bestLen = 2;
-                bestOffsSum = offsSumTable[i + 2] + d;
+                bestLen = 1;
+                bestOffsSum = offsSumTable[1] + d;
               }
             }
           }
-          if (d <= offs1EncodeTable.getSymbolsEncoded()) {      // 1 byte
-            size_t  nBits = len1BitsP1 + offs1EncodeTable.getSymbolSizeFast(
-                                             d - (unsigned int) minRepeatDist)
-                            + bitCountTable[i + 1];
-            if (nBits < bestSize ||
-                (nBits == bestSize &&
-                 (offsSumTable[i + 1] + d) <= bestOffsSum)) {
-              bestSize = nBits;
-              bestOffs = d;
-              bestLen = 1;
-              bestOffsSum = offsSumTable[i + 1] + d;
-            }
-          }
         }
       }
-      if (bestSize >= (bitCountTable[i + 1] + 8)) {
+      if (bestSize >= (bitCountTable[1] + 8)) {
         // literal byte,
-        size_t  nBits = bitCountTable[i + 1] + 9;
+        size_t  nBits = bitCountTable[1] + 9;
         if (nBits < bestSize ||
-            (nBits == bestSize && offsSumTable[i + 1] <= bestOffsSum)) {
+            (nBits == bestSize && offsSumTable[1] <= bestOffsSum)) {
           bestSize = nBits;
           bestOffs = 0;
           bestLen = 1;
-          bestOffsSum = offsSumTable[i + 1];
+          bestOffsSum = offsSumTable[1];
         }
         if ((i + literalSequenceMinLength) <= nBytes &&
-            (bitCountTable[i + literalSequenceMinLength]
+            (bitCountTable[literalSequenceMinLength]
              + (literalSequenceMinLength * 8)) <= bestSize) {
           for (size_t k = literalSequenceMinLength;
                k <= literalSequenceMaxLength && (i + k) <= nBytes;
                k++) {
             // and all possible literal sequence lengths
-            nBits = bitCountTable[i + k]
-                    + (k * 8 + literalSequenceMinLength - 1);
+            nBits = bitCountTable[k] + (k * 8 + literalSequenceMinLength - 1);
             if (nBits > bestSize) {
               if (nBits > (bestSize + literalSequenceMinLength - 1))
                 break;  // quit the loop earlier if the data can be compressed
               continue;
             }
             if (nBits == bestSize) {
-              if (offsSumTable[i + k] > (offsSumTable[i + bestLen] + bestOffs))
+              if (offsSumTable[k] > (offsSumTable[bestLen] + bestOffs))
                 continue;
             }
             bestSize = nBits;
             bestOffs = 0;
             bestLen = k;
           }
-          bestOffsSum = offsSumTable[i + bestLen] + bestOffs;
+          bestOffsSum = offsSumTable[bestLen] + bestOffs;
         }
       }
       matchTable[i].d = (unsigned int) bestOffs;
       matchTable[i].len = (unsigned int) bestLen;
-      bitCountTable[i] = bestSize;
-      offsSumTable[i] = bestOffsSum;
+      *bitCountTable = bestSize;
+      *offsSumTable = bestOffsSum;
     }
   }
 
@@ -392,8 +397,11 @@ namespace Ep128Compress {
     tmpOutBuf.clear();
     if (!firstPass) {
       // generate optimal encode tables for offset values
-      offs1EncodeTable.updateTables(false);
-      offs2EncodeTable.updateTables(false);
+      if (config.minLength < 3) {
+        if (config.minLength < 2)
+          offs1EncodeTable.updateTables(false);
+        offs2EncodeTable.updateTables(false);
+      }
       offs3EncodeTable.updateTables(fastMode);
       offs3NumSlots = offs3EncodeTable.getSlotCnt();
       offs3PrefixSize = offs3EncodeTable.getSlotPrefixSize(0);
