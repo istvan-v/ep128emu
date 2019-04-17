@@ -58,9 +58,24 @@ namespace Ep128Emu {
     for (size_t i = 0; i < lst.length(); i++) {
       {
         char    ch = lst[i];
+        if (ch == '#' || ch == ';') {
+          ch = '\n';
+          while (++i < lst.length() && lst[i] != '\r' && lst[i] != '\n')
+            ;
+        }
         if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
           if (curToken.length() < 1)
             continue;
+          if (curToken[curToken.length() - 1] == ':' && ch == ' ' &&
+              ((i + 13) < lst.length() &&
+               lst[i + 1] == 'E' && lst[i + 2] == 'Q' && lst[i + 3] == 'U' &&
+               lst[i + 4] == ' ' && lst[i + 13] == 'h')) {
+            curToken.clear();
+            curToken.insert(0, lst, i + 9, 4);
+            i = i + 13;
+            if ((i + 1) < lst.length())
+              continue;
+          }
         }
         else {
           curToken += ch;
