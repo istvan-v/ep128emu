@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2018 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2019 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -74,7 +74,7 @@ namespace Ep128Compress {
     };
     // --------
     struct LZMatchParameters {
-      unsigned short  d;
+      unsigned int    d;
       unsigned short  len;
       unsigned char   seqDiff;
       LZMatchParameters()
