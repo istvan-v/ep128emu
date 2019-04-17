@@ -18,7 +18,7 @@ decompressDataEnd       equ     decompressDataBegin + 864
 ; read9Bits, read8Bits and read5Bits must be the same (see assert directive
 ; below)
 
-        org   0fac0h
+;       org   0fab0h
 
 ; input/output registers:
 ;  DE:  decompressed data write address
