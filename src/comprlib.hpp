@@ -1,6 +1,6 @@
 
 // compression library for ep128emu and utilities
-// Copyright (C) 2007-2016 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2019 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -156,6 +156,10 @@ namespace Ep128Compress {
     {
       if (size_t(n) >= nSymbolsEncoded)
         return unusedSymbolSize;
+      return symbolSizeTable[n];
+    }
+    inline size_t getSymbolSizeFast(unsigned int n) const
+    {
       return symbolSizeTable[n];
     }
     inline size_t getSymbolSlotIndex(unsigned int n) const

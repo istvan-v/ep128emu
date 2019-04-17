@@ -204,9 +204,9 @@ namespace Ep128Compress {
     size_t  len1BitsP1 = 16383;
     size_t  len2BitsP1 = 16383;
     if (config.minLength < 3)
-      len2BitsP1 = lengthEncodeTable.getSymbolSize(2U - minRepeatLen) + 1;
+      len2BitsP1 = lengthEncodeTable.getSymbolSizeFast(2U - minRepeatLen) + 1;
     if (config.minLength < 2)
-      len1BitsP1 = lengthEncodeTable.getSymbolSize(1U - minRepeatLen) + 1;
+      len1BitsP1 = lengthEncodeTable.getSymbolSizeFast(1U - minRepeatLen) + 1;
     size_t  maxOffsNonMonotonic =
         Compressor_M4::findNonMonotonicEncoding(
             offs1EncodeTable, offs2EncodeTable, offs3EncodeTable);
@@ -270,28 +270,30 @@ namespace Ep128Compress {
         for ( ; len > 0; len = (*(++matchPtr) & 0x03FFU)) {
           len = (len < maxLen ? len : maxLen);
           unsigned int  d = (*matchPtr >> 10) + d_offs;
-          if (len >= 3) {
-            // flag bit + offset bits
-            size_t  nBitsBase = offs3EncodeTable.getSymbolSize(
-                                    d - (unsigned int) minRepeatDist) + 1;
-            do {
-              size_t  nBits = lengthEncodeTable.getSymbolSize(
-                                  (unsigned int) (len - minRepeatLen))
-                              + nBitsBase + bitCountTable[i + len];
-              if (nBits < bestSize ||
-                  (nBits == bestSize &&
-                   (offsSumTable[i + len] + d) <= bestOffsSum)) {
+          if (len >= 2) {
+            if (len >= 3 &&
+                EP128EMU_EXPECT(d <= offs3EncodeTable.getSymbolsEncoded())) {
+              // flag bit + offset bits
+              size_t  nBitsBase = offs3EncodeTable.getSymbolSizeFast(
+                                      d - (unsigned int) minRepeatDist) + 1;
+              do {
+                size_t  nBits = lengthEncodeTable.getSymbolSize(
+                                    (unsigned int) (len - minRepeatLen))
+                                + nBitsBase + bitCountTable[i + len];
+                if (EP128EMU_EXPECT(nBits > bestSize) ||
+                    (nBits == bestSize &&
+                     (offsSumTable[i + len] + d) > bestOffsSum)) {
+                  continue;
+                }
                 bestSize = nBits;
                 bestOffs = d;
                 bestLen = len;
                 bestOffsSum = offsSumTable[i + len] + d;
-              }
-            } while (--len >= 3);
-          }
-          // check short match lengths:
-          if (len == 2) {                                       // 2 bytes
-            if (d <= offs2EncodeTable.getSymbolsEncoded()) {
-              size_t  nBits = len2BitsP1 + offs2EncodeTable.getSymbolSize(
+              } while (--len >= 3);
+            }
+            // check short match lengths:
+            if (d <= offs2EncodeTable.getSymbolsEncoded()) {    // 2 bytes
+              size_t  nBits = len2BitsP1 + offs2EncodeTable.getSymbolSizeFast(
                                                d - (unsigned int) minRepeatDist)
                               + bitCountTable[i + 2];
               if (nBits < bestSize ||
@@ -305,7 +307,7 @@ namespace Ep128Compress {
             }
           }
           if (d <= offs1EncodeTable.getSymbolsEncoded()) {      // 1 byte
-            size_t  nBits = len1BitsP1 + offs1EncodeTable.getSymbolSize(
+            size_t  nBits = len1BitsP1 + offs1EncodeTable.getSymbolSizeFast(
                                              d - (unsigned int) minRepeatDist)
                             + bitCountTable[i + 1];
             if (nBits < bestSize ||
