@@ -1,7 +1,7 @@
 
 ; if non-zero, there are no border effects, and code size is smaller by 5 bytes
 NO_BORDER_FX            equ     0
-; disable the use of self-modifying code (2 bytes smaller, but uses IY)
+; disable the use of self-modifying code (2 bytes smaller, but uses IYH)
 READ_ONLY_CODE          equ     0
 ; smaller code by 7 bytes, but ~3.5% slower
 SIZE_OPTIMIZED          equ     0
@@ -25,7 +25,7 @@ decodeTablesEnd         equ     offs3DecodeTable + 32
 ;   BC:               0 on return
 ;   A:                undefined if NO_BORDER_FX, 0 otherwise
 ;   IX:               undefined
-;   IY:               undefined if READ_ONLY_CODE, otherwise not changed
+;   IYH:              undefined if READ_ONLY_CODE, otherwise not changed
 
 decompressData:
         ld      a, 80h                  ; initialize shift register
