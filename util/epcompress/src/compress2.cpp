@@ -20,7 +20,6 @@
 #include "compress.hpp"
 #include "comprlib.hpp"
 #include "compress2.hpp"
-#include "compress4.hpp"
 
 #include <list>
 #include <map>
@@ -196,6 +195,27 @@ namespace Ep128Compress {
     }
   }
 
+  static size_t findNonMonotonicEncoding(const EncodeTable& encTable1,
+                                         const EncodeTable& encTable2,
+                                         const EncodeTable& encTable3)
+  {
+    size_t  d = 1;
+    for (int j = 0; j < 3; j++) {
+      const EncodeTable&  encTable =
+          (j == 0 ? encTable1 : (j == 1 ? encTable2 : encTable3));
+      size_t  n = 0;
+      size_t  maxBits = 0;
+      for (size_t i = 0; i < encTable.getSlotCnt(); i++) {
+        size_t  nBits = encTable.getSlotSize(i);
+        n = n + (size_t(1) << nBits);
+        if (nBits < maxBits && n > d)
+          d = n;
+        maxBits = (nBits > maxBits ? nBits : maxBits);
+      }
+    }
+    return d;
+  }
+
   void Compressor_M2::optimizeMatches(LZMatchParameters *matchTable,
                                       size_t *bitCountTable,
                                       uint64_t *offsSumTable,
@@ -206,8 +226,8 @@ namespace Ep128Compress {
     size_t  len1BitsP1 =
         lengthEncodeTable.getSymbolSizeFast(1U - minRepeatLen) + 1;
     size_t  maxOffsNonMonotonic =
-        Compressor_M4::findNonMonotonicEncoding(
-            offs1EncodeTable, offs2EncodeTable, offs3EncodeTable);
+        findNonMonotonicEncoding(offs1EncodeTable, offs2EncodeTable,
+                                 offs3EncodeTable);
     bitCountTable = bitCountTable + nBytes;
     offsSumTable = offsSumTable + nBytes;
     for (size_t i = nBytes; i-- > 0; ) {

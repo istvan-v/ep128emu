@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2018 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2019 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,19 +19,11 @@
 #include "ep128emu.hpp"
 #include "compress.hpp"
 #include "compress0.hpp"
-#include "compress1.hpp"
 #include "compress2.hpp"
 #include "compress3.hpp"
-#include "compress4.hpp"
-#include "compress5.hpp"
-#include "compress6.hpp"
 #include "decompress0.hpp"
-#include "decompress1.hpp"
 #include "decompress2.hpp"
 #include "decompress3.hpp"
-#include "decompress4.hpp"
-#include "decompress5.hpp"
-#include "decompress6.hpp"
 
 static void defaultProgressMessageCb(void *userData, const char *msg)
 {
@@ -215,18 +207,10 @@ namespace Ep128Compress {
     switch (compressionType) {
     case 0:
       return new Compressor_M0(outBuf);
-    case 1:
-      return new Compressor_M1(outBuf);
     case 2:
       return new Compressor_M2(outBuf);
     case 3:
       return new Compressor_M3(outBuf);
-    case 4:
-      return new Compressor_M4(outBuf);
-    case 5:
-      return new Compressor_ZLib(outBuf);
-    case 6:
-      return new Compressor_M6(outBuf);
     }
     throw Ep128Emu::Exception("internal error: invalid compression type");
   }
@@ -236,18 +220,10 @@ namespace Ep128Compress {
     switch (compressionType) {
     case 0:
       return new Decompressor_M0();
-    case 1:
-      return new Decompressor_M1();
     case 2:
       return new Decompressor_M2();
     case 3:
       return new Decompressor_M3();
-    case 4:
-      return new Decompressor_M4();
-    case 5:
-      return new Decompressor_ZLib();
-    case 6:
-      return new Decompressor_M6();
     }
     throw Ep128Emu::Exception("internal error: invalid compression type");
   }
@@ -290,7 +266,7 @@ namespace Ep128Compress {
                      const std::vector< unsigned char >& inBuf,
                      int compressionType)
   {
-    if (compressionType > 6)
+    if (compressionType > 3)
       throw Ep128Emu::Exception("internal error: invalid compression type");
     if (compressionType < 0) {
       // auto-detect compression type
@@ -300,16 +276,10 @@ namespace Ep128Compress {
       }
       catch (Ep128Emu::Exception) {
         try {
-          compressionType = decompressData(outBuf, inBuf, 5);
+          compressionType = decompressData(outBuf, inBuf, 0);
           return compressionType;
         }
         catch (Ep128Emu::Exception) {
-          try {
-            compressionType = decompressData(outBuf, inBuf, 0);
-            return compressionType;
-          }
-          catch (Ep128Emu::Exception) {
-          }
         }
       }
       compressionType = 3;

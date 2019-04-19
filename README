@@ -236,8 +236,7 @@ can be passed to scons:
   nolua=1
       Build without support for Lua scripting
   utils=0
-      Do not build the optional utilities (epimgconv, epcompress and
-      dtf)
+      Do not build the optional utilities (epimgconv and epcompress)
   glshaders=0
       Disable the use of OpenGL shaders
   debug=1
@@ -267,7 +266,7 @@ An 'install' target is also supported by SConstruct, this will install
 the emulator binaries under ~/bin, and the configuration and data files
 under ~/.local/share/ep128emu. Running 'scons -c install' will remove
 most of the installed files.
-Alternatively, you can copy the executables (dtf, ep128emu, epcompress,
+Alternatively, you can copy the executables (ep128emu, epcompress,
 epimgconv, epmakecfg and tapeedit) to any directory that is in the PATH;
 on MacOS X, an .app package is created in 'ep128emu.app'.
 

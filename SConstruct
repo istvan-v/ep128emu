@@ -562,20 +562,12 @@ if buildUtilities:
                       'epcompress', Split('''
                           util/epcompress/src/archive.cpp
                           util/epcompress/src/compress0.cpp
-                          util/epcompress/src/compress1.cpp
                           util/epcompress/src/compress2.cpp
                           util/epcompress/src/compress3.cpp
-                          util/epcompress/src/compress4.cpp
-                          util/epcompress/src/compress5.cpp
-                          util/epcompress/src/compress6.cpp
                           util/epcompress/src/compress.cpp
                           util/epcompress/src/decompress0.cpp
-                          util/epcompress/src/decompress1.cpp
                           util/epcompress/src/decompress2.cpp
                           util/epcompress/src/decompress3.cpp
-                          util/epcompress/src/decompress4.cpp
-                          util/epcompress/src/decompress5.cpp
-                          util/epcompress/src/decompress6.cpp
                           util/epcompress/src/sfxcode.cpp
                           util/epcompress/src/sfxdecomp.cpp
                       '''))
@@ -587,8 +579,6 @@ if buildUtilities:
     epcompress = epcompressEnvironment.Program(
                      'epcompress', ['util/epcompress/src/main.cpp'])
     Depends(epcompress, compressLib)
-    dtf = epcompressEnvironment.Program('dtf', ['util/dtf/dtf.cpp'])
-    Depends(dtf, compressLib)
     iview2png = epcompressEnvironment.Program(
                     'iview2png', ['util/epimgconv/src/iview2png.cpp'])
     Depends(iview2png, compressLib)
@@ -674,7 +664,7 @@ if not mingwCrossCompile:
                                    ['ln -s -f ep128emu "' + prgName + '"'])
     if buildUtilities:
         makecfgEnvironment.Install(instBinDir,
-                                   [dtf, epcompress, epimgconv, iview2png])
+                                   [epcompress, epimgconv, iview2png])
     makecfgEnvironment.Install(instPixmapDir,
                                ["resource/cpc464emu.png",
                                 "resource/ep128emu.png",
