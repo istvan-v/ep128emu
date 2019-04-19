@@ -1,6 +1,6 @@
 
 // compressor utility for Enterprise 128 programs
-// Copyright (C) 2007-2010 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2007-2019 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -21,11 +21,7 @@
 
 #include <vector>
 
-static const unsigned int sfxDecompressorAddr_M0 = 0xFA9CU;
-static const unsigned int sfxDecompressorAddr_M2 = 0xFE40U;
-
 static const size_t       extLoaderSize = 42;
-static const unsigned int extDecompressorAddr_M2 = 0xFE6CU;
 static const unsigned int extDecompressorAddr_M3 = 0xFF84U;
 
 #include "sfxcode.cpp"
@@ -62,81 +58,9 @@ namespace Ep128Compress {
     size_t  sfxCodeSize = 0;
     size_t  sfxLoaderSize = extLoaderSize;
     if (isExtension) {
-      if (compressionType == 2) {
-        sfxCodePtr = &(epEXTSFXModule_M2[0]);
-        sfxCodeSize = sizeof(epEXTSFXModule_M2) / sizeof(unsigned char);
-      }
-      else if (compressionType == 3) {
+      if (compressionType == 3) {
         sfxCodePtr = &(epEXTSFXModule_M3[0]);
         sfxCodeSize = sizeof(epEXTSFXModule_M3) / sizeof(unsigned char);
-      }
-    }
-    else if (compressionType == 0) {
-      if (!noCRCCheck) {
-        if (!noCleanup) {
-          if (!noBorderFX) {
-            sfxCodePtr = &(epSFXModule_M0_0[0]);
-            sfxCodeSize = sizeof(epSFXModule_M0_0) / sizeof(unsigned char);
-          }
-          else {
-            sfxCodePtr = &(epSFXModule_M0_1[0]);
-            sfxCodeSize = sizeof(epSFXModule_M0_1) / sizeof(unsigned char);
-          }
-        }
-        else {
-          if (!noBorderFX) {
-            sfxCodePtr = &(epSFXModule_M0_2[0]);
-            sfxCodeSize = sizeof(epSFXModule_M0_2) / sizeof(unsigned char);
-          }
-          else {
-            sfxCodePtr = &(epSFXModule_M0_3[0]);
-            sfxCodeSize = sizeof(epSFXModule_M0_3) / sizeof(unsigned char);
-          }
-        }
-      }
-      else {
-        if (!noCleanup) {
-          if (!noBorderFX) {
-            sfxCodePtr = &(epSFXModule_M0_4[0]);
-            sfxCodeSize = sizeof(epSFXModule_M0_4) / sizeof(unsigned char);
-          }
-          else {
-            sfxCodePtr = &(epSFXModule_M0_5[0]);
-            sfxCodeSize = sizeof(epSFXModule_M0_5) / sizeof(unsigned char);
-          }
-        }
-        else {
-          if (!noBorderFX) {
-            sfxCodePtr = &(epSFXModule_M0_6[0]);
-            sfxCodeSize = sizeof(epSFXModule_M0_6) / sizeof(unsigned char);
-          }
-          else {
-            sfxCodePtr = &(epSFXModule_M0_7[0]);
-            sfxCodeSize = sizeof(epSFXModule_M0_7) / sizeof(unsigned char);
-          }
-        }
-      }
-    }
-    else if (compressionType == 2) {
-      if (!noCleanup) {
-        if (!noBorderFX) {
-          sfxCodePtr = &(epSFXModule_M2_0[0]);
-          sfxCodeSize = sizeof(epSFXModule_M2_0) / sizeof(unsigned char);
-        }
-        else {
-          sfxCodePtr = &(epSFXModule_M2_1[0]);
-          sfxCodeSize = sizeof(epSFXModule_M2_1) / sizeof(unsigned char);
-        }
-      }
-      else {
-        if (!noBorderFX) {
-          sfxCodePtr = &(epSFXModule_M2_2[0]);
-          sfxCodeSize = sizeof(epSFXModule_M2_2) / sizeof(unsigned char);
-        }
-        else {
-          sfxCodePtr = &(epSFXModule_M2_3[0]);
-          sfxCodeSize = sizeof(epSFXModule_M2_3) / sizeof(unsigned char);
-        }
       }
     }
     else if (compressionType == 3) {
@@ -166,11 +90,8 @@ namespace Ep128Compress {
     if (isExtension) {
       if ((sfxCodeSize + inBuf.size()) > 0x3FF6)
         throw Ep128Emu::Exception("SFX program compressed size is too large");
-      if (uncompressedDataEndAddr
-          >= (compressionType == 2 ?
-              extDecompressorAddr_M2 : (extDecompressorAddr_M3 + 1))) {
+      if (uncompressedDataEndAddr >= (extDecompressorAddr_M3 + 1))
         throw Ep128Emu::Exception("SFX program uncompressed size is too large");
-      }
     }
     else {
       sfxLoaderSize = size_t(sfxCodePtr[0]) | (size_t(sfxCodePtr[1]) << 8);
@@ -178,13 +99,8 @@ namespace Ep128Compress {
       sfxCodeSize = sfxCodeSize - 2;
       if ((sfxCodeSize + inBuf.size()) > 0xBF00)
         throw Ep128Emu::Exception("SFX program compressed size is too large");
-      if (uncompressedDataEndAddr
-          >= (compressionType == 0 ?
-              sfxDecompressorAddr_M0
-              : (compressionType == 2 ?
-                 sfxDecompressorAddr_M2 : 0x00010001U))) {
+      if (uncompressedDataEndAddr >= 0x00010001U)
         throw Ep128Emu::Exception("SFX program uncompressed size is too large");
-      }
     }
     // write EXOS header
     outBuf.clear();

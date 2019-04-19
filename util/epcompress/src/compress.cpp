@@ -18,11 +18,8 @@
 
 #include "ep128emu.hpp"
 #include "compress.hpp"
-#include "compress0.hpp"
-#include "compress2.hpp"
 #include "compress3.hpp"
-#include "decompress0.hpp"
-#include "decompress2.hpp"
+#include "decompm2.hpp"
 #include "decompress3.hpp"
 
 static void defaultProgressMessageCb(void *userData, const char *msg)
@@ -205,10 +202,6 @@ namespace Ep128Compress {
                                 std::vector< unsigned char >& outBuf)
   {
     switch (compressionType) {
-    case 0:
-      return new Compressor_M0(outBuf);
-    case 2:
-      return new Compressor_M2(outBuf);
     case 3:
       return new Compressor_M3(outBuf);
     }
@@ -218,10 +211,6 @@ namespace Ep128Compress {
   Decompressor * createDecompressor(int compressionType)
   {
     switch (compressionType) {
-    case 0:
-      return new Decompressor_M0();
-    case 2:
-      return new Decompressor_M2();
     case 3:
       return new Decompressor_M3();
     }
@@ -232,22 +221,10 @@ namespace Ep128Compress {
                      const std::vector< unsigned char >& inBuf,
                      int compressionType)
   {
-    if (compressionType > 3)
+    if (compressionType >= 0 && compressionType != 3)
       throw Ep128Emu::Exception("internal error: invalid compression type");
     if (compressionType < 0) {
       // auto-detect compression type
-      try {
-        compressionType = decompressData(outBuf, inBuf, 2);
-        return compressionType;
-      }
-      catch (Ep128Emu::Exception) {
-        try {
-          compressionType = decompressData(outBuf, inBuf, 0);
-          return compressionType;
-        }
-        catch (Ep128Emu::Exception) {
-        }
-      }
       compressionType = 3;
     }
     Decompressor  *decomp = createDecompressor(compressionType);
@@ -266,23 +243,21 @@ namespace Ep128Compress {
                      const std::vector< unsigned char >& inBuf,
                      int compressionType)
   {
-    if (compressionType > 3)
+    if (compressionType >= 0 && (compressionType < 2 || compressionType > 3))
       throw Ep128Emu::Exception("internal error: invalid compression type");
     if (compressionType < 0) {
       // auto-detect compression type
       try {
-        compressionType = decompressData(outBuf, inBuf, 2);
-        return compressionType;
+        Ep128Emu::decompressData(outBuf, &(inBuf.front()), inBuf.size());
+        return 2;
       }
       catch (Ep128Emu::Exception) {
-        try {
-          compressionType = decompressData(outBuf, inBuf, 0);
-          return compressionType;
-        }
-        catch (Ep128Emu::Exception) {
-        }
       }
       compressionType = 3;
+    }
+    if (compressionType == 2) {
+      Ep128Emu::decompressData(outBuf, &(inBuf.front()), inBuf.size());
+      return 2;
     }
     Decompressor  *decomp = createDecompressor(compressionType);
     try {

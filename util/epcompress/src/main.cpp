@@ -29,22 +29,16 @@ static bool   extractMode = false;
 static bool   testMode = false;
 // assume archive format (implies forceRawMode)
 static bool   archiveFormat = false;
-// compression type (0, 2, or 3; default: 2, or auto-detect when decompressing)
+// compression type (2 or 3; default: 3, or auto-detect when decompressing)
 static int    compressionType = -1;
 // compression level (1: fast, low compression ... 9: slow, high compression)
-static int    compressionLevel = 5;
+static int    compressionLevel = 10;
 // disable decompressor border effects
 static bool   noBorderFX = false;
 // do not reset memory paging and stack pointer after decompression
 static bool   noCleanup = true;
 // ignore EXOS file headers
 static bool   forceRawMode = false;
-// minimum LZ77 match length (1 to 3)
-static size_t minLength = 1;
-// maximum LZ77 match offset (1 to 524288)
-static size_t maxOffset = 0;
-// force block size if non-zero
-static size_t blockSize = 0;
 // volume size for compressed files (0: no volumes)
 static size_t volumeSize = 0;
 
@@ -254,7 +248,7 @@ static size_t compressFile(std::vector< unsigned char >& outBuf,
       return 0;
     if (length > (inBuf.size() - skipBytes))
       length = inBuf.size() - skipBytes;
-    if (compressionLevel < 1) {         // fast mode
+    if (compressionType == 2) {         // fast mode
       Ep128Emu::compressData(tmpBuf2, &(inBuf.front()) + skipBytes, length);
     }
     else {
@@ -265,9 +259,9 @@ static size_t compressFile(std::vector< unsigned char >& outBuf,
       Ep128Compress::Compressor::CompressionParameters  config;
       compress->getCompressionParameters(config);
       config.setCompressionLevel(compressionLevel);
-      config.minLength = minLength;
-      config.maxOffset = maxOffset;
-      config.blockSize = blockSize;
+      config.minLength = 2;
+      config.maxOffset = 65535;
+      config.blockSize = 65536;
       compress->setCompressionParameters(config);
       compress->compressData(tmpBuf, startAddr, true, true);
       delete compress;
@@ -360,23 +354,14 @@ int main(int argc, char **argv)
         if (++i >= argc)
           throw Ep128Emu::Exception("missing argument for -m");
         compressionType = int(std::atoi(argv[i]));
-        if (!(compressionType >= -1 && compressionType <= 3 &&
-              compressionType != 1)) {
+        if (!(compressionType == -1 ||
+              (compressionType >= 2 && compressionType <= 3))) {
           throw Ep128Emu::Exception("invalid compression type");
         }
       }
       else if (tmp.length() == 3 && tmp[0] == '-' && tmp[1] == 'm' &&
-               tmp[2] >= '0' && tmp[2] <= '3' && tmp[2] != '1') {
+               tmp[2] >= '2' && tmp[2] <= '3') {
         compressionType = int(tmp[2] - '0');
-      }
-      else if (tmp.length() == 2 && (tmp[1] >= '1' && tmp[1] <= '9')) {
-        compressionLevel = int(tmp[1] - '0');
-      }
-      else if (tmp == "-X") {
-        compressionLevel = 10;
-      }
-      else if (tmp == "-fast") {
-        compressionLevel = 0;
       }
       else if (tmp == "-borderfx") {
         noBorderFX = false;
@@ -395,35 +380,6 @@ int main(int argc, char **argv)
       }
       else if (tmp == "-noraw") {
         forceRawMode = false;
-      }
-      else if (tmp == "-minlen") {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for -minlen");
-        minLength = size_t(std::atoi(argv[i]));
-        if (minLength < 1)
-          minLength = 1;
-        if (minLength > 3)
-          minLength = 3;
-      }
-      else if (tmp == "-maxoffs") {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for -maxoffs");
-        maxOffset = size_t(std::atoi(argv[i]));
-        if (maxOffset < 1)
-          maxOffset = 1;
-        if (maxOffset > 524288)
-          maxOffset = 524288;
-      }
-      else if (tmp == "-blocksize") {
-        if (++i >= argc)
-          throw Ep128Emu::Exception("missing argument for -blocksize");
-        blockSize = size_t(std::atoi(argv[i]));
-        if (blockSize < 1)
-          blockSize = 0;
-        else if (blockSize < 16)
-          blockSize = 16;
-        if (blockSize > 65536)
-          blockSize = 65536;
       }
       else if (tmp == "-V") {
         if (extractMode || testMode) {
@@ -515,34 +471,7 @@ int main(int argc, char **argv)
     }
     // compress file
     if (compressionType < 0)
-      compressionType = 2;              // set default compression type
-    if (compressionLevel < 1) {
-      if (!(compressionType == 2 && forceRawMode)) {
-        std::fprintf(stderr, "WARNING: -fast does not support "
-                             "the selected output format\n");
-        compressionLevel = 1;
-      }
-      else {
-        minLength = 1;
-        maxOffset = 131072;
-        blockSize = 65536;
-      }
-    }
-    if (!maxOffset) {
-      maxOffset = (compressionType == 3 ? 65535 : 65536);
-    }
-    if (maxOffset > 65536) {
-      if (!(forceRawMode && compressionType == 2)) {
-        throw Ep128Emu::Exception("-maxoffs > 65536 requires -m2 and "
-                                  "-a or -raw");
-      }
-      std::fprintf(stderr, "WARNING: -maxoffs > 65536 currently "
-                           "cannot be decompressed on the Enterprise\n");
-    }
-    if (compressionType != 0 && compressionType != 2 && compressionType != 3 &&
-        !forceRawMode) {
-      throw Ep128Emu::Exception("output format requires -a or -raw");
-    }
+      compressionType = 3;              // set default compression type
     std::vector< unsigned char >  outBuf;
     std::vector< unsigned char >  inBuf;
     // read input file
@@ -577,7 +506,7 @@ int main(int argc, char **argv)
         }
         // copy image header, and set compression type
         outBuf.insert(outBuf.end(), inBuf.begin(), inBuf.begin() + 16);
-        outBuf[10] = (unsigned char) (compressionType == 0 ? 0x02 : 0x01);
+        outBuf[10] = (unsigned char) (compressionType == 2 ? 0x01 : 0x03);
         // compress video mode, bias, and palette data
         outBuf.push_back((unsigned char) (imageDataSize1 & 0xFF));
         outBuf.push_back((unsigned char) (imageDataSize1 >> 8));
@@ -603,6 +532,8 @@ int main(int argc, char **argv)
     unsigned int  startAddr = (exosFileType == 5 ? 0x0100U : 0xFFFFFFFFU);
     // compress data
     if (!isImageFile) {
+      if (compressionType != 3 && exosFileType != 0 && !forceRawMode)
+        throw Ep128Emu::Exception("output format requires -a or -raw");
       compressFile(outBuf, inBuf, startAddr);
       if (exosFileType != 0) {
         std::vector< unsigned char >  sfxBuf;
@@ -635,20 +566,11 @@ int main(int argc, char **argv)
       std::printf("        interpret all remaining arguments as file names\n");
       std::printf("    -h | -help | --help\n");
       std::printf("        print usage information\n");
-      std::printf("    -m0 | -m2 | -m3\n");
-      std::printf("        select compression type (default: 2, or "
+      std::printf("    -m2 | -m3\n");
+      std::printf("        select compression type (default: 3, or "
                   "automatically detected\n"
                   "        when decompressing)\n");
-      std::printf("    -1 ... -9\n");
-      std::printf("        set compression level vs. speed (default: 5)\n");
-      std::printf("    -X\n");
-      std::printf("        set maximum compression level (very slow and "
-                  "may or may not make\n");
       std::printf("        the output file smaller)\n");
-      std::printf("    -fast\n");
-      std::printf("        use fast multi-threaded compressor (-m2 only "
-                  "in raw mode) with\n");
-      std::printf("        fixed parameters\n");
       std::printf("    -raw | -noraw\n");
       std::printf("        ignore EXOS file headers if -raw (default: no)\n");
       std::printf("    -a | -n\n");
@@ -661,16 +583,6 @@ int main(int argc, char **argv)
                   "        the archive when decompressing; the default is -n, "
                   "and using -a\n"
                   "        implies -raw\n");
-      std::printf("    -minlen <N>\n");
-      std::printf("        limit LZ77 length to >= N bytes (1 to 3, "
-                  "default: 1)\n");
-      std::printf("    -maxoffs <N>\n");
-      std::printf("        limit LZ77 offset to <= N bytes (1 to 524288, "
-                  "default: 65536)\n");
-      std::printf("    -blocksize <N>\n");
-      std::printf("        force using a block size of N bytes (16 to 65536), "
-                  "or optimize\n"
-                  "        block sizes if N=0 (default: 0)\n");
       std::printf("    -V\n");
       std::printf("        enable reading split files (extract and test mode "
                   "only)\n");

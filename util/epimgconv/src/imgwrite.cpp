@@ -1,6 +1,6 @@
 
 // epimgconv: Enterprise 128 image converter utility
-// Copyright (C) 2008-2017 Istvan Varga <istvanv@users.sourceforge.net>
+// Copyright (C) 2008-2019 Istvan Varga <istvanv@users.sourceforge.net>
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "epimgconv.hpp"
 #include "imgwrite.hpp"
 #include "compress.hpp"
+#include "decompm2.hpp"
 #include "system.hpp"
 
 #include <vector>
@@ -113,7 +114,7 @@ namespace Ep128ImgConv {
     unsigned int  uncompressedProgramSize =
         16U + imageDisplayCodeSize + 4U + imageDataSize;
     noCompress = noCompress || (uncompressedProgramSize <= 0xBF10U);
-    if (uncompressedProgramSize > (noCompress ? 0xFD30U : 0xF96CU)) {
+    if (uncompressedProgramSize > 0xFD30U) {
       throw Ep128Emu::Exception("image data size is too large for "
                                 "output format");
     }
@@ -262,7 +263,7 @@ namespace Ep128ImgConv {
       buf.erase(buf.begin(), buf.begin() + 16);
       std::vector< unsigned char >  tmpBuf;
       Ep128Compress::Compressor *compressor =
-          Ep128Compress::createCompressor(0, tmpBuf);
+          Ep128Compress::createCompressor(3, tmpBuf);
       try {
         if (progressMessageCallback && progressPercentageCallback) {
           compressor->setProgressMessageCallback(progressMessageCallback,
@@ -270,7 +271,7 @@ namespace Ep128ImgConv {
           compressor->setProgressPercentageCallback(progressPercentageCallback,
                                                     progressCallbackUserData);
         }
-        compressor->setCompressionLevel(8);
+        compressor->setCompressionLevel(10);
         if (!(compressor->compressData(buf, 0x0100U, true, true))) {
           delete compressor;
           return false;
@@ -282,7 +283,7 @@ namespace Ep128ImgConv {
       }
       delete compressor;
       buf.clear();
-      Ep128Compress::addSFXModule(buf, tmpBuf, 0, false, true, false);
+      Ep128Compress::addSFXModule(buf, tmpBuf, 3, false, true, false);
     }
     for (size_t i = 0; i < buf.size(); i++) {
       if (std::fputc(buf[i], f) == EOF)
@@ -305,37 +306,27 @@ namespace Ep128ImgConv {
     Ep128Compress::Compressor *compress_ = (Ep128Compress::Compressor *) 0;
     bool    retval = false;
     try {
-      Ep128Compress::Compressor::CompressionParameters  cfg;
       compressionType = compressionTypes[(compressionType - 1) & 3];
-      compress_ = Ep128Compress::createCompressor(compressionType, outBuf);
-      if (progressMessageCallback && progressPercentageCallback) {
-        compress_->setProgressMessageCallback(progressMessageCallback,
-                                              progressCallbackUserData);
-        compress_->setProgressPercentageCallback(progressPercentageCallback,
-                                                 progressCallbackUserData);
-      }
-      compress_->getCompressionParameters(cfg);
-      if (compressionType == 5 &&
-          compressionLevel >= -1 && compressionLevel < 9) {
-        // force use of standard ZLib format below maximum compression level
-        cfg.minLength = 3;
-        cfg.maxOffset = 32768;
-      }
-      if (compressionLevel >= 1 && compressionLevel <= 9) {
-        cfg.setCompressionLevel(compressionLevel);
+      if (compressionType != 2) {
+        Ep128Compress::Compressor::CompressionParameters  cfg;
+        compress_ = Ep128Compress::createCompressor(compressionType, outBuf);
+        if (progressMessageCallback && progressPercentageCallback) {
+          compress_->setProgressMessageCallback(progressMessageCallback,
+                                                progressCallbackUserData);
+          compress_->setProgressPercentageCallback(progressPercentageCallback,
+                                                   progressCallbackUserData);
+        }
+        compress_->getCompressionParameters(cfg);
+        cfg.setCompressionLevel(10);
+        compress_->setCompressionParameters(cfg);
+        retval = compress_->compressData(inBuf, 0xFFFFFFFFU, true, true);
+        delete compress_;
+        compress_ = (Ep128Compress::Compressor *) 0;
       }
       else {
-        // level -1 = default "fast" setting
-        // level -2 = default "maximum" setting
-         if (compressionLevel >= -1)
-          cfg.setCompressionLevel(compressionType == 2 ? 5 : 8);
-        else
-          cfg.setCompressionLevel(9);
+        Ep128Emu::compressData(outBuf, &(inBuf.front()), inBuf.size());
+        retval = true;
       }
-      compress_->setCompressionParameters(cfg);
-      retval = compress_->compressData(inBuf, 0xFFFFFFFFU, true, true);
-      delete compress_;
-      compress_ = (Ep128Compress::Compressor *) 0;
     }
     catch (...) {
       if (compress_) {

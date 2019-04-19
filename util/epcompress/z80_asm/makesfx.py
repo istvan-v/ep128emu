@@ -64,120 +64,6 @@ def compileFile(outputString, fileName, variableList):
     return outputString
 
 sfxCode = "\n"
-sfxCode += "// compressionType = 0,\n"
-sfxCode += "// noBorderFX = false, noCleanup = false, noCRCCheck = false\n"
-sfxCode += "\n"
-sfxCode += "static const unsigned char epSFXModule_M0_0[] = {\n"
-sfxCode = compileFile(sfxCode, "decompress_sfx_m0.s",
-                      ["NO_BORDER_FX", "0",
-                       "NO_CLEANUP", "0",
-                       "NO_CRC_CHECK", "0"])
-sfxCode += "};\n"
-sfxCode += "\n"
-sfxCode += "// compressionType = 0,\n"
-sfxCode += "// noBorderFX = true, noCleanup = false, noCRCCheck = false\n"
-sfxCode += "\n"
-sfxCode += "static const unsigned char epSFXModule_M0_1[] = {\n"
-sfxCode = compileFile(sfxCode, "decompress_sfx_m0.s",
-                      ["NO_BORDER_FX", "1",
-                       "NO_CLEANUP", "0",
-                       "NO_CRC_CHECK", "0"])
-sfxCode += "};\n"
-sfxCode += "\n"
-sfxCode += "// compressionType = 0,\n"
-sfxCode += "// noBorderFX = false, noCleanup = true, noCRCCheck = false\n"
-sfxCode += "\n"
-sfxCode += "static const unsigned char epSFXModule_M0_2[] = {\n"
-sfxCode = compileFile(sfxCode, "decompress_sfx_m0.s",
-                      ["NO_BORDER_FX", "0",
-                       "NO_CLEANUP", "1",
-                       "NO_CRC_CHECK", "0"])
-sfxCode += "};\n"
-sfxCode += "\n"
-sfxCode += "// compressionType = 0,\n"
-sfxCode += "// noBorderFX = true, noCleanup = true, noCRCCheck = false\n"
-sfxCode += "\n"
-sfxCode += "static const unsigned char epSFXModule_M0_3[] = {\n"
-sfxCode = compileFile(sfxCode, "decompress_sfx_m0.s",
-                      ["NO_BORDER_FX", "1",
-                       "NO_CLEANUP", "1",
-                       "NO_CRC_CHECK", "0"])
-sfxCode += "};\n"
-sfxCode += "\n"
-sfxCode += "// compressionType = 0,\n"
-sfxCode += "// noBorderFX = false, noCleanup = false, noCRCCheck = true\n"
-sfxCode += "\n"
-sfxCode += "static const unsigned char epSFXModule_M0_4[] = {\n"
-sfxCode = compileFile(sfxCode, "decompress_sfx_m0.s",
-                      ["NO_BORDER_FX", "0",
-                       "NO_CLEANUP", "0",
-                       "NO_CRC_CHECK", "1"])
-sfxCode += "};\n"
-sfxCode += "\n"
-sfxCode += "// compressionType = 0,\n"
-sfxCode += "// noBorderFX = true, noCleanup = false, noCRCCheck = true\n"
-sfxCode += "\n"
-sfxCode += "static const unsigned char epSFXModule_M0_5[] = {\n"
-sfxCode = compileFile(sfxCode, "decompress_sfx_m0.s",
-                      ["NO_BORDER_FX", "1",
-                       "NO_CLEANUP", "0",
-                       "NO_CRC_CHECK", "1"])
-sfxCode += "};\n"
-sfxCode += "\n"
-sfxCode += "// compressionType = 0,\n"
-sfxCode += "// noBorderFX = false, noCleanup = true, noCRCCheck = true\n"
-sfxCode += "\n"
-sfxCode += "static const unsigned char epSFXModule_M0_6[] = {\n"
-sfxCode = compileFile(sfxCode, "decompress_sfx_m0.s",
-                      ["NO_BORDER_FX", "0",
-                       "NO_CLEANUP", "1",
-                       "NO_CRC_CHECK", "1"])
-sfxCode += "};\n"
-sfxCode += "\n"
-sfxCode += "// compressionType = 0,\n"
-sfxCode += "// noBorderFX = true, noCleanup = true, noCRCCheck = true\n"
-sfxCode += "\n"
-sfxCode += "static const unsigned char epSFXModule_M0_7[] = {\n"
-sfxCode = compileFile(sfxCode, "decompress_sfx_m0.s",
-                      ["NO_BORDER_FX", "1",
-                       "NO_CLEANUP", "1",
-                       "NO_CRC_CHECK", "1"])
-sfxCode += "};\n"
-sfxCode += "\n"
-
-sfxCode += "// compressionType = 2, noBorderFX = false, noCleanup = false\n"
-sfxCode += "\n"
-sfxCode += "static const unsigned char epSFXModule_M2_0[] = {\n"
-sfxCode = compileFile(sfxCode, "decompress_sfx_m2.s",
-                      ["NO_BORDER_FX", "0",
-                       "NO_CLEANUP", "0"])
-sfxCode += "};\n"
-sfxCode += "\n"
-sfxCode += "// compressionType = 2, noBorderFX = true, noCleanup = false\n"
-sfxCode += "\n"
-sfxCode += "static const unsigned char epSFXModule_M2_1[] = {\n"
-sfxCode = compileFile(sfxCode, "decompress_sfx_m2.s",
-                      ["NO_BORDER_FX", "1",
-                       "NO_CLEANUP", "0"])
-sfxCode += "};\n"
-sfxCode += "\n"
-sfxCode += "// compressionType = 2, noBorderFX = false, noCleanup = true\n"
-sfxCode += "\n"
-sfxCode += "static const unsigned char epSFXModule_M2_2[] = {\n"
-sfxCode = compileFile(sfxCode, "decompress_sfx_m2.s",
-                      ["NO_BORDER_FX", "0",
-                       "NO_CLEANUP", "1"])
-sfxCode += "};\n"
-sfxCode += "\n"
-sfxCode += "// compressionType = 2, noBorderFX = true, noCleanup = true\n"
-sfxCode += "\n"
-sfxCode += "static const unsigned char epSFXModule_M2_3[] = {\n"
-sfxCode = compileFile(sfxCode, "decompress_sfx_m2.s",
-                      ["NO_BORDER_FX", "1",
-                       "NO_CLEANUP", "1"])
-sfxCode += "};\n"
-sfxCode += "\n"
-
 sfxCode += "// compressionType = 3, noBorderFX = false, noCleanup = false\n"
 sfxCode += "\n"
 sfxCode += "static const unsigned char epSFXModule_M3_0[] = {\n"
@@ -208,13 +94,6 @@ sfxCode += "static const unsigned char epSFXModule_M3_3[] = {\n"
 sfxCode = compileFile(sfxCode, "decompress_sfx_m3.s",
                       ["NO_BORDER_FX", "1",
                        "NO_CLEANUP", "1"])
-sfxCode += "};\n"
-sfxCode += "\n"
-
-sfxCode += "// self-extracting decompressor code for .ext files (compressionType = 2)\n"
-sfxCode += "\n"
-sfxCode += "static const unsigned char epEXTSFXModule_M2[] = {\n"
-sfxCode = compileFile(sfxCode, "decompress_ext_m2.s", [])
 sfxCode += "};\n"
 sfxCode += "\n"
 
