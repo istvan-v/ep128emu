@@ -570,7 +570,6 @@ int main(int argc, char **argv)
       std::printf("        select compression type (default: 3, or "
                   "automatically detected\n"
                   "        when decompressing)\n");
-      std::printf("        the output file smaller)\n");
       std::printf("    -raw | -noraw\n");
       std::printf("        ignore EXOS file headers if -raw (default: no)\n");
       std::printf("    -a | -n\n");
