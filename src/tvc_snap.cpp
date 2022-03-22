@@ -147,8 +147,8 @@ namespace TVC64 {
         sdext.setEnabled(false);
         sdext.openROMFile((char *) 0);
       }
-#endif
       memory.setEnableSDExt();
+#endif
       version = version & 0xFFFEFFFFU;
       for (uint8_t i = 0; i <= 4; i++)
         videoRenderer.setColor(i, buf.readByte());

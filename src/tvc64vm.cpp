@@ -533,13 +533,13 @@ namespace TVC64 {
   TVC64VM::Memory_::~Memory_()
   {
   }
-
+#ifdef ENABLE_SDEXT
   void TVC64VM::Memory_::setEnableSDExt()
   {
     segment1IsExtension = vm.sdext.isSDExtSegment(0x07);
     setPaging(getPaging());
   }
-
+#endif // ENABLE_SDEXT
   void TVC64VM::Memory_::breakPointCallback(bool isWrite,
                                             uint16_t addr, uint8_t value)
   {
@@ -563,7 +563,11 @@ namespace TVC64 {
                      | uint32_t(addr & 0x0FFF));
     }
     vm.runDevices();
+#ifdef ENABLE_SDEXT
     return vm.sdext.readCartP3(addr);
+#else
+    return 0xFF;
+#endif // ENABLE_SDEXT
   }
 
   EP128EMU_REGPARM2 uint8_t TVC64VM::Memory_::extensionReadNoDebug(
@@ -577,7 +581,11 @@ namespace TVC64 {
       return readRaw(0x0000C000U | (uint32_t(vm.vtdosROMPage) << 12)
                      | uint32_t(addr & 0x0FFF));
     }
+#ifdef ENABLE_SDEXT
     return vm.sdext.readCartP3Debug(addr);
+#else
+    return 0xFF;
+#endif // ENABLE_SDEXT
   }
 
   EP128EMU_REGPARM3 void TVC64VM::Memory_::extensionWrite(uint16_t addr,
@@ -590,7 +598,9 @@ namespace TVC64 {
         extensionRAM[addr & 0x0FFF] = value;
     }
     vm.runDevices();
+#ifdef ENABLE_SDEXT
     vm.sdext.writeCartP3(addr, value);
+#endif // ENABLE_SDEXT
   }
 
   // --------------------------------------------------------------------------
@@ -1416,7 +1426,9 @@ namespace TVC64 {
     stopDemoPlayback();         // TODO: should be recorded as an event ?
     stopDemoRecording(false);
     z80.reset();
+#ifdef ENABLE_SDEXT
     memory.setEnableSDExt();
+#endif // ENABLE_SDEXT
     videoRenderer.setVideoMemory(memory.getVideoMemory());
     crtc.reset();
     videoRenderer.reset();
