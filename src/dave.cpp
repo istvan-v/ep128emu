@@ -626,20 +626,32 @@ namespace Ep128 {
             n &= uint8_t(0xF9 | (mouseInput >> 3));
             // EXT1 joystick fire buttons
             n &= uint8_t(0xF8 | (keyboardState[14] >> 4));
+            // EXT3/5 fire buttons actually overlap with EXT1 fire2 and 3
+            n &= uint8_t(0xFD | (keyboardState[12] >> 3));
+            n &= uint8_t(0xFB | (keyboardState[10] >> 2));
           }
           else {
             if (!(mouseInput & 0x80))   // EnterMice data input on column K
               n &= uint8_t(0xFD | ((mouseInput << 1) >> (keyboardRow - 1)));
             // EXT1 joystick (mapped to row 14)
             n &= uint8_t(0xFE | (keyboardState[14] >> (4 - keyboardRow)));
+            n &= uint8_t(0xFD | ((keyboardState[12] << 1) >> (4 - keyboardRow)));
+            n &= uint8_t(0xFB | ((keyboardState[10] << 2) >> (4 - keyboardRow)));
           }
         }
         else if (keyboardRow < 10) {
           // external joystick 2 (mapped to keyboard row 15)
-          if (keyboardRow == 5)         // fire buttons
+          if (keyboardRow == 5) {         // fire buttons
             n &= uint8_t(0xF8 | (keyboardState[15] >> 4));
-          else
+            // EXT4/6 fire buttons actually overlap with EXT2 fire2 and 3
+            n &= uint8_t(0xFD | (keyboardState[13] >> 3));
+            n &= uint8_t(0xFB | (keyboardState[11] >> 2));
+          }
+          else {
             n &= uint8_t(0xFE | (keyboardState[15] >> (9 - keyboardRow)));
+            n &= uint8_t(0xFD | ((keyboardState[13] << 1 ) >> (9 - keyboardRow)));
+            n &= uint8_t(0xFB | ((keyboardState[11] << 2 ) >> (9 - keyboardRow)));
+            }
         }
         return n;
       }
