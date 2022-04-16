@@ -224,9 +224,17 @@ namespace Ep128 {
      * +------+-------+-------+-------+-------+-------+-------+-------+-------+
      * | 0x48 |     I |       |     O |     @ |     P |     [ |       |       |
      * +------+-------+-------+-------+-------+-------+-------+-------+-------+
-     * | 0x70 | JOY1R | JOY1L | JOY1D | JOY1U | JOY1F | JOY1F2| JOY1F3|       |
+     * | 0x50 | JOY5R | JOY5L | JOY5D | JOY5U | JOY5F |       |       |       | Joysticks 5..6 are decoded from column L
      * +------+-------+-------+-------+-------+-------+-------+-------+-------+
-     * | 0x78 | JOY2R | JOY2L | JOY2D | JOY2U | JOY2F | JOY2F2| JOY2F3|       |
+     * | 0x58 | JOY6R | JOY6L | JOY6D | JOY6U | JOY6F |       |       |       |
+     * +------+-------+-------+-------+-------+-------+-------+-------+-------+
+     * | 0x60 | JOY3R | JOY3L | JOY3D | JOY3U | JOY3F |       |       |       | Joysticks 3..4 are decoded from column K
+     * +------+-------+-------+-------+-------+-------+-------+-------+-------+
+     * | 0x68 | JOY4R | JOY4L | JOY4D | JOY4U | JOY4F |       |       |       |
+     * +------+-------+-------+-------+-------+-------+-------+-------+-------+
+     * | 0x70 | JOY1R | JOY1L | JOY1D | JOY1U | JOY1F | JOY1F2| JOY1F3|       | Fire 2 and 3 are overlapping with Joy3F and Joy5F
+     * +------+-------+-------+-------+-------+-------+-------+-------+-------+
+     * | 0x78 | JOY2R | JOY2L | JOY2D | JOY2U | JOY2F | JOY2F2| JOY2F3|       | Fire 2 and 3 are overlapping with Joy4F and Joy6F
      * +------+-------+-------+-------+-------+-------+-------+-------+-------+
      */
     void setKeyboardState(int keyCode, int state);
