@@ -804,7 +804,10 @@ namespace Ep128 {
         do {
           daveCyclesRemaining -= (int64_t(1) << 32);
           soundOutputSignal = dave.runOneCycle();
-          sendAudioOutput(soundOutputSignal + externalDACOutput);
+          if (speakerDisabled)
+            sendAudioOutput(externalDACOutput);
+          else
+            sendAudioOutput(soundOutputSignal + externalDACOutput);
         } while (EP128EMU_UNLIKELY(daveCyclesRemaining >= 0L));
       }
       cpuCyclesRemaining += cpuCyclesPerNickCycle;
@@ -837,6 +840,9 @@ namespace Ep128 {
     if (vm.memoryTimingEnabled)
       vm.videoMemoryWait_IO();
     vm.nick.writePort(addr, value);
+    if ((addr & 3) == 0) {
+      vm.speakerDisabled = (value & 0x80) ? true : false;
+      }
   }
 
   uint8_t Ep128VM::nickPortDebugReadCallback(void *userData, uint16_t addr)
@@ -1563,6 +1569,7 @@ namespace Ep128 {
       remoteControlState(0x00),
       soundOutputSignal(0U),
       externalDACOutput(0U),
+      speakerDisabled(false),
       demoFile((Ep128Emu::File *) 0),
       demoBuffer(),
       isRecordingDemo(false),
@@ -1756,7 +1763,10 @@ namespace Ep128 {
         do {
           daveCyclesRemaining -= (int64_t(1) << 32);
           soundOutputSignal = dave.runOneCycle();
-          sendAudioOutput(soundOutputSignal + externalDACOutput);
+          if (speakerDisabled)
+            sendAudioOutput(externalDACOutput);
+          else
+            sendAudioOutput(soundOutputSignal + externalDACOutput);
         } while (EP128EMU_UNLIKELY(daveCyclesRemaining >= 0L));
       }
       cpuCyclesRemaining += cpuCyclesPerNickCycle;
