@@ -1079,7 +1079,7 @@ namespace Ep128 {
         lpb.palette[14] = fixBias | 6;
         lpb.palette[15] = fixBias | 7;
       }
-      // TODO: implement speaker control (bit 7)
+      // Speaker control (bit 7) is handled in ep128vm
       break;
     case 1:
       borderColor = value;

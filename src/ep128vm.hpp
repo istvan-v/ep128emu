@@ -155,6 +155,7 @@ namespace Ep128 {
     uint8_t   remoteControlState;
     uint32_t  soundOutputSignal;
     uint32_t  externalDACOutput;
+    bool      speakerDisabled;
     Ep128Emu::File  *demoFile;
     // contains demo data, which is the emulator version number as a 32-bit
     // integer ((MAJOR << 16) + (MINOR << 8) + PATCHLEVEL), followed by a
