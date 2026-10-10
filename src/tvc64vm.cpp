@@ -146,7 +146,7 @@ namespace TVC64 {
     while (n--) {
       toneGenCnt1 = toneGenCnt1 + 2U;
       while (EP128EMU_UNLIKELY(toneGenCnt1 >= 4096U)) {
-        toneGenCnt1 = toneGenFreq;
+        toneGenCnt1 = toneGenFreq + (toneGenCnt1 - 4096U);
         toneGenCnt2 = (toneGenCnt2 + 1) & 0x0F;
         if (EP128EMU_UNLIKELY(!(toneGenCnt2 & 7))) {
           if ((irqEnableMask & 0x10) != 0 && (n + b) > 0)
@@ -179,7 +179,7 @@ namespace TVC64 {
     if (b) {
       toneGenCnt1++;
       if (EP128EMU_UNLIKELY(toneGenCnt1 >= 4096U)) {
-        toneGenCnt1 = toneGenFreq;
+        toneGenCnt1 = toneGenFreq + (toneGenCnt1 - 4096U);
         toneGenCnt2 = (toneGenCnt2 + 1) & 0x0F;
       }
     }
@@ -1962,4 +1962,3 @@ namespace TVC64 {
   }
 
 }       // namespace TVC64
-
